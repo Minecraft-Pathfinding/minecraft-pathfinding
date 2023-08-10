@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "mineflayer": "^4.10.1"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "name": "@nxg-org/mineflayer-pathfinder",
+  "version": "0.0.1",
+  "description": "Pathfinder using A* for mineflayer",
+  "main": "dist/index.js",
+  "repository": "https://github.com/GenerelSchwerz/minecraft-pathfinding.git",
+  "author": "GenerelSchwerz <xXSG.KingXx@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  }
+}

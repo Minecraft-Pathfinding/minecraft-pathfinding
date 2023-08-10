@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+      "module": "commonjs",
+      "noImplicitAny": true,
+      "removeComments": true,
+      "preserveConstEnums": true,
+      "sourceMap": true,
+      "strict": true,
+      "outDir": "dist",
+      "sourceRoot": "src",
+      "skipLibCheck": true,
+      "target": "ES2015"
+    }
+}
