@@ -8,11 +8,10 @@ export interface Goal {
 
 
 export interface PathingAlg {
-
-    compute: (start: PathNode) => Path<PathingAlg> | null;
+    compute(start: PathNode): Path<PathingAlg> | null;
 }
 
-export interface Path<Alg extends PathingAlg, N extends PathNode = PathNode> {
+export interface Path<Alg extends PathingAlg, N = unknown> {
     status: string,
     cost: number,
     calcTime: number,
@@ -22,6 +21,9 @@ export interface Path<Alg extends PathingAlg, N extends PathNode = PathNode> {
     context: Alg
 }
 
+export interface MovementProvider {
+    getNeighbors<Data>(org: Data): Generator<Data, unknown, void>;
+}
 
 export {PathNode} from './node';
 

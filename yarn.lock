@@ -16,6 +16,18 @@
     jsonwebtoken "^9.0.0"
     uuid "^8.3.0"
 
+"@nxg-org/mineflayer-physics-util@^1.5.1":
+  version "1.5.1"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.1.tgz#9e3b002b2dfa5c07bf57a69e8da5c10dba51a8d5"
+  integrity sha512-bmrH66Hb3Y6NU27jX0AdtBCmYQgNZCxwktaBTVNEckcmfQqC/LM9y9c+rK6nufacgserIH0sj55LNNo6doGZSg==
+  dependencies:
+    "@nxg-org/mineflayer-util-plugin" "^1.7.11"
+
+"@nxg-org/mineflayer-util-plugin@^1.7.11":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-util-plugin/-/mineflayer-util-plugin-1.8.1.tgz#2f801192313efb8d19f1d8f55c251846ce69cca8"
+  integrity sha512-aK42xcPE4rY6zZGDDANlo7FaGdOpP137n0Ew4jCosR0G689BsU41mFOjH2myPSjRWmTIOqlfXqcktybpoe7aKQ==
+
 "@types/node@*":
   version "20.4.9"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.4.9.tgz#c7164e0f8d3f12dfae336af0b1f7fdec8c6b204f"
@@ -618,7 +630,7 @@ uuid@^8.2.0, uuid@^8.3.0:
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-8.3.2.tgz#80d5b5ced271bb9af6c445f21a1a04c606cefbe2"
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
 
-vec3@^0.1.3, vec3@^0.1.4, vec3@^0.1.7:
+vec3@^0.1.3, vec3@^0.1.4, vec3@^0.1.7, vec3@^0.1.8:
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/vec3/-/vec3-0.1.8.tgz#cfa5a5d5d1d96f6bfa3b7f78ba1284ebec13b628"
   integrity sha512-LfKrP625Bsg/Tj52YdYPsHmpsJuo+tc6fLxZxXjEo9k2xSspKlPvoYTHehykKhp1FvV9nm+XU3Ehej5/9tpDCg==

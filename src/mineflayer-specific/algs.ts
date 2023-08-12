@@ -1,12 +1,12 @@
-import { Goal, Path } from "../abstract"
+import { Goal, MovementProvider, Path } from "../abstract"
 import { BinaryHeapOpenSet as Heap } from "../abstract/heap";
 import { Move } from "./move";
 import { PathNode } from "./node"
 
-function reconstructPath (node: any) {
-    const path = []
+function reconstructPath (node: PathNode) {
+    const path: Move[] = []
     while (node.parent) {
-      path.push(node.data)
+      path.push(node.data!)
       node = node.parent
     }
     return path.reverse()
@@ -17,7 +17,7 @@ export class AStar {
     goal: Goal;
     timeout: number;
     tickTimeout: number;
-    movements: any;
+    movements: MovementProvider;
 
     closedDataSet: Set<string>;
     openHeap: Heap<PathNode>;
@@ -28,7 +28,7 @@ export class AStar {
     visitedChunks: Set<string>;
 
 
-    constructor (start: Move, movements: any, goal: Goal, timeout: number, tickTimeout = 40, searchRadius = -1) {
+    constructor (start: Move, movements: MovementProvider, goal: Goal, timeout: number, tickTimeout = 40, searchRadius = -1) {
       this.startTime = performance.now()
   
       this.movements = movements
@@ -49,7 +49,7 @@ export class AStar {
       this.visitedChunks = new Set()
     }
   
-    makeResult (status: string, node: PathNode): Path<AStar> {
+    makeResult (status: string, node: PathNode): Path<AStar, Move> {
       return {
         status,
         cost: node.g,
@@ -77,9 +77,9 @@ export class AStar {
         // not done yet
         this.openDataMap.delete(node.data!.hash)
         this.closedDataSet.add(node.data!.hash)
-        this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
+        this.visitedChunks.add(`${node.data!.gX >> 4},${node.data!.gZ >> 4}`)
   
-        const neighbors = this.movements.getNeighbors(node.data)
+        const neighbors = this.movements.getNeighbors(node.data!)
         for (const neighborData of neighbors) {
           if (this.closedDataSet.has(neighborData.hash)) {
             continue // skip closed neighbors
