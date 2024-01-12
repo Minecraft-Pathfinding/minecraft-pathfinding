@@ -62,6 +62,7 @@ export class ThePathfinder {
         await this.perform(res.result, goal);
       }
     }
+    this.bot.clearControlStates();
   }
 
   async perform(path: Path<AStar, Move>, goal: goals.Goal) {
@@ -110,7 +111,6 @@ export class ThePathfinder {
       );
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") {
-          this.bot.clearControlStates();
           break;
         }
       } else {

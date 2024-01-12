@@ -6,6 +6,7 @@ import { EntityState, PlayerState } from "@nxg-org/mineflayer-physics-util/dist/
 import { MovementProvider } from "../abstract";
 import { goals } from "./goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
+import * as controls from "./controls";
 
 type Direction = Vec3; //{ x: number; z: number };
 
@@ -175,51 +176,52 @@ export class ForwardMovement extends Movement {
 export class ForwardJumpMovement extends Movement {
 
   controlAim(nextPoint: Vec3) {
-    const zero = this.getControllerSmartMovement(nextPoint, true);
-    const one = this.getControllerStrafeAim(nextPoint);
+    const zero = controls.getControllerSmartMovement(nextPoint, true);
+    const one = controls.getControllerStrafeAim(nextPoint);
     return (state: EntityState, ticks: number) => {
+     
+
       const dx = nextPoint.x - state.pos.x;
       const dz = nextPoint.z - state.pos.z;
       state.yaw = Math.atan2(-dx, -dz);
+    
+
+      if (state.isCollidedHorizontally) {
+        state.control.set("jump", true);
+        state.control.set("forward", false);
+        // state.control.set("back", true);
+        state.control.set("sprint", false);
+      } else {
+        if (state.vel.norm() > 0.17) state.control.set("jump", true);
+        // state.control.set("back", false);
+        state.control.set("forward", true);
+        state.control.set("sprint", true);
+      }
+
       zero(state, ticks);
       one(state, ticks);
+
+
+      
+
     }
   }
 
-  // right should be positiive,
-  // left should be negative.
+  botAim(bot: Bot, nextMove: Vec3, goal: goals.Goal) {
+    const zero = controls.getBotSmartMovement(bot, nextMove, true)
+    const one = controls.getBotStrafeAim(bot, nextMove);
+    let aimed = false;
+    return () =>{
 
 
-
-
-  botAim(bot: Bot, nextPoint: Vec3) {
-    const zero = this.getBotSmartMovement(bot, nextPoint, true);
-    const one = this.getBotStrafeAim(bot, nextPoint);
-    return (state: EntityState, ticks: number) => {
-      zero();
-      one();
-    }
-  }
-
-
-
-  getBotStrafeAim(bot: Bot, nextPoint: Vec3) {
-    return () => {
-      const offset = bot.entity.position.plus(bot.entity.velocity);
-      const dx = nextPoint.x - offset.x;
-      const dz = nextPoint.z - offset.z;
-      const wantedYaw = wrapDegrees(Math.atan2(-dx, -dz));
-      const diff = wrapDegrees(wantedYaw - bot.entity.yaw);
-      if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-        bot.setControlState("left", true); // are these reversed? tf
-        bot.setControlState("right", false);
-      } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-        bot.setControlState("left", false);
-        bot.setControlState("right", true);
-      } else {
-        bot.setControlState("left", false);
-        bot.setControlState("right", false);
-      }
+      // if (!aimed) {
+        const dx = nextMove.x - bot.entity.position.x;
+        const dz = nextMove.z - bot.entity.position.z;
+        bot.entity.yaw = Math.atan2(-dx, -dz);
+        // aimed = true;
+      // }
+     
+      
       if ((bot.entity as any).isCollidedHorizontally) {
         bot.setControlState("jump", true);
         bot.setControlState("forward", false);
@@ -231,24 +233,30 @@ export class ForwardJumpMovement extends Movement {
         bot.setControlState("forward", true);
         bot.setControlState("sprint", true);
       }
-    };
+
+
+      zero();
+      one();
+
+
+
+
+
+
+  
+
+    }
   }
+
+  // right should be positiive,
+  // left should be negative.
+
+
+
 
   getReached(goal: goals.Goal, nextPos: Vec3, start: Move) {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
-      // console.log(state.pos.minus(nextPos).norm() < 0.13, !state.isCollidedVertically, state.pos.minus(nextPos).norm(), state.pos, nextPos)
-      // const yDiff = Math.abs(state.pos.y - vecGoal.y);
-      // if (vecGoal.xzDistanceTo(state.pos) < 0.5 && yDiff < 1.3 && yDiff > 0) return true;
-      // if (!state.isCollidedVertically) return false;
-
-      console.log(state.pos.minus(nextPos).norm());
-      return state.pos.minus(nextPos).norm() < 0.13;
-
-      // console.log(vecGoal, nextPos, state.pos)
-      // console.log(vecGoal.minus(state.pos).norm(), vecGoal.minus(nextPos).norm())
-      // if (state.pos.minus(nextPos).norm() < 0.3) return true;
-      // console.log(vecGoal.minus(state.pos).norm(), vecGoal.minus(nextPos).norm())
       return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm();
       return state.pos.minus(nextPos).norm() < 0.5; //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
@@ -258,17 +266,7 @@ export class ForwardJumpMovement extends Movement {
     const vecGoal = goal.toVec();
     // const vecStart = new Vec3(start.x, start.y, start.z);
     return () => {
-      const yDiff = Math.abs(bot.entity.position.y - vecGoal.y);
-      if (vecGoal.xzDistanceTo(bot.entity.position) < 0.5 && yDiff < 1.3 && yDiff > 0) return true;
-      // if (bot.entity.onGround) return false;
-      // console.log(move.exitPos, bot.entity.position, bot.entity.position.minus(move.exitPos).norm(), move.exitPos.minus(move.exitPos).norm() )
-      // console.log(bot.entity.position.minus(move.entryPos).norm())
-      // console.log(bot.entity.position, move.exitPos, bot.entity.position.minus(move.exitPos).norm())
       return vecGoal.minus(bot.entity.position).norm() <= vecGoal.minus(move.exitPos).norm();
-      // const ret = bot.entity.position.minus(move.exitPos).norm() < 0.5;
-      // if (ret) console.log(bot.entity.onGround, bot.entity.position.y, move.exitPos.y);
-      // return ret;
-      // return state.pos.minus(goal).norm() < 0.5 //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
   }
 
@@ -277,39 +275,15 @@ export class ForwardJumpMovement extends Movement {
     this.stateCtx.state.clearControlStates();
 
     const nextGoal = new Vec3(start.x + dir.x, start.y + dir.y, start.z + dir.z);
-    // console.log(start.entryPos, goal)
-
-    // const smartControls: Controller = (state, ticks) => state.control.set('jump', ticks == 0);
-
-    // const stopOnHoriCollision: SimulationGoal = (state) => state.isCollidedHorizontally;
     const stopOnVertCollision: SimulationGoal = (state, ticks) => {
       return state.control.get("jump") && state.isCollidedVertically;
     };
-    // const pastGoal: SimulationGoal = (state) => state.pos.xzDistanceTo(goal) < start.entryPos.xzDistanceTo(goal);
-    // const reach = getReached(goal.x, goal.y, goal.z);
-    const reach = this.getReached(goal, nextGoal, start);
+    const reach = this.getReached(goal, start.exitPos, start);
 
-    console.log(start.exitPos)
+    // console.log(start.exitPos)
     const state = this.simulateUntil(
       Movement.buildAnyGoal(
-        // reach,
-        // stopOnHoriCollision,
         stopOnVertCollision,
-        // pastGoal
-        (state)=> {
-          this.bot.chat(
-                       "/particle " +
-                "flame" +
-                " " +
-                state.pos.x.toFixed(4) +
-                " " +
-                state.pos.y.toFixed(4) +
-                " " +
-                state.pos.z.toFixed(4) +
-                " 0 0 0 0 1")
-          // this.bot.chat('/tp testing ' + state.pos.x + ' ' + state.pos.y + ' ' + state.pos.z)
-          return false;
-        }
       ),
       () => {},
       this.controlAim(nextGoal),
@@ -318,9 +292,9 @@ export class ForwardJumpMovement extends Movement {
       30
     );
 
-    const diff = state.pos.minus(nextGoal).norm();
+    const diff = state.pos.minus(start.exitPos).norm();
 
-    console.log(state.pos, nextGoal, diff)
+    // console.log(state.pos, nextGoal, diff)
     if (diff === 0) return console.log(state.pos, start.exitPos, diff);
     const cost = Math.round((state.age * 10) / diff);
 
@@ -331,9 +305,6 @@ export class ForwardJumpMovement extends Movement {
     if (reach(state, state.age)) {
       // console.log("GI",state.pos, state.isCollidedVertically, cost)
       storage.push(new Move(state.pos.x, state.pos.y, state.pos.z, start.exitPos, start.exitVel, state.pos.clone(), emptyVec, cost, this));
-    } else {
-      // console.log()
-      console.log("why fail", state.isCollidedVertically, diff, state.age, state.pos, start.exitPos, state.pos.minus(start.exitPos).norm());
     }
   }
 
@@ -354,7 +325,7 @@ export class ForwardJumpMovement extends Movement {
     // this.bot.entity.position.set(move.entryPos.x, move.entryPos.y, move.entryPos.z)
     // this.bot.entity.velocity.set(move.entryVel.x, move.entryVel.y, move.entryVel.z)
 
-    const smartAim = this.getBotStrafeAim(this.bot, move.exitPos);
+    const smartAim = this.botAim(this.bot, move.exitPos, goal);
     const botReach = this.botReach(this.bot, move, goal);
     smartAim();
     return new Promise((res, rej) => {
@@ -393,24 +364,24 @@ export class MovementHandler implements MovementProvider<Move> {
       newMove.doable(currentMove, straight, moves, this.goal);
     }
 
-    // for (const dir of cardinalDirections) {
-    //   for (const newMove of this.recognizedMovements) {
-    //     newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
-    //   }
-    // }
+    for (const dir of cardinalDirections) {
+      for (const newMove of this.recognizedMovements) {
+        newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
+      }
+    }
 
-    // for (const dir of diagonalDirections) {
-    //   for (const newMove of this.recognizedMovements) {
-    //     // if (!(newMove instanceof ForwardJumpMovement))
-    //     newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
-    //   }
-    // }
+    for (const dir of diagonalDirections) {
+      for (const newMove of this.recognizedMovements) {
+        // if (!(newMove instanceof ForwardJumpMovement))
+        newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
+      }
+    }
 
-    // for (const dir of jumpDirections) {
-    //   for (const newMove of this.recognizedMovements) {
-    //     if (newMove instanceof ForwardJumpMovement) newMove.doable(currentMove, dir, moves, this.goal);
-    //   }
-    // }
+    for (const dir of jumpDirections) {
+      for (const newMove of this.recognizedMovements) {
+        if (newMove instanceof ForwardJumpMovement) newMove.doable(currentMove, dir, moves, this.goal);
+      }
+    }
 
     return moves;
   }
