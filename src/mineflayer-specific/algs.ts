@@ -17,7 +17,7 @@ export class AStar {
     goal: Goal;
     timeout: number;
     tickTimeout: number;
-    movements: MovementProvider;
+    movements: MovementProvider<Move>;
 
     closedDataSet: Set<string>;
     openHeap: Heap<PathNode>;
@@ -28,7 +28,7 @@ export class AStar {
     visitedChunks: Set<string>;
 
 
-    constructor (start: Move, movements: MovementProvider, goal: Goal, timeout: number, tickTimeout = 40, searchRadius = -1) {
+    constructor (start: Move, movements: MovementProvider<Move>, goal: Goal, timeout: number, tickTimeout = 40, searchRadius = -1) {
       this.startTime = performance.now()
   
       this.movements = movements
@@ -71,13 +71,13 @@ export class AStar {
           return this.makeResult('timeout', this.bestNode)
         }
         const node = this.openHeap.pop()
-        if (this.goal.reachesGoal(node.data!)) {
+        if (this.goal.isEnd(node.data!)) {
           return this.makeResult('success', node)
         }
         // not done yet
         this.openDataMap.delete(node.data!.hash)
         this.closedDataSet.add(node.data!.hash)
-        this.visitedChunks.add(`${node.data!.gX >> 4},${node.data!.gZ >> 4}`)
+        this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
   
         const neighbors = this.movements.getNeighbors(node.data!)
         for (const neighborData of neighbors) {
@@ -106,6 +106,7 @@ export class AStar {
           // found a new or better route.
           // update this neighbor with this node as its new parent
           neighborNode.set( gFromThisNode, heuristic, neighborData, node)
+          // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
           if (neighborNode.h < this.bestNode.h) this.bestNode = neighborNode
           if (update) {
             this.openHeap.update(neighborNode)

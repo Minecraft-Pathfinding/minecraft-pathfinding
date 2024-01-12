@@ -2,8 +2,8 @@ import { Move } from "../mineflayer-specific/move";
 import { PathNode } from "./node";
 
 export interface Goal {
-    reachesGoal: (node: Move) => boolean
-    heuristic: (node: Move) => number;
+    isEnd(node: Move): boolean
+    heuristic(node: Move): number;
 }
 
 
@@ -12,7 +12,7 @@ export interface PathingAlg {
 }
 
 export interface Path<Alg extends PathingAlg, N = unknown> {
-    status: string,
+    status: string, //'noPath' | 'timeout' | 'partial' | 'success'
     cost: number,
     calcTime: number,
     visitedNodes: number,
@@ -21,8 +21,8 @@ export interface Path<Alg extends PathingAlg, N = unknown> {
     context: Alg
 }
 
-export interface MovementProvider {
-    getNeighbors<Data>(org: Data): Generator<Data, unknown, void>;
+export interface MovementProvider<Data> {
+    getNeighbors(org: Data): Data[];
 }
 
 export {PathNode} from './node';

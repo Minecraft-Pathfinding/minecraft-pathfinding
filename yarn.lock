@@ -16,6 +16,12 @@
     jsonwebtoken "^9.0.0"
     uuid "^8.3.0"
 
+"@nxg-org/mineflayer-pathfinder@./":
+  version "0.0.1"
+  dependencies:
+    "@nxg-org/mineflayer-physics-util" "^1.5.1"
+    mineflayer "^4.10.1"
+
 "@nxg-org/mineflayer-physics-util@^1.5.1":
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.1.tgz#9e3b002b2dfa5c07bf57a69e8da5c10dba51a8d5"

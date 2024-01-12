@@ -9,6 +9,7 @@
       "outDir": "dist",
       "sourceRoot": "src",
       "skipLibCheck": true,
-      "target": "ES2015"
+      "target": "ES2015",
+      "declaration": true
     }
 }
