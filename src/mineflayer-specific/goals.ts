@@ -33,12 +33,18 @@ export namespace goals {
             return new GoalBlock(block.position.x, block.position.y, block.position.z)
         }
 
+        /**
+         * Using 0.275 as sprint speed of 5.6125 blocks per second (https://minecraft.gamepedia.com/Sprinting#Speed)
+         * Mult by 10 for fixed point
+         * @param node 
+         * @returns 
+         */
         heuristic (node: Move) {
             // return 0;
             const dx = this.x - node.x
             const dy = this.y - node.y
             const dz = this.z - node.z
-            return ((Math.sqrt(dx * dx + dz * dz) * 0.275 + Math.abs(dy))) * 10
+            return Math.round(((Math.sqrt(dx * dx + dz * dz) * 0.275 + Math.abs(dy))) * 10)
             // return distanceXZ(dx, dz) + Math.abs(dy)
           }
         

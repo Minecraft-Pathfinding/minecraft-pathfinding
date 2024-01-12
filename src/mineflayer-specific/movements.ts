@@ -178,12 +178,16 @@ export class ForwardJumpMovement extends Movement {
   controlAim(nextPoint: Vec3) {
     const zero = controls.getControllerSmartMovement(nextPoint, true);
     const one = controls.getControllerStrafeAim(nextPoint);
+    let aimed = false;
     return (state: EntityState, ticks: number) => {
      
-
-      const dx = nextPoint.x - state.pos.x;
-      const dz = nextPoint.z - state.pos.z;
-      state.yaw = Math.atan2(-dx, -dz);
+      if (!aimed) {
+        const dx = nextPoint.x - state.pos.x;
+        const dz = nextPoint.z - state.pos.z;
+        state.yaw = Math.atan2(-dx, -dz);
+        aimed = true;
+      }
+ 
     
 
       if (state.isCollidedHorizontally) {
@@ -192,7 +196,7 @@ export class ForwardJumpMovement extends Movement {
         // state.control.set("back", true);
         state.control.set("sprint", false);
       } else {
-        if (state.vel.norm() > 0.17) state.control.set("jump", true);
+        if (state.vel.offset(0, -state.vel.y, 0).norm() > 0.15) state.control.set("jump", true);
         // state.control.set("back", false);
         state.control.set("forward", true);
         state.control.set("sprint", true);
@@ -214,12 +218,12 @@ export class ForwardJumpMovement extends Movement {
     return () =>{
 
 
-      // if (!aimed) {
+      if (!aimed) {
         const dx = nextMove.x - bot.entity.position.x;
         const dz = nextMove.z - bot.entity.position.z;
         bot.entity.yaw = Math.atan2(-dx, -dz);
-        // aimed = true;
-      // }
+        aimed = true;
+      }
      
       
       if ((bot.entity as any).isCollidedHorizontally) {
@@ -228,7 +232,8 @@ export class ForwardJumpMovement extends Movement {
         // bot.setControlState("back", true);
         bot.setControlState("sprint", false);
       } else {
-        if (bot.entity.velocity.norm() > 0.17) bot.setControlState("jump", true);
+        // console.log(bot.entity.velocity.offset(0, -bot.entity.velocity.y,0).norm())
+        if (bot.entity.velocity.offset(0, -bot.entity.velocity.y,0).norm() > 0.15) bot.setControlState("jump", true);
         // bot.setControlState("back", false);
         bot.setControlState("forward", true);
         bot.setControlState("sprint", true);
@@ -257,8 +262,10 @@ export class ForwardJumpMovement extends Movement {
   getReached(goal: goals.Goal, nextPos: Vec3, start: Move) {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
+      if (!state.isCollidedVertically) return false;
+      if (state.pos.minus(nextPos).norm() < 0.3) return true;
       return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm();
-      return state.pos.minus(nextPos).norm() < 0.5; //&& state.pos.minus(start.entryPos).norm() < 0.5
+      ; //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
   }
 
@@ -266,6 +273,9 @@ export class ForwardJumpMovement extends Movement {
     const vecGoal = goal.toVec();
     // const vecStart = new Vec3(start.x, start.y, start.z);
     return () => {
+      console.log(bot.entity.position.minus(move.exitPos).norm())
+      if (bot.entity.position.minus(move.exitPos).norm() < 0.2) return true;
+      // if (!bot.entity.onGround) return false;
       return vecGoal.minus(bot.entity.position).norm() <= vecGoal.minus(move.exitPos).norm();
     };
   }
@@ -295,7 +305,7 @@ export class ForwardJumpMovement extends Movement {
     const diff = state.pos.minus(start.exitPos).norm();
 
     // console.log(state.pos, nextGoal, diff)
-    if (diff === 0) return console.log(state.pos, start.exitPos, diff);
+    if (diff === 0) return
     const cost = Math.round((state.age * 10) / diff);
 
     // if (stopOnHoriCollision(state, state.age)) {
@@ -333,11 +343,16 @@ export class ForwardJumpMovement extends Movement {
         smartAim();
         if (botReach()) {
           this.bot.off("move", listener);
+          this.bot.clearControlStates();
           res();
         }
       };
       this.bot.on("move", listener);
-      setTimeout(() => rej(new Error("fuck")), 40 * 50);
+      setTimeout(() => {
+        this.bot.off("move", listener);
+        this.bot.clearControlStates()
+        rej(new Error("fuck"))
+      }, 40 * 50);
     });
   };
 }
@@ -358,7 +373,7 @@ export class MovementHandler implements MovementProvider<Move> {
   getNeighbors(currentMove: Move): Move[] {
     const moves: Move[] = [];
 
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize().scale(4);
+    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize().scale(3);
 
     for (const newMove of this.recognizedMovements) {
       newMove.doable(currentMove, straight, moves, this.goal);

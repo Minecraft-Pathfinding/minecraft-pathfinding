@@ -80,6 +80,7 @@ export class ThePathfinder {
       }
     }
     if (handle !== null) {
+      this.bot.clearControlStates();
       await this.recovery(handle, path!, goal);
     }
     this.bot.clearControlStates();
@@ -94,14 +95,16 @@ export class ThePathfinder {
       return this.bot.clearControlStates(); // done
     }
 
+    let newGoal;
     const nextMove = path.path[ind + 1]; 
     if (!nextMove) {
       console.log('!nextMove')
-      this.bot.clearControlStates();
-      return  // done
+      newGoal = goal;
+    } else {
+      newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
     }
 
-    const newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
+ 
 
     delete this.currentlyExecuting;
     const data = this.getPathFromTo(move.toVec(), EMPTY_VEC, newGoal);

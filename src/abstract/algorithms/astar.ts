@@ -49,6 +49,10 @@ export class AStar<Data extends PathData = PathData> {
         this.closedDataSet.add(node.data!.hash)
     }
 
+    protected heuristic(node: Data) {
+        return this.goal.heuristic(node)
+    }
+
   
     makeResult(status: string, node: PathNode<Data>): Path<Data, AStar<Data>> {
       return {
@@ -90,7 +94,7 @@ export class AStar<Data extends PathData = PathData> {
           let neighborNode = this.openDataMap.get(neighborData.hash)
           let update = false
   
-          const heuristic = this.goal.heuristic(neighborData)
+          const heuristic = this.heuristic(neighborData);
           if (this.maxCost > 0 && gFromThisNode + heuristic > this.maxCost) continue
   
           if (neighborNode === undefined) {

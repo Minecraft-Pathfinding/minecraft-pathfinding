@@ -17,3 +17,19 @@ export class AStar extends AAStar<Move> {
     this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`);
   }
 }
+
+export class StepBackAStar extends AStar {
+  constructor(start: Move, movements: MovementProvider<Move>, goal: Goal<Move>, timeout: number, tickTimeout = 40, searchRadius = -1) {
+    super(start, movements, goal, timeout, tickTimeout, searchRadius);
+  }
+
+  protected addToClosedDataSet(node: PathNode) {
+    this.closedDataSet.add(node.data!.hash);
+    this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`);
+  }
+
+  protected heuristic(node: Move) {
+    // return 0;
+    return this.goal.heuristic(node);
+  }
+}
