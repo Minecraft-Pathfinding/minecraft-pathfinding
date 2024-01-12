@@ -1,6 +1,6 @@
-import { PathNode } from "./node"
+import { PathData, PathNode } from "./node"
 
-export class BinaryHeapOpenSet<N extends PathNode> {
+export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> {
     
     // Initialing the array heap and adding a dummy element at index 0
     heap: N[] = [null] as any

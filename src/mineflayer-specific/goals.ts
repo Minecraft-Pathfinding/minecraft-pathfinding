@@ -2,16 +2,10 @@ import { Vec3 } from "vec3";
 import { Goal as AGoal } from "../abstract";
 import { Move } from "./move";
 
-function distanceXZ (dx: number, dz: number) {
-    dx = Math.abs(dx)
-    dz = Math.abs(dz)
-    return Math.abs(dx - dz) + Math.min(dx, dz) * Math.SQRT2
-  }
-
 
 export namespace goals {
 
-  export abstract class Goal implements AGoal {
+  export abstract class Goal implements AGoal<Move> {
     abstract x: number
     abstract y: number
     abstract z: number
@@ -40,7 +34,7 @@ export namespace goals {
         }
 
         heuristic (node: Move) {
-         
+            // return 0;
             const dx = this.x - node.x
             const dy = this.y - node.y
             const dz = this.z - node.z

@@ -1,23 +1,23 @@
-import { Move } from "../mineflayer-specific/move";
-import { PathNode } from "./node";
+import { PathData, PathNode } from "./node";
 
-export interface Goal {
-    isEnd(node: Move): boolean
-    heuristic(node: Move): number;
+export interface Goal<Data> {
+    isEnd(node: Data): boolean
+    heuristic(node: Data): number;
 }
 
 
-export interface PathingAlg {
-    compute(start: PathNode): Path<PathingAlg> | null;
+export interface PathingAlg<Data extends PathData> {
+    compute(start: PathNode<Data>): Path<Data, PathingAlg<Data>> | null;
+    makeResult(status: string, node: PathNode<Data>): Path<Data, PathingAlg<Data>>;
 }
 
-export interface Path<Alg extends PathingAlg, N = unknown> {
+export interface Path<Data extends PathData, Alg extends PathingAlg<Data>> {
     status: string, //'noPath' | 'timeout' | 'partial' | 'success'
     cost: number,
     calcTime: number,
     visitedNodes: number,
     generatedNodes: number,
-    path: N[],
+    path: Data[],
     context: Alg
 }
 

@@ -1,4 +1,9 @@
-export class PathNode<Data = unknown> {
+export interface PathData {
+  hash: string;
+  cost: number
+}
+
+export class PathNode<Data extends PathData> {
   data: Data | null = null;
   parent: PathNode<Data> | null = null;
   g = 0;

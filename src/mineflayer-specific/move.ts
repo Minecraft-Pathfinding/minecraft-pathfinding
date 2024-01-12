@@ -1,7 +1,8 @@
 import { Vec3 } from "vec3";
 import { Movement } from "./movements";
+import { PathData } from "../abstract/node";
 
-export class Move {
+export class Move implements PathData {
   hash: string;
 
   constructor(

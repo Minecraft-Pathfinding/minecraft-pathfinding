@@ -4,14 +4,14 @@ import { AStar } from "./mineflayer-specific/algs";
 import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
-import { Path } from "./abstract";
+import { Path, PathingAlg } from "./abstract";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 export class ThePathfinder {
   astar: AStar | null;
   movements: MovementHandler;
 
-  currentlyExecuting?: Path<AStar, Move>;
+  currentlyExecuting?: Path<Move, AStar>;
 
   constructor(private bot: Bot) {
     this.movements = new MovementHandler(bot, [ForwardJumpMovement]);
@@ -62,10 +62,11 @@ export class ThePathfinder {
         await this.perform(res.result, goal);
       }
     }
+    console.log("clear states goddamnit")
     this.bot.clearControlStates();
   }
 
-  async perform(path: Path<AStar, Move>, goal: goals.Goal) {
+  async perform(path: Path<Move, PathingAlg<Move>>, goal: goals.Goal) {
     let currentIndex = 0;
     let handle = null;
     while (currentIndex < path.path.length) {
@@ -84,14 +85,21 @@ export class ThePathfinder {
     this.bot.clearControlStates();
   }
 
-  async recovery(move: Move, path: Path<AStar, Move>, goal: goals.Goal) {
+  async recovery(move: Move, path: Path<Move, PathingAlg<Move>>, goal: goals.Goal) {
     // TODO: implement recovery
     console.log("recovery");
     const ind = path.path.indexOf(move);
-    if (ind === -1) return; // done
+    if (ind === -1) {
+      console.log('ind === -1')
+      return this.bot.clearControlStates(); // done
+    }
 
     const nextMove = path.path[ind + 1]; 
-    if (!nextMove) return; // done
+    if (!nextMove) {
+      console.log('!nextMove')
+      this.bot.clearControlStates();
+      return  // done
+    }
 
     const newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
 
@@ -111,6 +119,7 @@ export class ThePathfinder {
       );
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") {
+          console.log('noPath || timeout')
           break;
         }
       } else {
@@ -118,6 +127,8 @@ export class ThePathfinder {
         await this.perform(path, goal);
       }
     }
+    console.log('done')
+    this.bot.clearControlStates();
   }
 }
 
