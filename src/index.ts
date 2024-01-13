@@ -73,7 +73,7 @@ export class ThePathfinder {
       this.bot.clearControlStates();
       const move = path.path[currentIndex++];
       try {
-        await move.moveType.perform(move, goal);
+        await move.moveType.performInit(move, goal);
       } catch (err) {
         handle = move;
         break;

@@ -83,12 +83,14 @@ export abstract class Movement extends BaseSimulator {
   }
 
   abstract doable(start: Move, dir: Direction, storage: Move[], goal: goals.Goal): void;
-  abstract perform: (thisMove: Move, goal: goals.Goal) => Promise<void>;
+  abstract performInit: (thisMove: Move, goal: goals.Goal) => void | Promise<void>;
+  abstract performPerTick: (thisMove: Move, goal: goals.Goal) => boolean | Promise<boolean>;
 }
 
 export class IdleMovement extends Movement {
   doable(start: Move, dir: Direction, storage: Move[]): void {}
-  perform = async (thisMove: Move, goal: goals.Goal) => {};
+  performInit = async (thisMove: Move, goal: goals.Goal) => {};
+  performPerTick = async (thisMove: Move, goal: goals.Goal) => { return true };
 }
 
 export class ForwardMovement extends Movement {
@@ -142,13 +144,15 @@ export class ForwardMovement extends Movement {
     }
   }
 
-  perform = async (move: Move): Promise<void> => {
-    console.log("walking", move.hash);
-    // await this.bot.chat(`/tp testing ${move.x} ${move.y} ${move.z}`);
-    // await this.bot.waitForTicks(20);
-    // return;
-    // this.bot.chat(`tp\'d to: ${move.x} ${move.y} ${move.z}, exact: ${move.entryPos}`)
 
+  performPerTick = async (move: Move, goal: goals.Goal): Promise<boolean> => {
+    const pos = this.bot.entity.position;
+    if (pos.minus(move.exitPos).norm() < 0.2 && this.bot.entity.onGround) return true;
+    return false;
+  }
+
+  performInit = async (move: Move): Promise<void> => {
+    console.log("walking", move.hash);
     await this.bot.lookAt(new Vec3(move.entryPos.x, move.entryPos.y, move.entryPos.z), true);
 
     const dx = move.entryPos.x - this.bot.entity.position.x;
@@ -157,19 +161,7 @@ export class ForwardMovement extends Movement {
     this.bot.entity.yaw = wantedYaw;
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", true);
-
-    return new Promise((res, rej) => {
-      const listener = (pos: Vec3) => {
-        // console.log(move.x,move.y,move.z, pos.distanceTo(move.entryPos), this.bot.entity.yaw, wantedYaw),
-        // console.log(pos, move.entryPos, pos.minus(move.entryPos).norm())
-        if (pos.minus(move.entryPos).norm() < 0.4 && this.bot.entity.onGround) {
-          this.bot.off("move", listener);
-          res();
-        }
-      };
-      this.bot.on("move", listener);
-      setTimeout(() => rej(new Error("fuck")), 40 * 50);
-    });
+    return;
   };
 }
 
@@ -318,22 +310,22 @@ export class ForwardJumpMovement extends Movement {
     }
   }
 
-  perform = async (move: Move, goal: goals.Goal): Promise<void> => {
-    console.log("jumping!", move.hash);
-    // await this.bot.chat(`/tp testing ${move.x} ${move.y} ${move.z}`);
-    // await this.bot.waitForTicks(20);
-    // return;
-    // this.bot.chat(`tp\'d to: ${move.x} ${move.y} ${move.z}, exact: ${move.entryPos}`)
+  performPerTick = (move: Move, goal: goals.Goal): boolean => {
+    const botAim = this.botAim(this.bot, move.exitPos, goal);
+    const botReach = this.botReach(this.bot, move, goal);
+    botAim();
 
+    return botReach();
+  }
+
+  performInit = async (move: Move, goal: goals.Goal): Promise<void> => {
+    console.log("jumping!", move.hash);
     await this.bot.lookAt(new Vec3(move.exitPos.x, move.exitPos.y, move.exitPos.z), true);
 
     const dx = move.exitPos.x - this.bot.entity.position.x;
     const dz = move.exitPos.z - this.bot.entity.position.z;
     const wantedYaw = Math.atan2(-dx, -dz);
     this.bot.entity.yaw = wantedYaw;
-
-    // this.bot.entity.position.set(move.entryPos.x, move.entryPos.y, move.entryPos.z)
-    // this.bot.entity.velocity.set(move.entryVel.x, move.entryVel.y, move.entryVel.z)
 
     const smartAim = this.botAim(this.bot, move.exitPos, goal);
     const botReach = this.botReach(this.bot, move, goal);
