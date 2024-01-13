@@ -8,6 +8,7 @@ import { goals } from "../goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "../controls";
 import { SimMovement } from ".";
+import { World } from "../world/WorldInterface";
 
 
 const sleep = (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms));
@@ -113,7 +114,7 @@ export class ForwardMovement extends SimMovement {
       () => {},
       getStraightAim(nextGoal.x, nextGoal.z),
       this.stateCtx,
-      this.bot.world,
+      this.world,
       20
     );
 
@@ -253,7 +254,7 @@ export class ForwardJumpMovement extends SimMovement {
       () => {},
       this.controlAim(nextGoal),
       this.stateCtx,
-      this.bot.world,
+      this.world,
       30
     );
 
@@ -300,13 +301,15 @@ export class ForwardJumpMovement extends SimMovement {
   };
 }
 
-type BuildableMove = new (bot: Bot) => SimMovement;
+type BuildableMove = new (bot: Bot, world: World) => SimMovement;
 export class MovementHandler implements MovementProvider<Move> {
   recognizedMovements: SimMovement[];
   goal!: goals.Goal;
+  world: World;
 
-  constructor(private bot: Bot, recMovement: BuildableMove[]) {
-    this.recognizedMovements = recMovement.map((m) => new m(bot));
+  constructor(private bot: Bot, world: World, recMovement: BuildableMove[]) {
+    this.world = world;
+    this.recognizedMovements = recMovement.map((m) => new m(bot, this.world));
   }
 
   sanitize(): boolean {

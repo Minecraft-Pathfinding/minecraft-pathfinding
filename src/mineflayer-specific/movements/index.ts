@@ -3,6 +3,7 @@ import { Bot } from "mineflayer";
 import { Vec3 } from "vec3";
 import { Move } from "../move";
 import { goals } from "../goals";
+import { World } from "../world/WorldInterface";
 
 export abstract class Movement {
   /**
@@ -59,9 +60,11 @@ export abstract class Movement {
 
 export abstract class SimMovement extends BaseSimulator {
   stateCtx: EPhysicsCtx;
-  constructor(protected bot: Bot) {
+  world: World;
+  constructor(protected bot: Bot, world: World) {
     super(new EntityPhysics(bot.registry));
     this.stateCtx = EPhysicsCtx.FROM_BOT(this.ctx, bot);
+    this.world = world;
   }
 
   /**

@@ -5,6 +5,8 @@ import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
+import { CacheSynchWorld } from "./mineflayer-specific/world/CacheWorld";
+import type { World as WorldType } from "./mineflayer-specific/world/WorldInterface";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
@@ -12,10 +14,24 @@ export class ThePathfinder {
   astar: AStar | null;
   movements: MovementHandler;
   currentlyExecuting?: Path<Move, Algorithm<Move>>;
+  world: CacheSynchWorld;
 
   constructor(private bot: Bot) {
-    this.movements = new MovementHandler(bot, [ForwardJumpMovement]);
+    this.world = new CacheSynchWorld(this.bot.world);
+    this.movements = new MovementHandler(bot, this.world, [ForwardJumpMovement]);
     this.astar = null;
+  }
+
+  getCacheSize() {
+    return this.world.getCacheSize();
+  }
+
+  setCacheEnabled(enabled: boolean) {
+    this.world.setEnabled(enabled);
+  }
+
+  isCacheEnabled() {
+    return this.world.enabled;
   }
 
   getPathTo(goal: goals.Goal) {
@@ -30,14 +46,17 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement(this.bot));
+    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement(this.bot, this.world));
     const astarContext = new AStar(start, this.movements, goal, 20000, 40);
+    const perfStart = performance.now();
     let result = astarContext.compute();
 
     yield { result, astarContext };
     while (result.status === "partial") {
       result = astarContext.compute();
       if (result.status === "success") {
+        const perfTime = performance.now() - perfStart;
+        this.bot.chat(`A* took ${perfTime}ms`);
         yield { result, astarContext };
         break;
       }
