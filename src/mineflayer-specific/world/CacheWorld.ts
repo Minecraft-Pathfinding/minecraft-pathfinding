@@ -24,10 +24,11 @@ export class CacheSynchWorld implements WorldType {
       return this.world.getBlock(pos)
     }
     this.cacheCalls++;
+    pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
-    const cachedBlock = this.blocks.get(key)
-    const block = cachedBlock || this.world.getBlock(pos)
-    if (!cachedBlock) this.blocks.set(key, block)
+    if (this.blocks.has(key)) return this.blocks.get(key);
+    const block = this.world.getBlock(pos)
+    this.blocks.set(key, block)
     return block
   }
 
@@ -36,11 +37,12 @@ export class CacheSynchWorld implements WorldType {
       return this.world.getBlockStateId(pos)
     }
     this.cacheCalls++;
+    pos = pos.floored();
     const key = `${pos.x}:${pos.y}:${pos.z}`
-    const cachedStateId = this.blocks.get(key)?.stateId
-    const block = cachedStateId || this.world.getBlock(pos)
-    if (cachedStateId === undefined) this.blocks.set(key, block)
-    return block.stateId
+    if (this.blocks.has(key)) return this.blocks.get(key).stateId;
+    const state = this.world.getBlockStateId(pos)
+    if (state !== undefined) this.blocks.set(key, state)
+    return state
   }
 
   getCacheSize() {
