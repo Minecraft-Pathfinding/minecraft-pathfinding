@@ -181,7 +181,7 @@ export class ForwardJumpMovement extends SimMovement {
         state.control.set("sprint", true);
       }
 
-      zero(state, ticks);
+      // zero(state, ticks);
       one(state, ticks);
     };
   }
@@ -210,7 +210,7 @@ export class ForwardJumpMovement extends SimMovement {
         bot.setControlState("forward", true);
         bot.setControlState("sprint", true);
       }
-      zero();
+      // zero();
       one();
     };
   }
@@ -231,9 +231,9 @@ export class ForwardJumpMovement extends SimMovement {
     const vecGoal = goal.toVec();
     // const vecStart = new Vec3(start.x, start.y, start.z);
     return () => {
-      console.log(bot.entity.position.minus(move.exitPos).norm());
-      if (bot.entity.position.minus(move.exitPos).norm() < 0.2) return true;
-      if (!bot.entity.onGround) return false;
+      // console.log(bot.entity.position.minus(move.exitPos).norm());
+      // if (bot.entity.position.minus(move.exitPos).norm() < 0.2) return true;
+      // if (!bot.entity.onGround) return false;
       return vecGoal.minus(bot.entity.position).norm() <= vecGoal.minus(move.exitPos).norm();
     };
   }
