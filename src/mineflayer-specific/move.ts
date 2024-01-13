@@ -1,5 +1,5 @@
 import { Vec3 } from "vec3";
-import { SimMovement } from "./movements";
+import { Movement, SimMovement } from "./movements";
 import { PathData } from "../abstract/node";
 import { EntityState } from "@nxg-org/mineflayer-physics-util";
 
@@ -15,7 +15,7 @@ export class Move implements PathData {
     public readonly exitPos: Vec3,
     public readonly exitVel: Vec3,
     public readonly cost: number,
-    public readonly moveType: SimMovement
+    public readonly moveType: Movement
   ) {
     this.x = Math.floor(x);
     this.y = Math.floor(y);

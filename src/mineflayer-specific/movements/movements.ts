@@ -7,8 +7,9 @@ import { MovementProvider } from "../../abstract";
 import { goals } from "../goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "../controls";
-import { SimMovement } from ".";
+import { Movement, SimMovement } from ".";
 import { World } from "../world/WorldInterface";
+import { CancelError } from "./exceptions";
 
 
 const sleep = (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms));
@@ -79,7 +80,7 @@ function getReached(x: number, y: number, z: number): SimulationGoal {
 }
 
 
-export class IdleMovement extends SimMovement {
+export class IdleMovement extends Movement {
   doable(start: Move, dir: Vec3, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
   performPerTick = async (thisMove: Move, tickCount: number, goal: goals.Goal) => {
@@ -131,9 +132,6 @@ export class ForwardMovement extends SimMovement {
     return this.bot.entity.onGround;
   };
 
-  shouldCancel = (preMove: boolean, move: Move, tickCount: number): boolean => {
-    return this.bot.entity.position.y < move.exitPos.y || tickCount > 30;
-  };
 
   performPerTick = async (move: Move): Promise<boolean> => {
     const pos = this.bot.entity.position;
@@ -275,11 +273,8 @@ export class ForwardJumpMovement extends SimMovement {
   }
 
   align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    if (tickCount > 40) throw new CancelError("Too many ticks");
     return this.bot.entity.onGround;
-  };
-
-  shouldCancel = (preMove:boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    return tickCount > 40;
   };
 
   performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
@@ -301,9 +296,9 @@ export class ForwardJumpMovement extends SimMovement {
   };
 }
 
-type BuildableMove = new (bot: Bot, world: World) => SimMovement;
+type BuildableMove = new (bot: Bot, world: World) => Movement;
 export class MovementHandler implements MovementProvider<Move> {
-  recognizedMovements: SimMovement[];
+  recognizedMovements: Movement[];
   goal!: goals.Goal;
   world: World;
 

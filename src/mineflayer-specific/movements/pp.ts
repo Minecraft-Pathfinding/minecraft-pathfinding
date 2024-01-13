@@ -6,6 +6,7 @@ import { Bot } from "mineflayer";
 import { goals } from "../goals";
 import { Move } from "../move";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
+import { CancelError } from "./exceptions";
 
 
 function setState(simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3) {
@@ -133,11 +134,10 @@ export class ForwardJumpMovement extends SimMovement {
       return this.bot.entity.onGround;
     };
   
-    shouldCancel = (preMove:boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
-      return tickCount > 40;
-    };
-  
+
     performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
+      if (tickCount > 40) throw new CancelError("ForwardJumpMovement", "Took too long to reach goal");
+
       const botAim = this.botAim(this.bot, move.exitPos, goal);
       const botReach = this.botReach(this.bot, move, goal);
       botAim();

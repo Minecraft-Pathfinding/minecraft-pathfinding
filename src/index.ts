@@ -7,6 +7,7 @@ import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
 import { CacheSyncWorld } from "./mineflayer-specific/world/CacheWorld";
 import type { World as WorldType } from "./mineflayer-specific/world/WorldInterface";
+import { CancelError } from "./mineflayer-specific/movements/exceptions";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
@@ -46,7 +47,7 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement(this.bot, this.world));
+    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement());
     const astarContext = new AStar(start, this.movements, goal, 20000, 40);
     const perfStart = performance.now();
     let result = astarContext.compute();
@@ -98,20 +99,18 @@ export class ThePathfinder {
     const yLvl = root.y;
     const type = root.moveType;
     for (let i = index; i < pathInfo.length; i++) {
-        const node = pathInfo[i];
-        if (node.moveType instanceof type.constructor) {
-          
-        }
+      const node = pathInfo[i];
+      if (node.moveType instanceof type.constructor) {
+      }
     }
-
   }
 
   /**
    * Do not mind the absolutely horrendous code here right now.
    * It will be fixed, just very busy right now.
-   * @param path 
-   * @param goal 
-   * @param entry 
+   * @param path
+   * @param goal
+   * @param entry
    */
   async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
     if (entry > 10) throw new Error("Too many failures, exiting performing.");
@@ -126,49 +125,24 @@ export class ThePathfinder {
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
-      if (await move.moveType.shouldCancel(true, move, tickCount,  goal)) {
-        await this.recovery(move, path!, goal, entry);
-        break outer;
-      }
-
       try {
         while (!move.moveType.align(move, tickCount++, goal)) {
-          if (await move.moveType.shouldCancel(true, move, tickCount, goal)) {
-            await this.recovery(move, path!, goal, entry);
-            break outer;
-          }
           await this.bot.waitForTicks(1);
         }
+
+        await move.moveType.performInit(move, goal);
+        while (!(await move.moveType.performPerTick(move, tickCount++, goal)) && tickCount < 999) {
+          await this.bot.waitForTicks(1);
+        }
+
       } catch (err) {
-        await this.recovery(move, path, goal, entry);
-        break outer;
-      }
-
-      tickCount = 0;
-
-      if (await move.moveType.shouldCancel(true, move, tickCount,  goal)) {
-        await this.recovery(move, path!, goal, entry);
-        break outer;
-      }
-
-      await move.moveType.performInit(move, goal);
-
-      inner1: do {
-        if (await move.moveType.shouldCancel(false, move, tickCount, goal)) {
-          await this.recovery(move, path!, goal, entry);
+        if (err instanceof CancelError) {
+          await this.recovery(move, path, goal, entry);
           break outer;
-        }
-        try {
-          const res = await move.moveType.performPerTick(move, tickCount,  goal);
-          if (res) break inner1;
-        } catch (err) {
-          await this.recovery(move, path!, goal, entry);
-          break outer;
-        }
-        await this.bot.waitForTicks(1);
-      } while (tickCount++ < 999);
+        } else throw err;
+      }
+      this.cleanup();
     }
-    this.cleanup();
   }
 
   // TODO: implement recovery for any movement and goal.

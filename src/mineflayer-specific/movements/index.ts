@@ -42,20 +42,20 @@ export abstract class Movement {
     return true;
   };
 
-  /**
-   * Runtime calculation.
-   *
-   * Check whether or not movement should be canceled.
-   * This is called basically whenever you'd expect it to be.
-   *
-   * @param preMove Whether or not this cancel check was called BEFORE performInit was called, or afterward.
-   * @param thisMove the move to execute
-   * @param tickCount the current ticks in execution. This starts on zero BOTH for alignment AND performPerTick init.
-   * @param goal The goal the bot is executing towards.
-   */
-  shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    return tickCount > 50;
-  };
+  // /**
+  //  * Runtime calculation.
+  //  *
+  //  * Check whether or not movement should be canceled.
+  //  * This is called basically whenever you'd expect it to be.
+  //  *
+  //  * @param preMove Whether or not this cancel check was called BEFORE performInit was called, or afterward.
+  //  * @param thisMove the move to execute
+  //  * @param tickCount the current ticks in execution. This starts on zero BOTH for alignment AND performPerTick init.
+  //  * @param goal The goal the bot is executing towards.
+  //  */
+  // shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  //   return tickCount > 50;
+  // };
 }
 
 export abstract class SimMovement extends BaseSimulator {
@@ -102,20 +102,20 @@ export abstract class SimMovement extends BaseSimulator {
     return true;
   };
 
-  /**
-   * Runtime calculation.
-   *
-   * Check whether or not movement should be canceled.
-   * This is called basically whenever you'd expect it to be.
-   *
-   * @param preMove Whether or not this cancel check was called BEFORE performInit was called, or afterward.
-   * @param thisMove the move to execute
-   * @param tickCount the current ticks in execution. This starts on zero BOTH for alignment AND performPerTick init.
-   * @param goal The goal the bot is executing towards.
-   */
-  shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    return tickCount > 50;
-  };
+  // /**
+  //  * Runtime calculation.
+  //  *
+  //  * Check whether or not movement should be canceled.
+  //  * This is called basically whenever you'd expect it to be.
+  //  *
+  //  * @param preMove Whether or not this cancel check was called BEFORE performInit was called, or afterward.
+  //  * @param thisMove the move to execute
+  //  * @param tickCount the current ticks in execution. This starts on zero BOTH for alignment AND performPerTick init.
+  //  * @param goal The goal the bot is executing towards.
+  //  */
+  // shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  //   return tickCount > 50;
+  // };
 }
 
 export * from "./movements";
