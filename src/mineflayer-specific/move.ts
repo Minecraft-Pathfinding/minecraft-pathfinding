@@ -1,6 +1,7 @@
 import { Vec3 } from "vec3";
 import { Movement } from "./movements";
 import { PathData } from "../abstract/node";
+import { EntityState } from "@nxg-org/mineflayer-physics-util";
 
 export class Move implements PathData {
   hash: string;
@@ -26,5 +27,11 @@ export class Move implements PathData {
     // this.hash = this.x.toFixed(1) + "," + this.y.toFixed(1) + "," + this.z.toFixed(1);
 
   }
+
+
+  static fromPrevious(cost: number, move: Move, type: Movement, state: EntityState) {
+    return new Move(state.pos.x, state.pos.y, state.pos.z, move.exitPos, move.exitVel, state.pos.clone(), state.vel.clone(), cost, type)
+  }
+  
   public toVec() { return new Vec3(this.x, this.y, this.z)}
 }

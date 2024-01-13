@@ -7,11 +7,11 @@ import { Move } from "./mineflayer-specific/move";
 import { Path, PathingAlg } from "./abstract";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
+
 export class ThePathfinder {
   astar: AStar | null;
   movements: MovementHandler;
-
-  currentlyExecuting?: Path<Move, AStar>;
+  currentlyExecuting?: Path<Move, PathingAlg<Move>>;
 
   constructor(private bot: Bot) {
     this.movements = new MovementHandler(bot, [ForwardJumpMovement]);
@@ -42,6 +42,8 @@ export class ThePathfinder {
         break;
       }
       yield { result, astarContext };
+
+      // allow bot to function even while calculating.
       if (astarContext.tickTimeout < 50) await this.bot.waitForTicks(1);
     }
   }
@@ -62,52 +64,100 @@ export class ThePathfinder {
         await this.perform(res.result, goal);
       }
     }
-    console.log("clear states goddamnit")
-    this.bot.clearControlStates();
+    console.log("clear states goddamnit");
+    this.cleanup();
   }
 
-  async perform(path: Path<Move, PathingAlg<Move>>, goal: goals.Goal) {
+  /**
+   * Do not mind the absolutely horrendous code here right now.
+   * It will be fixed, just very busy right now.
+   * @param path 
+   * @param goal 
+   * @param entry 
+   */
+  async perform(path: Path<Move, PathingAlg<Move>>, goal: goals.Goal, entry = 0) {
+    if (entry > 10) throw new Error("Too many failures, exiting performing.");
+
     let currentIndex = 0;
-    let handle = null;
-    while (currentIndex < path.path.length) {
-      this.bot.clearControlStates();
+
+    outer: while (currentIndex < path.path.length) {
+      this.cleanup();
       const move = path.path[currentIndex++];
-      try {
-        await move.moveType.performInit(move, goal);
-      } catch (err) {
-        handle = move;
-        break;
+
+      let tickCount = 0;
+
+      // TODO: could move this to physicsTick to be performant, but meh who cares.
+
+      if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+        await this.recovery(move, path!, goal, entry);
+        break outer;
       }
+
+      try {
+        while (!move.moveType.align(move, tickCount++, goal)) {
+          if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+            await this.recovery(move, path!, goal, entry);
+            break outer;
+          }
+          await this.bot.waitForTicks(1);
+        }
+      } catch (err) {
+        await this.recovery(move, path, goal, entry);
+        break outer;
+      }
+
+      tickCount = 0;
+
+      if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+        await this.recovery(move, path!, goal, entry);
+        break outer;
+      }
+
+      await move.moveType.performInit(move, goal);
+
+      inner1: do {
+        if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+          await this.recovery(move, path!, goal, entry);
+          break outer;
+        }
+        try {
+          const res = await move.moveType.performPerTick(move, tickCount, goal);
+          if (res) break inner1;
+        } catch (err) {
+          await this.recovery(move, path!, goal, entry);
+          break outer;
+        }
+        await this.bot.waitForTicks(1);
+      } while (tickCount++ < 999);
     }
-    if (handle !== null) {
-      this.bot.clearControlStates();
-      await this.recovery(handle, path!, goal);
-    }
-    this.bot.clearControlStates();
+    this.cleanup();
   }
 
-  async recovery(move: Move, path: Path<Move, PathingAlg<Move>>, goal: goals.Goal) {
-    // TODO: implement recovery
+  // TODO: implement recovery for any movement and goal.
+  async recovery(move: Move, path: Path<Move, PathingAlg<Move>>, goal: goals.Goal, entry = 0) {
+    this.cleanup();
+
     console.log("recovery");
     const ind = path.path.indexOf(move);
     if (ind === -1) {
-      console.log('ind === -1')
+      console.log("ind === -1");
       return this.bot.clearControlStates(); // done
     }
 
     let newGoal;
-    const nextMove = path.path[ind + 1]; 
+    let pathStart;
+    const nextMove = path.path[ind + 1];
     if (!nextMove) {
-      console.log('!nextMove')
+      console.log("!nextMove");
       newGoal = goal;
+      pathStart = move.toVec();
     } else {
       newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
+      pathStart = move.toVec();
     }
 
- 
-
     delete this.currentlyExecuting;
-    const data = this.getPathFromTo(move.toVec(), EMPTY_VEC, newGoal);
+    const data = this.getPathFromTo(pathStart, EMPTY_VEC, newGoal);
     let ret;
 
     while (!(ret = await data.next()).done) {
@@ -122,15 +172,22 @@ export class ThePathfinder {
       );
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") {
-          console.log('noPath || timeout')
+          console.log("noPath || timeout");
           break;
         }
+      } else if (res.result.path.length === 0) {
+        console.log("no further moves needed");
+        path.path.splice(0, ind + 1);
+        await this.perform(path, goal, entry + 1);
       } else {
-        path.path.splice(0, ind, ...res.result.path);
-        await this.perform(path, goal);
+        path.path.splice(0, ind + 1, ...res.result.path);
+        await this.perform(path, goal, entry + 1);
       }
     }
-    console.log('done')
+  }
+
+  cleanup() {
+    console.log("cleaning up");
     this.bot.clearControlStates();
   }
 }

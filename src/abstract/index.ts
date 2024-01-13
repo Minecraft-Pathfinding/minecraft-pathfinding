@@ -22,6 +22,7 @@ export interface Path<Data extends PathData, Alg extends PathingAlg<Data>> {
 }
 
 export interface MovementProvider<Data> {
+    sanitize(): boolean;
     getNeighbors(org: Data): Data[];
 }
 

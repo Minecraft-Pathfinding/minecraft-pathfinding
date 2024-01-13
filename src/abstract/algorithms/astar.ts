@@ -68,6 +68,11 @@ export class AStar<Data extends PathData = PathData> {
   
     compute () {
       const computeStartTime = performance.now()
+
+      if (this.movements.sanitize() === false) {
+        throw new Error('Movement Provider was not properly configured!');
+      }
+
       while (!this.openHeap.isEmpty()) {
         if (performance.now() - computeStartTime > this.tickTimeout) { // compute time per tick
           return this.makeResult('partial', this.bestNode)

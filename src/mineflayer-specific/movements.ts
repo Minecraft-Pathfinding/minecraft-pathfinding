@@ -82,15 +82,48 @@ export abstract class Movement extends BaseSimulator {
     this.stateCtx = EPhysicsCtx.FROM_BOT(this.ctx, bot);
   }
 
+  /**
+   * Simulation-time calculation. Decide whether or not movement is possible.
+   * If possible, append to provided storage.
+   */
   abstract doable(start: Move, dir: Direction, storage: Move[], goal: goals.Goal): void;
+
+  /**
+   * Runtime calculation. Perform initial setup upon movement start.
+   * Can be sync or async.
+   */
   abstract performInit: (thisMove: Move, goal: goals.Goal) => void | Promise<void>;
-  abstract performPerTick: (thisMove: Move, goal: goals.Goal) => boolean | Promise<boolean>;
+
+  /**
+   * Runtime calculation. Perform modifications on bot per-tick.
+   * Return whether or not bot has reached the goal.
+   */
+  abstract performPerTick: (thisMove: Move, tickCount: number, goal: goals.Goal) => boolean | Promise<boolean>;
+
+  /**
+   * Runtime calculation. Perform modifications on bot BEFORE attempting the move.
+   * This can be used to align to the center of blocks, etc. 
+   * Align IS allowed to throw exceptions, it will revert to recovery.
+   */
+  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    return true;
+  };
+
+  /**
+   * Runtime calculation. Check whether or not movement should be canceled.
+   * This is called AFTER movement is aligned.
+   */
+  shouldCancel = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    return tickCount > 50;
+  };
 }
 
 export class IdleMovement extends Movement {
   doable(start: Move, dir: Direction, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
-  performPerTick = async (thisMove: Move, goal: goals.Goal) => { return true };
+  performPerTick = async (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    return true;
+  };
 }
 
 export class ForwardMovement extends Movement {
@@ -109,14 +142,6 @@ export class ForwardMovement extends Movement {
     const stopOnNoVertCollision: SimulationGoal = (state, ticks) => ticks > 0 && !state.isCollidedVertically;
     // const pastGoal: SimulationGoal = (state) => state.pos.xzDistanceTo(goal) < start.entryPos.xzDistanceTo(goal);
     const reach = getReached(nextGoal.x, nextGoal.y, nextGoal.z);
-    // const reach = (state: EntityState, age:number) => {
-    //   // console.log(Math.abs(x - state.pos.x), Math.abs(z - state.pos.z), y ,state.pos.y, state.onGround)
-    //   return (
-    //     Math.abs(goal.x - state.pos.x) <= 0.3 &&
-    //     Math.abs(goal.z - state.pos.z) <= 0.3 &&
-    //     (state.onGround || state.isInWater)
-    //   );
-    // };
 
     const state = this.simulateUntil(
       Movement.buildAnyGoal(
@@ -137,26 +162,31 @@ export class ForwardMovement extends Movement {
     const cost = Math.round((state.age * 10) / diff);
 
     if (reach(state, state.age)) {
-      // console.log("cost:", cost)
-      storage.push(
-        new Move(nextGoal.x, nextGoal.y, nextGoal.z, start.exitPos, start.exitVel, state.pos.clone(), state.vel.clone(), cost, this)
-      );
+      storage.push(Move.fromPrevious(cost, start, this, state));
     }
   }
 
+  align = () => {
+    return this.bot.entity.onGround;
+  };
 
-  performPerTick = async (move: Move, goal: goals.Goal): Promise<boolean> => {
+  shouldCancel = (move: Move, tickCount: number): boolean => {
+    return this.bot.entity.position.y < move.exitPos.y || tickCount > 30;
+  };
+
+  performPerTick = async (move: Move): Promise<boolean> => {
     const pos = this.bot.entity.position;
-    if (pos.minus(move.exitPos).norm() < 0.2 && this.bot.entity.onGround) return true;
+    console.log(pos, move.exitPos);
+    if (pos.minus(move.exitPos).norm() < 0.5 && this.bot.entity.onGround) return true;
     return false;
-  }
+  };
 
   performInit = async (move: Move): Promise<void> => {
     console.log("walking", move.hash);
     await this.bot.lookAt(new Vec3(move.entryPos.x, move.entryPos.y, move.entryPos.z), true);
 
-    const dx = move.entryPos.x - this.bot.entity.position.x;
-    const dz = move.entryPos.z - this.bot.entity.position.z;
+    const dx = move.exitPos.x - this.bot.entity.position.x;
+    const dz = move.exitPos.z - this.bot.entity.position.z;
     const wantedYaw = Math.atan2(-dx, -dz);
     this.bot.entity.yaw = wantedYaw;
     this.bot.setControlState("forward", true);
@@ -166,21 +196,17 @@ export class ForwardMovement extends Movement {
 }
 
 export class ForwardJumpMovement extends Movement {
-
   controlAim(nextPoint: Vec3) {
     const zero = controls.getControllerSmartMovement(nextPoint, true);
     const one = controls.getControllerStrafeAim(nextPoint);
     let aimed = false;
     return (state: EntityState, ticks: number) => {
-     
       if (!aimed) {
         const dx = nextPoint.x - state.pos.x;
         const dz = nextPoint.z - state.pos.z;
         state.yaw = Math.atan2(-dx, -dz);
         aimed = true;
       }
- 
-    
 
       if (state.isCollidedHorizontally) {
         state.control.set("jump", true);
@@ -196,28 +222,21 @@ export class ForwardJumpMovement extends Movement {
 
       zero(state, ticks);
       one(state, ticks);
-
-
-      
-
-    }
+    };
   }
 
   botAim(bot: Bot, nextMove: Vec3, goal: goals.Goal) {
-    const zero = controls.getBotSmartMovement(bot, nextMove, true)
+    const zero = controls.getBotSmartMovement(bot, nextMove, true);
     const one = controls.getBotStrafeAim(bot, nextMove);
     let aimed = false;
-    return () =>{
-
-
+    return () => {
       if (!aimed) {
         const dx = nextMove.x - bot.entity.position.x;
         const dz = nextMove.z - bot.entity.position.z;
         bot.entity.yaw = Math.atan2(-dx, -dz);
         aimed = true;
       }
-     
-      
+
       if ((bot.entity as any).isCollidedHorizontally) {
         bot.setControlState("jump", true);
         bot.setControlState("forward", false);
@@ -225,39 +244,25 @@ export class ForwardJumpMovement extends Movement {
         bot.setControlState("sprint", false);
       } else {
         // console.log(bot.entity.velocity.offset(0, -bot.entity.velocity.y,0).norm())
-        if (bot.entity.velocity.offset(0, -bot.entity.velocity.y,0).norm() > 0.15) bot.setControlState("jump", true);
+        if (bot.entity.velocity.offset(0, -bot.entity.velocity.y, 0).norm() > 0.15) bot.setControlState("jump", true);
         // bot.setControlState("back", false);
         bot.setControlState("forward", true);
         bot.setControlState("sprint", true);
       }
-
-
       zero();
       one();
-
-
-
-
-
-
-  
-
-    }
+    };
   }
 
   // right should be positiive,
   // left should be negative.
-
-
-
 
   getReached(goal: goals.Goal, nextPos: Vec3, start: Move) {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
       if (!state.isCollidedVertically) return false;
       if (state.pos.minus(nextPos).norm() < 0.3) return true;
-      return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm();
-      ; //&& state.pos.minus(start.entryPos).norm() < 0.5
+      return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm(); //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
   }
 
@@ -265,9 +270,9 @@ export class ForwardJumpMovement extends Movement {
     const vecGoal = goal.toVec();
     // const vecStart = new Vec3(start.x, start.y, start.z);
     return () => {
-      console.log(bot.entity.position.minus(move.exitPos).norm())
+      console.log(bot.entity.position.minus(move.exitPos).norm());
       if (bot.entity.position.minus(move.exitPos).norm() < 0.2) return true;
-      // if (!bot.entity.onGround) return false;
+      if (!bot.entity.onGround) return false;
       return vecGoal.minus(bot.entity.position).norm() <= vecGoal.minus(move.exitPos).norm();
     };
   }
@@ -284,9 +289,7 @@ export class ForwardJumpMovement extends Movement {
 
     // console.log(start.exitPos)
     const state = this.simulateUntil(
-      Movement.buildAnyGoal(
-        stopOnVertCollision,
-      ),
+      Movement.buildAnyGoal(stopOnVertCollision),
       () => {},
       this.controlAim(nextGoal),
       this.stateCtx,
@@ -297,7 +300,7 @@ export class ForwardJumpMovement extends Movement {
     const diff = state.pos.minus(start.exitPos).norm();
 
     // console.log(state.pos, nextGoal, diff)
-    if (diff === 0) return
+    if (diff === 0) return;
     const cost = Math.round((state.age * 10) / diff);
 
     // if (stopOnHoriCollision(state, state.age)) {
@@ -306,17 +309,25 @@ export class ForwardJumpMovement extends Movement {
 
     if (reach(state, state.age)) {
       // console.log("GI",state.pos, state.isCollidedVertically, cost)
-      storage.push(new Move(state.pos.x, state.pos.y, state.pos.z, start.exitPos, start.exitVel, state.pos.clone(), emptyVec, cost, this));
+      storage.push(Move.fromPrevious(cost, start, this, state));
     }
   }
 
-  performPerTick = (move: Move, goal: goals.Goal): boolean => {
+  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    return this.bot.entity.onGround;
+  };
+
+  shouldCancel = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    return tickCount > 40;
+  };
+
+  performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
     const botAim = this.botAim(this.bot, move.exitPos, goal);
     const botReach = this.botReach(this.bot, move, goal);
     botAim();
 
     return botReach();
-  }
+  };
 
   performInit = async (move: Move, goal: goals.Goal): Promise<void> => {
     console.log("jumping!", move.hash);
@@ -326,26 +337,6 @@ export class ForwardJumpMovement extends Movement {
     const dz = move.exitPos.z - this.bot.entity.position.z;
     const wantedYaw = Math.atan2(-dx, -dz);
     this.bot.entity.yaw = wantedYaw;
-
-    const smartAim = this.botAim(this.bot, move.exitPos, goal);
-    const botReach = this.botReach(this.bot, move, goal);
-    smartAim();
-    return new Promise((res, rej) => {
-      const listener = (pos: Vec3) => {
-        smartAim();
-        if (botReach()) {
-          this.bot.off("move", listener);
-          this.bot.clearControlStates();
-          res();
-        }
-      };
-      this.bot.on("move", listener);
-      setTimeout(() => {
-        this.bot.off("move", listener);
-        this.bot.clearControlStates()
-        rej(new Error("fuck"))
-      }, 40 * 50);
-    });
   };
 }
 
@@ -358,6 +349,10 @@ export class MovementHandler implements MovementProvider<Move> {
     this.recognizedMovements = recMovement.map((m) => new m(bot));
   }
 
+  sanitize(): boolean {
+    return !!this.goal;
+  }
+
   loadGoal(goal: goals.Goal) {
     this.goal = goal;
   }
@@ -365,7 +360,7 @@ export class MovementHandler implements MovementProvider<Move> {
   getNeighbors(currentMove: Move): Move[] {
     const moves: Move[] = [];
 
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize().scale(3);
+    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize();
 
     for (const newMove of this.recognizedMovements) {
       newMove.doable(currentMove, straight, moves, this.goal);
@@ -373,20 +368,20 @@ export class MovementHandler implements MovementProvider<Move> {
 
     for (const dir of cardinalDirections) {
       for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
+        newMove.doable(currentMove, dir, moves, this.goal);
       }
     }
 
     for (const dir of diagonalDirections) {
       for (const newMove of this.recognizedMovements) {
         // if (!(newMove instanceof ForwardJumpMovement))
-        newMove.doable(currentMove, dir.scaled(3), moves, this.goal);
+        newMove.doable(currentMove, dir, moves, this.goal);
       }
     }
 
     for (const dir of jumpDirections) {
       for (const newMove of this.recognizedMovements) {
-        if (newMove instanceof ForwardJumpMovement) newMove.doable(currentMove, dir, moves, this.goal);
+        newMove.doable(currentMove, dir, moves, this.goal);
       }
     }
 
