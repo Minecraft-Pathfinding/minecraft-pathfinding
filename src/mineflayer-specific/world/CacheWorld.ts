@@ -28,7 +28,7 @@ export class CacheSynchWorld implements WorldType {
     const key = `${pos.x}:${pos.y}:${pos.z}`
     if (this.blocks.has(key)) return this.blocks.get(key);
     const block = this.world.getBlock(pos)
-    this.blocks.set(key, block)
+    if (block !== undefined) this.blocks.set(key, block)
     return block
   }
 
