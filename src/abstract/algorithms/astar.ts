@@ -1,4 +1,4 @@
-import { Goal, MovementProvider, Path } from "../"
+import { Goal, MovementProvider, Path, Algorithm } from "../"
 import { BinaryHeapOpenSet as Heap } from "../heap";
 import { PathData, PathNode } from "../node"
 
@@ -11,7 +11,7 @@ function reconstructPath<Data extends PathData> (node: PathNode<Data>) {
     return path.reverse()
   }
 
-export class AStar<Data extends PathData = PathData> {
+export class AStar<Data extends PathData = PathData> implements Algorithm<Data> {
     startTime: number;
     goal: Goal<Data>;
     timeout: number;

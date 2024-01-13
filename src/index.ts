@@ -4,14 +4,14 @@ import { AStar } from "./mineflayer-specific/algs";
 import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
-import { Path, PathingAlg } from "./abstract";
+import { Path, Algorithm } from "./abstract";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
 export class ThePathfinder {
   astar: AStar | null;
   movements: MovementHandler;
-  currentlyExecuting?: Path<Move, PathingAlg<Move>>;
+  currentlyExecuting?: Path<Move, Algorithm<Move>>;
 
   constructor(private bot: Bot) {
     this.movements = new MovementHandler(bot, [ForwardJumpMovement]);
@@ -68,6 +68,25 @@ export class ThePathfinder {
     this.cleanup();
   }
 
+  private async postProcess(pathInfo: Path<Move, Algorithm<Move>>) {
+    // aggressive optimization.
+    // Identify all nodes that are able to be straight-lined to each other.
+    // Do so by comparing movement types && their respective y values.
+  }
+
+  private findPartialConnection(root: Move, pathInfo: Move[]) {
+    const index = pathInfo.indexOf(root);
+    const yLvl = root.y;
+    const type = root.moveType;
+    for (let i = index; i < pathInfo.length; i++) {
+        const node = pathInfo[i];
+        if (node.moveType instanceof type.constructor) {
+          
+        }
+    }
+
+  }
+
   /**
    * Do not mind the absolutely horrendous code here right now.
    * It will be fixed, just very busy right now.
@@ -75,7 +94,7 @@ export class ThePathfinder {
    * @param goal 
    * @param entry 
    */
-  async perform(path: Path<Move, PathingAlg<Move>>, goal: goals.Goal, entry = 0) {
+  async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
     if (entry > 10) throw new Error("Too many failures, exiting performing.");
 
     let currentIndex = 0;
@@ -88,14 +107,14 @@ export class ThePathfinder {
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
-      if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+      if (await move.moveType.shouldCancel(true, move, tickCount,  goal)) {
         await this.recovery(move, path!, goal, entry);
         break outer;
       }
 
       try {
         while (!move.moveType.align(move, tickCount++, goal)) {
-          if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+          if (await move.moveType.shouldCancel(true, move, tickCount, goal)) {
             await this.recovery(move, path!, goal, entry);
             break outer;
           }
@@ -108,7 +127,7 @@ export class ThePathfinder {
 
       tickCount = 0;
 
-      if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+      if (await move.moveType.shouldCancel(true, move, tickCount,  goal)) {
         await this.recovery(move, path!, goal, entry);
         break outer;
       }
@@ -116,12 +135,12 @@ export class ThePathfinder {
       await move.moveType.performInit(move, goal);
 
       inner1: do {
-        if (await move.moveType.shouldCancel(move, tickCount, goal)) {
+        if (await move.moveType.shouldCancel(false, move, tickCount, goal)) {
           await this.recovery(move, path!, goal, entry);
           break outer;
         }
         try {
-          const res = await move.moveType.performPerTick(move, tickCount, goal);
+          const res = await move.moveType.performPerTick(move, tickCount,  goal);
           if (res) break inner1;
         } catch (err) {
           await this.recovery(move, path!, goal, entry);
@@ -134,7 +153,7 @@ export class ThePathfinder {
   }
 
   // TODO: implement recovery for any movement and goal.
-  async recovery(move: Move, path: Path<Move, PathingAlg<Move>>, goal: goals.Goal, entry = 0) {
+  async recovery(move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
     this.cleanup();
 
     console.log("recovery");

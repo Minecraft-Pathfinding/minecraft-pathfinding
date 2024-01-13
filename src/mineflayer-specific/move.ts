@@ -1,5 +1,5 @@
 import { Vec3 } from "vec3";
-import { Movement } from "./movements";
+import { SimMovement } from "./movements";
 import { PathData } from "../abstract/node";
 import { EntityState } from "@nxg-org/mineflayer-physics-util";
 
@@ -15,7 +15,7 @@ export class Move implements PathData {
     public readonly exitPos: Vec3,
     public readonly exitVel: Vec3,
     public readonly cost: number,
-    public readonly moveType: Movement
+    public readonly moveType: SimMovement
   ) {
     this.x = Math.floor(x);
     this.y = Math.floor(y);
@@ -29,9 +29,9 @@ export class Move implements PathData {
   }
 
 
-  static fromPrevious(cost: number, move: Move, type: Movement, state: EntityState) {
+  static fromPrevious(cost: number, move: Move, type: SimMovement, state: EntityState) {
     return new Move(state.pos.x, state.pos.y, state.pos.z, move.exitPos, move.exitVel, state.pos.clone(), state.vel.clone(), cost, type)
   }
-  
+
   public toVec() { return new Vec3(this.x, this.y, this.z)}
 }

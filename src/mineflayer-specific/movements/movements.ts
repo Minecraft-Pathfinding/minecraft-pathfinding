@@ -1,18 +1,20 @@
-import { Move } from "./move";
+import { Move } from "../move";
 import { Bot } from "mineflayer";
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 import { Vec3 } from "vec3";
 import { EntityState, PlayerState } from "@nxg-org/mineflayer-physics-util/dist/physics/states";
-import { MovementProvider } from "../abstract";
-import { goals } from "./goals";
+import { MovementProvider } from "../../abstract";
+import { goals } from "../goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
-import * as controls from "./controls";
+import * as controls from "../controls";
+import { SimMovement } from ".";
 
-type Direction = Vec3; //{ x: number; z: number };
 
 const sleep = (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms));
+
+
 // Keeping this logic temporarily just for testing.
-const cardinalDirections: Direction[] = [
+const cardinalVec3s: Vec3[] = [
   // { x: -1, z: 0 }, // West
   // { x: 1, z: 0 }, // East
   // { x: 0, z: -1 }, // North
@@ -23,7 +25,7 @@ const cardinalDirections: Direction[] = [
   new Vec3(0, 0, 1),
 ];
 
-const diagonalDirections: Direction[] = [
+const diagonalVec3s: Vec3[] = [
   // { x: -1, z: -1 },
   // { x: -1, z: 1 },
   // { x: 1, z: -1 },
@@ -34,7 +36,7 @@ const diagonalDirections: Direction[] = [
   new Vec3(1, 0, 1),
 ];
 
-const jumpDirections: Direction[] = [
+const jumpVec3s: Vec3[] = [
   new Vec3(-3, 0, 0),
   new Vec3(-2, 0, 1),
   new Vec3(-2, 0, -1),
@@ -75,59 +77,17 @@ function getReached(x: number, y: number, z: number): SimulationGoal {
   };
 }
 
-export abstract class Movement extends BaseSimulator {
-  stateCtx: EPhysicsCtx;
-  constructor(protected bot: Bot) {
-    super(new EntityPhysics(bot.registry));
-    this.stateCtx = EPhysicsCtx.FROM_BOT(this.ctx, bot);
-  }
 
-  /**
-   * Simulation-time calculation. Decide whether or not movement is possible.
-   * If possible, append to provided storage.
-   */
-  abstract doable(start: Move, dir: Direction, storage: Move[], goal: goals.Goal): void;
-
-  /**
-   * Runtime calculation. Perform initial setup upon movement start.
-   * Can be sync or async.
-   */
-  abstract performInit: (thisMove: Move, goal: goals.Goal) => void | Promise<void>;
-
-  /**
-   * Runtime calculation. Perform modifications on bot per-tick.
-   * Return whether or not bot has reached the goal.
-   */
-  abstract performPerTick: (thisMove: Move, tickCount: number, goal: goals.Goal) => boolean | Promise<boolean>;
-
-  /**
-   * Runtime calculation. Perform modifications on bot BEFORE attempting the move.
-   * This can be used to align to the center of blocks, etc. 
-   * Align IS allowed to throw exceptions, it will revert to recovery.
-   */
-  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    return true;
-  };
-
-  /**
-   * Runtime calculation. Check whether or not movement should be canceled.
-   * This is called AFTER movement is aligned.
-   */
-  shouldCancel = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    return tickCount > 50;
-  };
-}
-
-export class IdleMovement extends Movement {
-  doable(start: Move, dir: Direction, storage: Move[]): void {}
+export class IdleMovement extends SimMovement {
+  doable(start: Move, dir: Vec3, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
   performPerTick = async (thisMove: Move, tickCount: number, goal: goals.Goal) => {
     return true;
   };
 }
 
-export class ForwardMovement extends Movement {
-  doable(start: Move, dir: Direction, storage: Move[]): void {
+export class ForwardMovement extends SimMovement {
+  doable(start: Move, dir: Vec3, storage: Move[]): void {
     setState(this.stateCtx, start.exitPos, start.exitVel);
     this.stateCtx.state.clearControlStates();
     this.stateCtx.state.control.set("forward", true);
@@ -144,7 +104,7 @@ export class ForwardMovement extends Movement {
     const reach = getReached(nextGoal.x, nextGoal.y, nextGoal.z);
 
     const state = this.simulateUntil(
-      Movement.buildAnyGoal(
+      SimMovement.buildAnyGoal(
         reach
         // stopOnHoriCollision,
         // stopOnNoVertCollision,
@@ -170,7 +130,7 @@ export class ForwardMovement extends Movement {
     return this.bot.entity.onGround;
   };
 
-  shouldCancel = (move: Move, tickCount: number): boolean => {
+  shouldCancel = (preMove: boolean, move: Move, tickCount: number): boolean => {
     return this.bot.entity.position.y < move.exitPos.y || tickCount > 30;
   };
 
@@ -183,7 +143,7 @@ export class ForwardMovement extends Movement {
 
   performInit = async (move: Move): Promise<void> => {
     console.log("walking", move.hash);
-    await this.bot.lookAt(new Vec3(move.entryPos.x, move.entryPos.y, move.entryPos.z), true);
+    await this.bot.lookAt(new Vec3(move.exitPos.x, move.exitPos.y, move.exitPos.z), true);
 
     const dx = move.exitPos.x - this.bot.entity.position.x;
     const dz = move.exitPos.z - this.bot.entity.position.z;
@@ -195,7 +155,7 @@ export class ForwardMovement extends Movement {
   };
 }
 
-export class ForwardJumpMovement extends Movement {
+export class ForwardJumpMovement extends SimMovement {
   controlAim(nextPoint: Vec3) {
     const zero = controls.getControllerSmartMovement(nextPoint, true);
     const one = controls.getControllerStrafeAim(nextPoint);
@@ -277,7 +237,7 @@ export class ForwardJumpMovement extends Movement {
     };
   }
 
-  doable(start: Move, dir: Direction, storage: Move[], goal: goals.Goal): void {
+  doable(start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void {
     setState(this.stateCtx, start.exitPos, emptyVec);
     this.stateCtx.state.clearControlStates();
 
@@ -289,7 +249,7 @@ export class ForwardJumpMovement extends Movement {
 
     // console.log(start.exitPos)
     const state = this.simulateUntil(
-      Movement.buildAnyGoal(stopOnVertCollision),
+      SimMovement.buildAnyGoal(stopOnVertCollision),
       () => {},
       this.controlAim(nextGoal),
       this.stateCtx,
@@ -317,7 +277,7 @@ export class ForwardJumpMovement extends Movement {
     return this.bot.entity.onGround;
   };
 
-  shouldCancel = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  shouldCancel = (preMove:boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
     return tickCount > 40;
   };
 
@@ -340,9 +300,9 @@ export class ForwardJumpMovement extends Movement {
   };
 }
 
-type BuildableMove = new (bot: Bot) => Movement;
+type BuildableMove = new (bot: Bot) => SimMovement;
 export class MovementHandler implements MovementProvider<Move> {
-  recognizedMovements: Movement[];
+  recognizedMovements: SimMovement[];
   goal!: goals.Goal;
 
   constructor(private bot: Bot, recMovement: BuildableMove[]) {
@@ -366,20 +326,20 @@ export class MovementHandler implements MovementProvider<Move> {
       newMove.doable(currentMove, straight, moves, this.goal);
     }
 
-    for (const dir of cardinalDirections) {
+    for (const dir of cardinalVec3s) {
       for (const newMove of this.recognizedMovements) {
         newMove.doable(currentMove, dir, moves, this.goal);
       }
     }
 
-    for (const dir of diagonalDirections) {
+    for (const dir of diagonalVec3s) {
       for (const newMove of this.recognizedMovements) {
         // if (!(newMove instanceof ForwardJumpMovement))
         newMove.doable(currentMove, dir, moves, this.goal);
       }
     }
 
-    for (const dir of jumpDirections) {
+    for (const dir of jumpVec3s) {
       for (const newMove of this.recognizedMovements) {
         newMove.doable(currentMove, dir, moves, this.goal);
       }
