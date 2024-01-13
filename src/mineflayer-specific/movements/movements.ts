@@ -221,7 +221,7 @@ export class ForwardJumpMovement extends SimMovement {
   getReached(goal: goals.Goal, nextPos: Vec3, start: Move) {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
-      if (!state.isCollidedVertically) return false;
+      // if (!state.isCollidedVertically) return false;
       if (state.pos.minus(nextPos).norm() < 0.3) return true;
       return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm(); //&& state.pos.minus(start.entryPos).norm() < 0.5
     };

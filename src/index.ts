@@ -5,7 +5,7 @@ import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
-import { CacheSynchWorld } from "./mineflayer-specific/world/CacheWorld";
+import { CacheSyncWorld } from "./mineflayer-specific/world/CacheWorld";
 import type { World as WorldType } from "./mineflayer-specific/world/WorldInterface";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
@@ -14,10 +14,10 @@ export class ThePathfinder {
   astar: AStar | null;
   movements: MovementHandler;
   currentlyExecuting?: Path<Move, Algorithm<Move>>;
-  world: CacheSynchWorld;
+  world: CacheSyncWorld;
 
   constructor(private bot: Bot) {
-    this.world = new CacheSynchWorld(this.bot.world);
+    this.world = new CacheSyncWorld(this.bot.world);
     this.movements = new MovementHandler(bot, this.world, [ForwardJumpMovement]);
     this.astar = null;
   }
