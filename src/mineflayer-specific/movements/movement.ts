@@ -196,6 +196,9 @@ export class MovementHandler implements MovementProvider<Move> {
     return ret
   }
 }
+
+type Comparator<T> = (a: T, b: T) => number
+
 const defaultCmp: Comparator<any> = (a, b) => {
   if (a < b) return -1
   if (a > b) return 1
