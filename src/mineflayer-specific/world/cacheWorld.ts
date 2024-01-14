@@ -1,6 +1,7 @@
 import { Vec3 } from "vec3";
 import type { World as WorldType } from "./worldInterface";
 import { Bot } from "mineflayer";
+import { LRUCache } from "lru-cache";
 
 type BlockType = ReturnType<typeof import('prismarine-block')>
 type Block = InstanceType<BlockType>
@@ -46,8 +47,8 @@ type Block = InstanceType<BlockType>
 
 
 export class CacheSyncWorld implements WorldType {
-  posCache: Map<string, Block>;
-  blocks: Map<number, Block>;
+  posCache: LRUCache<string, Block>;
+  blocks: LRUCache<number, Block>;
   world: WorldType;
   cacheCalls = 0;
   enabled = true
@@ -55,22 +56,15 @@ export class CacheSyncWorld implements WorldType {
   static Block: ReturnType<typeof import('prismarine-block')>
 
   constructor(bot: Bot, referenceWorld: any) {
-    this.posCache = new Map();
-    this.blocks = new Map();
+    this.posCache = new LRUCache({max:10000, ttl: 1000});
+    this.blocks = new LRUCache({max:500})
     this.world = referenceWorld;
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require('prismarine-block')(bot.registry)
     }
-
-    // (this.world as any).on("blockUpdate", (oldBlock: any, newBlock: any) => {
-    //   if (oldBlock == null) return;
-    //   const key = `${oldBlock.position.x}:${oldBlock.position.y}:${oldBlock.position.z}`
-    //   this.blocks.delete(key)
-    //   if (newBlock !== null) this.blocks.set(key, newBlock)
-    // })
   }
 
-  getBlockSlow(pos: Vec3) {
+  getBlock1(pos: Vec3) {
     if (!this.enabled) {
       return this.world.getBlock(pos)
     }

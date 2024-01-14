@@ -33,7 +33,7 @@ bot.on("chat", async (username, msg) => {
   }
   else if  ( cmd === 'goto') {
     
-    const x = Number(args[0]), y = Number(args[1]), z = Number(args[2])
+    const x = Math.floor(Number(args[0])), y = Math.floor(Number(args[1])), z = Math.floor(Number(args[2]))
     if (isNaN(x) || isNaN(y) || isNaN(z)) return bot.chat('goto <x> <y> <z> failed | invalid args')
     bot.chat(`going to ${args[0]} ${args[1]} ${args[2]}`)
     

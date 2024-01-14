@@ -76,10 +76,11 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       }
 
       while (!this.openHeap.isEmpty()) {
-        if (performance.now() - computeStartTime > this.tickTimeout) { // compute time per tick
+        const time = performance.now() 
+        if (time - computeStartTime > this.tickTimeout) { // compute time per tick
           return this.makeResult('partial', this.bestNode)
         }
-        if (performance.now() - this.startTime > this.timeout) { // total compute time
+        if (this.timeout >= 0 && time - this.startTime > this.timeout) { // total compute time
           return this.makeResult('timeout', this.bestNode)
         }
         const node = this.openHeap.pop()

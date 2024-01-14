@@ -182,7 +182,7 @@ export class ForwardJumpMovement extends SimMovement {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
       // if (!state.isCollidedVertically) return false;
-      if (state.pos.minus(nextPos).norm() < 0.5) return true;
+      // if (state.pos.minus(nextPos).norm() < 0.5) return true;
       return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm(); //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
   }
@@ -220,7 +220,7 @@ export class ForwardJumpMovement extends SimMovement {
 
     // if (state.isInWater) return;
 
-    const diff = state.pos.minus(start.exitPos).norm();
+    const diff = state.pos.xzDistanceTo(start.exitPos);
 
     // console.log(state.pos, nextGoal, diff)
     if (diff === 0) return;
@@ -230,7 +230,7 @@ export class ForwardJumpMovement extends SimMovement {
     //   return;
     // }
 
-    if (reach(state, state.age) && state.pos.floored() !== start.exitPos.floored()) {
+    if (reach(state, state.age)) {
       // console.log("GI",state.pos, state.isCollidedVertically, cost)
       storage.push(Move.fromPrevious(cost, start, this, state));
     }
