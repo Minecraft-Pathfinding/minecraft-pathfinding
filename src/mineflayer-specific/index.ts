@@ -1,1 +1,1 @@
-export {MovementHandler, ForwardMovement} from './movements'
+export { MovementHandler, ForwardMovement } from './movements'
