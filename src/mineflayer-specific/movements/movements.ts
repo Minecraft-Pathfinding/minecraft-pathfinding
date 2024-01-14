@@ -8,50 +8,13 @@ import { goals } from "../goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "../controls";
 import { Movement, SimMovement } from ".";
-import { World } from "../world/WorldInterface";
+import { World } from "../world/worldInterface";
 import { CancelError } from "./exceptions";
-
 
 const sleep = (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms));
 
-
 // Keeping this logic temporarily just for testing.
-const cardinalVec3s: Vec3[] = [
-  // { x: -1, z: 0 }, // West
-  // { x: 1, z: 0 }, // East
-  // { x: 0, z: -1 }, // North
-  // { x: 0, z: 1 }, // South
-  new Vec3(-1, 0, 0),
-  new Vec3(1, 0, 0),
-  new Vec3(0, 0, -1),
-  new Vec3(0, 0, 1),
-];
 
-const diagonalVec3s: Vec3[] = [
-  // { x: -1, z: -1 },
-  // { x: -1, z: 1 },
-  // { x: 1, z: -1 },
-  // { x: 1, z: 1 },
-  new Vec3(-1, 0, -1),
-  new Vec3(-1, 0, 1),
-  new Vec3(1, 0, -1),
-  new Vec3(1, 0, 1),
-];
-
-const jumpVec3s: Vec3[] = [
-  new Vec3(-3, 0, 0),
-  new Vec3(-2, 0, 1),
-  new Vec3(-2, 0, -1),
-  new Vec3(-1, 0, 2),
-  new Vec3(-1, 0, -2),
-  new Vec3(0, 0, 3),
-  new Vec3(0, 0, -3),
-  new Vec3(1, 0, 2),
-  new Vec3(1, 0, -2),
-  new Vec3(2, 0, 1),
-  new Vec3(2, 0, -1),
-  new Vec3(3, 0, 0),
-];
 
 function setState(simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3) {
   simCtx.state.age = 0;
@@ -79,7 +42,6 @@ function getReached(x: number, y: number, z: number): SimulationGoal {
   };
 }
 
-
 export class IdleMovement extends Movement {
   doable(start: Move, dir: Vec3, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
@@ -90,6 +52,7 @@ export class IdleMovement extends Movement {
 
 export class ForwardMovement extends SimMovement {
   doable(start: Move, dir: Vec3, storage: Move[]): void {
+    this.world;
     setState(this.stateCtx, start.exitPos, start.exitVel);
     this.stateCtx.state.clearControlStates();
     this.stateCtx.state.control.set("forward", true);
@@ -106,7 +69,7 @@ export class ForwardMovement extends SimMovement {
     const reach = getReached(nextGoal.x, nextGoal.y, nextGoal.z);
 
     const state = this.simulateUntil(
-      SimMovement.buildAnyGoal(
+      BaseSimulator.buildAnyGoal(
         reach
         // stopOnHoriCollision,
         // stopOnNoVertCollision,
@@ -121,7 +84,7 @@ export class ForwardMovement extends SimMovement {
 
     const diff = state.pos.minus(start.exitPos).norm();
     if (diff === 0) return;
-    const cost = Math.round((state.age * 10) / diff);
+    const cost = ((state.age * 1) / diff);
 
     if (reach(state, state.age)) {
       storage.push(Move.fromPrevious(cost, start, this, state));
@@ -131,7 +94,6 @@ export class ForwardMovement extends SimMovement {
   align = () => {
     return this.bot.entity.onGround;
   };
-
 
   performPerTick = async (move: Move): Promise<boolean> => {
     const pos = this.bot.entity.position;
@@ -220,7 +182,7 @@ export class ForwardJumpMovement extends SimMovement {
     const vecGoal = goal.toVec();
     return (state: EntityState, age: number) => {
       // if (!state.isCollidedVertically) return false;
-      if (state.pos.minus(nextPos).norm() < 0.3) return true;
+      if (state.pos.minus(nextPos).norm() < 0.5) return true;
       return vecGoal.minus(state.pos).norm() <= vecGoal.minus(nextPos).norm(); //&& state.pos.minus(start.entryPos).norm() < 0.5
     };
   }
@@ -242,13 +204,13 @@ export class ForwardJumpMovement extends SimMovement {
 
     const nextGoal = new Vec3(start.x + dir.x, start.y + dir.y, start.z + dir.z);
     const stopOnVertCollision: SimulationGoal = (state, ticks) => {
-      return state.control.get("jump") && state.isCollidedVertically;
+      return state.control.get("jump") && (state.isCollidedVertically || state.isInWater);
     };
     const reach = this.getReached(goal, start.exitPos, start);
 
     // console.log(start.exitPos)
     const state = this.simulateUntil(
-      SimMovement.buildAnyGoal(stopOnVertCollision),
+      BaseSimulator.buildAnyGoal(stopOnVertCollision),
       () => {},
       this.controlAim(nextGoal),
       this.stateCtx,
@@ -256,28 +218,31 @@ export class ForwardJumpMovement extends SimMovement {
       30
     );
 
+    // if (state.isInWater) return;
+
     const diff = state.pos.minus(start.exitPos).norm();
 
     // console.log(state.pos, nextGoal, diff)
     if (diff === 0) return;
-    const cost = Math.round((state.age * 10) / diff);
+    const cost = ((state.age * 1) /diff );
 
     // if (stopOnHoriCollision(state, state.age)) {
     //   return;
     // }
 
-    if (reach(state, state.age)) {
+    if (reach(state, state.age) && state.pos.floored() !== start.exitPos.floored()) {
       // console.log("GI",state.pos, state.isCollidedVertically, cost)
       storage.push(Move.fromPrevious(cost, start, this, state));
     }
   }
 
-  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
-    if (tickCount > 40) throw new CancelError("Too many ticks");
-    return this.bot.entity.onGround;
-  };
+  // align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  //   if (tickCount > 40) throw new CancelError("Too many ticks");
+  //   return this.bot.entity.onGround;
+  // };
 
   performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
+    if (tickCount > 40) throw new CancelError("Too many ticks")
     const botAim = this.botAim(this.bot, move.exitPos, goal);
     const botReach = this.botReach(this.bot, move, goal);
     botAim();
@@ -294,55 +259,4 @@ export class ForwardJumpMovement extends SimMovement {
     const wantedYaw = Math.atan2(-dx, -dz);
     this.bot.entity.yaw = wantedYaw;
   };
-}
-
-type BuildableMove = new (bot: Bot, world: World) => Movement;
-export class MovementHandler implements MovementProvider<Move> {
-  recognizedMovements: Movement[];
-  goal!: goals.Goal;
-  world: World;
-
-  constructor(private bot: Bot, world: World, recMovement: BuildableMove[]) {
-    this.world = world;
-    this.recognizedMovements = recMovement.map((m) => new m(bot, this.world));
-  }
-
-  sanitize(): boolean {
-    return !!this.goal;
-  }
-
-  loadGoal(goal: goals.Goal) {
-    this.goal = goal;
-  }
-
-  getNeighbors(currentMove: Move): Move[] {
-    const moves: Move[] = [];
-
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize();
-
-    for (const newMove of this.recognizedMovements) {
-      newMove.doable(currentMove, straight, moves, this.goal);
-    }
-
-    for (const dir of cardinalVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir, moves, this.goal);
-      }
-    }
-
-    for (const dir of diagonalVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        // if (!(newMove instanceof ForwardJumpMovement))
-        newMove.doable(currentMove, dir, moves, this.goal);
-      }
-    }
-
-    for (const dir of jumpVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir, moves, this.goal);
-      }
-    }
-
-    return moves;
-  }
 }

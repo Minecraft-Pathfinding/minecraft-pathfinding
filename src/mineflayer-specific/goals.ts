@@ -44,7 +44,7 @@ export namespace goals {
             const dx = this.x - node.x
             const dy = this.y - node.y
             const dz = this.z - node.z
-            return Math.round(((Math.sqrt(dx * dx + dz * dz) * 0.275 + Math.abs(dy))) * 10)
+            return Math.round(((Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))) * 0.275 * 1)
             // return distanceXZ(dx, dz) + Math.abs(dy)
           }
         

@@ -16,6 +16,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     goal: Goal<Data>;
     timeout: number;
     tickTimeout: number;
+    differential: number;
     movements: MovementProvider<Data>;
 
     closedDataSet: Set<string>;
@@ -25,13 +26,14 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     bestNode: PathNode<Data>;
     maxCost: number;
 
-    constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 40, searchRadius = -1) {
+    constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 40, searchRadius = -1, differential = 0) {
       this.startTime = performance.now()
   
       this.movements = movements
       this.goal = goal
       this.timeout = timeout
       this.tickTimeout = tickTimeout
+      this.differential = differential
   
       this.closedDataSet = new Set()
       this.openHeap = new Heap()
@@ -108,7 +110,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
             // properties will be set later
             this.openDataMap.set(neighborData.hash, neighborNode)
           } else {
-            if (neighborNode.g < gFromThisNode) {
+            if (neighborNode.g - gFromThisNode <= this.differential) {
               // skip this one because another route is faster
               continue
             }

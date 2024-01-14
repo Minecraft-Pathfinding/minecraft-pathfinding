@@ -5,11 +5,16 @@ import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
-import { CacheSyncWorld } from "./mineflayer-specific/world/CacheWorld";
-import type { World as WorldType } from "./mineflayer-specific/world/WorldInterface";
+import { CacheSyncWorld } from "./mineflayer-specific/world/cacheWorld";
+import type { World as WorldType } from "./mineflayer-specific/world/worldInterface";
 import { CancelError } from "./mineflayer-specific/movements/exceptions";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
+
+
+
+
+
 
 export class ThePathfinder {
   astar: AStar | null;
@@ -18,7 +23,7 @@ export class ThePathfinder {
   world: CacheSyncWorld;
 
   constructor(private bot: Bot) {
-    this.world = new CacheSyncWorld(this.bot.world);
+    this.world = new CacheSyncWorld(bot, this.bot.world);
     this.movements = new MovementHandler(bot, this.world, [ForwardJumpMovement]);
     this.astar = null;
   }
@@ -47,25 +52,34 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement());
-    const astarContext = new AStar(start, this.movements, goal, 20000, 40);
-    const perfStart = performance.now();
+    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement(this.bot, this.world));
+    const astarContext = new AStar(start, this.movements, goal, 20000, 40, -1,  0);
+    
     let result = astarContext.compute();
+    let ticked = false;
+
 
     yield { result, astarContext };
+
+    const listener = () => { ticked = true; }
+    this.bot.on('physicsTick', listener)
+
+
     while (result.status === "partial") {
       result = astarContext.compute();
       if (result.status === "success") {
-        const perfTime = performance.now() - perfStart;
-        this.bot.chat(`A* took ${perfTime}ms`);
         yield { result, astarContext };
         break;
       }
       yield { result, astarContext };
-
+    
       // allow bot to function even while calculating.
-      if (astarContext.tickTimeout < 50) await this.bot.waitForTicks(1);
+      if (ticked === false) {
+        await this.bot.waitForTicks(1);
+        ticked = false;
+      }
     }
+    this.bot.off('physicsTick', listener)
   }
 
   async goto(goal: goals.Goal) {
@@ -85,7 +99,7 @@ export class ThePathfinder {
       }
     }
     console.log("clear states goddamnit");
-    this.cleanup();
+    this.cleanupAll();
   }
 
   private async postProcess(pathInfo: Path<Move, Algorithm<Move>>) {
@@ -118,7 +132,7 @@ export class ThePathfinder {
     let currentIndex = 0;
 
     outer: while (currentIndex < path.path.length) {
-      this.cleanup();
+      this.cleanupBot();
       const move = path.path[currentIndex++];
 
       let tickCount = 0;
@@ -126,7 +140,7 @@ export class ThePathfinder {
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
       try {
-        while (!move.moveType.align(move, tickCount++, goal)) {
+        while (!(await move.moveType.align(move, tickCount++, goal))) {
           await this.bot.waitForTicks(1);
         }
 
@@ -141,26 +155,25 @@ export class ThePathfinder {
           break outer;
         } else throw err;
       }
-      this.cleanup();
+      this.cleanupBot();
     }
   }
 
   // TODO: implement recovery for any movement and goal.
   async recovery(move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
-    this.cleanup();
+    this.cleanupBot();
 
-    console.log("recovery");
+    console.log("recovery", entry, goal.toVec());
     const ind = path.path.indexOf(move);
     if (ind === -1) {
       console.log("ind === -1");
-      return this.bot.clearControlStates(); // done
+      return; // done
     }
 
     let newGoal;
     let pathStart;
     const nextMove = path.path[ind + 1];
-    if (!nextMove) {
-      console.log("!nextMove");
+    if (!nextMove || entry > 0) {
       newGoal = goal;
       pathStart = move.toVec();
     } else {
@@ -169,7 +182,7 @@ export class ThePathfinder {
     }
 
     delete this.currentlyExecuting;
-    const data = this.getPathFromTo(pathStart, EMPTY_VEC, newGoal);
+    const data = this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, newGoal);
     let ret;
 
     while (!(ret = await data.next()).done) {
@@ -198,9 +211,15 @@ export class ThePathfinder {
     }
   }
 
-  cleanup() {
-    console.log("cleaning up");
+  cleanupBot() {
     this.bot.clearControlStates();
+  }
+
+  cleanupAll() {
+    console.log('clearing A*')
+    this.cleanupBot()
+    this.bot.chat(this.world.getCacheSize())
+    this.world.clearCache();
   }
 }
 
@@ -217,3 +236,7 @@ declare module "mineflayer" {
     pathfinder: ThePathfinder;
   }
 }
+
+
+
+
