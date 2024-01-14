@@ -1,8 +1,10 @@
-"use strict";
-const { createBot } = require("mineflayer");
-const { createPlugin, goals } = require("../dist");
-const { Vec3 } = require("vec3");
-const { GoalBlock } = goals;
+
+
+import { createBot } from "mineflayer";
+import { createPlugin, goals } from "../src";
+import { Vec3 } from "vec3";
+
+const {GoalBlock} = goals;
 
 const bot = createBot({ username: "testing" });
 const pathfinder = createPlugin();
@@ -13,8 +15,7 @@ bot.once("spawn", () => {
   
 });
 
-/** @type { Vec3 | null } */
-let lastStart = null;
+let lastStart: Vec3 | null = null;
 
 bot.on("chat", async (username, msg) => {
   const [cmd, ...args] = msg.split(" ");
@@ -48,7 +49,7 @@ bot.on("chat", async (username, msg) => {
     bot.chat("hi");
     const res1 = bot.pathfinder.getPathTo(GoalBlock.fromVec(author.position));
     let test1;
-    while ((test1 = res1.next()).done === false) {
+    while ((test1 = await res1.next()).done === false) {
       console.log(test1);
     }
   } else if (cmd === "test") {
@@ -65,7 +66,7 @@ bot.on("chat", async (username, msg) => {
       bot.chat("no last start");
       return;
     }
-    const res = bot.pathfinder.getPathFromTo(lastStart, bot.entity.velocity, GoalBlock.fromVec(author.position));
+    const res = bot.pathfinder.getPathFromTo(lastStart, bot.entity.velocity, GoalBlock.fromVec(author!.position));
     let test;
     while ((test = await res.next()).done === false) {
       console.log(test);

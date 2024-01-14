@@ -1,19 +1,15 @@
 import { Move } from "../move";
 import { Bot } from "mineflayer";
-import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
+import { BaseSimulator, Controller, EPhysicsCtx, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 import { Vec3 } from "vec3";
-import { EntityState, PlayerState } from "@nxg-org/mineflayer-physics-util/dist/physics/states";
-import { MovementProvider } from "../../abstract";
+import { EntityState } from "@nxg-org/mineflayer-physics-util/dist/physics/states";
 import { goals } from "../goals";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "../controls";
-import { Movement, SimMovement } from ".";
-import { World } from "../world/worldInterface";
+import { Movement, SimMovement } from "./movement";
 import { CancelError } from "./exceptions";
 
 const sleep = (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms));
-
-// Keeping this logic temporarily just for testing.
 
 
 function setState(simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3) {

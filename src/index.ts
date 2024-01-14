@@ -225,7 +225,7 @@ export class ThePathfinder {
 
 export { goals } from "./mineflayer-specific/goals";
 
-export function createPlugin(settings: any) {
+export function createPlugin(settings?: any) {
   return function (bot: Bot) {
     bot.pathfinder = new ThePathfinder(bot);
   };
