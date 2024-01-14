@@ -19,20 +19,21 @@
 "@nxg-org/mineflayer-pathfinder@./":
   version "0.0.1"
   dependencies:
-    "@nxg-org/mineflayer-physics-util" "^1.5.1"
+    "@nxg-org/mineflayer-physics-util" "^1.5.5"
+    lru-cache "^10.1.0"
     mineflayer "^4.10.1"
 
-"@nxg-org/mineflayer-physics-util@^1.5.1":
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.1.tgz#9e3b002b2dfa5c07bf57a69e8da5c10dba51a8d5"
-  integrity sha512-bmrH66Hb3Y6NU27jX0AdtBCmYQgNZCxwktaBTVNEckcmfQqC/LM9y9c+rK6nufacgserIH0sj55LNNo6doGZSg==
+"@nxg-org/mineflayer-physics-util@^1.5.5":
+  version "1.5.5"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.5.tgz#a2ff3192e5ad355aada5a4a0b9fa469a65d6cef8"
+  integrity sha512-odm074R1NhBMxyX3nj3FWAUvuvDaADQxIKinJVPkPnDmKO8+Qv/kvZbhM3K6Juz7Gw/cK8mh/j6tlaiONJmEjA==
   dependencies:
-    "@nxg-org/mineflayer-util-plugin" "^1.7.11"
+    "@nxg-org/mineflayer-util-plugin" "^1.8.2"
 
-"@nxg-org/mineflayer-util-plugin@^1.7.11":
-  version "1.8.1"
-  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-util-plugin/-/mineflayer-util-plugin-1.8.1.tgz#2f801192313efb8d19f1d8f55c251846ce69cca8"
-  integrity sha512-aK42xcPE4rY6zZGDDANlo7FaGdOpP137n0Ew4jCosR0G689BsU41mFOjH2myPSjRWmTIOqlfXqcktybpoe7aKQ==
+"@nxg-org/mineflayer-util-plugin@^1.8.2":
+  version "1.8.2"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-util-plugin/-/mineflayer-util-plugin-1.8.2.tgz#8106d0beb6b4d90b37eaf1694f426fe7ddd32341"
+  integrity sha512-UmzyHHQeexrB449y/g7mljyQfI9xjzO23n8Iai9PXCCk3paG2GeuKo1zfHsxdYSLdnuxkCgdHFu3r31GroKUhw==
 
 "@types/node@*":
   version "20.11.0"

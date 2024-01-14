@@ -4,12 +4,32 @@ const { createPlugin, goals } = require("../dist");
 const { Vec3 } = require("vec3");
 const { GoalBlock } = goals;
 
+const {default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler} = require('@nxg-org/mineflayer-physics-util')
+
 const bot = createBot({ username: "testing" });
 const pathfinder = createPlugin();
 
+bot.on('inject_allowed', () => {
+ 
+})
+
 bot.once("spawn", () => {
   bot.loadPlugin(pathfinder);
+  bot.loadPlugin(loader)
   bot.physics.yawSpeed = 3000;
+
+
+
+  // apply hot-fix to mineflayer's physics engine.
+  const val = new EntityPhysics(bot.registry)
+  EntityState.prototype.apply = function (bot) {
+    this.applyToBot(bot);
+  }
+
+  bot.physics.simulatePlayer = (...args) => {
+    const ctx = EPhysicsCtx.FROM_BOT(val, bot);
+    return val.simulate(ctx, bot.world)
+  }
   
 });
 
