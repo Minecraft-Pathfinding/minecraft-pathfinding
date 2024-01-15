@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { MovementHandler, IdleMovement, ForwardMove, Movement, SimMovement } from './mineflayer-specific/movements'
+import { MovementHandler, IdleMovement, ForwardMove, Movement, SimMovement, ForwardJumpMove } from './mineflayer-specific/movements'
 import { AStar } from './mineflayer-specific/algs'
 import { goals } from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
@@ -14,12 +14,11 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
 export class ThePathfinder {
   astar: AStar | null
   movements: MovementHandler
-  currentlyExecuting?: Path<Move, Algorithm<Move>>
   world: CacheSyncWorld
 
   constructor (private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world)
-    this.movements = MovementHandler.create(bot, this.world, [ForwardMove], {canOpenDoors: true})
+    this.movements = MovementHandler.create(bot, this.world, [ForwardMove, ForwardJumpMove], {canOpenDoors: true})
     this.astar = null
   }
 
@@ -125,17 +124,22 @@ export class ThePathfinder {
     let currentIndex = 0
 
     outer: while (currentIndex < path.path.length) {
-      this.cleanupBot()
       const move = path.path[currentIndex++]
 
       let tickCount = 0
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
+      await this.cleanupBot()
+
+      this.bot.chat(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)}`)
+
       try {
-        while (!(await move.moveType.align(move, tickCount++, goal))) {
+        while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
           await this.bot.waitForTicks(1)
         }
+
+        tickCount--;
 
         await move.moveType.performInit(move, goal)
         while (!(await move.moveType.performPerTick(move, tickCount++, goal)) && tickCount < 999) {
@@ -148,6 +152,7 @@ export class ThePathfinder {
         } else throw err
       }
     }
+    console.log('done!')
     await this.cleanupBot()
   }
 
@@ -163,44 +168,14 @@ export class ThePathfinder {
     }
 
     let newGoal
-    let pathStart
     const nextMove = path.path[ind + 1]
     if (!nextMove || entry > 0) {
       newGoal = goal
-      pathStart = move.toVec()
     } else {
       newGoal = goals.GoalBlock.fromVec(nextMove.toVec())
-      pathStart = move.toVec()
     }
 
-    delete this.currentlyExecuting
-    const data = this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, newGoal)
-    let ret
-
-    while (!(ret = await data.next()).done) {
-      const res = ret.value
-      console.log(
-        res.result.status,
-        res.result.calcTime,
-        res.result.cost,
-        res.result.visitedNodes,
-        res.result.generatedNodes,
-        res.result.path.length
-      )
-      if (res.result.status !== 'success') {
-        if (res.result.status === 'noPath' || res.result.status === 'timeout') {
-          console.log('noPath || timeout')
-          break
-        }
-      } else if (res.result.path.length === 0) {
-        console.log('no further moves needed')
-        path.path.splice(0, ind + 1)
-        await this.perform(path, goal, entry + 1)
-      } else {
-        path.path.splice(0, ind + 1, ...res.result.path)
-        await this.perform(path, goal, entry + 1)
-      }
-    }
+    await this.cleanupAll()
   }
 
   async cleanupBot () {

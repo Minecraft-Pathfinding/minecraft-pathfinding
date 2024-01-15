@@ -5,14 +5,21 @@ import { Move } from '../move'
 import { goals } from '../goals'
 import { World } from '../world/worldInterface'
 import { MovementProvider } from '../../abstract'
-
+import { BlockInfo } from '../world/cacheWorld'
+import * as nbt from 'prismarine-nbt'
 
 export interface MovementOptions {
   canOpenDoors: boolean,
+  canDig: boolean,
+  dontCreateFlow: boolean
+  dontMineUnderFallingBlock: boolean
 }
 
 const DefaultOpts: MovementOptions = {
   canOpenDoors: true,
+  canDig: true,
+  dontCreateFlow: true,
+  dontMineUnderFallingBlock: true
 }
 
 export abstract class Movement {
@@ -94,6 +101,63 @@ export abstract class Movement {
     const block = this.world.getBlockInfo(new Vec3(pos.x, pos.y, pos.z))
     return block.physical ? 0 : 100
   }
+
+    /**
+   * Takes into account if the block is within a break exclusion area.
+   * @param {import('prismarine-block').Block} block
+   * @returns
+   */
+    safeToBreak (block: BlockInfo) {
+      if (!this.settings.canDig) {
+        return false
+      }
+  
+      if (this.settings.dontCreateFlow) {
+        // false if next to liquid
+        if (this.getBlockInfo(block.position, 0, 1, 0).liquid) return false
+        if (this.getBlockInfo(block.position, -1, 0, 0).liquid) return false
+        if (this.getBlockInfo(block.position, 1, 0, 0).liquid) return false
+        if (this.getBlockInfo(block.position, 0, 0, -1).liquid) return false
+        if (this.getBlockInfo(block.position, 0, 0, 1).liquid) return false
+      }
+  
+      if (this.settings.dontMineUnderFallingBlock) {
+        // TODO: Determine if there are other blocks holding the entity up
+        if (this.getBlockInfo(block.position, 0, 1, 0).canFall) { // || (this.getNumEntitiesAt(block.position, 0, 1, 0) > 0)
+          return false
+        }
+      }
+  
+      return !BlockInfo.blocksCantBreak.has(block.type) //&& this.exclusionBreak(block) < 100
+    }
+
+
+    /**
+   * Takes into account if the block is within the stepExclusionAreas. And returns 100 if a block to be broken is within break exclusion areas.
+   * @param {import('prismarine-block').Block} block block
+   * @param {[]} toBreak
+   * @returns {number}
+   */
+    safeOrBreak (block: BlockInfo, toBreak: Vec3[]) {
+      let cost = 0
+      // cost += this.exclusionStep(block) // Is excluded so can't move or break
+      // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
+      if (block.safe) return cost
+      if (!this.safeToBreak(block)) return 100 // Can't break, so can't move
+      toBreak.push(block.position)
+  
+      // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
+  
+      // const tool = this.bot.pathfinder.bestHarvestTool(block)
+      // const tool = null as any;
+      // const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
+      // const effects = this.bot.entity.effects
+      // const digTime = block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
+      // const laborCost = (1 + 3 * digTime / 1000) * this.digCost
+      const laborCost = 1;
+      cost += laborCost
+      return cost
+    }
 }
 
 export abstract class SimMovement extends Movement {
@@ -176,9 +240,9 @@ export class MovementHandler implements MovementProvider<Move> {
 
     const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize()
 
-    for (const newMove of this.recognizedMovements) {
-      newMove.doable(currentMove, straight, moves, this.goal)
-    }
+    // for (const newMove of this.recognizedMovements) {
+    //   newMove.doable(currentMove, straight, moves, this.goal)
+    // }
 
     for (const dir of cardinalVec3s) {
       for (const newMove of this.recognizedMovements) {

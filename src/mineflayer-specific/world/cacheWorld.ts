@@ -28,7 +28,7 @@ export class BlockInfo {
 
   static initialized = false;
   static readonly interactableBlocks = new Set();
-  static readonly blocksCantBreak = new Set();
+  static readonly blocksCantBreak = new Set<number>();
   static readonly blocksToAvoid = new Set();
   static readonly climbables = new Set();
   static readonly carpets = new Set();
@@ -42,7 +42,7 @@ export class BlockInfo {
 
 
 
-  static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false)
+  static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0,0,0), -1)
 
 
   constructor(
@@ -53,7 +53,10 @@ export class BlockInfo {
     public readonly liquid: boolean,
     public readonly climbable: boolean,
     public readonly height: number,
-    public readonly openable: boolean
+    public readonly openable: boolean,
+    public readonly position: Vec3,
+    // comp only
+    public readonly type: number,
   ) { }
 
 
@@ -130,7 +133,7 @@ export class BlockInfo {
     }
 
 
-    return new BlockInfo(b1.replaceable, b1.canFall, b1.safe, b1.physical, b1.liquid, b1.climbable, b1.height, b1.openable)
+    return new BlockInfo(b1.replaceable, b1.canFall, b1.safe, b1.physical, b1.liquid, b1.climbable, b1.height, b1.openable, b.position, b.type)
   }
 }
 
