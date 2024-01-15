@@ -1,7 +1,9 @@
+// @ts-nocheck
+
 import { Bot } from "mineflayer"
 import { Vec3 } from "vec3"
 import { Move } from "../mineflayer-specific/move"
-import { NonePhysicsMove } from "../mineflayer-specific/NonePhysicsMove"
+import { NonePhysicsMove } from "./NonePhysicsMove"
 import { PlaceInteraction } from "./PlaceInteraction"
 
 const nbt = require('prismarine-nbt')

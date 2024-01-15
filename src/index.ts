@@ -147,13 +147,13 @@ export class ThePathfinder {
           break outer
         } else throw err
       }
-      this.cleanupBot()
     }
+    await this.cleanupBot()
   }
 
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
-    this.cleanupBot()
+    await this.cleanupBot()
 
     console.log('recovery', entry, goal.toVec())
     const ind = path.path.indexOf(move)
@@ -204,7 +204,6 @@ export class ThePathfinder {
   }
 
   async cleanupBot () {
-    await this.bot.waitForTicks(1);
     this.bot.clearControlStates()
   }
 

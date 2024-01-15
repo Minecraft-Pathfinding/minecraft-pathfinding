@@ -35,7 +35,7 @@ export class ForwardMove extends Movement {
     if (this.bot.entity.position.distanceTo(thisMove.exitPos) < 0.5) return true;
     
     this.bot.setControlState('forward', true)
-    if (this.bot.food < 6) this.bot.setControlState('sprint', false)
+    if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
     else this.bot.setControlState('sprint', true)
     return false;
   };

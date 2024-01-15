@@ -1,5 +1,7 @@
+// @ts-nocheck
+
 import { Vec3 } from "vec3"
-import { PlaceInteraction } from "../vanilla-pathfinder/PlaceInteraction"
+import { PlaceInteraction } from "./PlaceInteraction"
 
 export class NonePhysicsMove {
   x: number
