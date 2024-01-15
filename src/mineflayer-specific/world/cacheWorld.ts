@@ -6,6 +6,7 @@ import { LRUCache } from 'lru-cache'
 import { PCChunk } from 'prismarine-chunk'
 import type { Biome } from 'prismarine-biome'
 
+import interactables from './interactable.json'
 
 interface BlockInfoStatic {
   interactableBlocks: Set<string>;
@@ -26,7 +27,7 @@ export class BlockInfo {
 
 
   static initialized = false;
-  static interactableBlocks = new Set();
+  static readonly interactableBlocks = new Set();
   static readonly blocksCantBreak = new Set();
   static readonly blocksToAvoid = new Set();
   static readonly climbables = new Set();
@@ -60,7 +61,7 @@ export class BlockInfo {
     if (BlockInfo.initialized) return;
     BlockInfo.initialized = true;
     
-    BlockInfo.interactableBlocks = new Set(require('./interactable.json'))
+    interactables.forEach(b=>BlockInfo.interactableBlocks.add(b))
 
     BlockInfo.blocksCantBreak.add(registry.blocksByName.chest.id);
 
@@ -151,7 +152,7 @@ export class CacheSyncWorld implements WorldType {
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
     this.blocks = new LRUCache({ size: 2500, max: 500 })
-    this.blockInfos = new LRUCache({ max: 10000, ttl: 2000 })
+    this.blockInfos = new LRUCache({ max: 10000, ttl: 1000 })
     this.world = referenceWorld
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require('prismarine-block')(bot.registry)
@@ -234,7 +235,7 @@ export class CacheSyncWorld implements WorldType {
     const calls = this.cacheCalls
     this.cacheCalls = 0
     // const used = Object.keys(this.posCache).length === 0 ?  this.blocks : this.posCache
-    const used = this.posCache.size === 0 ? this.blocks : this.posCache
+    const used = this.posCache.size !== 0 ?  this.posCache : this.blocks.size !== 0 ? this.blocks : this.blockInfos
     return `size = ${used.size}; calls = ${calls}`
   }
 

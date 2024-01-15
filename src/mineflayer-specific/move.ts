@@ -37,8 +37,17 @@ export class Move implements PathData {
   }
 
   static fromPrevious(cost: number, pos: Vec3,  prevMove: Move, type: Movement, toPlace: Vec3[] = [], toBreak: Vec3[] = []) {
-    return new Move(pos.x, pos.y, pos.z, toPlace, toBreak, cost, type, prevMove.exitPos, prevMove.exitVel, emptyVec, emptyVec)
+    return new Move(pos.x, pos.y, pos.z, toPlace, toBreak, cost, type, prevMove.exitPos, prevMove.exitVel, pos, emptyVec)
   }
 
   public toVec () { return new Vec3(this.x, this.y, this.z) }
+
+  public exitRounded(digits: number) {
+    const mult = Math.pow(10, digits)
+    return new Vec3(
+      Math.round(this.exitPos.x * mult) / mult,
+      Math.round(this.exitPos.y * mult) / mult,
+      Math.round(this.exitPos.z * mult) / mult
+    )
+  }
 }

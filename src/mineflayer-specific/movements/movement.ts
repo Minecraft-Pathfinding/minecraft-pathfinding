@@ -20,7 +20,7 @@ export abstract class Movement {
   protected readonly world: World
   protected readonly settings: MovementOptions
 
-  public constructor (bot: Bot, world: World, settings: Partial<MovementOptions>) {
+  public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot
     this.world = world
     this.settings = Object.assign({}, DefaultOpts, settings);
@@ -174,7 +174,7 @@ export class MovementHandler implements MovementProvider<Move> {
   getNeighbors (currentMove: Move): Move[] {
     const moves: Move[] = []
 
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize().scale(3.5)
+    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize()
 
     for (const newMove of this.recognizedMovements) {
       newMove.doable(currentMove, straight, moves, this.goal)
@@ -186,20 +186,20 @@ export class MovementHandler implements MovementProvider<Move> {
       }
     }
 
-    for (const dir of diagonalVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        // if (!(newMove instanceof ForwardJumpMovement))
-        newMove.doable(currentMove, dir, moves, this.goal)
-      }
-    }
+    // for (const dir of diagonalVec3s) {
+    //   for (const newMove of this.recognizedMovements) {
+    //     // if (!(newMove instanceof ForwardJumpMovement))
+    //     newMove.doable(currentMove, dir, moves, this.goal)
+    //   }
+    // }
 
-    for (const dir of jumpVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir, moves, this.goal)
-      }
-    }
+    // for (const dir of jumpVec3s) {
+    //   for (const newMove of this.recognizedMovements) {
+    //     newMove.doable(currentMove, dir, moves, this.goal)
+    //   }
+    // }
 
-    // return moves;
+    return moves;
 
     // for differences less than 1 block, we only supply best movement to said block.
 

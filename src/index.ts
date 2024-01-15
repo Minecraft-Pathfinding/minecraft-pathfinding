@@ -47,7 +47,7 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal)
 
-    const start = new Move(x, y, z, [], [], 0, new IdleMovement(this.bot, this.world, {}), startPos.clone(), startVel.clone(), new Vec3(0, 0, 0), new Vec3(0, 0, 0))
+    const start = new Move(x, y, z, [], [], 0, new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), startPos.clone(), startVel.clone())
     const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0)
 
     let result = astarContext.compute()
@@ -203,7 +203,8 @@ export class ThePathfinder {
     }
   }
 
-  cleanupBot () {
+  async cleanupBot () {
+    await this.bot.waitForTicks(1);
     this.bot.clearControlStates()
   }
 

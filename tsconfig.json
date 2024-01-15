@@ -10,7 +10,9 @@
       "sourceRoot": "src",
       "skipLibCheck": true,
       "target": "ES2015",
-      "declaration": true
+      "declaration": true,
+      "resolveJsonModule": true,
+  "esModuleInterop": true,
     }, "include": [
       "src/**/*"
     ], "exclude": [
