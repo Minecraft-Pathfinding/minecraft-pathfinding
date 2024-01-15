@@ -5,6 +5,7 @@ import { EntityState } from '@nxg-org/mineflayer-physics-util'
 
 export class Move implements PathData {
   hash: string
+  // remainingBlocks: number = 0 // TODO: implement this
 
   constructor (
     public readonly x: number,
