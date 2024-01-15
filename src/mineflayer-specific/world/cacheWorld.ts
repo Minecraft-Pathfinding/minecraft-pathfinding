@@ -6,65 +6,160 @@ import { LRUCache } from 'lru-cache'
 import { PCChunk } from 'prismarine-chunk'
 import type { Biome } from 'prismarine-biome'
 
-type BlockType = ReturnType<typeof import('prismarine-block')>
-type Block = InstanceType<BlockType>
+import interactables from './interactable.json'
 
-// class FastBlock implements Block {
-//   static AirId = 0;
-//   static CaveAirId = 726; // 1.19
-//   static VoidAirId = 725; // 1.19
+interface BlockInfoStatic {
+  interactableBlocks: Set<string>;
+  blocksCantBreak: Set<number>;
+  blocksToAvoid: Set<number>;
+  climbables: Set<number>;
+  carpets: Set<number>;
+  fences: Set<number>;
+  replaceables: Set<number>;
+  liquids: Set<number>;
+  gravityBlocks: Set<number>;
+  openable: Set<number>;
+  emptyBlocks: Set<number>;
+  scafoldingBlocks: Set<number>;
+}
 
-//   static Block: ReturnType<typeof import('prismarine-block')>
+export class BlockInfo {
 
-//   private internal: number;
 
-//   constructor() {
-//     this.internal = 0;
-//   }
+  static initialized = false;
+  static readonly interactableBlocks = new Set();
+  static readonly blocksCantBreak = new Set();
+  static readonly blocksToAvoid = new Set();
+  static readonly climbables = new Set();
+  static readonly carpets = new Set();
+  static readonly fences = new Set();
+  static readonly replaceables = new Set();
+  static readonly liquids = new Set();
+  static readonly gravityBlocks = new Set();
+  static readonly openable = new Set();
+  static readonly emptyBlocks = new Set();
+  static readonly scafoldingBlocks = new Set();
 
-//   public get diggable(): boolean {
-//     return ((this.internal << 8) >> 1) as unknown as boolean; // fast conversion of guaranteed 0 | 1 to boolean.
-//   }
 
-//   public get isAir(): boolean {
-//     switch (this.internal) {
-//       case FastBlock.AirId:
-//       case FastBlock.CaveAirId:
-//       case FastBlock.VoidAirId:
-//         return true;
-//       default:
-//         return false
-//     }
-//   }
 
-//   static fromBlock(block: Block) {
-//     return new FastBlock();
-//   }
+  static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false)
 
-// }
+
+  constructor(
+    public readonly replaceable: boolean,
+    public readonly canFall: boolean,
+    public readonly safe: boolean,
+    public readonly physical: boolean,
+    public readonly liquid: boolean,
+    public readonly climbable: boolean,
+    public readonly height: number,
+    public readonly openable: boolean
+  ) { }
+
+
+  static init(registry: MCData) {
+    if (BlockInfo.initialized) return;
+    BlockInfo.initialized = true;
+    
+    interactables.forEach(b=>BlockInfo.interactableBlocks.add(b))
+
+    BlockInfo.blocksCantBreak.add(registry.blocksByName.chest.id);
+
+    registry.blocksArray.forEach(block => {
+      if (block.diggable) return
+      BlockInfo.blocksCantBreak.add(block.id)
+    })
+
+    BlockInfo.blocksToAvoid.add(registry.blocksByName.fire.id)
+    if (registry.blocksByName.cobweb) BlockInfo.blocksToAvoid.add(registry.blocksByName.cobweb.id)
+    if (registry.blocksByName.web) BlockInfo.blocksToAvoid.add(registry.blocksByName.web.id)
+    BlockInfo.blocksToAvoid.add(registry.blocksByName.lava.id)
+
+    BlockInfo.liquids.add(registry.blocksByName.water.id)
+    BlockInfo.liquids.add(registry.blocksByName.lava.id)
+
+    BlockInfo.gravityBlocks.add(registry.blocksByName.sand.id)
+    BlockInfo.gravityBlocks.add(registry.blocksByName.gravel.id)
+
+    BlockInfo.climbables.add(registry.blocksByName.ladder.id)
+    // BlockInfo.climbables.add(registry.blocksByName.vine.id)
+
+    BlockInfo.replaceables.add(registry.blocksByName.air.id)
+    if (registry.blocksByName.cave_air) BlockInfo.replaceables.add(registry.blocksByName.cave_air.id)
+    if (registry.blocksByName.void_air) BlockInfo.replaceables.add(registry.blocksByName.void_air.id)
+    BlockInfo.replaceables.add(registry.blocksByName.water.id)
+    BlockInfo.replaceables.add(registry.blocksByName.lava.id)
+
+    BlockInfo.scafoldingBlocks.add(registry.itemsByName.dirt.id)
+    BlockInfo.scafoldingBlocks.add(registry.itemsByName.cobblestone.id)
+
+    const Block: BlockType = require('prismarine-block')(registry);
+    registry.blocksArray.filter(x => !x.minStateId).map(x => Block.fromStateId(x.minStateId!, 0)).forEach(block => {
+      if (block.shapes.length > 0) {
+        // Fences or any block taller than 1, they will be considered as non-physical to avoid
+        // trying to walk on them
+        if (block.shapes[0][4] > 1) BlockInfo.fences.add(block.type)
+        // Carpets or any blocks smaller than 0.1, they will be considered as safe to walk in
+        if (block.shapes[0][4] < 0.1) BlockInfo.carpets.add(block.type)
+      } else if (block.shapes.length === 0) {
+        BlockInfo.emptyBlocks.add(block.type)
+      }
+    });
+
+    registry.blocksArray.forEach(block => {
+      if (BlockInfo.interactableBlocks.has(block.name) && block.name.toLowerCase().includes('gate') && !block.name.toLowerCase().includes('iron')) {
+        BlockInfo.openable.add(block.id)
+      }
+    });
+  }
+
+
+  static fromBlock(b: Block) {
+    const b1 = {} as any;
+    b1.climbable = BlockInfo.climbables.has(b.type)
+    b1.safe = (b.boundingBox === 'empty' || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type)
+    b1.physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
+    b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
+    b1.liquid = BlockInfo.liquids.has(b.type)
+    b1.height = b.position.y;
+    b1.canFall = BlockInfo.gravityBlocks.has(b.type)
+    b1.openable = BlockInfo.openable.has(b.type)
+
+    for (const shape of b.shapes) {
+      b1.height = Math.max(b1.height, b.position.y + shape[4])
+    }
+
+
+    return new BlockInfo(b1.replaceable, b1.canFall, b1.safe, b1.physical, b1.liquid, b1.climbable, b1.height, b1.openable)
+  }
+}
 
 export class CacheSyncWorld implements WorldType {
-  posCache: LRUCache<string, Block>
+  posCache: LRUCache<string, Block>;
+  posCache1: LRUCache<string, number>;
   // blocks: LRUCache<number, Block>;
   // posCache: Record<string, Block>;
   blocks: LRUCache<number, Block>
+  blockInfos: LRUCache<string, BlockInfo>
   world: WorldType
   cacheCalls = 0
   enabled = true
 
-  static Block: ReturnType<typeof import('prismarine-block')>
+  static Block: BlockType
 
-  constructor (bot: Bot, referenceWorld: any) {
+  constructor(bot: Bot, referenceWorld: any) {
     // this.posCache = {};
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
+    this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
     this.blocks = new LRUCache({ size: 2500, max: 500 })
+    this.blockInfos = new LRUCache({ max: 10000, ttl: 1000 })
     this.world = referenceWorld
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require('prismarine-block')(bot.registry)
     }
   }
 
-  getBlock1 (pos: Vec3) {
+  getBlock1(pos: Vec3) {
     if (!this.enabled) {
       return this.world.getBlock(pos)
     }
@@ -87,25 +182,38 @@ export class CacheSyncWorld implements WorldType {
     return b
   }
 
-  getBlock (pos: Vec3) {
+  getBlock(pos: Vec3) {
     if (!this.enabled) {
       return this.world.getBlock(pos)
     }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
-    // const block = this.posCache[key]
-    // if (block !== undefined) return block
-    // const block1 = this.world.getBlock(pos);
-    // if (block1 !== null) this.posCache[key] = block1
-    // return block1
     if (this.posCache.has(key)) return this.posCache.get(key)
     const block = this.world.getBlock(pos)
     if (block !== undefined) this.posCache.set(key, block)
     return block
   }
 
-  getBlockStateId (pos: Vec3): number | undefined {
+  getBlockInfo(pos: Vec3) {
+    if (!this.enabled) {
+      const block = this.world.getBlock(pos)
+      if (!block) return BlockInfo.DEFAULT
+      return BlockInfo.fromBlock(block);
+    }
+    this.cacheCalls++
+    pos = pos.floored()
+    const key = `${pos.x}:${pos.y}:${pos.z}`
+    if (this.blockInfos.has(key)) return this.blockInfos.get(key)!
+    const block = this.world.getBlock(pos)
+    if (block === undefined) return BlockInfo.DEFAULT;
+    const blockInfo = BlockInfo.fromBlock(block)
+    this.blockInfos.set(key, blockInfo)
+    return blockInfo
+
+  }
+
+  getBlockStateId(pos: Vec3): number | undefined {
     if (!this.enabled) {
       return this.world.getBlockStateId(pos)
     }
@@ -117,44 +225,44 @@ export class CacheSyncWorld implements WorldType {
     // const state1 = this.world.getBlockStateId(pos);
     // if (state1 !== undefined) this.posCache[key] = CacheSyncWorld.Block.fromStateId(state1, 0)
     // return state1
-    if (this.posCache.has(key)) return this.posCache.get(key)!.stateId
-    const state = this.world.getBlock(pos).stateId
-    if (state !== undefined) this.posCache.set(key, state)
+    if (this.posCache.has(key)) return this.posCache1.get(key)!
+    const state = this.world.getBlockStateId(pos)
+    if (state !== undefined) this.posCache1.set(key, state)
     return state
   }
 
-  getCacheSize () {
+  getCacheSize() {
     const calls = this.cacheCalls
     this.cacheCalls = 0
     // const used = Object.keys(this.posCache).length === 0 ?  this.blocks : this.posCache
-    const used = this.posCache.size === 0 ? this.blocks : this.posCache
+    const used = this.posCache.size !== 0 ?  this.posCache : this.blocks.size !== 0 ? this.blocks : this.blockInfos
     return `size = ${used.size}; calls = ${calls}`
   }
 
-  clearCache () {
+  clearCache() {
     // this.posCache = {};
     this.posCache.clear()
     this.blocks.clear()
     this.cacheCalls = 0
   }
 
-  setEnabled (enabled: boolean) {
+  setEnabled(enabled: boolean) {
     this.enabled = enabled
   }
 }
 
-function columnKey (x: number, z: number) {
+function columnKey(x: number, z: number) {
   return `${x},${z}`
 }
 
-function posInChunk (pos: Vec3) {
+function posInChunk(pos: Vec3) {
   pos = pos.floored()
   pos.x &= 15
   pos.z &= 15
   return pos
 }
 
-function isCube (shapes: number[][]) {
+function isCube(shapes: number[][]) {
   if (!shapes || shapes.length !== 1) return false
   const shape = shapes[0]
   return shape[0] === 0 && shape[1] === 0 && shape[2] === 0 && shape[3] === 1 && shape[4] === 1 && shape[5] === 1
@@ -166,28 +274,28 @@ class World {
   public blockCache: Record<number, Block>
   public biomeCache: Record<number, Biome>
 
-  constructor (version: string) {
+  constructor(version: string) {
     this.Chunk = require('prismarine-chunk')(version)
     this.columns = {}
     this.blockCache = {}
     this.biomeCache = require('minecraft-data')(version).biomes
   }
 
-  addColumn (x: number, z: number, json: string) {
+  addColumn(x: number, z: number, json: string) {
     const chunk = this.Chunk.fromJson(json)
     this.columns[columnKey(x, z)] = chunk as any
     return chunk
   }
 
-  removeColumn (x: number, z: number) {
+  removeColumn(x: number, z: number) {
     delete this.columns[columnKey(x, z)]
   }
 
-  getColumn (x: number, z: number) {
+  getColumn(x: number, z: number) {
     return this.columns[columnKey(x, z)]
   }
 
-  setBlockStateId (pos: Vec3, stateId: number) {
+  setBlockStateId(pos: Vec3, stateId: number) {
     const key = columnKey(Math.floor(pos.x / 16) * 16, Math.floor(pos.z / 16) * 16)
 
     const column = this.columns[key]
@@ -199,7 +307,7 @@ class World {
     return true
   }
 
-  getBlock (pos: Vec3) {
+  getBlock(pos: Vec3) {
     const key = columnKey(Math.floor(pos.x / 16) * 16, Math.floor(pos.z / 16) * 16)
 
     const column = this.columns[key]

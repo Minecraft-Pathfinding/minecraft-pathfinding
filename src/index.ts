@@ -1,11 +1,11 @@
 import { Bot } from 'mineflayer'
-import { MovementHandler, ForwardMovement, IdleMovement, ForwardJumpMovement } from './mineflayer-specific/movements'
+import { MovementHandler, IdleMovement, ForwardMove, Movement, SimMovement } from './mineflayer-specific/movements'
 import { AStar } from './mineflayer-specific/algs'
 import { goals } from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
 import { Path, Algorithm } from './abstract'
-import { CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
+import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
 import type { World as WorldType } from './mineflayer-specific/world/worldInterface'
 import { CancelError } from './mineflayer-specific/movements/exceptions'
 
@@ -19,7 +19,7 @@ export class ThePathfinder {
 
   constructor (private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world)
-    this.movements = new MovementHandler(bot, this.world, [ForwardJumpMovement])
+    this.movements = MovementHandler.create(bot, this.world, [ForwardMove], {canOpenDoors: true})
     this.astar = null
   }
 
@@ -47,7 +47,7 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal)
 
-    const start = new Move(x, y, z, startPos, startVel, startPos.clone(), startVel.clone(), 0, new IdleMovement(this.bot, this.world))
+    const start = new Move(x, y, z, [], [], 0, new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), startPos.clone(), startVel.clone())
     const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0)
 
     let result = astarContext.compute()
@@ -203,7 +203,8 @@ export class ThePathfinder {
     }
   }
 
-  cleanupBot () {
+  async cleanupBot () {
+    await this.bot.waitForTicks(1);
     this.bot.clearControlStates()
   }
 
@@ -219,6 +220,7 @@ export { goals } from './mineflayer-specific/goals'
 
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {
+    BlockInfo.init(bot.registry) // set up block info
     bot.pathfinder = new ThePathfinder(bot)
   }
 }

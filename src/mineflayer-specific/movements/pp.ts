@@ -124,7 +124,7 @@ export class ForwardJumpMovement extends SimMovement {
 
     if (reach(state, state.age)) {
       // console.log("GI",state.pos, state.isCollidedVertically, cost)
-      storage.push(Move.fromPrevious(cost, start, this, state))
+      storage.push(Move.fromPreviousState(cost, state, start, this))
     }
   }
 

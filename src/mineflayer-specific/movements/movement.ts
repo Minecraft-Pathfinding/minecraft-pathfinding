@@ -6,13 +6,24 @@ import { goals } from '../goals'
 import { World } from '../world/worldInterface'
 import { MovementProvider } from '../../abstract'
 
+
+export interface MovementOptions {
+  canOpenDoors: boolean,
+}
+
+const DefaultOpts: MovementOptions = {
+  canOpenDoors: true,
+}
+
 export abstract class Movement {
   protected readonly bot: Bot
   protected readonly world: World
+  protected readonly settings: MovementOptions
 
-  public constructor (bot: Bot, world: World) {
+  public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot
     this.world = world
+    this.settings = Object.assign({}, DefaultOpts, settings);
   }
 
   /**
@@ -65,13 +76,31 @@ export abstract class Movement {
   // shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
   //   return tickCount > 50;
   // };
+
+  getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {
+    return this.world.getBlock(new Vec3(pos.x+dx, pos.y+dy, pos.z+dz))
+  }
+
+  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number) {
+    return this.world.getBlockInfo(new Vec3(pos.x+dx, pos.y+dy, pos.z+dz))
+  }
+
+  /**
+   * Returns if a block is safe or not
+   * @param pos 
+   * @returns 
+   */
+  safe(pos: Vec3Properties): number {
+    const block = this.world.getBlockInfo(new Vec3(pos.x, pos.y, pos.z))
+    return block.physical ? 0 : 100
+  }
 }
 
 export abstract class SimMovement extends Movement {
   stateCtx: EPhysicsCtx
   sim: BaseSimulator
-  constructor (protected readonly bot: Bot, world: World) {
-    super(bot, world)
+  constructor (protected readonly bot: Bot, world: World, settings: Partial<MovementOptions>) {
+    super(bot, world, settings)
     this.sim = new BaseSimulator(new EntityPhysics(bot.registry))
     this.stateCtx = EPhysicsCtx.FROM_BOT(this.sim.ctx, bot)
   }
@@ -81,7 +110,7 @@ export abstract class SimMovement extends Movement {
   }
 }
 
-type BuildableMove = new (bot: Bot, world: World) => Movement
+type BuildableMove = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => Movement
 const cardinalVec3s: Vec3[] = [
   // { x: -1, z: 0 }, // West
   // { x: 1, z: 0 }, // East
@@ -124,9 +153,14 @@ export class MovementHandler implements MovementProvider<Move> {
   goal!: goals.Goal
   world: World
 
-  constructor (private readonly bot: Bot, world: World, recMovement: BuildableMove[]) {
+  constructor (private readonly bot: Bot, world: World, recMovement: Movement[]) {
     this.world = world
-    this.recognizedMovements = recMovement.map((m) => new m(bot, this.world))
+    this.recognizedMovements = recMovement
+  }
+
+  static create (bot: Bot, world: World, recMovement: BuildableMove[], settings: Partial<MovementOptions> = {}): MovementHandler {
+    const opts = Object.assign({}, DefaultOpts, settings)
+    return new MovementHandler(bot, world, recMovement.map((m) => new m(bot, world, opts)))
   }
 
   sanitize (): boolean {
@@ -140,7 +174,7 @@ export class MovementHandler implements MovementProvider<Move> {
   getNeighbors (currentMove: Move): Move[] {
     const moves: Move[] = []
 
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize().scale(3.5)
+    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize()
 
     for (const newMove of this.recognizedMovements) {
       newMove.doable(currentMove, straight, moves, this.goal)
@@ -152,20 +186,20 @@ export class MovementHandler implements MovementProvider<Move> {
       }
     }
 
-    for (const dir of diagonalVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        // if (!(newMove instanceof ForwardJumpMovement))
-        newMove.doable(currentMove, dir, moves, this.goal)
-      }
-    }
+    // for (const dir of diagonalVec3s) {
+    //   for (const newMove of this.recognizedMovements) {
+    //     // if (!(newMove instanceof ForwardJumpMovement))
+    //     newMove.doable(currentMove, dir, moves, this.goal)
+    //   }
+    // }
 
-    for (const dir of jumpVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir, moves, this.goal)
-      }
-    }
+    // for (const dir of jumpVec3s) {
+    //   for (const newMove of this.recognizedMovements) {
+    //     newMove.doable(currentMove, dir, moves, this.goal)
+    //   }
+    // }
 
-    // return moves;
+    return moves;
 
     // for differences less than 1 block, we only supply best movement to said block.
 
