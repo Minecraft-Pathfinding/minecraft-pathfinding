@@ -140,8 +140,6 @@ export class BlockInfo {
 
 export class BlockInfoGroup implements BlockInfo {
 
-  private readonly blockInfos: BlockInfo[];
-
   public readonly replaceable: boolean;
   public readonly canFall: boolean;
   public readonly safe: boolean;
@@ -173,19 +171,17 @@ export class BlockInfoGroup implements BlockInfo {
       if (!blockInfo.openable) this.openable = false;
       this.height = Math.max(this.height, blockInfo.height);
     }
-
-    this.blockInfos = blockInfos;
   }
 
   public get position() {
     throw new Error("Method not implemented.");
-    return this.blockInfos[0].position
+    return null as any;
   }
   
 
   public get type() {
     throw new Error("Method not implemented.");
-    return this.blockInfos[0].type
+    return null as any;
   }
 }
 

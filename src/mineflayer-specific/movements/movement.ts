@@ -23,7 +23,60 @@ const DefaultOpts: MovementOptions = {
   dontMineUnderFallingBlock: true
 }
 
+const cardinalVec3s: Vec3[] = [
+  // { x: -1, z: 0 }, // West
+  // { x: 1, z: 0 }, // East
+  // { x: 0, z: -1 }, // North
+  // { x: 0, z: 1 }, // South
+  new Vec3(-1, 0, 0),
+  new Vec3(1, 0, 0),
+  new Vec3(0, 0, -1),
+  new Vec3(0, 0, 1)
+]
+
+Object.freeze(cardinalVec3s)
+cardinalVec3s.forEach(Object.freeze)
+
+
+const diagonalVec3s: Vec3[] = [
+  // { x: -1, z: -1 },
+  // { x: -1, z: 1 },
+  // { x: 1, z: -1 },
+  // { x: 1, z: 1 },
+  new Vec3(-1, 0, -1),
+  new Vec3(-1, 0, 1),
+  new Vec3(1, 0, -1),
+  new Vec3(1, 0, 1)
+]
+
+Object.freeze(diagonalVec3s)
+diagonalVec3s.forEach(Object.freeze)
+
+const jumpVec3s: Vec3[] = [
+  new Vec3(-3, 0, 0),
+  new Vec3(-2, 0, 1),
+  new Vec3(-2, 0, -1),
+  new Vec3(-1, 0, 2),
+  new Vec3(-1, 0, -2),
+  new Vec3(0, 0, 3),
+  new Vec3(0, 0, -3),
+  new Vec3(1, 0, 2),
+  new Vec3(1, 0, -2),
+  new Vec3(2, 0, 1),
+  new Vec3(2, 0, -1),
+  new Vec3(3, 0, 0)
+]
+
+Object.freeze(jumpVec3s)
+jumpVec3s.forEach(Object.freeze)
+
 export abstract class Movement {
+
+  static readonly cardinalDirs = cardinalVec3s;
+  static readonly diagonalDirs = diagonalVec3s;
+  static readonly jumpDirs = jumpVec3s;
+
+
   protected readonly bot: Bot
   protected readonly world: World
   protected readonly settings: MovementOptions
@@ -40,7 +93,7 @@ export abstract class Movement {
    * Decide whether or not movement is possible.
    * If possible, append to provided storage.
    */
-  abstract doable (start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void
+  abstract provideMovements (start: Move, storage: Move[], goal: goals.Goal): void
 
   /**
    * Runtime calculation.
@@ -208,42 +261,7 @@ export abstract class SimMovement extends Movement {
 }
 
 type BuildableMove = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => Movement
-const cardinalVec3s: Vec3[] = [
-  // { x: -1, z: 0 }, // West
-  // { x: 1, z: 0 }, // East
-  // { x: 0, z: -1 }, // North
-  // { x: 0, z: 1 }, // South
-  new Vec3(-1, 0, 0),
-  new Vec3(1, 0, 0),
-  new Vec3(0, 0, -1),
-  new Vec3(0, 0, 1)
-]
 
-const diagonalVec3s: Vec3[] = [
-  // { x: -1, z: -1 },
-  // { x: -1, z: 1 },
-  // { x: 1, z: -1 },
-  // { x: 1, z: 1 },
-  new Vec3(-1, 0, -1),
-  new Vec3(-1, 0, 1),
-  new Vec3(1, 0, -1),
-  new Vec3(1, 0, 1)
-]
-
-const jumpVec3s: Vec3[] = [
-  new Vec3(-3, 0, 0),
-  new Vec3(-2, 0, 1),
-  new Vec3(-2, 0, -1),
-  new Vec3(-1, 0, 2),
-  new Vec3(-1, 0, -2),
-  new Vec3(0, 0, 3),
-  new Vec3(0, 0, -3),
-  new Vec3(1, 0, 2),
-  new Vec3(1, 0, -2),
-  new Vec3(2, 0, 1),
-  new Vec3(2, 0, -1),
-  new Vec3(3, 0, 0)
-]
 
 export class MovementHandler implements MovementProvider<Move> {
   recognizedMovements: Movement[]
@@ -271,32 +289,12 @@ export class MovementHandler implements MovementProvider<Move> {
   getNeighbors (currentMove: Move): Move[] {
     const moves: Move[] = []
 
-    const straight = new Vec3(this.goal.x - currentMove.x, this.goal.y - currentMove.y, this.goal.z - currentMove.z).normalize()
-
-    // for (const newMove of this.recognizedMovements) {
-    //   newMove.doable(currentMove, straight, moves, this.goal)
-    // }
-
-    for (const dir of cardinalVec3s) {
-      for (const newMove of this.recognizedMovements) {
-        newMove.doable(currentMove, dir, moves, this.goal)
-      }
+    for (const newMove of this.recognizedMovements) {
+      newMove.provideMovements(currentMove, moves, this.goal)
     }
 
-    // for (const dir of diagonalVec3s) {
-    //   for (const newMove of this.recognizedMovements) {
-    //     // if (!(newMove instanceof ForwardJumpMovement))
-    //     newMove.doable(currentMove, dir, moves, this.goal)
-    //   }
-    // }
 
-    // for (const dir of jumpVec3s) {
-    //   for (const newMove of this.recognizedMovements) {
-    //     newMove.doable(currentMove, dir, moves, this.goal)
-    //   }
-    // }
-
-    return moves;
+    // return moves;
 
     // for differences less than 1 block, we only supply best movement to said block.
 
@@ -327,6 +325,10 @@ export class MovementHandler implements MovementProvider<Move> {
     return ret
   }
 }
+
+
+
+
 
 type Comparator<T> = (a: T, b: T) => number
 

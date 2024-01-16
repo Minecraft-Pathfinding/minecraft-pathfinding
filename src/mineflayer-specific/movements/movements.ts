@@ -8,7 +8,7 @@ import { CancelError } from "./exceptions";
 import { BlockInfo } from "../world/cacheWorld";
 
 export class IdleMovement extends Movement {
-  doable(start: Move, dir: Vec3, storage: Move[]): void {}
+  provideMovements(start: Move, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
   performPerTick = async (thisMove: Move, tickCount: number, goal: goals.Goal) => {
     return true;
@@ -20,8 +20,10 @@ export class ForwardMove extends Movement {
     super(bot, world, settings);
   }
 
-  doable(start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void {
-    this.getMoveForward(start, dir, storage);
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    for (const dir of Movement.cardinalDirs) {
+      this.getMoveForward(start, dir, storage);
+    }
   }
 
   performInit = async (thisMove: Move, goal: goals.Goal) => {
@@ -43,11 +45,8 @@ export class ForwardMove extends Movement {
   };
 
   getMoveForward(start: Move, dir: Vec3, neighbors: Move[]) {
-    // const pos = start.exitRounded(1);
-    const pos = start.toVecCenter();
-    // if (dir.norm() !== 1) return;
-    // if (dir.x !== 1 && dir.z !== 1) return
-    // console.log(pos, pos.plus(dir))
+    const pos = start.toVec();
+  
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z);
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z);
     const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z);
@@ -62,14 +61,17 @@ export class ForwardMove extends Movement {
     if (blockB.physical || blockC.physical) {
       return;
     }
-
-    neighbors.push(Move.fromPrevious(cost, pos.plus(dir), start, this));
+    
+    // set exitPos to center of wanted block
+    neighbors.push(Move.fromPrevious(cost, pos.add(dir).translate(0.5, 0.5, 0.5), start, this));
   }
 }
 
 export class ForwardJumpMove extends Movement {
-  doable(start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void {
-    return this.getMoveJumpUp(start, dir, storage);
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    for (const dir of Movement.cardinalDirs) {
+      this.getMoveJumpUp(start, dir, storage);
+    }
   }
   performInit = async (thisMove: Move, goal: goals.Goal) => {
     await this.bot.lookAt(thisMove.exitPos, true);
@@ -154,7 +156,8 @@ export class ForwardJumpMove extends Movement {
     if (cost > 100) return;
     cost += this.safeOrBreak(blockB, toBreak);
     if (cost > 100) return;
-    neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace as any[], toBreak));
-    // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks - toPlace.length, cost, toBreak, toPlace))
+
+    // set exitPos to center of block we want.
+    neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0.5, 0.5), node, this, toPlace as any[], toBreak));
   }
 }

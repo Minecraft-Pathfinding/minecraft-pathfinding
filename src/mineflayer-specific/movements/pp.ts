@@ -92,7 +92,7 @@ export class ForwardJumpMovement extends SimMovement {
     }
   }
 
-  doable (start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void {
+  provideMovements (start: Move, dir: Vec3, storage: Move[], goal: goals.Goal): void {
     setState(this.stateCtx, start.exitPos, emptyVec)
     this.stateCtx.state.clearControlStates()
 
