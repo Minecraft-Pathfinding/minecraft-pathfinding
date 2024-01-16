@@ -75,7 +75,7 @@ export class ForwardJumpMove extends Movement {
     await this.bot.lookAt(thisMove.exitPos, true);
     this.bot.setControlState("jump", true);
     this.bot.setControlState("forward", true);
-    this.bot.setControlState("sprint", true);
+    this.bot.setControlState("sprint", false);
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
@@ -84,6 +84,7 @@ export class ForwardJumpMove extends Movement {
     if (this.bot.entity.position.y - thisMove.exitPos.y < -1) throw new CancelError("ForwardJumpMove: too low");
     if (tickCount > 0 && this.bot.entity.onGround) {
       this.bot.setControlState("jump", false);
+      this.bot.setControlState("sprint", true);
       if (this.bot.entity.position.y - thisMove.exitPos.y < 0) throw new CancelError("ForwardJumpMove: too low");
       if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.3) return true;
     }
