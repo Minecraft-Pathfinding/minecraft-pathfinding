@@ -96,6 +96,14 @@ export class ForwardJumpMove extends Movement {
     // if (this.bot.entity.position.y - thisMove.exitPos.y > 1) return true
   };
 
+  /**
+   * TODO: provide both non-sprint and sprint-jump moves here.
+   * Saves time.
+   * @param node 
+   * @param dir 
+   * @param neighbors 
+   * @returns 
+   */
   getMoveJumpUp(node: Move, dir: Vec3, neighbors: Move[]) {
     // const pos = node.exitRounded(1)
     const pos = node.toVec();
