@@ -38,7 +38,8 @@ export class BlockInfo {
   static readonly gravityBlocks = new Set();
   static readonly openable = new Set();
   static readonly emptyBlocks = new Set();
-  static readonly scafoldingBlocks = new Set();
+  static readonly scaffoldingBlockItems = new Set<number>();
+  static readonly mlgItems = new Set<number>();
 
 
 
@@ -93,8 +94,9 @@ export class BlockInfo {
     BlockInfo.replaceables.add(registry.blocksByName.water.id)
     BlockInfo.replaceables.add(registry.blocksByName.lava.id)
 
-    BlockInfo.scafoldingBlocks.add(registry.itemsByName.dirt.id)
-    BlockInfo.scafoldingBlocks.add(registry.itemsByName.cobblestone.id)
+    BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.dirt.id)
+    BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.cobblestone.id)
+
 
     const Block: BlockType = require('prismarine-block')(registry);
     registry.blocksArray.filter(x => !x.minStateId).map(x => Block.fromStateId(x.minStateId!, 0)).forEach(block => {
