@@ -42,6 +42,8 @@ export class Move implements PathData {
 
   public toVec () { return new Vec3(this.x, this.y, this.z) }
 
+  public toVecCenter() { return new Vec3(this.x + 0.5, this.y, this.z + 0.5) } 
+
   public exitRounded(digits: number) {
     const mult = Math.pow(10, digits)
     return new Vec3(

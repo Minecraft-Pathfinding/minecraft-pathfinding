@@ -137,6 +137,58 @@ export class BlockInfo {
   }
 }
 
+
+export class BlockInfoGroup implements BlockInfo {
+
+  private readonly blockInfos: BlockInfo[];
+
+  public readonly replaceable: boolean;
+  public readonly canFall: boolean;
+  public readonly safe: boolean;
+  public readonly physical: boolean;
+  public readonly liquid: boolean;
+  public readonly climbable: boolean;
+  public readonly height: number;
+  public readonly openable: boolean;
+
+
+  constructor(...blockInfos: BlockInfo[]) {
+
+    this.replaceable = true;
+    this.canFall = false;
+    this.safe = true;
+    this.physical = false;
+    this.liquid = true;
+    this.climbable = false;
+    this.height = 0;
+    this.openable = false;
+
+    for (const blockInfo of blockInfos) {
+      if (!blockInfo.replaceable) this.replaceable = false;
+      if (blockInfo.canFall) this.canFall = true;
+      if (!blockInfo.safe) this.safe = false;
+      if (blockInfo.physical) this.physical = true;
+      if (!blockInfo.liquid) this.liquid = false;
+      if (blockInfo.climbable) this.climbable = true;
+      if (!blockInfo.openable) this.openable = false;
+      this.height = Math.max(this.height, blockInfo.height);
+    }
+
+    this.blockInfos = blockInfos;
+  }
+
+  public get position() {
+    throw new Error("Method not implemented.");
+    return this.blockInfos[0].position
+  }
+  
+
+  public get type() {
+    throw new Error("Method not implemented.");
+    return this.blockInfos[0].type
+  }
+}
+
 export class CacheSyncWorld implements WorldType {
   posCache: LRUCache<string, Block>;
   posCache1: LRUCache<string, number>;
@@ -192,9 +244,9 @@ export class CacheSyncWorld implements WorldType {
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
-    if (this.posCache.has(key)) return this.posCache.get(key)
+    if (this.posCache.has(key)) return this.posCache.get(key)!
     const block = this.world.getBlock(pos)
-    if (block !== undefined) this.posCache.set(key, block)
+    if (block !== null) this.posCache.set(key, block)
     return block
   }
 
@@ -209,7 +261,7 @@ export class CacheSyncWorld implements WorldType {
     const key = `${pos.x}:${pos.y}:${pos.z}`
     if (this.blockInfos.has(key)) return this.blockInfos.get(key)!
     const block = this.world.getBlock(pos)
-    if (block === undefined) return BlockInfo.DEFAULT;
+    if (block === null) return BlockInfo.DEFAULT;
     const blockInfo = BlockInfo.fromBlock(block)
     this.blockInfos.set(key, blockInfo)
     return blockInfo
