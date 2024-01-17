@@ -35,13 +35,16 @@ export class Forward extends Movement {
     if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
     else this.bot.setControlState("sprint", true);
 
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
-    }
+
 
     for (const breakH of thisMove.toBreak) {
       await this.performInteraction(breakH);
     }
+
+    for (const place of thisMove.toPlace) {
+      await this.performInteraction(place);
+    }
+
     console.log('done move prehandle!')
   };
 
@@ -56,7 +59,7 @@ export class Forward extends Movement {
 
     this.bot.lookAt(thisMove.exitPos, true);
 
-    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.4) return true;
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
 
     this.bot.setControlState("forward", true);
     if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
@@ -86,13 +89,9 @@ export class Forward extends Movement {
         toBreak.push(BreakHandler.fromVec(blockD.position, "solid"));
       }
       // cost += this.exclusionPlace(blockC)
-     
+      toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
       // cost += this.placeCost // additional cost for placing a block
     }
-    
-    const blockU = this.getBlockInfo(pos, 0, -1, 0);
-    if (!blockU.physical) toPlace.push(PlaceHandler.fromVec(pos.offset(0, -1, 0), "solid"));
-
 
     cost += this.safeOrBreak(blockC, toBreak);
     if (cost > 100) return;
@@ -119,16 +118,21 @@ export class ForwardJump extends Movement {
     let ticked = false;
     const listener = () => { ticked = true; };
     this.bot.on('physicsTick', listener)
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
+   
+    this.bot.setControlState("jump", true);
+    this.bot.setControlState("forward", true);
+    this.bot.setControlState("sprint", true);
+
+    for (const breakH of thisMove.toBreak) {
+      await this.performInteraction(breakH);
       if (!ticked) {
         await this.bot.waitForTicks(1);
         ticked = false;
       }
     }
 
-    for (const breakH of thisMove.toBreak) {
-      await this.performInteraction(breakH);
+    for (const place of thisMove.toPlace) {
+      await this.performInteraction(place);
       if (!ticked) {
         await this.bot.waitForTicks(1);
         ticked = false;
@@ -251,13 +255,15 @@ export class ForwardDropDown extends Movement {
   }
   performInit = async (thisMove: Move, goal: goals.Goal) => {
     await this.bot.lookAt(thisMove.exitPos, true);
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
-    }
 
     for (const breakH of thisMove.toBreak) {
       await this.performInteraction(breakH);
     }
+
+    for (const place of thisMove.toPlace) {
+      await this.performInteraction(place);
+    }
+
 
     console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z)
     this.bot.setControlState("forward", true);

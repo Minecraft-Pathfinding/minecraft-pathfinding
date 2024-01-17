@@ -6,7 +6,7 @@ import type { Item as MdItem } from "minecraft-data";
 import { BlockInfo } from "../world/cacheWorld";
 import { EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
 import { World } from "../world/worldInterface";
-import {AABB, BlockFace} from '@nxg-org/mineflayer-util-plugin'
+import { AABB, BlockFace } from "@nxg-org/mineflayer-util-plugin";
 import { onceWithCleanup } from "../../utils";
 
 type InteractType = "water" | "solid" | "replaceable";
@@ -36,6 +36,7 @@ export abstract class InteractHandler {
 
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
   abstract perform(bot: Bot, item: Item, opts?: InteractOpts): Promise<void>;
+  abstract canPerform(bot: Bot): Promise<boolean>;
 
   getCurrentItem(bot: Bot) {
     if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot("off-hand")]; // could be wrong lol
@@ -94,62 +95,62 @@ export class PlaceHandler extends InteractHandler {
 
   getNearbyBlocks(world: World) {
     return [
-      world.getBlockInfo(this.vec.offset(1, 0, 0)),
-      world.getBlockInfo(this.vec.offset(-1, 0, 0)),
       world.getBlockInfo(this.vec.offset(0, 1, 0)),
       world.getBlockInfo(this.vec.offset(0, -1, 0)),
-      world.getBlockInfo(this.vec.offset(0, 0, 1)),
       world.getBlockInfo(this.vec.offset(0, 0, -1)),
+      world.getBlockInfo(this.vec.offset(0, 0, 1)),
+      world.getBlockInfo(this.vec.offset(-1, 0, 0)),
+      world.getBlockInfo(this.vec.offset(1, 0, 0)),
     ];
   }
 
   faceToVec(face: BlockFace) {
     switch (face) {
-      case BlockFace.EAST:
-        return new Vec3(1, 0, 0);
-      case BlockFace.WEST:
-        return new Vec3(-1, 0, 0);
       case BlockFace.BOTTOM:
         return new Vec3(0, 1, 0);
       case BlockFace.TOP:
         return new Vec3(0, -1, 0);
-      case BlockFace.SOUTH:
-        return new Vec3(0, 0, 1);
+
       case BlockFace.NORTH:
         return new Vec3(0, 0, -1);
-      default:
-        throw new Error("Invalid face");
-    }
-  }
-
-  wantedFacePlacement(face: BlockFace) {
-    switch (face) {
-      case BlockFace.EAST:
-        return new Vec3(0.5, 0.5, 0);
-      case BlockFace.WEST:
-        return new Vec3(-0.5, 0.5, 0);
-      case BlockFace.BOTTOM:
-        return new Vec3(0.5, 0, 0.5);
-      case BlockFace.TOP:
-        return new Vec3(0.5, 1, 0.5);
-      case BlockFace.NORTH:
-        return new Vec3(0.5, 0.5, -0.5);
       case BlockFace.SOUTH:
-        return new Vec3(0.5, 0.5, 0.5);
+        return new Vec3(0, 0, 1);
+      case BlockFace.WEST:
+        return new Vec3(-1, 0, 0);
+      case BlockFace.EAST:
+        return new Vec3(1, 0, 0);
+
       default:
-        console.log(face);
         throw new Error("Invalid face");
     }
   }
 
-
-  private raycastValid(raycast: Block & {face: BlockFace}, wantedBlock: Vec3, goalPlacement: Vec3) {
+  private raycastValid(raycast: Block & { face: BlockFace; intersect: Vec3 }, wantedBlock: Vec3, goalPlacement: Vec3) {
     if (raycast === null) return false;
     if (!wantedBlock.equals(raycast.position)) return false;
     const faceVec = this.faceToVec(raycast.face);
-    const offset = goalPlacement.minus(wantedBlock)
-    console.log("faceVec", faceVec, "offset", offset)
+    const offset = goalPlacement.minus(wantedBlock);
+    console.log("goal", goalPlacement, "intersect", raycast.intersect, "faceVec", faceVec, "offset", offset);
     return faceVec.equals(offset);
+  }
+
+  async canPerform(bot: Bot) {
+    switch (this.type) {
+      case "solid": {
+        const bb = AABB.fromBlock(this.vec);
+        const verts = bb.expand(-0.05, -0.05, -0.05).toVertices();
+        const eyePos = bot.entity.position.offset(0, bot.physics.playerHeight, 0);
+        const works = [];
+        for (const vert of verts) {
+          const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
+          if (rayRes !== null) works.push(rayRes);
+        }
+
+        return works.some((res) => (res as any).position.plus(this.faceToVec(res.face).equals(this.vec)));
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -177,46 +178,49 @@ export class PlaceHandler extends InteractHandler {
       }
 
       case "solid": {
-        console.log("FUCL")
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        await bot.lookAt(this.vec, true);
-        let eyePos = bot.entity.position.offset(0, 1.62, 0)
-        let viewDir = bot.util.getViewDir();
+        const bb = AABB.fromBlock(this.vec);
+        const verts = bb.expand(0.1, 0, 0.1).toVertices();
 
-        let blocks = this.getNearbyBlocks(bot.pathfinder.world);
-        blocks = blocks.filter(b=>b.physical);
-        blocks = blocks.sort((a,b)=> b.position.minus(eyePos).dot(viewDir) - a.position.minus(eyePos).dot(viewDir));
+        const works: any[] = [];
 
-        let block1 = blocks[0];
-
+        let triggered = false;
       
-        console.log(blocks, block1, this.vec, bot.blockAt(this.vec))
+        outer: while (works.length === 0) {
+          const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
+          const state = ectx.state;
+          for (let i = 0; i < 5; i++) {
+            const eyePos = state.pos.offset(0, bot.physics.playerHeight, 0);
+            console.log(eyePos)
+            inner: for (const vert of verts) {
+              const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
+              if (rayRes === null) continue inner;
+              if ((rayRes as any).position.plus(this.faceToVec(rayRes.face)).equals(this.vec)) {
+                works.push(rayRes);
+                break outer;
+              }
+            }
+            bot.physicsUtil.engine.simulate(ectx, bot.world);
+          }
 
-        const offset = block1.position.minus(this.vec);
-   
-        await bot.lookAt(block1.position.minus(offset.scale(0.9)), true);
-
-        if (block1 === undefined) throw new Error("Invalid block");
-
-        let rayRes = await bot.world.raycast(eyePos, bot.util.getViewDir(), PlaceHandler.reach);
-        while (rayRes === null || !this.raycastValid(rayRes as any, block1.position, this.vec)) {
-          await onceWithCleanup(bot, 'move');
-          blocks = blocks.sort((a,b)=> b.position.minus(eyePos).dot(viewDir) - a.position.minus(eyePos).dot(viewDir));
-          block1 = blocks[0];
-
-          eyePos = bot.entity.position.offset(0, 1.62, 0)
-          const offset = block1.position.minus(this.vec);
-
-          await bot.lookAt(block1.position.minus(offset.scale(0.9)), true);
-          viewDir = bot.util.getViewDir();          
-          rayRes = await bot.world.raycast(eyePos, bot.util.getViewDir(), PlaceHandler.reach);
+          console.log('done loop')
+          
+          await bot.waitForTicks(1);
+          triggered = true;
+          bot.setControlState('sneak', true)
         }
 
-        if (rayRes === null) throw new Error("Invalid block");
+        console.log('\n\n')
 
-        console.log(bot.entity.position, this.faceToVec(rayRes.face))
+        const rayRes = works[0];
+
+        if (rayRes === undefined) throw new Error("Invalid block");
+
+        console.log(bot.entity.position, this.faceToVec(rayRes.face), bot.canSeeBlock(rayRes));
+        await bot.lookAt((rayRes as any).intersect, true);
         await bot.placeBlock(rayRes as any, this.faceToVec(rayRes.face));
+        if (triggered) bot.setControlState('sneak', false)
         break;
       }
       case "replaceable":
@@ -262,6 +266,10 @@ export class BreakHandler extends InteractHandler {
       default:
         throw new Error("Not implemented");
     }
+  }
+
+  async canPerform(bot: Bot) {
+    return true;
   }
 
   async perform(bot: Bot, item: Item, opts: InteractOpts = {}): Promise<void> {

@@ -128,6 +128,7 @@ export class ThePathfinder {
 
     let currentIndex = 0
 
+    // this.bot.on('physicsTick', () => console.log('EXTERNAL TICKER: bot pos:', this.bot.entity.position))
     outer: while (currentIndex < path.path.length) {
       const move = path.path[currentIndex++]
 
@@ -141,15 +142,17 @@ export class ThePathfinder {
 
       try {
         while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
+          // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos)
           await this.bot.waitForTicks(1)
         }
 
         tickCount--;
 
-        await this.cleanupBot()
-
+        // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
         await move.moveType.performInit(move, goal)
+        // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
         while (!(await move.moveType.performPerTick(move, tickCount++, goal)) && tickCount < 999) {
+          // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
           await this.bot.waitForTicks(1)
         }
       } catch (err) {
@@ -186,10 +189,6 @@ export class ThePathfinder {
   }
 
   async cleanupBot () {
-    while (this.bot.entity.velocity.norm() > 0.1) {
-      this.bot.setControlState('sneak', true);
-      await this.bot.waitForTicks(1)
-    }
     this.bot.clearControlStates()
   }
 
