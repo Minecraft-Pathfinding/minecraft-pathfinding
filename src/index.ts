@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { MovementHandler, IdleMovement, ForwardMove, Movement, SimMovement, ForwardJumpMove } from './mineflayer-specific/movements'
+import { MovementHandler, IdleMovement, Forward, Movement, SimMovement, ForwardJump, ForwardDropDown } from './mineflayer-specific/movements'
 import { AStar } from './mineflayer-specific/algs'
 import { goals } from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
@@ -8,6 +8,7 @@ import { Path, Algorithm } from './abstract'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
 import type { World as WorldType } from './mineflayer-specific/world/worldInterface'
 import { CancelError } from './mineflayer-specific/movements/exceptions'
+import utilPlugin from '@nxg-org/mineflayer-util-plugin'
 
 const EMPTY_VEC = new Vec3(0, 0, 0)
 
@@ -18,7 +19,7 @@ export class ThePathfinder {
 
   constructor (private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world)
-    this.movements = MovementHandler.create(bot, this.world, [ForwardMove, ForwardJumpMove], {canOpenDoors: true})
+    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown], {canOpenDoors: true})
     this.astar = null
   }
 
@@ -38,6 +39,10 @@ export class ThePathfinder {
     return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal)
   }
 
+  getScaffoldCount () {
+    return this.bot.inventory.items().reduce((acc, item) => BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc, 0)
+  }
+
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
     let { x, y, z } = startPos
     x = Math.floor(x)
@@ -46,7 +51,7 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal)
 
-    const start = new Move(x, y, z, [], [], 0, new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), startPos.clone(), startVel.clone())
+    const start = new Move(x, y, z, [], [], this.getScaffoldCount(), 0, new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), startPos.clone(), startVel.clone())
     const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0)
 
     let result = astarContext.compute()
@@ -141,6 +146,8 @@ export class ThePathfinder {
 
         tickCount--;
 
+        await this.cleanupBot()
+
         await move.moveType.performInit(move, goal)
         while (!(await move.moveType.performPerTick(move, tickCount++, goal)) && tickCount < 999) {
           await this.bot.waitForTicks(1)
@@ -179,6 +186,10 @@ export class ThePathfinder {
   }
 
   async cleanupBot () {
+    while (this.bot.entity.velocity.norm() > 0.1) {
+      this.bot.setControlState('sneak', true);
+      await this.bot.waitForTicks(1)
+    }
     this.bot.clearControlStates()
   }
 
@@ -195,6 +206,7 @@ export { goals } from './mineflayer-specific/goals'
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {
     BlockInfo.init(bot.registry) // set up block info
+    if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
     bot.pathfinder = new ThePathfinder(bot)
   }
 }

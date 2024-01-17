@@ -25,6 +25,7 @@ bot.once('spawn', () => {
 
   bot.physics.simulatePlayer = (...args) => {
     const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    // ctx.state.control.set('sneak', true)
     return val.simulate(ctx, bot.world)
   }
 })
@@ -58,11 +59,17 @@ bot.on('chat', async (username, msg) => {
   } else if (cmd === 'pathtome') {
     if (!author) return bot.chat('failed to find player.')
     bot.chat('hi')
+    const startTime = performance.now()
     const res1 = bot.pathfinder.getPathTo(GoalBlock.fromVec(author.position))
     let test1
-    while ((test1 = res1.next()).done === false) {
-      console.log(test1)
+    let test2 = []
+    while ((test1 = await res1.next()).done === false) {
+      test2.concat(test1.value.result.path)
     }
+    const endTime = performance.now()
+    bot.chat(`took ${(endTime - startTime).toFixed(3)} ms, ${Math.ceil((endTime - startTime) / 50)} ticks, ${((endTime - startTime) / 1000).toFixed(3)} seconds`)
+    bot.chat(bot.pathfinder.world.getCacheSize())
+    console.log(test2.length)
   } else if (cmd === 'test') {
     if (!author) return bot.chat('failed to find player.')
     lastStart = author.position.clone()

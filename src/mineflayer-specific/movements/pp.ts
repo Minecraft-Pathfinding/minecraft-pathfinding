@@ -135,7 +135,7 @@ export class ForwardJumpMovement extends SimMovement {
   };
 
   performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
-    if (tickCount > 40) throw new CancelError("ForwardJumpMovement", "Took too long to reach goal");
+    if (tickCount > 160) throw new CancelError("ForwardJumpMovement", "Took too long to reach goal");
 
     const botAim = this.botAim(this.bot, move.exitPos, goal);
     const botReach = this.botReach(this.bot, move, goal);

@@ -6,6 +6,8 @@ import type { Item as MdItem } from "minecraft-data";
 import { BlockInfo } from "../world/cacheWorld";
 import { EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
 import { World } from "../world/worldInterface";
+import {AABB, BlockFace} from '@nxg-org/mineflayer-util-plugin'
+import { onceWithCleanup } from "../../utils";
 
 type InteractType = "water" | "solid" | "replaceable";
 
@@ -31,7 +33,6 @@ export abstract class InteractHandler {
   public get isPerforming(): boolean {
     return this.performing;
   }
-
 
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
   abstract perform(bot: Bot, item: Item, opts?: InteractOpts): Promise<void>;
@@ -91,6 +92,66 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
+  getNearbyBlocks(world: World) {
+    return [
+      world.getBlockInfo(this.vec.offset(1, 0, 0)),
+      world.getBlockInfo(this.vec.offset(-1, 0, 0)),
+      world.getBlockInfo(this.vec.offset(0, 1, 0)),
+      world.getBlockInfo(this.vec.offset(0, -1, 0)),
+      world.getBlockInfo(this.vec.offset(0, 0, 1)),
+      world.getBlockInfo(this.vec.offset(0, 0, -1)),
+    ];
+  }
+
+  faceToVec(face: BlockFace) {
+    switch (face) {
+      case BlockFace.EAST:
+        return new Vec3(1, 0, 0);
+      case BlockFace.WEST:
+        return new Vec3(-1, 0, 0);
+      case BlockFace.BOTTOM:
+        return new Vec3(0, 1, 0);
+      case BlockFace.TOP:
+        return new Vec3(0, -1, 0);
+      case BlockFace.SOUTH:
+        return new Vec3(0, 0, 1);
+      case BlockFace.NORTH:
+        return new Vec3(0, 0, -1);
+      default:
+        throw new Error("Invalid face");
+    }
+  }
+
+  wantedFacePlacement(face: BlockFace) {
+    switch (face) {
+      case BlockFace.EAST:
+        return new Vec3(0.5, 0.5, 0);
+      case BlockFace.WEST:
+        return new Vec3(-0.5, 0.5, 0);
+      case BlockFace.BOTTOM:
+        return new Vec3(0.5, 0, 0.5);
+      case BlockFace.TOP:
+        return new Vec3(0.5, 1, 0.5);
+      case BlockFace.NORTH:
+        return new Vec3(0.5, 0.5, -0.5);
+      case BlockFace.SOUTH:
+        return new Vec3(0.5, 0.5, 0.5);
+      default:
+        console.log(face);
+        throw new Error("Invalid face");
+    }
+  }
+
+
+  private raycastValid(raycast: Block & {face: BlockFace}, wantedBlock: Vec3, goalPlacement: Vec3) {
+    if (raycast === null) return false;
+    if (!wantedBlock.equals(raycast.position)) return false;
+    const faceVec = this.faceToVec(raycast.face);
+    const offset = goalPlacement.minus(wantedBlock)
+    console.log("faceVec", faceVec, "offset", offset)
+    return faceVec.equals(offset);
+  }
+
   /**
    * Assumes that the bot is already at the position and that item is correct
    * item.
@@ -110,20 +171,52 @@ export class PlaceHandler extends InteractHandler {
         if (item.name !== "water_bucket") throw new Error("Invalid item");
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        await bot.util.move.forceLookAt(this.vec, true);
+        await bot.lookAt(this.vec, true);
         bot.activateItem(this.offhand);
         break; // not necessary.
       }
 
       case "solid": {
+        console.log("FUCL")
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
-        const block = bot.pathfinder.world.getBlock(this.vec);
-        if (block === null) throw new Error("Invalid block");
-        await bot.util.move.forceLookAt(this.vec, true);
 
-        // TODO: calculate proper face to place block on. FireJoust has the code somewhere.
-        // TODO: Do not await block response, that is too slow. Just assume it worked.
-        bot.placeBlock(block, new Vec3(0, 1, 0));
+        await bot.lookAt(this.vec, true);
+        let eyePos = bot.entity.position.offset(0, 1.62, 0)
+        let viewDir = bot.util.getViewDir();
+
+        let blocks = this.getNearbyBlocks(bot.pathfinder.world);
+        blocks = blocks.filter(b=>b.physical);
+        blocks = blocks.sort((a,b)=> b.position.minus(eyePos).dot(viewDir) - a.position.minus(eyePos).dot(viewDir));
+
+        let block1 = blocks[0];
+
+      
+        console.log(blocks, block1, this.vec, bot.blockAt(this.vec))
+
+        const offset = block1.position.minus(this.vec);
+   
+        await bot.lookAt(block1.position.minus(offset.scale(0.9)), true);
+
+        if (block1 === undefined) throw new Error("Invalid block");
+
+        let rayRes = await bot.world.raycast(eyePos, bot.util.getViewDir(), PlaceHandler.reach);
+        while (rayRes === null || !this.raycastValid(rayRes as any, block1.position, this.vec)) {
+          await onceWithCleanup(bot, 'move');
+          blocks = blocks.sort((a,b)=> b.position.minus(eyePos).dot(viewDir) - a.position.minus(eyePos).dot(viewDir));
+          block1 = blocks[0];
+
+          eyePos = bot.entity.position.offset(0, 1.62, 0)
+          const offset = block1.position.minus(this.vec);
+
+          await bot.lookAt(block1.position.minus(offset.scale(0.9)), true);
+          viewDir = bot.util.getViewDir();          
+          rayRes = await bot.world.raycast(eyePos, bot.util.getViewDir(), PlaceHandler.reach);
+        }
+
+        if (rayRes === null) throw new Error("Invalid block");
+
+        console.log(bot.entity.position, this.faceToVec(rayRes.face))
+        await bot.placeBlock(rayRes as any, this.faceToVec(rayRes.face));
         break;
       }
       case "replaceable":
@@ -134,9 +227,9 @@ export class PlaceHandler extends InteractHandler {
     }
 
     if (opts.returnToPos !== undefined) {
-      await bot.util.move.forceLookAt(opts.returnToPos, true);
+      await bot.lookAt(opts.returnToPos, true);
     } else if (opts.returnToStart) {
-      await bot.util.move.forceLook(curInfo.yaw, curInfo.pitch, true);
+      await bot.look(curInfo.yaw, curInfo.pitch, true);
     }
 
     this.performing = false;
@@ -182,6 +275,7 @@ export class BreakHandler extends InteractHandler {
       case "water": {
         if (item.name !== "bucket") throw new Error("Invalid item");
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
+        await bot.lookAt(this.vec, true);
         bot.activateItem(this.offhand);
         break; // not necessary.
       }
@@ -190,7 +284,8 @@ export class BreakHandler extends InteractHandler {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
         const block = bot.pathfinder.world.getBlock(this.vec);
         if (block === null) throw new Error("Invalid block");
-        await bot.util.move.forceLookAt(this.vec, true);
+        await bot.lookAt(this.vec, true);
+        await bot.dig(block);
         break;
       }
 
@@ -206,7 +301,7 @@ export class BreakHandler extends InteractHandler {
     }
 
     if (opts.returnToPos !== undefined) {
-      await bot.util.move.forceLookAt(opts.returnToPos, true);
+      await bot.lookAt(opts.returnToPos, true);
     } else if (opts.returnToStart) {
       await bot.util.move.forceLook(curInfo.yaw, curInfo.pitch, true);
     }

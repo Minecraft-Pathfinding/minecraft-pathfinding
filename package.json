@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@nxg-org/mineflayer-physics-util": "^1.5.5",
+    "@nxg-org/mineflayer-physics-util": "1.5.6",
     "lru-cache": "^10.1.0",
     "mineflayer": "^4.10.1"
   },

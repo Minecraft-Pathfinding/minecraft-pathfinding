@@ -210,6 +210,11 @@ export class CacheSyncWorld implements WorldType {
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require('prismarine-block')(bot.registry)
     }
+
+    referenceWorld.on('blockUpdate', (oldBlock: Block, newBlock: Block) => {
+      const pos = newBlock.position
+      if (this.blockInfos.has(`${pos.x}:${pos.y}:${pos.z}`)) this.blockInfos.set(`${pos.x}:${pos.y}:${pos.z}`, BlockInfo.fromBlock(newBlock))
+    })
   }
 
   getBlock1(pos: Vec3) {

@@ -23,6 +23,13 @@
     lru-cache "^10.1.0"
     mineflayer "^4.10.1"
 
+"@nxg-org/mineflayer-physics-util@1.5.6":
+  version "1.5.6"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.6.tgz#4d6e69a84596d7ad666fec84367854901fddaf18"
+  integrity sha512-q37DlfnmnaZH4dSE1oMRqmim6ZyToal5oBsUsIgm7Ax7kaIlqfNiRh1J0OBugkHkfKB3LLshQFJQI9Wlj9g5cw==
+  dependencies:
+    "@nxg-org/mineflayer-util-plugin" "^1.8.2"
+
 "@nxg-org/mineflayer-physics-util@^1.5.5":
   version "1.5.5"
   resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.5.tgz#a2ff3192e5ad355aada5a4a0b9fa469a65d6cef8"
@@ -36,9 +43,9 @@
   integrity sha512-UmzyHHQeexrB449y/g7mljyQfI9xjzO23n8Iai9PXCCk3paG2GeuKo1zfHsxdYSLdnuxkCgdHFu3r31GroKUhw==
 
 "@types/node@*":
-  version "20.11.0"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.11.0.tgz#8e0b99e70c0c1ade1a86c4a282f7b7ef87c9552f"
-  integrity sha512-o9bjXmDNcF7GbM4CNQpmi+TutCgap/K3w1JyKgxAjqx41zp9qlIAVFi0IhCNsJcXolEqLWhbFbEeL0PvYm4pcQ==
+  version "20.11.4"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.11.4.tgz#c724a5d6723182af758b91b994209336f4439cb7"
+  integrity sha512-6I0fMH8Aoy2lOejL3s4LhyIYX34DPwY8bl5xlNjBvUEk8OHrcuzsFt+Ied4LvJihbtXPM+8zUqdydfIti86v9g==
   dependencies:
     undici-types "~5.26.4"
 
@@ -294,10 +301,10 @@ macaddress@^0.5.1:
   resolved "https://registry.yarnpkg.com/macaddress/-/macaddress-0.5.3.tgz#2b9d6832be934cb775749f30f57d6537184a2bda"
   integrity sha512-vGBKTA+jwM4KgjGZ+S/8/Mkj9rWzePyGY6jManXPGhiWu63RYwW8dKPyk5koP+8qNVhPhHgFa1y/MJ4wrjsNrg==
 
-minecraft-data@^3.0.0, minecraft-data@^3.38.0, minecraft-data@^3.44.0, minecraft-data@^3.53.0:
-  version "3.59.2"
-  resolved "https://registry.yarnpkg.com/minecraft-data/-/minecraft-data-3.59.2.tgz#457fd8a3d3e16feec651290ed95b2aced4bbf7bf"
-  integrity sha512-ra2xsZ1d0UvcxF77ZtpPqKUchU8pjlhPsh/cX/IW7H3yQSA4j7vPSl2ztD+bzfszAmS6qeHjQK/LifUHmlmK/Q==
+minecraft-data@^3.0.0, minecraft-data@^3.38.0, minecraft-data@^3.53.0, minecraft-data@^3.56.0:
+  version "3.59.3"
+  resolved "https://registry.yarnpkg.com/minecraft-data/-/minecraft-data-3.59.3.tgz#29a7724bd8186ad4724426e95b599196a212776f"
+  integrity sha512-aepxh0sSe7BmMx61kXhRkoG3FJ2fGBdIR27pBuDmuSia8HZvuCb/kIygkU0bkeLP8MBGYmH97WNdJIGPZD+Xow==
 
 minecraft-folder-path@^1.2.0:
   version "1.2.0"
@@ -329,11 +336,11 @@ minecraft-protocol@^1.44.0:
     yggdrasil "^1.4.0"
 
 mineflayer@^4.10.1:
-  version "4.17.0"
-  resolved "https://registry.yarnpkg.com/mineflayer/-/mineflayer-4.17.0.tgz#df116fee12908e47fb4d08896532152188aaa39e"
-  integrity sha512-Bu5vwv3rhVjyMV8jtR/i+2SmJHXPdfUAIHQ2JBCwY/w+dpjsIu+gW97l+zBz365HraRO0i+kKb3xxSluAHp7hQ==
+  version "4.18.0"
+  resolved "https://registry.yarnpkg.com/mineflayer/-/mineflayer-4.18.0.tgz#681e1bcd222da9440e57ea5abf2b5c1cb9c136d5"
+  integrity sha512-Vj+qjqaAejZSOIp/J/67RnkXj4XsWjO6iWb2+8CrZDeUjxHWOnPbR5uJIN8VxiHSFycNpoXRCeTEo2qKu5tKKQ==
   dependencies:
-    minecraft-data "^3.44.0"
+    minecraft-data "^3.56.0"
     minecraft-protocol "^1.44.0"
     prismarine-biome "^1.1.1"
     prismarine-block "^1.17.0"
