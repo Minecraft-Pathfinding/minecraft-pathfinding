@@ -8,6 +8,8 @@ import { MovementProvider } from "../../abstract";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
+import { BreakHandler, InteractHandler, PlaceHandler } from "./utils";
+import { CancelError } from "./exceptions";
 
 export interface MovementOptions {
   canOpenDoors: boolean;
@@ -69,7 +71,6 @@ const jumpVec3s: Vec3[] = [
 Object.freeze(jumpVec3s);
 jumpVec3s.forEach(Object.freeze);
 
-
 /**
  * TODO: Separate calculation time from runtime.
  *
@@ -88,6 +89,11 @@ export abstract class Movement {
   protected readonly bot: Bot;
   protected readonly world: World;
   protected readonly settings: MovementOptions;
+
+  /**
+   * Current interaction.
+   */
+  protected cI?: InteractHandler;
 
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot;
@@ -145,6 +151,31 @@ export abstract class Movement {
   // shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
   //   return tickCount > 50;
   // };
+
+  performInteraction(interaction: PlaceHandler | BreakHandler) {
+    this.cI = interaction;
+    if (interaction instanceof PlaceHandler) {
+      return this.performPlace(interaction);
+    } else if (interaction instanceof BreakHandler) {
+      return this.performBreak(interaction);
+    }
+  }
+
+  private async performPlace(place: PlaceHandler) {
+    const item = place.getItem(this.bot, BlockInfo);
+    if (!item) throw new CancelError("ForwardJumpMove: no item");
+    await place.perform(this.bot, item);
+    delete this.cI
+  }
+
+  private async performBreak(breakTarget: BreakHandler) {
+    const block = breakTarget.getBlock(this.bot.pathfinder.world);
+    if (!block) throw new CancelError("ForwardJumpMove: no block");
+    const item = breakTarget.getItem(this.bot, BlockInfo, block);
+    if (!item) throw new CancelError("ForwardJumpMove: no item");
+    await breakTarget.perform(this.bot, item);
+    delete this.cI
+  }
 
   getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {
     return this.world.getBlock(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
@@ -244,13 +275,13 @@ export abstract class Movement {
    * @param {[]} toBreak
    * @returns {number}
    */
-  safeOrBreak(block: BlockInfo, toBreak: Vec3[]) {
+  safeOrBreak(block: BlockInfo, toBreak: BreakHandler[]) {
     let cost = 0;
     // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
     if (block.safe) return cost;
     if (!this.safeToBreak(block)) return 100; // Can't break, so can't move
-    toBreak.push(block.position);
+    toBreak.push(BreakHandler.fromVec(block.position, "solid"));
 
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
 
