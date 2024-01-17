@@ -4,7 +4,7 @@ import { Vec3 } from "vec3";
 import type { Item } from "prismarine-item";
 import type { Item as MdItem } from "minecraft-data";
 import { BlockInfo } from "../world/cacheWorld";
-import { EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
+import { EPhysicsCtx, EntityPhysics, EntityState } from "@nxg-org/mineflayer-physics-util";
 import { World } from "../world/worldInterface";
 import { AABB, BlockFace } from "@nxg-org/mineflayer-util-plugin";
 import { onceWithCleanup } from "../../utils";
@@ -182,42 +182,54 @@ export class PlaceHandler extends InteractHandler {
 
         const bb = AABB.fromBlock(this.vec);
         const verts = bb.expand(0.1, 0, 0.1).toVertices();
+        verts.push(this.vec.offset(0, 1, 0));
+
+        const eyePos0 = bot.entity.position.offset(0, 1.62, 0);
+        verts.sort((a,b)=>b.minus(eyePos0).normalize().dot(bot.util.getViewDir())-a.minus(eyePos0).normalize().dot(bot.util.getViewDir()));
 
         const works: any[] = [];
 
         let triggered = false;
       
+        let i = 0;
+
+        let state: EntityState;
         outer: while (works.length === 0) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
-          const state = ectx.state;
-          for (let i = 0; i < 5; i++) {
-            const eyePos = state.pos.offset(0, bot.physics.playerHeight, 0);
-            console.log(eyePos)
+          state = ectx.state;
+          for (; i < 5; i++) {
+            const eyePos = state.pos.offset(0, 1.62, 0);
             inner: for (const vert of verts) {
               const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
               if (rayRes === null) continue inner;
               if ((rayRes as any).position.plus(this.faceToVec(rayRes.face)).equals(this.vec)) {
                 works.push(rayRes);
-                break outer;
               }
             }
+
+            if (works.length > 0) break outer;
             bot.physicsUtil.engine.simulate(ectx, bot.world);
           }
 
-          console.log('done loop')
-          
-          await bot.waitForTicks(1);
-          triggered = true;
+          if (i > 5) {
+            // throw new Error("Invalid movement")
+            triggered = true;
           bot.setControlState('sneak', true)
+          };
+          await bot.waitForTicks(1);
+          
         }
 
         console.log('\n\n')
 
+        const stateEyePos = state!.pos.offset(0, 1.62, 0);
+        works.sort((a,b)=>b.intersect.minus(stateEyePos).norm()-a.intersect.minus(stateEyePos).norm());
+        // works.sort((a, b) => a.intersect.distanceTo(state.pos) - b.intersect.distanceTo(state.pos));
         const rayRes = works[0];
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
-        console.log(bot.entity.position, this.faceToVec(rayRes.face), bot.canSeeBlock(rayRes));
+        if (!triggered) await bot.waitForTicks(i-1)
         await bot.lookAt((rayRes as any).intersect, true);
         await bot.placeBlock(rayRes as any, this.faceToVec(rayRes.face));
         if (triggered) bot.setControlState('sneak', false)
