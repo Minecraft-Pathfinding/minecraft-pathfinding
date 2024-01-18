@@ -8,7 +8,7 @@ import { MovementProvider } from "../../abstract";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
-import { BreakHandler, InteractHandler, PlaceHandler } from "./utils";
+import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
 import { CancelError } from "./exceptions";
 
 export interface MovementOptions {
@@ -133,7 +133,7 @@ export abstract class Movement {
    * This can be used to align to the center of blocks, etc.
    * Align IS allowed to throw exceptions, it will revert to recovery.
    */
-  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  align(thisMove: Move, tickCount: number, goal: goals.Goal) {
     return true;
   };
 
@@ -152,28 +152,28 @@ export abstract class Movement {
   //   return tickCount > 50;
   // };
 
-  performInteraction(interaction: PlaceHandler | BreakHandler) {
+  performInteraction(interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}) {
     this.cI = interaction;
     if (interaction instanceof PlaceHandler) {
-      return this.performPlace(interaction);
+      return this.performPlace(interaction, opts);
     } else if (interaction instanceof BreakHandler) {
-      return this.performBreak(interaction);
+      return this.performBreak(interaction, opts);
     }
   }
 
-  private async performPlace(place: PlaceHandler) {
+  private async performPlace(place: PlaceHandler, opts: InteractOpts = {}) {
     const item = place.getItem(this.bot, BlockInfo);
     if (!item) throw new CancelError("ForwardJumpMove: no item");
-    await place.perform(this.bot, item);
+    await place.perform(this.bot, item, opts);
     delete this.cI
   }
 
-  private async performBreak(breakTarget: BreakHandler) {
+  private async performBreak(breakTarget: BreakHandler, opts: InteractOpts = {}) {
     const block = breakTarget.getBlock(this.bot.pathfinder.world);
     if (!block) throw new CancelError("ForwardJumpMove: no block");
-    const item = breakTarget.getItem(this.bot, BlockInfo, block);
+    const item = breakTarget.getItem(this.bot, BlockInfo, block,);
     if (!item) throw new CancelError("ForwardJumpMove: no item");
-    await breakTarget.perform(this.bot, item);
+    await breakTarget.perform(this.bot, item, opts);
     delete this.cI
   }
 

@@ -11,6 +11,7 @@ import { onceWithCleanup } from "../../utils";
 
 
 import type {RaycastBlock} from 'prismarine-world/types/iterators'
+import { CancelError } from "./exceptions";
 
 type InteractType = "water" | "solid" | "replaceable";
 type RayType = {
@@ -18,8 +19,14 @@ type RayType = {
   face: BlockFace;
 } & Block
 
+type InteractionPerformInfo = {
+  ticks: number;
+  shiftTick: number;
+  raycasts: RayType[];
+}
 
-interface InteractOpts {
+export interface InteractOpts {
+  info?: InteractionPerformInfo,
   returnToStart?: boolean;
   returnToPos?: Vec3;
 }
@@ -162,12 +169,14 @@ export class PlaceHandler extends InteractHandler {
           z: Math.sign(Math.abs(dz) > 0.5 ? dz : 0)
         }
         
-        const verts = bb.expand(0.1, 0.5, 0.1).toVertices();
+        const expand = bot.entity.position.floored().xzDistanceTo(this.vec) === 0 ? 0 : 0.1
+        const verts = bb.expand(expand, 0.5, expand).toVertices();
         
         let shiftTick = Infinity;
-        for (let i = 0; i < ticks; i++) {
+        for (let i = 0; i <= ticks; i++) {
           const eyePos = state.pos.offset(0, 1.62, 0);
           const bb1 = state.getAABB();
+          // const bb1 = AABBUtils.getEntityAABBRaw({position: state.pos, width:0.6, height: 1.8});
           for (const vert of verts) {
             const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
             if (rayRes === null) continue;
@@ -232,8 +241,9 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        let works = await this.performInfo(bot, 1);
+        let works = opts.info || await this.performInfo(bot, 1);
 
+    
         while (works.raycasts.length === 0) {
           await bot.waitForTicks(1)
           works = await this.performInfo(bot)
@@ -241,26 +251,32 @@ export class PlaceHandler extends InteractHandler {
         
         // console.log('got works')
 
-
-   
+  
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
         // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
         works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
         
        
         let rayRes = works.raycasts[0];
-        console.log(works.ticks, works.shiftTick, rayRes.intersect)
-
         if (rayRes === undefined) throw new Error("Invalid block");
 
+
+        const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
+        console.log(works.ticks, works.shiftTick, rayRes.intersect)
+
+        let invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
+  
         for (let i = 0; i < works.ticks - 1; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           await bot.waitForTicks(1);
         }
     
-        const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
+        
         const invalidPlacement =  AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
-        if (invalidPlacement) throw new Error("Invalid placement");
+        if (invalidPlacement) {
+          console.log('invalid placement', invalidPlacement1, invalidPlacement)
+          throw new CancelError("Invalid placement");
+        }
 
         const testCheck = await bot.world.raycast(bot.entity.position.offset(0,1.62,0), bot.util.getViewDir(), PlaceHandler.reach) as unknown as RayType;
         if (!testCheck || !testCheck.position.equals(rayRes.position) || testCheck.face !== rayRes.face) {
