@@ -95,3 +95,6 @@ bot.on('chat', async (username, msg) => {
     bot.chat(`pathfinder cache is now ${bot.pathfinder.isCacheEnabled() ? 'enabled' : 'disabled'}`)
   }
 })
+
+
+bot.on('kicked', console.log)

@@ -112,39 +112,23 @@ export class ForwardJump extends Movement {
   }
 
   performInit = async (thisMove: Move, goal: goals.Goal) => {
-    console.log("ForwardJumpMove", thisMove.exitPos);
+    console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
     await this.bot.lookAt(thisMove.exitPos, true);
 
-    let ticked = false;
-    const listener = () => { ticked = true; };
-    this.bot.on('physicsTick', listener)
-   
+
     this.bot.setControlState("jump", true);
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", true);
 
+
+
     for (const breakH of thisMove.toBreak) {
       await this.performInteraction(breakH);
-      if (!ticked) {
-        await this.bot.waitForTicks(1);
-        ticked = false;
-      }
     }
 
     for (const place of thisMove.toPlace) {
       await this.performInteraction(place);
-      if (!ticked) {
-        await this.bot.waitForTicks(1);
-        ticked = false;
-      }
     }
-
-    this.bot.off('physicsTick', listener)
-
-    this.bot.setControlState("jump", true);
-    this.bot.setControlState("forward", true);
-    this.bot.setControlState("sprint", true);
-
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {

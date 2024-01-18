@@ -138,7 +138,7 @@ export class ThePathfinder {
 
       await this.cleanupBot()
 
-      this.bot.chat(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)}`)
+      console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)}`)
 
       try {
         while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
@@ -210,8 +210,18 @@ export function createPlugin (settings?: any) {
   }
 }
 
+ /**
+   *
+   * @param {import('prismarine-block').Block} referenceBlock
+   * @param {import('vec3').Vec3} faceVector
+   * @param {{half?: 'top'|'bottom', delta?: import('vec3').Vec3, forceLook?: boolean | 'ignore', offhand?: boolean, swingArm?: 'right' | 'left', showHand?: boolean}} options
+   */
+
+
 declare module 'mineflayer' {
   interface Bot {
     pathfinder: ThePathfinder
+
+    _placeBlockWithOptions(referenceBlock: Vec3, faceVector: Vec3, options?: PlaceBlockOptions): Promise<void>
   }
 }
