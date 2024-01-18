@@ -48,15 +48,18 @@ export class Forward extends Movement {
   performInit = async (thisMove: Move, goal: goals.Goal) => {
     // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
-    if (false && thisMove.toPlace.length > 0) {
+    for (const breakH of thisMove.toBreak) {
+      await this.performInteraction(breakH);
+    }
+
+    if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
-      thisMove.targetPos = offset;
+      console.log(thisMove.exitPos, offset);
 
       await this.bot.lookAt(offset, true);
       this.bot.setControlState("back", true);
-      this.bot.setControlState("sprint", false);
-      this.bot.setControlState("sneak", true);
+      this.bot.setControlState("sprint", false)
     } else {
       await this.bot.lookAt(thisMove.exitPos, true);
       this.bot.setControlState("forward", true);
@@ -64,17 +67,9 @@ export class Forward extends Movement {
       else this.bot.setControlState("sprint", true);
     }
 
-    for (const breakH of thisMove.toBreak) {
-      await this.performInteraction(breakH);
-    }
-
     for (const place of thisMove.toPlace) {
       await this.performInteraction(place);
     }
-
-    // await this.bot.lookAt(thisMove.exitPos, true);
-    // this.bot.setControlState("back", false);
-    // this.bot.setControlState("forward", true);
 
     console.log("done move prehandle!");
   };
@@ -88,8 +83,13 @@ export class Forward extends Movement {
     if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
     if (!this.bot.entity.onGround) throw new CancelError("ForwardMove: not on ground");
 
-    this.bot.lookAt(thisMove.targetPos, true);
-
+    if (thisMove.toPlace.length > 0) {
+      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
+      this.bot.lookAt(offset, true);
+    } else {
+      this.bot.lookAt(thisMove.exitPos, true);
+    }
+  
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
     return false;
   };
