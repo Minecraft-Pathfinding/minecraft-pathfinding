@@ -9,7 +9,15 @@ import { World } from "../world/worldInterface";
 import { AABB, AABBUtils, BlockFace } from "@nxg-org/mineflayer-util-plugin";
 import { onceWithCleanup } from "../../utils";
 
+
+import type {RaycastBlock} from 'prismarine-world/types/iterators'
+
 type InteractType = "water" | "solid" | "replaceable";
+type RayType = {
+  intersect: Vec3;
+  face: BlockFace;
+} & Block
+
 
 interface InteractOpts {
   returnToStart?: boolean;
@@ -42,7 +50,7 @@ export abstract class InteractHandler {
 
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
   abstract perform(bot: Bot, item: Item, opts?: InteractOpts): Promise<void>;
-  abstract canPerform(bot: Bot): Promise<false | any>;
+  abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
 
   getCurrentItem(bot: Bot) {
     if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot("off-hand")]; // could be wrong lol
@@ -131,36 +139,56 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  async canPerform(bot: Bot) {
+  async performInfo(bot: Bot, ticks=7) {
     switch (this.type) {
       case "water": {
         throw new Error("Not implemented");
       }
 
       case "solid": {
-        const bb = AABB.fromBlock(this.vec);
-        const verts = bb.toVertices();
-        const eyePos = bot.entity.position.offset(0, 1.62, 0);
-        const works = [];
-        for (const vert of verts) {
-          const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
-          if (rayRes === null) continue;
-          const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face));
-              if (pos.equals(this.vec)) {
-                if (AABB.fromBlock(pos).intersects(bb)) continue;
-                works.push(rayRes);
-              }
-        }
 
-        return works;
+        const works = [];
+        const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
+        const state = ectx.state;
+        const bb = AABB.fromBlock(this.vec);
+        
+        const verts = bb.expand(0.1, 0.5, 0.1).toVertices();
+        
+        let shiftTick = Infinity;
+        for (let i = 0; i < ticks; i++) {
+          const eyePos = state.pos.offset(0, 1.62, 0);
+          const bb1 = state.getAABB();
+          for (const vert of verts) {
+            const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
+            if (rayRes === null) continue;
+            const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face));
+                if (pos.equals(this.vec)) {
+                  if (AABB.fromBlock(pos).intersects(bb1)) {
+                    
+                    if (shiftTick !== Infinity) {
+                      // i--;
+                      shiftTick = i;
+                      state.control.set('sneak', true)
+                    }
+                  
+                    continue
+                  };
+                  works.push(rayRes as unknown as RayType);
+                }
+          }
+          if (works.length !== 0) return {ticks: i, shiftTick, raycasts: works}; 
+          bot.physicsUtil.engine.simulate(ectx, bot.world);
+      }
+        return {ticks: Infinity, shiftTick: Infinity, raycasts: works};
       }
 
       case "replaceable": {
         throw new Error("Not implemented");
       }
+      default: {
+        throw new Error("Not implemented");
+      }
     }
-
-    return false
   }
 
   /**
@@ -191,93 +219,50 @@ export class PlaceHandler extends InteractHandler {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
         const bb = AABB.fromBlock(this.vec);
-        const verts = bb.expand(0, 0.5, 0).toVertices(); // TODO: figure out what is doing this
-        verts.push(this.vec.offset(0, 1, 0));
+        const verts = bb.expand(0.1, 0.5, 0.1).toVertices(); // TODO: figure out what is doing this
+        // verts.push(this.vec.offset(0, 1, 0));
 
         const eyePos0 = bot.entity.position.offset(0, 1.62, 0);
         const viewDir = bot.util.getViewDir();
         verts.sort((a, b) => b.minus(eyePos0).normalize().dot(viewDir) - a.minus(eyePos0).normalize().dot(viewDir));
 
-        const works: any[] = [];
+        let works = await this.performInfo(bot);
 
-        let triggered = false;
-
-        let i = 0;
-
-        let state: EntityState;
-        outer: while (works.length === 0) {
-          const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
-          state = ectx.state;
-          const bb = state.getAABB();
-          // console.log("state", state.pos, "vec", this.vec, "dist", state.pos.distanceTo(this.vec));
-          for (i = 0; i < 7; i++) {
-            const eyePos = state.pos.offset(0, 1.62, 0);
-            inner: for (const vert of verts) {
-              const rayRes = await bot.world.raycast(eyePos, vert.minus(eyePos).normalize(), PlaceHandler.reach);
-              if (rayRes === null) continue inner;
-
-              // console.log((rayRes as any).position, rayRes.face, (rayRes as any).intersect);
-              // console.log(rayRes.face, this.faceToVec(rayRes.face), (rayRes as any).position.plus(this.faceToVec(rayRes.face)).equals(this.vec))
-              const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face));
-              if (pos.equals(this.vec)) {
-                if (AABB.fromBlock(pos).intersects(bb)) continue inner;
-                works.push(rayRes);
-              }
-            }
-
-            if (works.length > 0) break outer;
-            bot.physicsUtil.engine.simulate(ectx, bot.world);
-          }
-
-          if (i === 7) {
-            // throw new Error("Invalid movement")
-            triggered = true;
-            bot.setControlState("sneak", true);
-          }
-          await bot.waitForTicks(1);
-        }
-
-        console.log(`done ${i} | ${works.length}\n\n`);
-
-        const stateEyePos = state!.pos.offset(0, 1.62, 0);
-        // works.sort((a, b) => a.intersect.minus(stateEyePos).norm() - b.intersect.minus(stateEyePos).norm());
-        works.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        while (works.raycasts.length === 0) {
+          // await bot.waitForTicks(1);
+          console.log('no moves!')
+          await bot.waitForTicks(1)
+          works = await this.performInfo(bot)
         
-        let rayRes = works[0];
+        }
+        
+        console.log('got works')
+
+
+   
+        const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
+        // works.sort((a, b) => a.intersect.minus(stateEyePos).norm() - b.intersect.minus(stateEyePos).norm());
+        works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        
+       
+        let rayRes = works.raycasts[0];
+        console.log(works.ticks, works.shiftTick, rayRes)
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
-        if (!triggered && i > 0) await bot.waitForTicks(i - 1);
-
-        // while (true) {
-        //   const bb1 = AABBUtils.getEntityAABB(bot.entity); 
-        //   const eyePos = bot.entity.position.offset(0, 1.62, 0);
-        //   const testCheck: any = await bot.world.raycast(eyePos, rayRes.intersect.minus(eyePos).normalize(), PlaceHandler.reach);
-        //   if (!testCheck.position.equals(rayRes.position) || testCheck.face !== rayRes.face) {
-
-        //     const pos = (testCheck as any).position.plus(this.faceToVec(rayRes.face));
-        //     if (pos.equals(this.vec)) {
-        //       if (!AABB.fromBlock(pos).intersects(bb1)) 
-        //       rayRes = testCheck;
-        //     break;
-        //     }
-
-        //     console.log("failed check", testCheck.position, rayRes.position, testCheck.face, rayRes.face);
-        //     // await bot.lookAt((rayRes as any).intersect, true); // allow one tick to sync looking.
-        //     bot.setControlState("sneak", true);
-        //     triggered = true;
-        //     await bot.waitForTicks(1);
-        //   } else break;
-        // }
-
+        for (let i = 0; i < works.ticks; i++) {
+          if (i === works.shiftTick) bot.setControlState('sneak', true)
+          await bot.waitForTicks(1);
+        }
         // bot.setControlState("sneak", true);
-        // await bot.util.move.forceLookAt(rayRes.intersect, true); // allow one tick to sync looking.
+        // await bot.lookAt(rayRes.intersect, true); // allow one tick to sync looking.
         // if (!triggered && i > 0) await bot.waitForTicks(1);
 
         console.log('placing', rayRes.position, rayRes.face)
-        console.log(AABBUtils.getEntityAABB(bot.entity), AABBUtils.getEntityAABB(bot.entity).containsVec(rayRes.position.plus(this.faceToVec(rayRes.face))))
+        console.log(AABBUtils.getEntityAABB(bot.entity), AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(rayRes.position.plus(this.faceToVec(rayRes.face)))))
         await bot._placeBlockWithOptions(rayRes as any, this.faceToVec(rayRes.face), { forceLook: "ignore" });
-        if (triggered) bot.setControlState("sneak", false);
+        if (works.shiftTick !== Infinity) bot.setControlState('sneak', false)
+      
         break;
       }
       case "replaceable":
@@ -326,8 +311,8 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  async canPerform(bot: Bot) {
-    return true;
+  async performInfo(bot: Bot) {
+    return true as any;
   }
 
   async perform(bot: Bot, item: Item, opts: InteractOpts = {}): Promise<void> {

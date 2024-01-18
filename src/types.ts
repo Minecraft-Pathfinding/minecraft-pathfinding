@@ -20,3 +20,10 @@ interface PlaceBlockOptions {
   swingArm?: 'right' | 'left'
   showHand?: boolean
  }
+
+
+ interface InteractionPerformInfo {
+  raycasts: any[],
+  ticks: number
+  shiftTick: number
+ }

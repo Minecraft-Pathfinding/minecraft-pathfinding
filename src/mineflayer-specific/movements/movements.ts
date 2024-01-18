@@ -90,7 +90,7 @@ export class Forward extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-      // cost += this.placeCost // additional cost for placing a block
+      cost += 0.1 // this.placeCost // additional cost for placing a block
     }
 
     cost += this.safeOrBreak(blockC, toBreak);
@@ -116,7 +116,7 @@ export class ForwardJump extends Movement {
     await this.bot.lookAt(thisMove.exitPos, true);
 
 
-    this.bot.setControlState("jump", true);
+
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", true);
 
@@ -129,6 +129,8 @@ export class ForwardJump extends Movement {
     for (const place of thisMove.toPlace) {
       await this.performInteraction(place);
     }
+
+    this.bot.setControlState("jump", true);
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
@@ -196,7 +198,7 @@ export class ForwardJump extends Movement {
         }
         // cost += this.exclusionPlace(blockD)
         toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-        // cost += this.placeCost // additional cost for placing a block
+        cost += 0.1 // this.placeCost // additional cost for placing a block
       }
 
       if (!blockC.replaceable) {
@@ -206,7 +208,7 @@ export class ForwardJump extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockC.position, "solid"));
-      // cost += this.placeCost // additional cost for placing a block
+      cost += 0.1 // this.placeCost // additional cost for placing a block
 
       cHeight += 1;
     }
