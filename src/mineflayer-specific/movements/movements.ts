@@ -30,14 +30,23 @@ export class Forward extends Movement {
   }
 
   performInit = async (thisMove: Move, goal: goals.Goal) => {
-    await this.bot.lookAt(thisMove.exitPos, true);
+    
     console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
-    this.bot.setControlState("forward", true);
-    if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
+
+    if (thisMove.toPlace.length > 0) {
+      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
+
+      thisMove.targetPos = offset;
+      await this.bot.lookAt(offset, true);
+      this.bot.setControlState("back", true);
+      this.bot.setControlState("sprint", false);
+    } else {
+      await this.bot.lookAt(thisMove.exitPos, true);
+      this.bot.setControlState("forward", true);
+      if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
     else this.bot.setControlState("sprint", true);
-
-
+    }
 
     for (const breakH of thisMove.toBreak) {
       await this.performInteraction(breakH);
@@ -46,6 +55,13 @@ export class Forward extends Movement {
     for (const place of thisMove.toPlace) {
       await this.performInteraction(place);
     }
+
+    // await this.bot.lookAt(thisMove.exitPos, true);
+    // this.bot.setControlState("back", false);
+    // this.bot.setControlState("forward", true);
+        
+    
+
 
     console.log('done move prehandle!')
   };
@@ -59,18 +75,16 @@ export class Forward extends Movement {
     if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
     if (!this.bot.entity.onGround) throw new CancelError("ForwardMove: not on ground");
 
-    this.bot.lookAt(thisMove.exitPos, true);
+    this.bot.lookAt(thisMove.targetPos, true);
 
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
-
-    this.bot.setControlState("forward", true);
-    if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
-    else this.bot.setControlState("sprint", true);
     return false;
   };
 
   getMoveForward(start: Move, dir: Vec3, neighbors: Move[]) {
     const pos = start.toVec();
+
+    if (this.getBlockInfo(pos, 0, 0, 0).liquid) return //cost += this.liquidCost
 
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z);
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z);
@@ -100,7 +114,6 @@ export class Forward extends Movement {
     cost += this.safeOrBreak(blockB, toBreak);
     if (cost > 100) return;
 
-    // if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.liquidCost
     // set exitPos to center of wanted block
     neighbors.push(Move.fromPrevious(cost, pos.add(dir).translate(0.5, 0, 0.5), start, this, toPlace, toBreak));
   }
@@ -230,9 +243,9 @@ export class ForwardJump extends Movement {
 
     cost += this.safeOrBreak(blockA, toBreak);
     if (cost > 100) return;
-    cost += this.safeOrBreak(blockH, toBreak);
-    if (cost > 100) return;
     cost += this.safeOrBreak(blockB, toBreak);
+    if (cost > 100) return;
+    cost += this.safeOrBreak(blockH, toBreak);
     if (cost > 100) return;
 
     if (toPlace.length === 2) return;

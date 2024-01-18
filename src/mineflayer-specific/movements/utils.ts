@@ -153,6 +153,7 @@ export class PlaceHandler extends InteractHandler {
         const bb = AABB.fromBlock(this.vec);
         
         const verts = bb.expand(0.1, 0.5, 0.1).toVertices();
+        verts.push(bb.getCenter())
         
         let shiftTick = Infinity;
         for (let i = 0; i < ticks; i++) {
@@ -234,8 +235,8 @@ export class PlaceHandler extends InteractHandler {
 
    
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
-        works.raycasts.sort((a, b) => a.intersect.minus(stateEyePos).norm() - b.intersect.minus(stateEyePos).norm());
-        // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
+        works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
         
        
         let rayRes = works.raycasts[0];
@@ -243,15 +244,21 @@ export class PlaceHandler extends InteractHandler {
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
-        for (let i = 0; i < works.ticks - 1; i++) {
+        for (let i = 0; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           await bot.waitForTicks(1);
         }
     
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
         const invalidPlacement =  AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
-
         if (invalidPlacement) throw new Error("Invalid placement");
+
+        const testCheck = await bot.world.raycast(bot.entity.position.offset(0,1.62,0), bot.util.getViewDir(), PlaceHandler.reach) as unknown as RayType;
+        if (!testCheck || !testCheck.position.equals(rayRes.position) || testCheck.face !== rayRes.face) {
+          console.log('looking at ', rayRes.intersect)
+          await bot.lookAt(rayRes.intersect, true);
+        }
+
 
         let finished = false;
         let sneaking = false;
@@ -340,10 +347,10 @@ export class BreakHandler extends InteractHandler {
 
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
-        const block = bot.pathfinder.world.getBlock(this.vec);
-        if (block === null) throw new Error("Invalid block");
+        const block = await bot.world.getBlock(this.vec);
+        if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, true);
-        await bot.dig(block);
+        await bot.dig(block, false);
         break;
       }
 

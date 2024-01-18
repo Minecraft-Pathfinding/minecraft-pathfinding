@@ -7,6 +7,8 @@ const emptyVec = new Vec3(0, 0, 0);
 
 export class Move implements PathData {
   hash: string;
+
+  targetPos: Vec3;
   // remainingBlocks: number = 0 // TODO: implement this
 
   constructor(
@@ -27,6 +29,7 @@ export class Move implements PathData {
     this.y = Math.floor(y);
     this.z = Math.floor(z);
     this.hash = this.x + "," + this.y + "," + this.z;
+    this.targetPos = this.exitPos;
     // this.x = x;
     // this.y = y;
     // this.z = z;
