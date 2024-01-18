@@ -7,6 +7,8 @@ import { Movement, MovementOptions } from "./movement";
 import { CancelError } from "./exceptions";
 import { BlockInfo } from "../world/cacheWorld";
 import { BreakHandler, PlaceHandler } from "./utils";
+import { onceWithCleanup } from "../../utils";
+import { AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 
 export class IdleMovement extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
@@ -126,11 +128,21 @@ export class ForwardJump extends Movement {
       await this.performInteraction(breakH);
     }
 
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
+    // do some fancy handling here, will think of something later.
+    if (thisMove.toPlace.length === 2) {
+      await this.performInteraction(thisMove.toPlace[0]);
+      this.bot.setControlState("sprint", false);
+      await this.bot.lookAt(thisMove.entryPos, true);
+      await this.bot.lookAt(thisMove.exitPos, true);
+      await this.performInteraction(thisMove.toPlace[1]);
+      this.bot.setControlState("jump", false);
+      await this.bot.lookAt(thisMove.exitPos, true);
+    } else {
+      for (const place of thisMove.toPlace) {
+        await this.performInteraction(place);
+      }
+      this.bot.setControlState("jump", true);
     }
-
-    this.bot.setControlState("jump", true);
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
@@ -223,6 +235,7 @@ export class ForwardJump extends Movement {
     cost += this.safeOrBreak(blockB, toBreak);
     if (cost > 100) return;
 
+    if (toPlace.length === 2) return;
     // set exitPos to center of block we want.
     neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }

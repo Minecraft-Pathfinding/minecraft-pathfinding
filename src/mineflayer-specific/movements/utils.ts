@@ -26,7 +26,7 @@ interface InteractOpts {
 
 export abstract class InteractHandler {
   protected performing = false;
-  protected readonly vec: Vec3;
+  public readonly vec: Vec3;
 
   protected _done = false;
 
@@ -250,7 +250,7 @@ export class PlaceHandler extends InteractHandler {
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
-        for (let i = 0; i < works.ticks; i++) {
+        for (let i = 0; i < works.ticks - 1; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           await bot.waitForTicks(1);
         }
@@ -258,9 +258,26 @@ export class PlaceHandler extends InteractHandler {
         // await bot.lookAt(rayRes.intersect, true); // allow one tick to sync looking.
         // if (!triggered && i > 0) await bot.waitForTicks(1);
 
-        console.log('placing', rayRes.position, rayRes.face)
-        console.log(AABBUtils.getEntityAABB(bot.entity), AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(rayRes.position.plus(this.faceToVec(rayRes.face)))))
-        await bot._placeBlockWithOptions(rayRes as any, this.faceToVec(rayRes.face), { forceLook: "ignore" });
+        const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
+        const invalidPlacement =  AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
+
+        if (invalidPlacement) throw new Error("Invalid placement");
+
+        let finished = false;
+        let sneaking = false;
+        const task = bot._placeBlockWithOptions(rayRes as any, this.faceToVec(rayRes.face), { forceLook: "ignore" });
+        task.then(()=> {
+          finished = true;
+          if (!sneaking) return;
+          bot.setControlState('sneak', false)
+        })
+
+        setTimeout(() => {
+          if (finished) return;
+          sneaking = true;
+          bot.setControlState('sneak', true)
+        })
+
         if (works.shiftTick !== Infinity) bot.setControlState('sneak', false)
       
         break;
