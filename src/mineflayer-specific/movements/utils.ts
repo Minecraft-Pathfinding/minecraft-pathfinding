@@ -177,6 +177,8 @@ export class PlaceHandler extends InteractHandler {
                 }
           }
           if (works.length !== 0) return {ticks: i, shiftTick, raycasts: works}; 
+
+          // inaccurate, should reset physics sim, but whatever.
           bot.physicsUtil.engine.simulate(ectx, bot.world);
       }
         return {ticks: Infinity, shiftTick: Infinity, raycasts: works};
@@ -218,35 +220,26 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        const bb = AABB.fromBlock(this.vec);
-        const verts = bb.expand(0.1, 0.5, 0.1).toVertices(); // TODO: figure out what is doing this
-        // verts.push(this.vec.offset(0, 1, 0));
-
-        const eyePos0 = bot.entity.position.offset(0, 1.62, 0);
-        const viewDir = bot.util.getViewDir();
-        verts.sort((a, b) => b.minus(eyePos0).normalize().dot(viewDir) - a.minus(eyePos0).normalize().dot(viewDir));
-
         let works = await this.performInfo(bot);
 
         while (works.raycasts.length === 0) {
           // await bot.waitForTicks(1);
-          console.log('no moves!')
+          // console.log('no moves!')
           await bot.waitForTicks(1)
           works = await this.performInfo(bot)
-        
         }
         
-        console.log('got works')
+        // console.log('got works')
 
 
    
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
-        // works.sort((a, b) => a.intersect.minus(stateEyePos).norm() - b.intersect.minus(stateEyePos).norm());
-        works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        works.raycasts.sort((a, b) => a.intersect.minus(stateEyePos).norm() - b.intersect.minus(stateEyePos).norm());
+        // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
         
        
         let rayRes = works.raycasts[0];
-        console.log(works.ticks, works.shiftTick, rayRes)
+        // console.log(works.ticks, works.shiftTick, rayRes)
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
@@ -254,10 +247,7 @@ export class PlaceHandler extends InteractHandler {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           await bot.waitForTicks(1);
         }
-        // bot.setControlState("sneak", true);
-        // await bot.lookAt(rayRes.intersect, true); // allow one tick to sync looking.
-        // if (!triggered && i > 0) await bot.waitForTicks(1);
-
+    
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
         const invalidPlacement =  AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
 
@@ -265,7 +255,7 @@ export class PlaceHandler extends InteractHandler {
 
         let finished = false;
         let sneaking = false;
-        const task = bot._placeBlockWithOptions(rayRes as any, this.faceToVec(rayRes.face), { forceLook: "ignore" });
+        const task = bot._placeBlockWithOptions(rayRes, this.faceToVec(rayRes.face), { forceLook: "ignore" });
         task.then(()=> {
           finished = true;
           if (!sneaking) return;

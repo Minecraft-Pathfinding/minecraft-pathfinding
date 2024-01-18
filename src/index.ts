@@ -222,6 +222,6 @@ declare module 'mineflayer' {
   interface Bot {
     pathfinder: ThePathfinder
 
-    _placeBlockWithOptions(referenceBlock: Vec3, faceVector: Vec3, options?: PlaceBlockOptions): Promise<void>
+    _placeBlockWithOptions(referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions): Promise<void>
   }
 }
