@@ -34,7 +34,7 @@ export class Forward extends Movement {
     // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
 
-    if (thisMove.toPlace.length > 0) {
+    if (false && thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
       thisMove.targetPos = offset;
@@ -61,9 +61,7 @@ export class Forward extends Movement {
     // await this.bot.lookAt(thisMove.exitPos, true);
     // this.bot.setControlState("back", false);
     // this.bot.setControlState("forward", true);
-        
-    await this.bot.waitForTicks(3)
-
+  
 
     console.log('done move prehandle!')
   };

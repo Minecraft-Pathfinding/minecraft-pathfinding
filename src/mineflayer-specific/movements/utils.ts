@@ -232,7 +232,7 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        let works = await this.performInfo(bot, 0);
+        let works = await this.performInfo(bot, 1);
 
         while (works.raycasts.length === 0) {
           await bot.waitForTicks(1)
@@ -253,7 +253,7 @@ export class PlaceHandler extends InteractHandler {
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
-        for (let i = 0; i < works.ticks; i++) {
+        for (let i = 0; i < works.ticks - 1; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           await bot.waitForTicks(1);
         }
@@ -266,6 +266,8 @@ export class PlaceHandler extends InteractHandler {
         if (!testCheck || !testCheck.position.equals(rayRes.position) || testCheck.face !== rayRes.face) {
           console.log('looking at ', rayRes.intersect)
           await bot.lookAt(rayRes.intersect, true);
+        } else if (works.ticks > 0) {
+          await bot.waitForTicks(1);
         }
 
      
