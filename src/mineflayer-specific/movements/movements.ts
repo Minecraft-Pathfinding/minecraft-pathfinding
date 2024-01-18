@@ -31,16 +31,18 @@ export class Forward extends Movement {
 
   performInit = async (thisMove: Move, goal: goals.Goal) => {
     
-    console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
+    // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
 
     if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
       thisMove.targetPos = offset;
+
       await this.bot.lookAt(offset, true);
       this.bot.setControlState("back", true);
       this.bot.setControlState("sprint", false);
+      this.bot.setControlState('sneak', true)
     } else {
       await this.bot.lookAt(thisMove.exitPos, true);
       this.bot.setControlState("forward", true);
@@ -60,7 +62,7 @@ export class Forward extends Movement {
     // this.bot.setControlState("back", false);
     // this.bot.setControlState("forward", true);
         
-    
+    await this.bot.waitForTicks(3)
 
 
     console.log('done move prehandle!')

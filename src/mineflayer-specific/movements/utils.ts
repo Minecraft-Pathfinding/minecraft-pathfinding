@@ -151,9 +151,18 @@ export class PlaceHandler extends InteractHandler {
         const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
         const state = ectx.state;
         const bb = AABB.fromBlock(this.vec);
+
+        const dx = bot.entity.position.x - (this.vec.x + 0.5)
+        const dy = bot.entity.position.y + bot.entity.height - (this.vec.y + 0.5)
+        const dz = bot.entity.position.z - (this.vec.z + 0.5)
+        // Check y first then x and z
+        const visibleFaces = {
+          y: Math.sign(Math.abs(dy) > 0.5 ? dy : 0),
+          x: Math.sign(Math.abs(dx) > 0.5 ? dx : 0),
+          z: Math.sign(Math.abs(dz) > 0.5 ? dz : 0)
+        }
         
         const verts = bb.expand(0.1, 0.5, 0.1).toVertices();
-        verts.push(bb.getCenter())
         
         let shiftTick = Infinity;
         for (let i = 0; i < ticks; i++) {
@@ -177,7 +186,9 @@ export class PlaceHandler extends InteractHandler {
                   works.push(rayRes as unknown as RayType);
                 }
           }
-          if (works.length !== 0) return {ticks: i, shiftTick, raycasts: works}; 
+          if (works.length !== 0) {
+            return {ticks: i, shiftTick, raycasts: works}; 
+          }
 
           // inaccurate, should reset physics sim, but whatever.
           bot.physicsUtil.engine.simulate(ectx, bot.world);
@@ -221,11 +232,9 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        let works = await this.performInfo(bot);
+        let works = await this.performInfo(bot, 0);
 
         while (works.raycasts.length === 0) {
-          // await bot.waitForTicks(1);
-          // console.log('no moves!')
           await bot.waitForTicks(1)
           works = await this.performInfo(bot)
         }
@@ -240,7 +249,7 @@ export class PlaceHandler extends InteractHandler {
         
        
         let rayRes = works.raycasts[0];
-        // console.log(works.ticks, works.shiftTick, rayRes)
+        console.log(works.ticks, works.shiftTick, rayRes.intersect)
 
         if (rayRes === undefined) throw new Error("Invalid block");
 
@@ -259,7 +268,7 @@ export class PlaceHandler extends InteractHandler {
           await bot.lookAt(rayRes.intersect, true);
         }
 
-
+     
         let finished = false;
         let sneaking = false;
         const task = bot._placeBlockWithOptions(rayRes, this.faceToVec(rayRes.face), { forceLook: "ignore" });
@@ -273,10 +282,10 @@ export class PlaceHandler extends InteractHandler {
           if (finished) return;
           sneaking = true;
           bot.setControlState('sneak', true)
-        })
+        }, 30)
 
+        await task;
         if (works.shiftTick !== Infinity) bot.setControlState('sneak', false)
-      
         break;
       }
       case "replaceable":
