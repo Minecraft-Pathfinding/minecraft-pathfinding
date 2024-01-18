@@ -346,3 +346,69 @@ export class ForwardDropDown extends Movement {
     neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
+
+export class Diagonal extends Movement {
+  static diagonalCost = 1.4142135623730951; // sqrt(2)
+
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    for (const dir of Movement.diagonalDirs) {
+      this.getMoveDiagonal(start, dir, storage);
+    }
+  }
+
+  performInit = async (thisMove: Move, goal: goals.Goal) => {
+    await this.bot.lookAt(thisMove.exitPos, true);
+    this.bot.setControlState("forward", true);
+    this.bot.setControlState("sprint", this.bot.food > 6);
+
+    for (const breakH of thisMove.toBreak) {
+      await this.performInteraction(breakH);
+    }
+  }
+
+  performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+    if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
+      this.bot.clearControlStates();
+      return false;
+    }
+
+    if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
+    if (!this.bot.entity.onGround) throw new CancelError("ForwardMove: not on ground");
+
+    this.bot.lookAt(thisMove.targetPos, true);
+
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
+    return false;
+  }
+
+  getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[]) {
+    let cost = 1; 
+    const toBreak: BreakHandler[] = [];
+    const toPlace: PlaceHandler[] = [];
+    const block00 = this.getBlockInfo(node, 0, 0, 0);
+
+    const block0 = this.getBlockInfo(node, dir.x, 0, dir.z);
+    if (block00.height - block0.height > 0.6) return; // Too high to walk up
+    const needSideClearance = block00.height - block0.height < 0; 
+    const block1 = this.getBlockInfo(node, dir.x, 1, dir.z);
+    const blockN1 = this.getBlockInfo(node, dir.x, -1, dir.z);
+    if (!blockN1.physical) { 
+      // target block not solid
+      return
+    }
+    cost += this.safeOrBreak(block0, toBreak);
+    cost += this.safeOrBreak(block1, toBreak);
+    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 0, 0), toBreak);
+    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 0, dir.z), toBreak);
+    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak);
+    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak);
+    if (cost > 100) return;
+    if (needSideClearance) {
+      const blockN1A = this.getBlockInfo(node, dir.x, -1, 0)
+      const blockN1B = this.getBlockInfo(node, 0, -1, dir.z)
+      if (blockN1A.physical || blockN1B.physical) return
+    }
+
+    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
+  }
+}

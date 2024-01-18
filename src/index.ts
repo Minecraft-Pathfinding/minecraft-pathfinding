@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { MovementHandler, IdleMovement, Forward, Movement, SimMovement, ForwardJump, ForwardDropDown } from './mineflayer-specific/movements'
+import { MovementHandler, IdleMovement, Forward, Movement, SimMovement, ForwardJump, ForwardDropDown, Diagonal } from './mineflayer-specific/movements'
 import { AStar } from './mineflayer-specific/algs'
 import { goals } from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
@@ -19,7 +19,7 @@ export class ThePathfinder {
 
   constructor (private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world)
-    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown], {canOpenDoors: true})
+    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown, Diagonal], {canOpenDoors: true})
     this.astar = null
   }
 
