@@ -157,6 +157,8 @@ export class ThePathfinder {
 
       console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)}`);
 
+      move.moveType.loadMove(move);
+      
       try {
         while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
           // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos)

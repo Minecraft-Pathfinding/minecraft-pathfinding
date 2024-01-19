@@ -286,7 +286,7 @@ export class PlaceHandler extends InteractHandler {
           const start = performance.now();
           works = await this.performInfo(bot);
           const end = performance.now();
-          console.log("info took", end - start, "ms");
+          // console.log("info took", end - start, "ms");
         }
 
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
@@ -315,7 +315,7 @@ export class PlaceHandler extends InteractHandler {
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face));
           const pos1Bl = AABB.fromBlock(pos1);
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
-            console.log("skipping on tick", i);
+            // console.log("skipping on tick", i);
             if (i < works.ticks - 1 && i !== 0) await bot.waitForTicks(1);
             break;
           }
@@ -327,14 +327,14 @@ export class PlaceHandler extends InteractHandler {
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 });
         const invalidPlacement = botBB.intersects(posBl);
         if (invalidPlacement) {
-          console.log("invalid placement", bot.entity.position, invalidPlacement1, invalidPlacement);
-          console.log(botBB, posBl);
+          // console.log("invalid placement", bot.entity.position, invalidPlacement1, invalidPlacement);
+          // console.log(botBB, posBl);
           bot.lookAt(rayRes.intersect);
           throw new CancelError("Invalid placement");
         }
 
-        console.log(works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
-        console.log(bot.entity.position, bot.entity.velocity);
+        // console.log(works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
+        // console.log(bot.entity.position, bot.entity.velocity);
 
         let finished = false;
         let sneaking = false;

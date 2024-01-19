@@ -24,7 +24,8 @@ export class Move implements PathData {
     public readonly entryVel: Vec3,
     public readonly exitPos: Vec3,
     public readonly exitVel: Vec3,
-    public readonly interactMap: Map<string, PlaceHandler | BreakHandler>
+    // public readonly interactMap: Map<string, PlaceHandler | BreakHandler>,
+    public readonly parent?: Move
   ) {
     this.x = Math.floor(x);
     this.y = Math.floor(y);
@@ -38,7 +39,8 @@ export class Move implements PathData {
   }
 
   static startMove(type: Movement, pos: Vec3, vel: Vec3) {
-    return new Move(pos.x, pos.y, pos.z, [], [], 0, 0, type, pos, vel, pos, vel, new Map());
+    return new Move(pos.x, pos.y, pos.z, [], [], 0, 0, type, pos, vel, pos, vel);
+    // new Map());
   }
 
   static fromPreviousState(
@@ -49,13 +51,13 @@ export class Move implements PathData {
     toPlace: PlaceHandler[] = [],
     toBreak: BreakHandler[] = []
   ) {
-    const p = new Map(prevMove.interactMap);
-    for (const breakH of toBreak) {
-      p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
-    }
-    for (const place of toPlace) {
-      p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
-    }
+    // const p = new Map(prevMove.interactMap);
+    // for (const breakH of toBreak) {
+    //   p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
+    // }
+    // for (const place of toPlace) {
+    //   p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
+    // }
     return new Move(
       state.pos.x,
       state.pos.y,
@@ -69,18 +71,19 @@ export class Move implements PathData {
       prevMove.exitVel,
       state.pos.clone(),
       state.vel.clone(),
-      p
+      // prevMove.interactMap,
+      prevMove
     );
   }
 
   static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: Movement, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
-    const p = new Map(prevMove.interactMap);
-    for (const place of toPlace) {
-      p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
-    }
-    for (const breakH of toBreak) {
-      p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
-    }
+    // const p = new Map(prevMove.interactMap);
+    // for (const place of toPlace) {
+    //   p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
+    // }
+    // for (const breakH of toBreak) {
+    //   p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
+    // }
     return new Move(
       pos.x,
       pos.y,
@@ -94,7 +97,8 @@ export class Move implements PathData {
       prevMove.exitVel,
       pos,
       emptyVec,
-      p
+      // prevMove.interactMap,
+      prevMove
     );
   }
 

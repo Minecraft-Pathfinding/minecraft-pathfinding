@@ -90,6 +90,8 @@ export abstract class Movement {
   protected readonly world: World;
   protected readonly settings: MovementOptions;
 
+
+  protected currentMove!: Move;
   /**
    * Current interaction.
    */
@@ -152,6 +154,11 @@ export abstract class Movement {
   //   return tickCount > 50;
   // };
 
+
+  loadMove(move: Move) {
+    this.currentMove = move;
+  }
+
   performInteraction(interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}) {
     this.cI = interaction;
     if (interaction instanceof PlaceHandler) {
@@ -181,8 +188,22 @@ export abstract class Movement {
     return this.world.getBlock(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
   }
 
-  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number, move?: Move) {
+  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number) {
     const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz);
+    let move: Move | undefined = this.currentMove;
+    while (move !== undefined) {
+      const test = move.toPlace.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
+      if (test !== undefined) {
+        return test.toBlockInfo();
+      }
+      const test1 = move.toBreak.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
+      if (test1 !== undefined) {
+        return test1.toBlockInfo();
+      }
+      move = move.parent;
+    }
+    
+
     // if (move) {
     //   const key = yes.toString();
     //   if (move.interactMap.has(key)) {
