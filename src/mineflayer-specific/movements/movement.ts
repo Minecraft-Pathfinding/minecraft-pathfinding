@@ -115,7 +115,7 @@ export abstract class Movement {
    * Perform initial setup upon movement start.
    * Can be sync or async.
    */
-  abstract performInit: (thisMove: Move, goal: goals.Goal) => void | Promise<void>;
+  abstract performInit(thisMove: Move, goal: goals.Goal): void | Promise<void>;
 
   /**
    * Runtime calculation.
@@ -124,7 +124,7 @@ export abstract class Movement {
    * Return whether or not bot has reached the goal.
    *
    */
-  abstract performPerTick: (thisMove: Move, tickCount: number, goal: goals.Goal) => boolean | Promise<boolean>;
+  abstract performPerTick(thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean>;
 
   /**
    * Runtime calculation.
@@ -181,8 +181,16 @@ export abstract class Movement {
     return this.world.getBlock(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
   }
 
-  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number) {
-    return this.world.getBlockInfo(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
+  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number, move?: Move) {
+    const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz);
+    // if (move) {
+    //   const key = yes.toString();
+    //   if (move.interactMap.has(key)) {
+    //     const handler = move.interactMap.get(key)!;
+    //     return handler.toBlockInfo();
+    //   }
+    // }
+    return this.world.getBlockInfo(yes);
   }
 
   /**

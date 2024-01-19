@@ -137,6 +137,27 @@ export class BlockInfo {
 
     return new BlockInfo(b1.replaceable, b1.canFall, b1.safe, b1.physical, b1.liquid, b1.climbable, b1.height, b1.openable, b.position, b.type)
   }
+
+  static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0,0,0), -1)
+  static SOLID(pos: Vec3) {
+    return new BlockInfo(false, false, false, true, false, false, 0, false, pos, -1)
+  }
+
+  static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0,0,0), -1)
+  static AIR(pos: Vec3) {
+    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, -1)
+  }
+
+  static REPLACEABLE1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0,0,0), -1)
+  static REPLACEABLE(pos: Vec3) {
+    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, -1)
+  }
+
+  static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0,0,0), -1)
+  static WATER(pos: Vec3) {
+    return new BlockInfo(false, false, false, false, true, false, 0, false, pos, -1)
+  }
+
 }
 
 

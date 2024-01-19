@@ -9,7 +9,8 @@ import { BlockInfo } from "../world/cacheWorld";
 import { BreakHandler, PlaceHandler } from "./utils";
 import { onceWithCleanup } from "../../utils";
 import { AABBUtils } from "@nxg-org/mineflayer-util-plugin";
-
+import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
+import * as controls from './controls'
 export class IdleMovement extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
   performInit = async (thisMove: Move, goal: goals.Goal) => {};
@@ -431,8 +432,8 @@ export class Diagonal extends Movement {
       return false;
     }
 
-    if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
-    if (!this.bot.entity.onGround) throw new CancelError("ForwardMove: not on ground");
+    if (tickCount > 160) throw new CancelError("Diagonal: tickCount > 160");
+    if (!this.bot.entity.onGround) throw new CancelError("Diagonal: not on ground");
 
     this.bot.lookAt(thisMove.targetPos, true);
 
@@ -470,4 +471,244 @@ export class Diagonal extends Movement {
 
     neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
+}
+
+
+export class StraightDown extends Movement {
+  maxDropDown = 3;
+
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    return this.getMoveDown(start, storage);
+  }
+  async performInit(thisMove: Move, goal: goals.Goal): Promise<void> {
+    for (const breakH of thisMove.toBreak) {
+      await this.performInteraction(breakH);
+    }
+  }
+  performPerTick(thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean> {
+    return tickCount > 0 && this.bot.entity.onGround;
+  }
+
+  getMoveDown (node: Move, neighbors: Move[]) {
+    const block0 = this.getBlockInfo(node, 0, -1, 0)
+
+    let cost = 1 // move cost
+    const toBreak: BreakHandler[] = []
+    const toPlace: PlaceHandler[] = []
+
+    const blockLand = this.getLandingBlock(node)
+    if (!blockLand) return
+
+    cost += this.safeOrBreak(block0, toBreak)
+    if (cost > 100) return
+
+    if (this.getBlockInfo(node, 0, 0, 0).liquid) return // dont go underwater
+
+    // cost += this.getNumEntitiesAt(blockLand.position, 0, 0, 0) * this.entityCost // add cost for entities
+
+    neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
+  }
+
+  getLandingBlock(node: Move, dir: Vec3 = emptyVec) {
+    let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z);
+    while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
+      if (blockLand.liquid && blockLand.safe) return blockLand;
+      if (blockLand.physical) {
+        if (node.y - blockLand.position.y <= this.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
+        return null;
+      }
+      if (!blockLand.safe) return null;
+      blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0);
+    }
+    return null;
+  }
+}
+
+
+export class StraightUp extends Movement {
+  allow1by1towers = true;
+
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    return this.getMoveUp(start, storage);
+  }
+
+  align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+    this.bot.clearControlStates();
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) {
+      return true;
+    }
+    this.bot.lookAt(thisMove.exitPos, true);
+    this.bot.setControlState('sprint', false)
+    this.bot.setControlState('forward', true);
+    this.bot.setControlState('sneak', true)
+    return false;
+  }
+ async performInit(thisMove: Move, goal: goals.Goal): Promise<void> {
+    for (const breakH of thisMove.toBreak) {
+      await this.performInteraction(breakH);
+    }
+
+    this.bot.setControlState("jump", true);
+
+ 
+    console.log(thisMove.toPlace.length)
+    for (const place of thisMove.toPlace) {
+      await this.performInteraction(place);
+    }
+
+  }
+  performPerTick(thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean> {
+    // this.bot.setControlState('sneak', false)
+    return tickCount > 0 && this.bot.entity.onGround;
+  }
+
+  getMoveUp (node: Move, neighbors: Move[]) {
+    const nodePos = node.toVec();
+    const block1 = this.getBlockInfo(node, 0, 0, 0)
+    if (block1.liquid) return
+    // if (this.getNumEntitiesAt(node, 0, 0, 0) > 0) return // an entity (besides the player) is blocking the building area
+
+    const block2 = this.getBlockInfo(node, 0, 2, 0)
+
+    let cost = 1 // move cost
+    const toBreak: BreakHandler[] = []
+    const toPlace = []
+    cost += this.safeOrBreak(block2, toBreak)
+   
+    if (cost > 100) return
+
+    if (!block1.climbable) {
+    
+      // if (!this.allow1by1towers || node.remainingBlocks === 0) return // not enough blocks to place
+      // console.log('hey')
+      if (!block1.replaceable) {
+        if (!this.safeToBreak(block1)) return
+        toBreak.push(BreakHandler.fromVec(block1.position, "solid"))
+      }
+
+      const block0 = this.getBlockInfo(node, 0, -1, 0)
+     
+      if (block0.physical && block0.height - node.y < -0.2) return // cannot jump-place from a half block
+
+      // cost += this.exclusionPlace(block1)
+      toPlace.push(PlaceHandler.fromVec(nodePos, "solid"))
+      cost += 0.1 // this.placeCost // additional cost for placing a block
+    }
+
+    if (cost > 100) return
+    neighbors.push(Move.fromPrevious(cost, nodePos.offset(0.5, 1, 0.5), node, this, toPlace, toBreak))
+  }
+}
+
+
+export class ParkourForward extends Movement {
+
+  allowSprinting = true;
+  provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
+    for (const dir of Movement.cardinalDirs) {
+      this.getMoveParkourForward(start, dir, storage);
+    }
+  }
+ async performInit(thisMove: Move, goal: goals.Goal): Promise<void> {
+    await this.bot.lookAt(thisMove.exitPos, true);
+    controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
+    controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
+    this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`)
+
+  }
+
+  // TODO: Fix this. Good thing I've done this before. >:)
+  performPerTick(thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean> {
+    if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
+      this.bot.clearControlStates();
+      return false;
+    }
+
+    const closeToGoal = thisMove.entryPos.distanceTo(this.bot.entity.position) > thisMove.exitPos.distanceTo(this.bot.entity.position);
+
+    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() > 0.145) {
+      this.bot.setControlState('jump', true)
+    }
+
+    controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
+    controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
+
+    console.log(this.bot.controlState)
+    if (tickCount > 160) throw new CancelError("ParkourForward: tickCount > 160");
+
+  
+    if (tickCount > 0 && this.bot.entity.onGround && closeToGoal) {
+      this.bot.setControlState('jump', false)
+    }
+
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
+    return false;
+  }
+
+    // Jump up, down or forward over a 1 block gap
+  getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[]) {
+      const block0 = this.getBlockInfo(node, 0, -1, 0)
+      const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
+      if ((block1.physical && block1.height >= block0.height) ||
+        !this.getBlockInfo(node, dir.x, 0, dir.z).safe ||
+        !this.getBlockInfo(node, dir.x, 1, dir.z).safe) return
+      if (this.getBlockInfo(node, 0, 0, 0).liquid) return // cant jump from water
+  
+      let cost = 1
+  
+      // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important
+      // cost += this.getNumEntitiesAt(node, dir.x, 0, dir.z) * this.entityCost
+  
+      // If we have a block on the ceiling, we cannot jump but we can still fall
+      let ceilingClear = this.getBlockInfo(node, 0, 2, 0).safe && this.getBlockInfo(node, dir.x, 2, dir.z).safe
+  
+      // Similarly for the down path
+      let floorCleared = !this.getBlockInfo(node, dir.x, -2, dir.z).physical
+  
+      const maxD = this.allowSprinting ? 4 : 2
+  
+      for (let d = 2; d <= maxD; d++) {
+        const dx = dir.x * d
+        const dz = dir.z * d
+        const blockA = this.getBlockInfo(node, dx, 2, dz)
+        const blockB = this.getBlockInfo(node, dx, 1, dz)
+        const blockC = this.getBlockInfo(node, dx, 0, dz)
+        const blockD = this.getBlockInfo(node, dx, -1, dz)
+  
+        // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
+  
+        if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
+          // cost += this.exclusionStep(blockB)
+          // Forward
+          neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this, [], []))
+          // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
+          break
+        } else if (ceilingClear && blockB.safe && blockC.physical) {
+          // Up
+          if (blockA.safe && d !== 4) { // 4 Blocks forward 1 block up is very difficult and fails often
+            // cost += this.exclusionStep(blockA)
+            if (blockC.height - block0.height > 1.2) break // Too high to jump
+            // cost += this.getNumEntitiesAt(blockB.position, 0, 0, 0) * this.entityCost
+            neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, [], []))
+            // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
+            break
+          }
+        } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
+          // Down
+          const blockE = this.getBlockInfo(node, dx, -2, dz)
+          if (blockE.physical) {
+            // cost += this.exclusionStep(blockD)
+            // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
+            neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this, [], []))
+            // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
+          }
+          floorCleared = floorCleared && !blockE.physical
+        } else if (!blockB.safe || !blockC.safe) {
+          break
+        }
+  
+        ceilingClear = ceilingClear && blockA.safe
+      }
+    }
+
 }

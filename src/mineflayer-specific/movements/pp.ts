@@ -1,6 +1,6 @@
 import { Vec3 } from "vec3";
 import { SimMovement } from "../movements";
-import * as controls from "../controls";
+import * as controls from "./controls";
 import { BaseSimulator, EPhysicsCtx, EntityState, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 import { Bot } from "mineflayer";
 import { goals } from "../goals";

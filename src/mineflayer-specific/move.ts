@@ -24,6 +24,7 @@ export class Move implements PathData {
     public readonly entryVel: Vec3,
     public readonly exitPos: Vec3,
     public readonly exitVel: Vec3,
+    public readonly interactMap: Map<string, PlaceHandler | BreakHandler>
   ) {
     this.x = Math.floor(x);
     this.y = Math.floor(y);
@@ -36,14 +37,25 @@ export class Move implements PathData {
     // this.hash = this.x.toFixed(1) + "," + this.y.toFixed(1) + "," + this.z.toFixed(1);
   }
 
+  static startMove(type: Movement, pos: Vec3, vel: Vec3) {
+    return new Move(pos.x, pos.y, pos.z, [], [], 0, 0, type, pos, vel, pos, vel, new Map());
+  }
+
   static fromPreviousState(
     cost: number,
     state: EntityState,
     prevMove: Move,
     type: SimMovement,
     toPlace: PlaceHandler[] = [],
-    toBreak: BreakHandler[] = [],
+    toBreak: BreakHandler[] = []
   ) {
+    const p = new Map(prevMove.interactMap);
+    for (const breakH of toBreak) {
+      p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
+    }
+    for (const place of toPlace) {
+      p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
+    }
     return new Move(
       state.pos.x,
       state.pos.y,
@@ -56,12 +68,34 @@ export class Move implements PathData {
       prevMove.exitPos,
       prevMove.exitVel,
       state.pos.clone(),
-      state.vel.clone()
+      state.vel.clone(),
+      p
     );
   }
 
   static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: Movement, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
-    return new Move(pos.x, pos.y, pos.z, toPlace, toBreak, prevMove.remainingBlocks - toPlace.length, cost, type, prevMove.exitPos, prevMove.exitVel, pos, emptyVec);
+    const p = new Map(prevMove.interactMap);
+    for (const place of toPlace) {
+      p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
+    }
+    for (const breakH of toBreak) {
+      p.set(`(${breakH.x}, ${breakH.y}, ${breakH.z})`, breakH);
+    }
+    return new Move(
+      pos.x,
+      pos.y,
+      pos.z,
+      toPlace,
+      toBreak,
+      prevMove.remainingBlocks - toPlace.length,
+      cost,
+      type,
+      prevMove.exitPos,
+      prevMove.exitVel,
+      pos,
+      emptyVec,
+      p
+    );
   }
 
   public toVec() {
