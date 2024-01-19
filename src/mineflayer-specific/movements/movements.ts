@@ -235,6 +235,7 @@ export class ForwardJump extends Movement {
     if (tickCount > 0 && this.bot.entity.onGround) {
       this.bot.setControlState("jump", false);
       this.bot.setControlState("sprint", true);
+      
       if (this.bot.entity.position.y - thisMove.exitPos.y < 0) throw new CancelError("ForwardJumpMove: too low (2)");
       if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.3) return true;
     }

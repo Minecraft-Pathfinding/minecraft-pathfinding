@@ -67,7 +67,7 @@ export class ThePathfinder {
     this.movements.loadGoal(goal);
 
     const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos, startVel)
-    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0);
+    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, -0.00001);
 
     let result = astarContext.compute();
     let ticked = false;
@@ -165,7 +165,7 @@ export class ThePathfinder {
           await this.bot.waitForTicks(1);
         }
 
-        tickCount--;
+        tickCount = 0;
 
         // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
         await move.moveType.performInit(move, goal);

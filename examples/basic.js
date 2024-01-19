@@ -22,10 +22,15 @@ bot.once('spawn', () => {
   const val = new EntityPhysics(bot.registry)
   EntityState.prototype.apply = function (bot) {
     this.applyToBot(bot)
-  }
+  };
+
+  (bot.physics).jumpTicks = 0;
+
+  
 
   // bot.physics.simulatePlayer = (...args) => {
   //   const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+  //   ctx.state.jumpTicks = 0; // allow immediate jumping
   //   // ctx.state.control.set('sneak', true)
   //   return val.simulate(ctx, bot.world)
   // }

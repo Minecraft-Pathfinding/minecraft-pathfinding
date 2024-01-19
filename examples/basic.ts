@@ -12,6 +12,8 @@ const pathfinder = createPlugin();
 bot.once("spawn", () => {
   bot.loadPlugin(pathfinder);
   bot.physics.yawSpeed = 3000;
+  (bot.physics as any).jumpTicks = 0;
+
   
 });
 
