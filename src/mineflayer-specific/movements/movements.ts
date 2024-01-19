@@ -59,7 +59,7 @@ export class Forward extends Movement {
     if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
-      console.log(thisMove.exitPos, offset, 'hi');
+      // console.log(thisMove.exitPos, offset, 'hi');
 
       await this.bot.lookAt(offset, true);
       this.bot.setControlState("sprint", false)
@@ -160,7 +160,7 @@ export class ForwardJump extends Movement {
   }
 
   performInit = async (thisMove: Move, goal: goals.Goal) => {
-    console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
+    // console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
     await this.bot.lookAt(thisMove.exitPos, true);
 
     if (thisMove.toBreak.length > 0) {
@@ -190,7 +190,7 @@ export class ForwardJump extends Movement {
       while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
         await this.bot.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
-        console.log('loop 0')
+        // console.log('loop 0')
       }
       info = await thisMove.toPlace[1].performInfo(this.bot);
       while (info.raycasts.length === 0) {
@@ -198,7 +198,7 @@ export class ForwardJump extends Movement {
         await this.bot.waitForTicks(1);
         
         info = await thisMove.toPlace[1].performInfo(this.bot);
-        console.log('loop 1', this.bot.entity.position)
+        // console.log('loop 1', this.bot.entity.position)
       }
 
       // console.log("YAY", thisMove.entryPos, this.bot.entity.position, info.raycasts[0].intersect)
@@ -223,7 +223,6 @@ export class ForwardJump extends Movement {
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
-      console.log('yay')
       this.bot.clearControlStates();
       return false;
     }
@@ -338,7 +337,7 @@ export class ForwardDropDown extends Movement {
       await this.performInteraction(place);
     }
 
-    console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z);
+    // console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z);
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", true);
   };
@@ -561,7 +560,7 @@ export class StraightUp extends Movement {
     this.bot.setControlState("jump", true);
 
  
-    console.log(thisMove.toPlace.length)
+    // console.log(thisMove.toPlace.length)
     for (const place of thisMove.toPlace) {
       await this.performInteraction(place);
     }
@@ -643,7 +642,6 @@ export class ParkourForward extends Movement {
     controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
     controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
 
-    console.log(this.bot.controlState)
     if (tickCount > 160) throw new CancelError("ParkourForward: tickCount > 160");
 
   

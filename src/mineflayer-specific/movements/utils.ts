@@ -205,7 +205,7 @@ export class PlaceHandler extends InteractHandler {
             ];
           });
 
-          verts.push(this.vec.offset(0.5, 0, 0.5));
+          verts.push(this.vec.offset(0.5, 0.1, 0.5));
 
           // console.log(state.pos, this.vec)
           let good = 0;
@@ -329,7 +329,7 @@ export class PlaceHandler extends InteractHandler {
         if (invalidPlacement) {
           // console.log("invalid placement", bot.entity.position, invalidPlacement1, invalidPlacement);
           // console.log(botBB, posBl);
-          bot.lookAt(rayRes.intersect);
+          await bot.lookAt(rayRes.intersect);
           throw new CancelError("Invalid placement");
         }
 
