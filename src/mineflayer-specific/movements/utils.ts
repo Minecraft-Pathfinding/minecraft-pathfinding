@@ -301,7 +301,7 @@ export class PlaceHandler extends InteractHandler {
           const start = performance.now();
           await bot.lookAt(rayRes.intersect, true);
           const state = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
-          if (!state.getAABB().intersects(posBl)) await onceWithCleanup(bot, "move");
+          if (!state.getAABB().intersects(posBl)) await onceWithCleanup(bot, "move"); // allow full sync when possible, risk it if not.
           const end = performance.now();
           console.log("lookat took", end - start, "ms");
         }
