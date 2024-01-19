@@ -225,13 +225,13 @@ export class CacheSyncWorld implements WorldType {
     // this.posCache = {};
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
-    this.blocks = new LRUCache({ size: 2500, max: 500 })
-    this.blockInfos = new LRUCache({ max: 10000, ttl: 1000 })
+    this.blocks = new LRUCache({ size: 10000, max: 2000 })
+    this.blockInfos = new LRUCache({ max: 10000, ttl: 2000 })
     this.world = referenceWorld
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require('prismarine-block')(bot.registry)
     }
-
+    
     referenceWorld.on('blockUpdate', (oldBlock: Block, newBlock: Block) => {
       const pos = newBlock.position
       if (this.blockInfos.has(`${pos.x}:${pos.y}:${pos.z}`)) this.blockInfos.set(`${pos.x}:${pos.y}:${pos.z}`, BlockInfo.fromBlock(newBlock))

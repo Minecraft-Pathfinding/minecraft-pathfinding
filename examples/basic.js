@@ -18,22 +18,28 @@ bot.once('spawn', () => {
   bot.loadPlugin(loader)
   bot.physics.yawSpeed = 3000
 
+  
+
   // apply hot-fix to mineflayer's physics engine.
   const val = new EntityPhysics(bot.registry)
   EntityState.prototype.apply = function (bot) {
     this.applyToBot(bot)
   };
 
-  (bot.physics).jumpTicks = 0;
+  bot.physics.autojumpCooldown = 0;
+  // (bot.physics).jumpTicks = 0;
 
   
-
-  // bot.physics.simulatePlayer = (...args) => {
-  //   const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-  //   ctx.state.jumpTicks = 0; // allow immediate jumping
-  //   // ctx.state.control.set('sneak', true)
-  //   return val.simulate(ctx, bot.world)
-  // }
+  // bot.jumpTicks = 0;
+  const oldSim = bot.physics.simulatePlayer
+  bot.physics.simulatePlayer = (...args) => {
+    // // bot.jumpTicks = 0
+    // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    // ctx.state.jumpTicks = 0; // allow immediate jumping
+    // // ctx.state.control.set('sneak', true)
+    // return val.simulate(ctx, bot.world)
+    return oldSim(...args)
+  }
 })
 
 /** @type { Vec3 | null } */

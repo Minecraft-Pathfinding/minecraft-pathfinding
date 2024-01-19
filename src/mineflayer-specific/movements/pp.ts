@@ -134,16 +134,17 @@ export class ForwardJumpMovement extends SimMovement {
     return this.bot.entity.onGround;
   };
 
-  performPerTick = (move: Move, tickCount: number, goal: goals.Goal): boolean => {
+  performPerTick = (move: Move, tickCount: number, currentIndex: number, path: Move[]): boolean => {
     if (tickCount > 160) throw new CancelError("ForwardJumpMovement", "Took too long to reach goal");
 
-    const botAim = this.botAim(this.bot, move.exitPos, goal);
-    const botReach = this.botReach(this.bot, move, goal);
-    botAim();
-    return botReach();
+    // const botAim = this.botAim(this.bot, move.exitPos, goal);
+    // const botReach = this.botReach(this.bot, move, nextMove);
+    // botAim();
+    // return botReach();
+    return true;
   };
 
-  performInit = async (move: Move, goal: goals.Goal): Promise<void> => {
+  performInit = async (move: Move, currentIndex: number, path: Move[]): Promise<void> => {
     await this.bot.lookAt(new Vec3(move.exitPos.x, move.exitPos.y, move.exitPos.z), true);
 
     const dx = move.exitPos.x - this.bot.entity.position.x;

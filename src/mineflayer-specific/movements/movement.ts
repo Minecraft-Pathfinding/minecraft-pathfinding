@@ -117,7 +117,7 @@ export abstract class Movement {
    * Perform initial setup upon movement start.
    * Can be sync or async.
    */
-  abstract performInit(thisMove: Move, goal: goals.Goal): void | Promise<void>;
+  abstract performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void>;
 
   /**
    * Runtime calculation.
@@ -126,7 +126,7 @@ export abstract class Movement {
    * Return whether or not bot has reached the goal.
    *
    */
-  abstract performPerTick(thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean>;
+  abstract performPerTick(thisMove: Move, tickCount: number,currentIndex: number, path: Move[]): boolean | number | Promise<boolean | number>;
 
   /**
    * Runtime calculation.
@@ -138,6 +138,17 @@ export abstract class Movement {
   align(thisMove: Move, tickCount: number, goal: goals.Goal) {
     return true;
   };
+
+  /**
+   * Runtime calculation.
+   * 
+   * Check whether or not the move is already currently completed. This is checked once, before alignment.
+   */
+  isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal) {
+    return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && 
+    this.bot.entity.position.y === thisMove.exitPos.y
+    && this.bot.entity.onGround;
+  }
 
   // /**
   //  * Runtime calculation.
@@ -170,7 +181,7 @@ export abstract class Movement {
 
   private async performPlace(place: PlaceHandler, opts: InteractOpts = {}) {
     const item = place.getItem(this.bot, BlockInfo);
-    if (!item) throw new CancelError("ForwardJumpMove: no item");
+    if (!item) throw new CancelError("ForwardJumpMove: no item to place");
     await place.perform(this.bot, item, opts);
     delete this.cI
   }
@@ -178,8 +189,7 @@ export abstract class Movement {
   private async performBreak(breakTarget: BreakHandler, opts: InteractOpts = {}) {
     const block = breakTarget.getBlock(this.bot.pathfinder.world);
     if (!block) throw new CancelError("ForwardJumpMove: no block");
-    const item = breakTarget.getItem(this.bot, BlockInfo, block,);
-    if (!item) throw new CancelError("ForwardJumpMove: no item");
+    const item = breakTarget.getItem(this.bot, BlockInfo, block);
     await breakTarget.perform(this.bot, item, opts);
     delete this.cI
   }
@@ -373,6 +383,7 @@ export class MovementHandler implements MovementProvider<Move> {
     const moves: Move[] = [];
 
     for (const newMove of this.recognizedMovements) {
+      newMove.loadMove(currentMove);
       newMove.provideMovements(currentMove, moves, this.goal);
     }
 

@@ -56,7 +56,7 @@ export abstract class InteractHandler {
   }
 
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
-  abstract perform(bot: Bot, item: Item, opts?: InteractOpts): Promise<void>;
+  abstract perform(bot: Bot, item?: Item, opts?: InteractOpts): Promise<void>;
   abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
   abstract toBlockInfo(): BlockInfo;
 
@@ -290,8 +290,10 @@ export class PlaceHandler extends InteractHandler {
         }
 
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
+        const lookDir = bot.util.getViewDir()
         // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
-        works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
+        works.raycasts.sort((a,b)=> b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir));
 
         let rayRes = works.raycasts[0];
         if (rayRes === undefined) throw new Error("Invalid block");
@@ -411,15 +413,15 @@ export class BreakHandler extends InteractHandler {
     return true as any;
   }
 
-  async perform(bot: Bot, item: Item, opts: InteractOpts = {}): Promise<void> {
+  async perform(bot: Bot, item?: Item, opts: InteractOpts = {}): Promise<void> {
     if (this.performing) throw new Error("Already performing");
     this.performing = true;
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
-    if (item === null) throw new Error("Invalid item");
-
+  
     switch (this.type) {
       case "water": {
+        if (item === undefined) throw new Error("No item");
         if (item.name !== "bucket") throw new Error("Invalid item");
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
         await bot.lookAt(this.vec, true);
@@ -428,7 +430,11 @@ export class BreakHandler extends InteractHandler {
       }
 
       case "solid": {
-        if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
+        if (item === undefined) {
+          if (this.getCurrentItem(bot) !== undefined)
+          bot.unequip(this.offhand ? "off-hand" : "hand")
+        }
+        else if (this.getCurrentItem(bot) !== item!) this.equipItem(bot, item!);
         const block = await bot.world.getBlock(this.vec);
         if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, true);

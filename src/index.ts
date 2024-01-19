@@ -66,7 +66,7 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos, startVel)
+    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone())
     const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, -0.00001);
 
     let result = astarContext.compute();
@@ -147,17 +147,22 @@ export class ThePathfinder {
 
     // this.bot.on('physicsTick', () => console.log('EXTERNAL TICKER: bot pos:', this.bot.entity.position))
     outer: while (currentIndex < path.path.length) {
-      const move = path.path[currentIndex++];
+      const move = path.path[currentIndex];
+      const next = path.path[currentIndex === path.path.length ? currentIndex - 1 : currentIndex];
 
       let tickCount = 0;
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
       await this.cleanupBot();
+      // await this.bot.waitForTicks(1);
+      console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)} (${move.toPlace.length} ${move.toBreak.length})`);
 
-      console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)}`);
-
-      move.moveType.loadMove(move);
+      if (move.moveType.isAlreadyCompleted(move, tickCount, goal)) {
+        console.log('skipping')
+        currentIndex++;
+        continue;
+      }
 
       try {
         while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
@@ -168,12 +173,18 @@ export class ThePathfinder {
         tickCount = 0;
 
         // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
-        await move.moveType.performInit(move, goal);
+        await move.moveType.performInit(move, currentIndex, path.path);
         // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
-        while (!(await move.moveType.performPerTick(move, tickCount++, goal)) && tickCount < 999) {
+
+        let adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
+        while (!(adding) && tickCount < 999) {
           // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
           await this.bot.waitForTicks(1);
+          adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
         }
+
+        currentIndex+= adding as number;
+
       } catch (err) {
         if (err instanceof CancelError) {
           await this.recovery(move, path, goal, entry);
@@ -181,6 +192,7 @@ export class ThePathfinder {
         } else throw err;
       }
     }
+   
     console.log("done!");
     await this.cleanupBot();
   }
