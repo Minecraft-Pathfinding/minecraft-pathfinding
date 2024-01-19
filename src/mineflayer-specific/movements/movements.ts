@@ -31,10 +31,13 @@ export class Forward extends Movement {
 
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     const offset = thisMove.toVec().offset(0.5, 0, 0.5)
-    const bb = AABBUtils.getPlayerAABB(this.bot.entity)
-    console.log(bb.containsVec(offset), bb, offset)
-    if (this.bot.entity.onGround && !bb.containsVec(offset)) return true;
-    this.bot.lookAt(offset, true);
+    const bb = AABBUtils.getPlayerAABB({position: this.bot.entity.position, width: 1, height: 1.8})
+    // console.log(bb.containsVec(offset), bb, offset)
+    if (this.bot.entity.onGround && !bb.containsVec(offset)) {
+      this.bot.clearControlStates()
+      return true;
+    }
+    // await this.bot.lookAt(offset, true);
     this.bot.setControlState('forward', false)
     this.bot.setControlState("back", true);
     return false;
@@ -55,11 +58,11 @@ export class Forward extends Movement {
     if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
-      console.log(thisMove.exitPos, offset);
+      console.log(thisMove.exitPos, offset, 'hi');
 
       await this.bot.lookAt(offset, true);
-      this.bot.setControlState("back", true);
       this.bot.setControlState("sprint", false)
+      this.bot.setControlState("back", true);
     } else {
       await this.bot.lookAt(thisMove.exitPos, true);
       this.bot.setControlState("forward", true);
@@ -71,7 +74,7 @@ export class Forward extends Movement {
       await this.performInteraction(place);
     }
 
-    console.log("done move prehandle!");
+    // console.log("done move prehandle!");
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
@@ -139,45 +142,85 @@ export class ForwardJump extends Movement {
     }
   }
 
+  align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+    const offset = thisMove.toVec().offset(0.5, 0, 0.5)
+    const bb = AABBUtils.getEntityAABBRaw({position: this.bot.entity.position, width: 1, height: 1.8})
+    // console.log(bb.containsVec(offset), bb, offset)
+    if (this.bot.entity.onGround && !bb.containsVec(offset)) return true;
+    this.bot.lookAt(offset, true);
+    this.bot.setControlState('forward', false)
+    this.bot.setControlState("back", true);
+    return false;
+    
+    // if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos.offset(0.5, 0, 0.5)) < 0.2) return true;
+    // this.bot.lookAt(thisMove., true);
+    // this.bot.setControlState('forward', true);
+    // return this.bot.entity.onGround;
+  }
+
   performInit = async (thisMove: Move, goal: goals.Goal) => {
     console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
     await this.bot.lookAt(thisMove.exitPos, true);
 
-    this.bot.setControlState("forward", true);
-    this.bot.setControlState("sprint", true);
-
+    if (thisMove.toBreak.length > 0) {
+    await this.bot.clearControlStates();
     for (const breakH of thisMove.toBreak) {
       await this.performInteraction(breakH);
     }
+  }
 
     // do some fancy handling here, will think of something later.
     if (thisMove.toPlace.length === 2) {
-      await this.performInteraction(thisMove.toPlace[0]);
-      await this.bot.lookAt(thisMove.entryPos, true);
+      let info = await thisMove.toPlace[0].performInfo(this.bot, 0);
+      if (info.raycasts.length === 0) {
+        this.bot.setControlState('forward', true);
+        await this.performInteraction(thisMove.toPlace[0]);
+      } else {
+        this.bot.setControlState('forward', false);
+        await this.performInteraction(thisMove.toPlace[0], {info});
+      }
+
+      await this.bot.lookAt(thisMove.exitPos, true);
+      this.bot.setControlState('back', false);
       this.bot.setControlState("sprint", false);
-      this.bot.setControlState("forward", false);
+      this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
 
-      while (this.bot.entity.position.y - thisMove.entryPos.y < 1) {
+      while (this.bot.entity.position.y - thisMove.exitPos.y < 0.05) {
+        await this.bot.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
+        console.log('loop 0')
+        
       }
-      let info = await thisMove.toPlace[1].performInfo(this.bot, 0);
+      info = await thisMove.toPlace[1].performInfo(this.bot, 0);
       while (info.raycasts.length === 0) {
+        await this.bot.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
+        
         info = await thisMove.toPlace[1].performInfo(this.bot, 0);
+        console.log('loop 1', this.bot.entity.position)
       }
 
-      console.log("YAY", thisMove.entryPos, this.bot.entity.position, info.raycasts[0].intersect)
-      await this.performInteraction(thisMove.toPlace[1], { info });
+      // console.log("YAY", thisMove.entryPos, this.bot.entity.position, info.raycasts[0].intersect)
       this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", false);
       this.bot.setControlState("sprint", true);
+      await this.performInteraction(thisMove.toPlace[1], { info });
+      
+   
       await this.bot.lookAt(thisMove.exitPos, true);
     } else {
+
+      
+      // 
+  
+
       for (const place of thisMove.toPlace) {
         await this.performInteraction(place);
       }
+      this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
+      this.bot.setControlState("sprint", true);
     }
   };
 
@@ -336,6 +379,7 @@ export class ForwardDropDown extends Movement {
   }
 
   getMoveDropDown(node: Move, dir: Vec3, neighbors: Move[]) {
+    const blockA = this.getBlockInfo(node, dir.x, 2, dir.z);
     const blockB = this.getBlockInfo(node, dir.x, 1, dir.z);
     const blockC = this.getBlockInfo(node, dir.x, 0, dir.z);
     const blockD = this.getBlockInfo(node, dir.x, -1, dir.z);
@@ -349,6 +393,8 @@ export class ForwardDropDown extends Movement {
 
     if (!this.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.maxDropDown) return; // Don't drop down into water
 
+    cost += this.safeOrBreak(blockA, toBreak);
+    if (cost > 100) return;
     cost += this.safeOrBreak(blockB, toBreak);
     if (cost > 100) return;
     cost += this.safeOrBreak(blockC, toBreak);
@@ -398,7 +444,7 @@ export class Diagonal extends Movement {
   };
 
   getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[]) {
-    let cost = 1;
+    let cost = Diagonal.diagonalCost;
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
     const block00 = this.getBlockInfo(node, 0, 0, 0);

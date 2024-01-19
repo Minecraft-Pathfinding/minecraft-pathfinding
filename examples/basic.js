@@ -2,6 +2,7 @@
 const { createBot } = require('mineflayer')
 const { createPlugin, goals } = require('../dist')
 const { GoalBlock } = goals
+const { Vec3 } = require('vec3')
 
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require('@nxg-org/mineflayer-physics-util')
 
@@ -37,7 +38,15 @@ bot.on('chat', async (username, msg) => {
   const [cmd, ...args] = msg.split(' ')
   const author = bot.nearestEntity((e) => e.username === username)
 
-  if (cmd === 'pos') {
+  if (cmd === 'lookat') {
+    bot.lookAt(new Vec3(parseFloat(args[0]), parseFloat(args[1]), parseFloat(args[2])))
+  }
+
+  if (cmd == 'placeblock') {
+    await bot.equip(bot.registry.itemsByName.dirt.id, 'hand')
+    await bot.placeBlock(bot.blockAtCursor(5), new Vec3(parseInt(args[0]), parseInt(args[1]), parseInt(args[2])))
+  }
+  else if (cmd === 'pos') {
     bot.chat(`I am at ${bot.entity.position}`)
     console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`)
   } else if (cmd === 'path') {

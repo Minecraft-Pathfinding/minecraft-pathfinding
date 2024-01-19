@@ -19,7 +19,7 @@
 "@nxg-org/mineflayer-pathfinder@./":
   version "0.0.1"
   dependencies:
-    "@nxg-org/mineflayer-physics-util" "^1.5.5"
+    "@nxg-org/mineflayer-physics-util" "1.5.6"
     lru-cache "^10.1.0"
     mineflayer "^4.10.1"
 
@@ -30,17 +30,24 @@
   dependencies:
     "@nxg-org/mineflayer-util-plugin" "^1.8.2"
 
-"@nxg-org/mineflayer-physics-util@^1.5.5":
-  version "1.5.5"
-  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.5.tgz#a2ff3192e5ad355aada5a4a0b9fa469a65d6cef8"
-  integrity sha512-odm074R1NhBMxyX3nj3FWAUvuvDaADQxIKinJVPkPnDmKO8+Qv/kvZbhM3K6Juz7Gw/cK8mh/j6tlaiONJmEjA==
+"@nxg-org/mineflayer-smooth-look@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-smooth-look/-/mineflayer-smooth-look-0.3.0.tgz#3f44e6995a34a454193fa6685bbdc3abd4820a12"
+  integrity sha512-yFgAIagWkWbsdsrLflSeI9lVWyQBW7KEm7U8Z8J1T/QIaM8rPpyd4KTc3E/ne2x6IQk/Ghkgce5VEGJaWWiaMQ==
   dependencies:
-    "@nxg-org/mineflayer-util-plugin" "^1.8.2"
+    "@tweenjs/tween.js" "^18.6.4"
+    "@types/three" "^0.149.0"
+    three "^0.149.0"
 
 "@nxg-org/mineflayer-util-plugin@^1.8.2":
   version "1.8.2"
   resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-util-plugin/-/mineflayer-util-plugin-1.8.2.tgz#8106d0beb6b4d90b37eaf1694f426fe7ddd32341"
   integrity sha512-UmzyHHQeexrB449y/g7mljyQfI9xjzO23n8Iai9PXCCk3paG2GeuKo1zfHsxdYSLdnuxkCgdHFu3r31GroKUhw==
+
+"@tweenjs/tween.js@^18.6.4":
+  version "18.6.4"
+  resolved "https://registry.yarnpkg.com/@tweenjs/tween.js/-/tween.js-18.6.4.tgz#40a3d0a93647124872dec8e0fd1bd5926695b6ca"
+  integrity sha512-lB9lMjuqjtuJrx7/kOkqQBtllspPIN+96OvTCeJ2j5FEzinoAXTdAMFnDAQT1KVPRlnYfBrqxtqP66vDM40xxQ==
 
 "@types/node@*":
   version "20.11.4"
@@ -56,6 +63,18 @@
   dependencies:
     "@types/node" "*"
     safe-buffer "~5.1.1"
+
+"@types/three@^0.149.0":
+  version "0.149.0"
+  resolved "https://registry.yarnpkg.com/@types/three/-/three-0.149.0.tgz#f48c03ffcf35b2d196f3532b51bc845e96f6090e"
+  integrity sha512-fgNBm9LWc65ER/W0cvoXdC0iMy7Ke9e2CONmEr6Jt8sDSY3sw4DgOubZfmdZ747dkPhbQrgRQAWwDEr2S/7IEg==
+  dependencies:
+    "@types/webxr" "*"
+
+"@types/webxr@*":
+  version "0.5.10"
+  resolved "https://registry.yarnpkg.com/@types/webxr/-/webxr-0.5.10.tgz#19c76208ec015ca3f139505e14d94d6b740f518a"
+  integrity sha512-n3u5sqXQJhf1CS68mw3Wf16FQ4cRPNBBwdYLFzq3UddiADOim1Pn3Y6PBdDilz1vOJF3ybLxJ8ZEDlLIzrOQZg==
 
 "@xboxreplay/errors@^0.1.0":
   version "0.1.0"
@@ -629,6 +648,11 @@ string_decoder@^1.1.1, string_decoder@^1.3.0:
   integrity sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==
   dependencies:
     safe-buffer "~5.2.0"
+
+three@^0.149.0:
+  version "0.149.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.149.0.tgz#a9cf78b17d02f063ffe6dfca1e300eff2eab2927"
+  integrity sha512-tohpUxPDht0qExRLDTM8sjRLc5d9STURNrdnK3w9A+V4pxaTBfKWWT/IqtiLfg23Vfc3Z+ImNfvRw1/0CtxrkQ==
 
 tr46@~0.0.3:
   version "0.0.3"

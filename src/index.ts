@@ -9,6 +9,7 @@ import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorl
 import type { World as WorldType } from './mineflayer-specific/world/worldInterface'
 import { CancelError } from './mineflayer-specific/movements/exceptions'
 import utilPlugin from '@nxg-org/mineflayer-util-plugin'
+import {monkeyPatch, loader}  from '@nxg-org/mineflayer-smooth-look'
 
 const EMPTY_VEC = new Vec3(0, 0, 0)
 
@@ -52,7 +53,7 @@ export class ThePathfinder {
     this.movements.loadGoal(goal)
 
     const start = new Move(x, y, z, [], [], this.getScaffoldCount(), 0, new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), startPos.clone(), startVel.clone())
-    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0)
+    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0.01)
 
     let result = astarContext.compute()
     let ticked = false
