@@ -186,18 +186,17 @@ export class ForwardJump extends Movement {
       this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
 
-      while (this.bot.entity.position.y - thisMove.exitPos.y < 0.05) {
+      while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
         await this.bot.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
         console.log('loop 0')
-        
       }
-      info = await thisMove.toPlace[1].performInfo(this.bot, 0);
+      info = await thisMove.toPlace[1].performInfo(this.bot);
       while (info.raycasts.length === 0) {
         await this.bot.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
         
-        info = await thisMove.toPlace[1].performInfo(this.bot, 0);
+        info = await thisMove.toPlace[1].performInfo(this.bot);
         console.log('loop 1', this.bot.entity.position)
       }
 
@@ -211,21 +210,19 @@ export class ForwardJump extends Movement {
       await this.bot.lookAt(thisMove.exitPos, true);
     } else {
 
-      
-      // 
-  
-
-      for (const place of thisMove.toPlace) {
-        await this.performInteraction(place);
-      }
       this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
       this.bot.setControlState("sprint", true);
+      for (const place of thisMove.toPlace) {
+        await this.performInteraction(place);
+      }
+  
     }
   };
 
   performPerTick = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
+      console.log('yay')
       this.bot.clearControlStates();
       return false;
     }

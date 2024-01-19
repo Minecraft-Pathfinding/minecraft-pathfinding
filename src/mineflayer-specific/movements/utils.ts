@@ -20,6 +20,7 @@ type RayType = {
 
 type InteractionPerformInfo = {
   ticks: number;
+  tickAllowance: number;
   shiftTick: number;
   raycasts: RayType[];
 };
@@ -154,6 +155,7 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         const works = [];
 
+        let startTick = 0;
         let shiftTick = Infinity;
         for (let i = 0; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
@@ -177,18 +179,20 @@ export class PlaceHandler extends InteractHandler {
             z: Math.sign(Math.abs(dz) > 0 ? dz : 0),
           };
 
+          // i need these to be perfect, but they're not lmao
+          // I don't have logic for these to be perfect, otherwise I believe this would be working fully
           const verts = Object.entries(visibleFaces).flatMap(([k, v]) => {
             return [
               this.vec.offset(
-                0.5 + (k === "x" ? visibleFaces[k] * 0.4 : 0),
-                0.5 + (k === "y" ? visibleFaces[k] * 0.4 : 0),
-                0.5 + (k === "z" ? visibleFaces[k] * 0.4 : 0)
+                0.5 + (k === "x" ? visibleFaces[k] * 0.45 : 0),
+                0.5 + (k === "y" ? visibleFaces[k] * 0.45 : 0),
+                0.5 + (k === "z" ? visibleFaces[k] * 0.45 : 0)
               ),
             ];
           });
 
           // console.log(verts, state.pos)
-
+          let good = 0;
           for (const vert of verts) {
             const rayRes: RayType | null = (await bot.world.raycast(
               eyePos,
@@ -208,14 +212,18 @@ export class PlaceHandler extends InteractHandler {
 
                 continue;
               }
+              good++;
+              if (startTick === 0) startTick = i;
               works.push(rayRes as unknown as RayType);
             }
           }
           if (works.length !== 0) {
-            return { ticks: i, shiftTick, raycasts: works };
+            if (good === 0) return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick, raycasts: works };
+          } {
+            
           }
         }
-        return { ticks: Infinity, shiftTick: Infinity, raycasts: works };
+        return { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: works };
       }
 
       case "replaceable": {
@@ -257,8 +265,7 @@ export class PlaceHandler extends InteractHandler {
         let works = opts.info || (await this.performInfo(bot));
 
         while (works.raycasts.length === 0) {
-          // console.log('no info')
-          await bot.waitForTicks(1);
+          await Promise.resolve();
           const start = performance.now();
           works = await this.performInfo(bot);
           const end = performance.now();
@@ -274,38 +281,31 @@ export class PlaceHandler extends InteractHandler {
 
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face));
         const posBl = AABB.fromBlock(pos);
-        console.log(works.ticks, works.shiftTick, rayRes.intersect);
 
         let invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos));
 
         for (let i = 0; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState("sneak", true);
-          const bb = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
+          const state = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
           // console.log(bb.pos, bot.entity.position)
-          if (bb.getAABB().intersects(posBl)) {
+          const sPos = state.pos.offset(0, 1.62, 0)
+          const testCheck = (await bot.world.raycast(
+            sPos,
+            rayRes.intersect.minus(sPos).normalize().scale(0.5),
+            PlaceHandler.reach * 2
+          )) as unknown as RayType;
+
+          if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face) {
             console.log("skipping on tick", i);
+            if (i < works.ticks - 1 && i !== 0) await bot.waitForTicks(1);
             break;
           }
           await bot.waitForTicks(1);
         }
 
-        let ticked = false;
-        const testCheck = (await bot.world.raycast(
-          bot.entity.position.offset(0, 1.62, 0),
-          bot.util.getViewDir(),
-          PlaceHandler.reach
-        )) as unknown as RayType;
-        if (!testCheck || !testCheck.position.equals(rayRes.position) || testCheck.face !== rayRes.face) {
-          console.log("looking at ", rayRes.intersect, rayRes.face, this.faceToVec(rayRes.face));
-          console.log(bot.entity.position, bot.entity.velocity);
-          const start = performance.now();
-          await bot.lookAt(rayRes.intersect, true);
-          const state = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
-          if (!state.getAABB().intersects(posBl)) await onceWithCleanup(bot, "move"); // allow full sync when possible, risk it if not.
-          const end = performance.now();
-          console.log("lookat took", end - start, "ms");
-        }
+        await bot.lookAt(rayRes.intersect, true);
 
+        
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 });
         const invalidPlacement = botBB.intersects(posBl);
         if (invalidPlacement) {
@@ -314,6 +314,9 @@ export class PlaceHandler extends InteractHandler {
           bot.lookAt(rayRes.intersect);
           throw new CancelError("Invalid placement");
         }
+
+        console.log(works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
+        console.log(bot.entity.position, bot.entity.velocity);
 
         let finished = false;
         let sneaking = false;
