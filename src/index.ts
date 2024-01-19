@@ -32,7 +32,7 @@ export class ThePathfinder {
 
   constructor(private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world);
-    this.movements = MovementHandler.create(bot, this.world, [Forward, Diagonal, ForwardJump, ForwardDropDown, StraightDown, StraightUp], {
+    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, StraightUp], {
       canOpenDoors: true,
     });
     this.astar = null;
@@ -66,8 +66,8 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone())
-    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, -0.00001);
+    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), 64)
+    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0);
 
     let result = astarContext.compute();
     let ticked = false;
@@ -187,6 +187,7 @@ export class ThePathfinder {
 
       } catch (err) {
         if (err instanceof CancelError) {
+          console.log(path.path.flatMap((m, idx)=>[m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
           await this.recovery(move, path, goal, entry);
           break outer;
         } else throw err;

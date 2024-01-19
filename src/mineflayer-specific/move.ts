@@ -38,8 +38,8 @@ export class Move implements PathData {
     // this.hash = this.x.toFixed(1) + "," + this.y.toFixed(1) + "," + this.z.toFixed(1);
   }
 
-  static startMove(type: Movement, pos: Vec3, vel: Vec3) {
-    return new Move(pos.x, pos.y, pos.z, [], [], 0, 0, type, pos, vel, pos, vel);
+  static startMove(type: Movement, pos: Vec3, vel: Vec3, remainingBlocks: number) {
+    return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel);
     // new Map());
   }
 

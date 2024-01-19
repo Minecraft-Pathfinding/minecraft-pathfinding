@@ -13,7 +13,7 @@ import type { RaycastBlock } from "prismarine-world/types/iterators";
 import { CancelError } from "./exceptions";
 
 type InteractType = "water" | "solid" | "replaceable";
-type RayType = {
+export type RayType = {
   intersect: Vec3;
   face: BlockFace;
 } & Block;

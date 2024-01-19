@@ -334,6 +334,13 @@ export abstract class Movement {
     cost += laborCost;
     return cost;
   }
+
+  lookAtPathPos(vec3: Vec3) {
+    const dx = vec3.x - this.bot.entity.position.x
+    const dz = vec3.z - this.bot.entity.position.z
+
+    this.bot.look(Math.atan2(-dx, -dz), 0, true)
+  }
 }
 
 export abstract class SimMovement extends Movement {
