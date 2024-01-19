@@ -534,13 +534,23 @@ export class StraightUp extends Movement {
 
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     this.bot.clearControlStates();
-    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) {
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.3 && xzVel.norm() < 0.05) {
       return true;
     }
+
+   
     this.bot.lookAt(thisMove.exitPos, true);
-    this.bot.setControlState('sprint', false)
-    this.bot.setControlState('forward', true);
-    this.bot.setControlState('sneak', true)
+
+    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0) {
+      this.bot.setControlState('forward', true);
+      this.bot.setControlState('sprint', true)
+      this.bot.setControlState('sneak', false)
+    } else {
+      this.bot.setControlState('forward', true);
+      this.bot.setControlState('sprint', false)
+      this.bot.setControlState('sneak', true)
+    }
     return false;
   }
  async performInit(thisMove: Move, goal: goals.Goal): Promise<void> {

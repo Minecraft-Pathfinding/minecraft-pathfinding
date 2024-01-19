@@ -24,11 +24,11 @@ bot.once('spawn', () => {
     this.applyToBot(bot)
   }
 
-  bot.physics.simulatePlayer = (...args) => {
-    const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-    // ctx.state.control.set('sneak', true)
-    return val.simulate(ctx, bot.world)
-  }
+  // bot.physics.simulatePlayer = (...args) => {
+  //   const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+  //   // ctx.state.control.set('sneak', true)
+  //   return val.simulate(ctx, bot.world)
+  // }
 })
 
 /** @type { Vec3 | null } */
