@@ -37,6 +37,9 @@ export abstract class InteractHandler {
 
   protected _done = false;
 
+
+  public readonly blockInfo: BlockInfo;
+
   constructor(
     public readonly x: number,
     public readonly y: number,
@@ -45,6 +48,7 @@ export abstract class InteractHandler {
     public readonly offhand = false
   ) {
     this.vec = new Vec3(x, y, z);
+    this.blockInfo = this.toBlockInfo();
   }
 
   public get isPerforming(): boolean {
@@ -97,11 +101,11 @@ export class PlaceHandler extends InteractHandler {
   toBlockInfo(): BlockInfo {
     switch (this.type) {
       case "solid":
-        return BlockInfo.SOLID1;
+        return BlockInfo.SOLID(this.vec);
       case "water":
-        return BlockInfo.WATER1;
+        return BlockInfo.WATER(this.vec);
       case "replaceable":
-        return BlockInfo.REPLACEABLE1;
+        return BlockInfo.REPLACEABLE(this.vec);
       default:
         throw new Error("Invalid type");
     }

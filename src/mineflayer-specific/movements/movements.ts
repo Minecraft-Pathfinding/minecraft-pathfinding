@@ -174,7 +174,7 @@ export class Forward extends Movement {
         if (nextMove === undefined) {
           console.log(path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
         }
-        if (currentIndex !== this.currentIndex) {
+        if (currentIndex !== this.currentIndex && nextMove !== undefined) {
           // this.bot.lookAt(nextMove.exitPos, true);
           this.lookAtPathPos(nextMove.exitPos);
           if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
@@ -216,7 +216,7 @@ export class Forward extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-      cost += 3; // this.placeCost // additional cost for placing a block
+      cost += 1.1; // this.placeCost // additional cost for placing a block
     }
 
     cost += this.safeOrBreak(blockC, toBreak);
@@ -372,7 +372,7 @@ export class ForwardJump extends Movement {
         }
         // cost += this.exclusionPlace(blockD)
         toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-        cost += 3; // this.placeCost // additional cost for placing a block
+        cost += 1.1; // this.placeCost // additional cost for placing a block
       }
 
       if (!blockC.replaceable) {
@@ -382,7 +382,7 @@ export class ForwardJump extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockC.position, "solid"));
-      cost += 3; // this.placeCost // additional cost for placing a block
+      cost += 1.1; // this.placeCost // additional cost for placing a block
 
       cHeight += 1;
     }
@@ -465,9 +465,10 @@ export class ForwardDropDown extends Movement {
       const nextMove = path[this.currentIndex];
       console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
 
+   
       // make sure movements are in approximate conjunction.
       //off0.dot(off1) > 0.85 &&
-      if (currentIndex !== this.currentIndex) {
+      if (currentIndex !== this.currentIndex && nextMove !== undefined) {
         // TODO: perform fall damage check to ensure this is allowed.
         this.bot.lookAt(nextMove.exitPos, true);
         // console.log("hi", this.bot.entity.position, nextMove.exitPos, this.bot.entity.position.xzDistanceTo(nextMove.exitPos), this.bot.entity.position.y, nextMove.exitPos.y)
@@ -630,10 +631,7 @@ export class Diagonal extends Movement {
       this.currentIndex = Math.max(idx, this.currentIndex);
       const nextMove = path[this.currentIndex];
       console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
-      if (nextMove === undefined) {
-        console.log(path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
-      }
-      if (currentIndex !== this.currentIndex) {
+      if (currentIndex !== this.currentIndex && nextMove !== undefined) {
         // this.bot.lookAt(nextMove.exitPos, true);
         this.lookAtPathPos(nextMove.exitPos);
         if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
@@ -783,6 +781,7 @@ export class StraightUp extends Movement {
 
     const block2 = this.getBlockInfo(node, 0, 2, 0);
 
+
     let cost = 1; // move cost
     const toBreak: BreakHandler[] = [];
     const toPlace = [];
@@ -792,7 +791,6 @@ export class StraightUp extends Movement {
 
     if (!block1.climbable) {
       if (!this.allow1by1towers || node.remainingBlocks === 0) return; // not enough blocks to place
-
       // console.log('hey')
       if (!block1.replaceable) {
         if (!this.safeToBreak(block1)) return;
@@ -805,7 +803,7 @@ export class StraightUp extends Movement {
 
       // cost += this.exclusionPlace(block1)
       toPlace.push(PlaceHandler.fromVec(nodePos, "solid"));
-      cost += 3; // this.placeCost // additional cost for placing a block
+      cost += 1.1; // this.placeCost // additional cost for placing a block
     }
 
     if (cost > 100) return;

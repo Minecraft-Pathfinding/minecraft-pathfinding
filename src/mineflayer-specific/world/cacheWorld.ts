@@ -140,7 +140,7 @@ export class BlockInfo {
 
   static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0,0,0), -1)
   static SOLID(pos: Vec3) {
-    return new BlockInfo(false, false, false, true, false, false, 0, false, pos, -1)
+    return new BlockInfo(false, false, false, true, false, false, pos.y + 1, false, pos, -1)
   }
 
   static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0,0,0), -1)

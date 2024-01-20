@@ -31,9 +31,8 @@ export class ThePathfinder {
   world: CacheSyncWorld;
 
   constructor(private readonly bot: Bot) {
-    this.world = new CacheSyncWorld(bot, this.bot.world);
-    //Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, 
-    this.movements = MovementHandler.create(bot, this.world, [StraightUp], {
+    this.world = new CacheSyncWorld(bot, this.bot.world); 
+    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, StraightUp], {
       canOpenDoors: true,
     });
     this.astar = null;
@@ -229,8 +228,17 @@ export class ThePathfinder {
     }
 
     let newGoal;
-    const nextMove = path.path[ind + 1];
-    const no = !nextMove || entry > 0;
+
+    const pos = this.bot.entity.position;
+    let bad = false;
+    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0];
+    if (path.path.indexOf(nextMove) === ind) {
+      nextMove = path.path[ind + 1];
+    } else if (path.path.indexOf(nextMove) < ind) {
+      bad = true;
+    }
+  
+    const no = !nextMove || entry > 0 || bad;
     if (no) {
       newGoal = goal;
     } else {

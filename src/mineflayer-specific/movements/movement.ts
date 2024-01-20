@@ -206,11 +206,11 @@ export abstract class Movement {
     while (move !== undefined && i++ < 2) { // 3 levels
       const test = move.toPlace.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
       if (test !== undefined) {
-        return test.toBlockInfo();
+        return test.blockInfo;
       }
       const test1 = move.toBreak.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
       if (test1 !== undefined) {
-        return test1.toBlockInfo();
+        return test1.blockInfo;
       }
       move = move.parent;
     }
