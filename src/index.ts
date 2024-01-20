@@ -32,7 +32,8 @@ export class ThePathfinder {
 
   constructor(private readonly bot: Bot) {
     this.world = new CacheSyncWorld(bot, this.bot.world);
-    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, StraightUp], {
+    //Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, 
+    this.movements = MovementHandler.create(bot, this.world, [StraightUp], {
       canOpenDoors: true,
     });
     this.astar = null;
@@ -66,8 +67,8 @@ export class ThePathfinder {
 
     this.movements.loadGoal(goal);
 
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), 64)
-    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, 0);
+    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), 64);
+    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, -1e-6);
 
     let result = astarContext.compute();
     let ticked = false;
@@ -94,6 +95,25 @@ export class ThePathfinder {
       }
     }
     this.bot.off("physicsTick", listener);
+  }
+
+  async getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
+    for await (const res of this.getPathTo(goal)) {
+      console.log(
+        res.result.status,
+        res.result.calcTime,
+        res.result.cost,
+        res.result.visitedNodes,
+        res.result.generatedNodes,
+        res.result.path.length
+      );
+      if (res.result.status !== "success") {
+        if (res.result.status === "noPath" || res.result.status === "timeout") return null;
+      } else {
+        return res.result;
+      }
+    }
+    return null;
   }
 
   async goto(goal: goals.Goal) {
@@ -159,7 +179,7 @@ export class ThePathfinder {
       console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)} (${move.toPlace.length} ${move.toBreak.length})`);
 
       if (move.moveType.isAlreadyCompleted(move, tickCount, goal)) {
-        console.log('skipping')
+        console.log("skipping");
         currentIndex++;
         continue;
       }
@@ -177,23 +197,22 @@ export class ThePathfinder {
         // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
 
         let adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
-        while (!(adding) && tickCount < 999) {
+        while (!adding && tickCount < 999) {
           // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
           await this.bot.waitForTicks(1);
           adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
         }
 
-        currentIndex+= adding as number;
-
+        currentIndex += adding as number;
       } catch (err) {
         if (err instanceof CancelError) {
-          console.log(path.path.flatMap((m, idx)=>[m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
+          console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
           await this.recovery(move, path, goal, entry);
           break outer;
         } else throw err;
       }
     }
-   
+
     console.log("done!");
     await this.cleanupBot();
   }
@@ -211,13 +230,25 @@ export class ThePathfinder {
 
     let newGoal;
     const nextMove = path.path[ind + 1];
-    if (!nextMove || entry > 0) {
+    const no = !nextMove || entry > 0;
+    if (no) {
       newGoal = goal;
     } else {
       newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
     }
 
-    await this.cleanupAll();
+    const path1 = await this.getPathFromToRaw(this.bot.entity.position.floored(), EMPTY_VEC, newGoal);
+    if (path1 === null) {
+      console.log("path1 === null");
+      return; // done
+    } else if (no) {
+      await this.perform(path1, goal, entry + 1);
+    } else {
+      await this.perform(path1, newGoal, entry + 1);
+      path.path.splice(0, ind);
+      await this.perform(path, goal, 0);
+      console.log(path.path.length, "yayyy");
+    }
   }
 
   async cleanupBot() {

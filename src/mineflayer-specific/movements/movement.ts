@@ -201,7 +201,9 @@ export abstract class Movement {
   getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number) {
     const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz);
     let move: Move | undefined = this.currentMove;
-    while (move !== undefined) {
+
+    let i = 0;
+    while (move !== undefined && i++ < 2) { // 3 levels
       const test = move.toPlace.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
       if (test !== undefined) {
         return test.toBlockInfo();

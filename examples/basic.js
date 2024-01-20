@@ -7,8 +7,8 @@ const { Vec3 } = require("vec3");
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
 const bot = createBot({ username: "testing", auth: "offline", 
-// host: "Ic3TankD2HO.aternos.me", 
-// port: 44656 
+host: "Ic3TankD2HO.aternos.me", 
+port: 44656 
 });
 const pathfinder = createPlugin();
 
@@ -64,7 +64,7 @@ bot.on("chat", async (username, msg) => {
     while ((test = await res.next()).done === false) {
       console.log(test);
     }
-  } else if (cmd === "goto") {
+  } else if (cmd === "goto" || cmd === "#goto") {
     const x = Math.floor(Number(args[0]));
     const y = Math.floor(Number(args[1]));
     const z = Math.floor(Number(args[2]));
@@ -132,9 +132,9 @@ bot.on("chat", async (username, msg) => {
     const authorPos = author.position.clone();
     const rayBlock = rayTraceEntitySight({ entity: author });
     if (!rayBlock) return bot.chat("No block in sigth");
-    lastStart = rayBlock.position.clone().offset(0.5, 0, 0.5);
+    lastStart = rayBlock.position.clone().offset(0.5, 1, 0.5);
     const startTime = performance.now();
-    await bot.pathfinder.goto(GoalBlock.fromVec(author.position));
+    await bot.pathfinder.goto(GoalBlock.fromVec(lastStart));
     const endTime = performance.now();
     bot.chat(
       `took ${(endTime - startTime).toFixed(3)} ms, ${Math.ceil((endTime - startTime) / 50)} ticks, ${(
@@ -144,6 +144,16 @@ bot.on("chat", async (username, msg) => {
     );
   }
 });
+
+bot._client.on('animation', (data) => {
+  if (data.animation !== 0) return
+  const entity = bot.entities[data.entityId]
+  if (!entity || entity.type !== 'player') return
+  if (!entity.heldItem || entity.heldItem.name !== 'stick') return
+  const block = rayTraceEntitySight({ entity: entity });
+  if (!block) return
+  bot.pathfinder.goto(GoalBlock.fromVec(block.position.offset(0.5, 1, 0.5)));
+})
 
 /**
  * @param { { entity: import('mineflayer').Entity } } options

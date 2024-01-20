@@ -33,6 +33,16 @@ export class Forward extends Movement {
   }
 
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    if (xzVel.norm() > 0.17) {
+      this.bot.clearControlStates();
+      this.bot.setControlState('sneak', true)
+      return false;
+    } else {
+      this.bot.setControlState('sneak', false)
+    }
+
     if (this.bot.entity.position.distanceTo(thisMove.exitPos) < 0.2) return true;
 
     const offset = thisMove.toVec().offset(0.5, 0, 0.5);
@@ -53,7 +63,7 @@ export class Forward extends Movement {
     // return this.bot.entity.onGround;
   }
 
-  async  performInit (thisMove: Move, currentIndex: number, path: Move[]) {
+  async performInit(thisMove: Move, currentIndex: number, path: Move[]) {
     // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
     this.currentIndex = 0;
@@ -81,33 +91,59 @@ export class Forward extends Movement {
     }
 
     // console.log("done move prehandle!");
-  };
+  }
 
   private async identMove(thisMove: Move, currentIndex: number, path: Move[]) {
     let lastMove = thisMove;
     let nextMove = path[++currentIndex];
-    
+
+
+    if (nextMove === undefined) return --currentIndex;
 
     const orgY = thisMove.entryPos.y;
+    const width = 0.6;
+    const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width, height: 1.8 });
+    const verts = bb.expand(0, -1, 0).toVertices();
 
-    const bb = AABBUtils.getEntityAABBRaw({position: this.bot.entity.position, width: 0.8, height: 1.8});
-    const verts = bb.expand(0, -0.1, 0).toVertices();
+    const verts1 = [
+      this.bot.entity.position.offset(-width/2, -0.6, -width/2),
+      this.bot.entity.position.offset(width/2, -0.6, -width/2),
+      this.bot.entity.position.offset(width/2, -0.6, width/2),
+      this.bot.entity.position.offset(-width/2, -0.6, width/2),
+    ];
+
     const pos0 = this.bot.entity.position;
- 
- 
+
     while (lastMove.exitPos.y === orgY) {
-     
       if (nextMove === undefined) return --currentIndex;
       for (const vert of verts) {
         const offset = vert.minus(this.bot.entity.position);
-        const test = nextMove.exitPos.plus(offset);
+        const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0);
+        const test = test1.plus(offset);
         const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 2;
-        const raycast0 = await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist) as unknown as RayType;
-        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist
+        const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist)) as unknown as RayType;
+        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
         if (!valid0) {
           return --currentIndex;
         }
       }
+
+      let counter = verts1.length;
+      for (const vert of verts1) {
+        const offset = vert.minus(this.bot.entity.position);
+        const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0);
+        const test = test1.plus(offset);
+        const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 2;
+        const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist, (block) =>
+          BlockInfo.replaceables.has(block.type)
+        )) as unknown as RayType;
+
+        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
+        if (!valid0) counter--;
+      }
+
+      if (counter === 0) return --currentIndex;
+
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
@@ -115,7 +151,7 @@ export class Forward extends Movement {
     return --currentIndex;
   }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
+  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
       this.bot.clearControlStates();
       return false;
@@ -134,27 +170,26 @@ export class Forward extends Movement {
         this.currentIndex = Math.max(idx, this.currentIndex);
         const nextMove = path[this.currentIndex];
         console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
+        console.log(nextMove.moveType.constructor.name)
         if (nextMove === undefined) {
-          console.log(path.flatMap((m, idx)=>[m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
-
+          console.log(path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
         }
         if (currentIndex !== this.currentIndex) {
-          
           // this.bot.lookAt(nextMove.exitPos, true);
-          this.lookAtPathPos(nextMove.exitPos)
+          this.lookAtPathPos(nextMove.exitPos);
           if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
         } else {
           // this.bot.lookAt(thisMove.exitPos, true);
-          this.lookAtPathPos(thisMove.exitPos)
+          this.lookAtPathPos(thisMove.exitPos);
           return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
         }
       } else {
-        this.lookAtPathPos(thisMove.exitPos)
+        this.lookAtPathPos(thisMove.exitPos);
       }
     }
     return false;
     // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
-  };
+  }
 
   getMoveForward(start: Move, dir: Vec3, neighbors: Move[]) {
     const pos = start.toVec();
@@ -181,7 +216,7 @@ export class Forward extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-      cost += 0.1; // this.placeCost // additional cost for placing a block
+      cost += 3; // this.placeCost // additional cost for placing a block
     }
 
     cost += this.safeOrBreak(blockC, toBreak);
@@ -277,11 +312,6 @@ export class ForwardJump extends Movement {
   };
 
   performPerTick = (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
-    if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
-      this.bot.clearControlStates();
-      return false;
-    }
-
     this.bot.lookAt(thisMove.exitPos, true);
 
     if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
@@ -342,7 +372,7 @@ export class ForwardJump extends Movement {
         }
         // cost += this.exclusionPlace(blockD)
         toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-        cost += 0.1; // this.placeCost // additional cost for placing a block
+        cost += 3; // this.placeCost // additional cost for placing a block
       }
 
       if (!blockC.replaceable) {
@@ -352,7 +382,7 @@ export class ForwardJump extends Movement {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockC.position, "solid"));
-      cost += 0.1; // this.placeCost // additional cost for placing a block
+      cost += 3; // this.placeCost // additional cost for placing a block
 
       cHeight += 1;
     }
@@ -405,6 +435,8 @@ export class ForwardDropDown extends Movement {
     let lastMove = thisMove;
     let nextMove = path[++currentIndex];
 
+    if (nextMove === undefined) return --currentIndex;
+
     const pos = this.bot.entity.position;
 
     while (
@@ -440,7 +472,7 @@ export class ForwardDropDown extends Movement {
         this.bot.lookAt(nextMove.exitPos, true);
         // console.log("hi", this.bot.entity.position, nextMove.exitPos, this.bot.entity.position.xzDistanceTo(nextMove.exitPos), this.bot.entity.position.y, nextMove.exitPos.y)
         if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2 && this.bot.entity.position.y === nextMove.exitPos.y)
-          return idx - currentIndex;
+          return this.currentIndex - currentIndex;
 
         // }
       } else {
@@ -516,7 +548,7 @@ export class Diagonal extends Movement {
 
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {
     this.currentIndex = currentIndex;
-  
+
     await this.bot.lookAt(thisMove.exitPos, true);
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", this.bot.food > 6);
@@ -529,28 +561,54 @@ export class Diagonal extends Movement {
   private async identMove(thisMove: Move, currentIndex: number, path: Move[]) {
     let lastMove = thisMove;
     let nextMove = path[++currentIndex];
-    
+
+    if (nextMove === undefined) return --currentIndex;
 
     const orgY = thisMove.entryPos.y;
 
-    const bb = AABBUtils.getEntityAABBRaw({position: this.bot.entity.position, width: 0.8, height: 1.8});
-    const verts = bb.expand(0, -0.1, 0).toVertices();
+    const width = 0.6
+    const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width, height: 1.8 });
+    const verts = bb.expand(0, -1, 0).toVertices();
+    const verts1 = [
+      this.bot.entity.position.offset(-width/2, -0.6, -width/2),
+      this.bot.entity.position.offset(width/2, -0.6, -width/2),
+      this.bot.entity.position.offset(width/2 ,-0.6, width/2),
+      this.bot.entity.position.offset(-width/2 ,-0.6, width/2),
+    ];
+
+
     const pos0 = this.bot.entity.position;
- 
- 
+
     while (lastMove.exitPos.y === orgY) {
-     
       if (nextMove === undefined) return --currentIndex;
       for (const vert of verts) {
         const offset = vert.minus(this.bot.entity.position);
-        const test = nextMove.exitPos.plus(offset);
+        const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0);
+        const test = test1.plus(offset);
         const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 2;
-        const raycast0 = await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist) as unknown as RayType;
-        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist
+        const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist)) as unknown as RayType;
+        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
         if (!valid0) {
           return --currentIndex;
         }
       }
+
+      let counter = verts1.length;
+      for (const vert of verts1) {
+        const offset = vert.minus(this.bot.entity.position);
+        const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0);
+        const test = test1.plus(offset);
+        const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 2;
+        const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist, (block) =>
+          BlockInfo.replaceables.has(block.type)
+        )) as unknown as RayType;
+
+        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
+        if (!valid0) counter--;
+      }
+
+      if (counter === 0) return --currentIndex;
+
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
@@ -558,7 +616,7 @@ export class Diagonal extends Movement {
     return --currentIndex;
   }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
+  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
       this.bot.clearControlStates();
       return false;
@@ -573,26 +631,24 @@ export class Diagonal extends Movement {
       const nextMove = path[this.currentIndex];
       console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
       if (nextMove === undefined) {
-        console.log(path.flatMap((m, idx)=>[m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
-
+        console.log(path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
       }
       if (currentIndex !== this.currentIndex) {
-        
         // this.bot.lookAt(nextMove.exitPos, true);
-        this.lookAtPathPos(nextMove.exitPos)
+        this.lookAtPathPos(nextMove.exitPos);
         if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
       } else {
         // this.bot.lookAt(thisMove.exitPos, true);
-        this.lookAtPathPos(thisMove.exitPos)
+        this.lookAtPathPos(thisMove.exitPos);
         return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
       }
     } else {
-      this.lookAtPathPos(thisMove.exitPos)
+      this.lookAtPathPos(thisMove.exitPos);
       if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
     }
 
     return false;
-  };
+  }
 
   getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[]) {
     let cost = Diagonal.diagonalCost;
@@ -749,7 +805,7 @@ export class StraightUp extends Movement {
 
       // cost += this.exclusionPlace(block1)
       toPlace.push(PlaceHandler.fromVec(nodePos, "solid"));
-      cost += 0.1; // this.placeCost // additional cost for placing a block
+      cost += 3; // this.placeCost // additional cost for placing a block
     }
 
     if (cost > 100) return;
@@ -780,7 +836,7 @@ export class ParkourForward extends Movement {
 
     const closeToGoal = thisMove.entryPos.distanceTo(this.bot.entity.position) > thisMove.exitPos.distanceTo(this.bot.entity.position);
 
-    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() > 0.145) {
+    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() > 145) {
       this.bot.setControlState("jump", true);
     }
 

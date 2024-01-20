@@ -39,7 +39,7 @@ export class Move implements PathData {
   }
 
   static startMove(type: Movement, pos: Vec3, vel: Vec3, remainingBlocks: number) {
-    return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel);
+    return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel)
     // new Map());
   }
 
@@ -72,7 +72,8 @@ export class Move implements PathData {
       state.pos.clone(),
       state.vel.clone(),
       // prevMove.interactMap,
-      prevMove
+      prevMove,
+      // p
     );
   }
 
@@ -98,7 +99,8 @@ export class Move implements PathData {
       pos,
       emptyVec,
       // prevMove.interactMap,
-      prevMove
+      prevMove,
+      // p
     );
   }
 
