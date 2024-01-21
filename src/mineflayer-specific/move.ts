@@ -104,6 +104,10 @@ export class Move implements PathData {
     );
   }
 
+  public clone() {
+    return {...this} // lazy.
+  }
+
   public toVec() {
     return new Vec3(this.x, this.y, this.z);
   }

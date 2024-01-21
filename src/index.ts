@@ -28,6 +28,8 @@ import {
   StraightUpExecutor,
 } from "./mineflayer-specific/movements";
 import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
+import { DropDownOpt, StraightAheadOpt } from "./mineflayer-specific/post/optimizers";
+import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
@@ -40,22 +42,42 @@ const test = [
   [StraightUp, StraightUpExecutor],
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
+const test1 = [
+  [Forward, StraightAheadOpt],
+  [Diagonal, StraightAheadOpt],
+  // [ForwardDropDown, DropDownOpt],
+] as [BuildableMoveProvider, BuildableOptimizer<Move>][];
+
 const DEFAULT_SETUP = new Map(test);
+
+const DEFAULT_OPTIMIZATION = new Map(test1);
 
 export class ThePathfinder {
   astar: AStar | null;
   world: CacheSyncWorld;
   movements: Shit;
+  optimizers: OptimizationMap;
   defaultSettings: MovementOptions;
 
-  constructor(private readonly bot: Bot, movements?: MovementSetup, settings: MovementOptions = DEFAULT_MOVEMENT_OPTS) {
+  constructor(
+    private readonly bot: Bot,
+    movements?: MovementSetup,
+    optimizers?: OptimizationSetup,
+    settings: MovementOptions = DEFAULT_MOVEMENT_OPTS
+  ) {
     this.world = new CacheSyncWorld(bot, this.bot.world);
 
     const test = new Map<BuildableMoveProvider, MovementExecutor>();
     for (const [providerType, executorType] of movements ?? DEFAULT_SETUP) {
       test.set(providerType, new executorType(bot, this.world, settings));
     }
+
+    const test1 = new Map<BuildableMoveProvider, MovementOptimizer<Move>>();
+    for (const [providerType, executorType] of optimizers ?? DEFAULT_OPTIMIZATION) {
+      test1.set(providerType, new executorType(bot, this.world));
+    }
     this.movements = test;
+    this.optimizers = test1;
     this.defaultSettings = settings;
     this.astar = null;
   }
@@ -74,9 +96,17 @@ export class ThePathfinder {
 
   swapMovements(provider: BuildableMoveProvider, executor: BuildableMoveExecutor | MovementExecutor) {
     if (executor instanceof MovementExecutor) {
-      this.movements.set(provider, executor)
+      this.movements.set(provider, executor);
     } else {
-      this.movements.set(provider, new executor(this.bot, this.world, this.defaultSettings))
+      this.movements.set(provider, new executor(this.bot, this.world, this.defaultSettings));
+    }
+  }
+
+  swapOptimizers(provider: BuildableMoveProvider, optimizer: BuildableOptimizer<Move> | MovementOptimizer<Move>) {
+    if (optimizer instanceof MovementOptimizer) {
+      this.optimizers.set(provider, optimizer);
+    } else {
+      this.optimizers.set(provider, new optimizer(this.bot, this.world));
     }
   }
 
@@ -158,17 +188,17 @@ export class ThePathfinder {
     // aggressive optimization.
     // Identify all nodes that are able to be straight-lined to each other.
     // Do so by comparing movement types && their respective y values.
-  }
 
-  private findPartialConnection(root: Move, pathInfo: Move[]) {
-    const index = pathInfo.indexOf(root);
-    const yLvl = root.y;
-    const type = root.moveType;
-    for (let i = index; i < pathInfo.length; i++) {
-      const node = pathInfo[i];
-      if (node.moveType instanceof type.constructor) {
-      }
-    }
+    const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+
+    optimizer.loadPath(pathInfo.path);
+
+    const res = await optimizer.compute();
+
+    const ret = {...pathInfo}
+
+    ret["path"] = res
+    return ret
   }
 
   /**
@@ -185,8 +215,10 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler;
     const movements = movementHandler.getMovements();
 
-    outer: while (currentIndex < path.path.length) {
-      const move = path.path[currentIndex];
+    const newPath = await this.postProcess(path);
+
+    outer: while (currentIndex < newPath.path.length) {
+      const move = newPath.path[currentIndex];
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
       if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
 
@@ -210,19 +242,19 @@ export class ThePathfinder {
 
         tickCount = 0;
 
-        await executor.performInit(move, currentIndex, path.path);
+        await executor.performInit(move, currentIndex, newPath.path);
 
-        let adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
+        let adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
         while (!adding && tickCount < 999) {
           await this.bot.waitForTicks(1);
-          adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
+          adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
         }
 
         currentIndex += adding as number;
       } catch (err) {
         if (err instanceof CancelError) {
-          console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
-          await this.recovery(move, path, goal, entry);
+          console.log(newPath.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
+          await this.recovery(move, newPath, goal, entry);
           break outer;
         } else throw err;
       }

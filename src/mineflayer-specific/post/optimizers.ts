@@ -16,8 +16,10 @@ export class StraightAheadOpt extends MovementOptimizer<Move> {
     if (nextMove === undefined) return --currentIndex;
 
     const orgY = thisMove.entryPos.y;
+    
     const orgPos = thisMove.entryPos.floored().translate(0.5, 0, 0.5); // ensure middle of block.
-    const width = 1; // ensure safety (larger than actual bot aabb)
+    const width = 0.95; // ensure safety (larger than actual bot aabb)
+  
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width, height: 1.8 });
     const verts = bb.expand(0, -0.1, 0).toVertices();
@@ -37,7 +39,7 @@ export class StraightAheadOpt extends MovementOptimizer<Move> {
         const test = test1.plus(offset);
         const dist = lastMove.exitPos.distanceTo(orgPos) + 2;
         const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize(), dist)) as unknown as RayType;
-        const valid0 = !raycast0 || raycast0.position.distanceTo(orgPos) > dist;
+        const valid0 = !raycast0 || raycast0.boundingBox === "empty" || raycast0.position.distanceTo(orgPos) > dist;
         if (!valid0) {
           return --currentIndex;
         }
@@ -53,7 +55,7 @@ export class StraightAheadOpt extends MovementOptimizer<Move> {
           BlockInfo.replaceables.has(block.type)
         )) as unknown as RayType;
 
-        const valid0 = !raycast0 || raycast0.position.distanceTo(orgPos) > dist;
+        const valid0 = !raycast0 || raycast0.boundingBox === "empty" || raycast0.position.distanceTo(orgPos) > dist;
         if (!valid0) counter--;
       }
 
@@ -85,7 +87,7 @@ export class DropDownOpt extends MovementOptimizer<Move> {
     const pos = thisMove.entryPos.floored().translate(0.5, 0, 0.5); // ensure middle of block.
 
     while (
-      lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
+      // lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
       lastMove.entryPos.y >= nextMove.exitPos.y
     ) {
       lastMove = nextMove;

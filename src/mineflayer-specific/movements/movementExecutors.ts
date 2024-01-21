@@ -158,7 +158,7 @@ export class ForwardExecutor extends MovementExecutor {
       this.bot.lookAt(offset, true);
       if (this.bot.entity.position.xzDistanceTo(offset) < 0.2) return true;
     } else {
-      if (true) {
+      if (false) {
         const idx = await this.identMove(thisMove, currentIndex, path);
         this.currentIndex = Math.max(idx, this.currentIndex);
         const nextMove = path[this.currentIndex];
@@ -178,6 +178,7 @@ export class ForwardExecutor extends MovementExecutor {
         }
       } else {
         this.lookAtPathPos(thisMove.exitPos);
+        return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
       }
     }
     return false;
@@ -331,7 +332,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
 
     if (tickCount > 160) throw new CancelError("ForwardDropDown: tickCount > 160");
 
-    if (true) {
+    if (false) {
       const idx = this.identMove(thisMove, currentIndex, path);
       this.currentIndex = Math.max(idx, this.currentIndex);
       const nextMove = path[this.currentIndex];
@@ -355,6 +356,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     } else {
       this.bot.lookAt(thisMove.exitPos, true);
+      if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
     }
 
     this.bot.setControlState("forward", true);
@@ -464,7 +466,7 @@ export class DiagonalExecutor extends MovementExecutor {
     if (tickCount > 160) throw new CancelError("Diagonal: tickCount > 160");
     if (!this.bot.entity.onGround) throw new CancelError("Diagonal: not on ground");
 
-    if (true) {
+    if (false) {
       const idx = await this.identMove(thisMove, currentIndex, path);
       this.currentIndex = Math.max(idx, this.currentIndex);
       const nextMove = path[this.currentIndex];
