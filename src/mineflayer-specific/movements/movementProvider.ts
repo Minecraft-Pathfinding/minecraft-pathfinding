@@ -1,4 +1,3 @@
-import { BaseSimulator, EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
 import { Bot } from "mineflayer";
 import { Move } from "../move";
 import { goals } from "../goals";
@@ -6,7 +5,7 @@ import { World } from "../world/worldInterface";
 import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from "./movement";
 
 import { MovementProvider as AMovementProvider } from "../../abstract";
-import { BuildableMoveProvider, Shit } from ".";
+import { Shit } from ".";
 
 /**
  * TODO: Separate calculation time from runtime.
@@ -38,7 +37,7 @@ export class MovementHandler implements AMovementProvider<Move> {
   goal!: goals.Goal;
   world: World;
 
-  constructor(private readonly bot: Bot, world: World, recMovement: MovementProvider[], movementMap: Shit) {
+  constructor(bot: Bot, world: World, recMovement: MovementProvider[], movementMap: Shit) {
     this.world = world;
     this.recognizedMovements = recMovement;
     this.movementMap = movementMap;
@@ -54,7 +53,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     );
   }
 
-  getMovements(): AMovementProvider<Move> {
+  getMovements(): Shit {
       return this.movementMap
   }
 

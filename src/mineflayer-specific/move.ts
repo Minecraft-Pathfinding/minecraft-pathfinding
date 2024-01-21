@@ -1,5 +1,5 @@
 import { Vec3 } from "vec3";
-import { Movement, SimMovement } from "./movements";
+import { Movement, MovementProvider, SimMovement } from "./movements";
 import { PathData } from "../abstract/node";
 import { EntityState } from "@nxg-org/mineflayer-physics-util";
 import { BreakHandler, InteractHandler, PlaceHandler } from "./movements/utils";
@@ -19,7 +19,7 @@ export class Move implements PathData {
     public readonly toBreak: BreakHandler[],
     public readonly remainingBlocks: number,
     public readonly cost: number,
-    public readonly moveType: Movement,
+    public readonly moveType: MovementProvider,
     public readonly entryPos: Vec3,
     public readonly entryVel: Vec3,
     public readonly exitPos: Vec3,
@@ -38,7 +38,7 @@ export class Move implements PathData {
     // this.hash = this.x.toFixed(1) + "," + this.y.toFixed(1) + "," + this.z.toFixed(1);
   }
 
-  static startMove(type: Movement, pos: Vec3, vel: Vec3, remainingBlocks: number) {
+  static startMove(type: MovementProvider, pos: Vec3, vel: Vec3, remainingBlocks: number) {
     return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel)
     // new Map());
   }
@@ -47,7 +47,7 @@ export class Move implements PathData {
     cost: number,
     state: EntityState,
     prevMove: Move,
-    type: SimMovement,
+    type: MovementProvider,
     toPlace: PlaceHandler[] = [],
     toBreak: BreakHandler[] = []
   ) {
@@ -77,7 +77,7 @@ export class Move implements PathData {
     );
   }
 
-  static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: Movement, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
+  static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: MovementProvider, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
     // const p = new Map(prevMove.interactMap);
     // for (const place of toPlace) {
     //   p.set(`(${place.x}, ${place.y}, ${place.z})`, place);

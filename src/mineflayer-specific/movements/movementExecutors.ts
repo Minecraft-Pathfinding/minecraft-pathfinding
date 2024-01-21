@@ -12,6 +12,8 @@ import { AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "./controls";
 import { MovementExecutor } from "./movementExecutor";
+
+
 export class IdleMovementExecutor extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {};

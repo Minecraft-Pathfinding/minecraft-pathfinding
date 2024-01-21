@@ -21,9 +21,6 @@ export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
   context: Alg
 }
 
-export interface PostProcessed<Data extends PathData, Alg extends Algorithm<Data>> extends Path<Data, Alg> {
-
-}
 
 export interface MovementProvider<Data> {
   sanitize: () => boolean

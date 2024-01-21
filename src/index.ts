@@ -17,16 +17,8 @@ import {
   MovementSetup,
   Shit,
 } from "./mineflayer-specific/movements";
-import { MovementExecutor } from "./mineflayer-specific/movements/movementExecutor";
-import {
-  Diagonal,
-  Forward,
-  ForwardDropDown,
-  ForwardJump,
-  IdleMovement,
-  StraightDown,
-  StraightUp,
-} from "./mineflayer-specific/movements/movementProviders";
+import { MovementExecutor } from "./mineflayer-specific/movements";
+import { Diagonal, Forward, ForwardDropDown, ForwardJump, IdleMovement, StraightDown, StraightUp } from "./mineflayer-specific/movements";
 import {
   DiagonalExecutor,
   ForwardDropDownExecutor,
@@ -34,7 +26,7 @@ import {
   ForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
-} from "./mineflayer-specific/movements/movementExecutors";
+} from "./mineflayer-specific/movements";
 import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
@@ -80,16 +72,24 @@ export class ThePathfinder {
     return this.world.enabled;
   }
 
+  swapMovements(provider: BuildableMoveProvider, executor: BuildableMoveExecutor | MovementExecutor) {
+    if (executor instanceof MovementExecutor) {
+      this.movements.set(provider, executor)
+    } else {
+      this.movements.set(provider, new executor(this.bot, this.world, this.defaultSettings))
+    }
+  }
+
+  setDefaultOptions(settings: Partial<MovementOptions>) {
+    this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
+  }
+
   getPathTo(goal: goals.Goal, settings = this.defaultSettings) {
     return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings);
   }
 
   getScaffoldCount() {
     return this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0);
-  }
-
-  setDefaultOptions(settings: Partial<MovementOptions>) {
-    this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
   }
 
   async *getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultSettings) {
@@ -133,14 +133,6 @@ export class ThePathfinder {
 
   async getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
     for await (const res of this.getPathFromTo(startPos, startVel, goal)) {
-      console.log(
-        res.result.status,
-        res.result.calcTime,
-        res.result.cost,
-        res.result.visitedNodes,
-        res.result.generatedNodes,
-        res.result.path.length
-      );
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") return null;
       } else {
@@ -152,14 +144,6 @@ export class ThePathfinder {
 
   async goto(goal: goals.Goal) {
     for await (const res of this.getPathTo(goal)) {
-      console.log(
-        res.result.status,
-        res.result.calcTime,
-        res.result.cost,
-        res.result.visitedNodes,
-        res.result.generatedNodes,
-        res.result.path.length
-      );
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
       } else {

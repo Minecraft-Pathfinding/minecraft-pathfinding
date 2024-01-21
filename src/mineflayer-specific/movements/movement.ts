@@ -258,6 +258,7 @@ export abstract class Movement {
     if (!this.safeToBreak(block)) return 100; // Can't break, so can't move
     toBreak.push(BreakHandler.fromVec(block.position, "solid"));
 
+    // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
