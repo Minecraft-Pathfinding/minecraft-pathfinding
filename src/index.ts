@@ -1,40 +1,70 @@
 import { Bot } from "mineflayer";
-import {
-  MovementHandler,
-  IdleMovement,
-  Forward,
-  Movement,
-  SimMovement,
-  ForwardJump,
-  ForwardDropDown,
-  Diagonal,
-  StraightDown,
-  StraightUp,
-  ParkourForward,
-} from "./mineflayer-specific/movements";
 import { AStar } from "./mineflayer-specific/algs";
 import { goals } from "./mineflayer-specific/goals";
 import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
 import { BlockInfo, CacheSyncWorld } from "./mineflayer-specific/world/cacheWorld";
-import type { World as WorldType } from "./mineflayer-specific/world/worldInterface";
+import type { World } from "./mineflayer-specific/world/worldInterface";
 import { CancelError } from "./mineflayer-specific/movements/exceptions";
 import utilPlugin from "@nxg-org/mineflayer-util-plugin";
-import { monkeyPatch, loader } from "@nxg-org/mineflayer-smooth-look";
+import {
+  BuildableMoveExecutor,
+  BuildableMoveProvider,
+  MovementHandler,
+  MovementOptions,
+  MovementProvider,
+  MovementSetup,
+  Shit,
+} from "./mineflayer-specific/movements";
+import { MovementExecutor } from "./mineflayer-specific/movements/movementExecutor";
+import {
+  Diagonal,
+  Forward,
+  ForwardDropDown,
+  ForwardJump,
+  IdleMovement,
+  StraightDown,
+  StraightUp,
+} from "./mineflayer-specific/movements/movementProviders";
+import {
+  DiagonalExecutor,
+  ForwardDropDownExecutor,
+  ForwardExecutor,
+  ForwardJumpExecutor,
+  StraightDownExecutor,
+  StraightUpExecutor,
+} from "./mineflayer-specific/movements/movementExecutors";
+import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
+const test = [
+  [Forward, ForwardExecutor],
+  [ForwardJump, ForwardJumpExecutor],
+  [ForwardDropDown, ForwardDropDownExecutor],
+  [Diagonal, DiagonalExecutor],
+  [StraightDown, StraightDownExecutor],
+  [StraightUp, StraightUpExecutor],
+] as [BuildableMoveProvider, BuildableMoveExecutor][];
+
+const DEFAULT_SETUP = new Map(test);
+
 export class ThePathfinder {
   astar: AStar | null;
-  movements: MovementHandler;
   world: CacheSyncWorld;
+  movements: Shit;
+  defaultSettings: MovementOptions;
 
-  constructor(private readonly bot: Bot) {
-    this.world = new CacheSyncWorld(bot, this.bot.world); 
-    this.movements = MovementHandler.create(bot, this.world, [Forward, ForwardJump, ForwardDropDown, Diagonal, StraightDown, StraightUp], {
-      canOpenDoors: true,
-    });
+  constructor(private readonly bot: Bot, movements?: MovementSetup, settings: MovementOptions = DEFAULT_MOVEMENT_OPTS) {
+    this.world = new CacheSyncWorld(bot, this.bot.world);
+
+    const test = new Map<BuildableMoveProvider, MovementExecutor>();
+    for (const [providerType, executorType] of movements ?? DEFAULT_SETUP) {
+      test.set(providerType, new executorType(bot, this.world, settings));
+    }
+    this.movements = test;
+    this.defaultSettings = settings;
     this.astar = null;
   }
 
@@ -50,24 +80,29 @@ export class ThePathfinder {
     return this.world.enabled;
   }
 
-  getPathTo(goal: goals.Goal) {
-    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal);
+  getPathTo(goal: goals.Goal, settings = this.defaultSettings) {
+    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings);
   }
 
   getScaffoldCount() {
     return this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0);
   }
 
-  async *getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
+  setDefaultOptions(settings: Partial<MovementOptions>) {
+    this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
+  }
+
+  async *getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultSettings) {
     let { x, y, z } = startPos;
     x = Math.floor(x);
     y = Math.ceil(y);
     z = Math.floor(z);
 
-    this.movements.loadGoal(goal);
+    const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, settings);
+    moveHandler.loadGoal(goal);
 
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), 64);
-    const astarContext = new AStar(start, this.movements, goal, -1, 45, -1, -1e-6);
+    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
+    const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, -1e-6);
 
     let result = astarContext.compute();
     let ticked = false;
@@ -97,7 +132,7 @@ export class ThePathfinder {
   }
 
   async getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
-    for await (const res of this.getPathTo(goal)) {
+    for await (const res of this.getPathFromTo(startPos, startVel, goal)) {
       console.log(
         res.result.status,
         res.result.calcTime,
@@ -163,18 +198,19 @@ export class ThePathfinder {
     if (entry > 10) throw new Error("Too many failures, exiting performing.");
 
     let currentIndex = 0;
+    const movementHandler = path.context.movementProvider as MovementHandler;
+    const movements = movementHandler.getMovements();
 
-    // this.bot.on('physicsTick', () => console.log('EXTERNAL TICKER: bot pos:', this.bot.entity.position))
     outer: while (currentIndex < path.path.length) {
       const move = path.path[currentIndex];
-      const next = path.path[currentIndex === path.path.length ? currentIndex - 1 : currentIndex];
+      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
+      if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
 
       let tickCount = 0;
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
       await this.cleanupBot();
-      // await this.bot.waitForTicks(1);
       console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)} (${move.toPlace.length} ${move.toBreak.length})`);
 
       if (move.moveType.isAlreadyCompleted(move, tickCount, goal)) {
@@ -185,21 +221,17 @@ export class ThePathfinder {
 
       try {
         while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
-          // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos)
           await this.bot.waitForTicks(1);
         }
 
         tickCount = 0;
 
-        // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
-        await move.moveType.performInit(move, currentIndex, path.path);
-        // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
+        await executor.performInit(move, currentIndex, path.path);
 
-        let adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
+        let adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         while (!adding && tickCount < 999) {
-          // console.log('EXTERNAL: bot pos:', this.bot.entity.position, move.exitPos, this.bot.blockAt(move.exitPos)?.name)
           await this.bot.waitForTicks(1);
-          adding = await move.moveType.performPerTick(move, tickCount++, currentIndex, path.path);
+          adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         }
 
         currentIndex += adding as number;
@@ -237,7 +269,7 @@ export class ThePathfinder {
     } else if (path.path.indexOf(nextMove) < ind) {
       bad = true;
     }
-  
+
     const no = !nextMove || entry > 0 || bad;
     if (no) {
       newGoal = goal;
@@ -280,13 +312,6 @@ export function createPlugin(settings?: any) {
     bot.pathfinder = new ThePathfinder(bot);
   };
 }
-
-/**
- *
- * @param {import('prismarine-block').Block} referenceBlock
- * @param {import('vec3').Vec3} faceVector
- * @param {{half?: 'top'|'bottom', delta?: import('vec3').Vec3, forceLook?: boolean | 'ignore', offhand?: boolean, swingArm?: 'right' | 'left', showHand?: boolean}} options
- */
 
 declare module "mineflayer" {
   interface Bot {

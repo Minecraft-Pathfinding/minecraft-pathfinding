@@ -17,7 +17,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   timeout: number
   tickTimeout: number
   differential: number
-  movements: MovementProvider<Data>
+  movementProvider: MovementProvider<Data>
 
   closedDataSet: Set<string>
   openHeap: Heap<Data, PathNode<Data>>
@@ -29,7 +29,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 40, searchRadius = -1, differential = 0) {
     this.startTime = performance.now()
 
-    this.movements = movements
+    this.movementProvider = movements
     this.goal = goal
     this.timeout = timeout
     this.tickTimeout = tickTimeout
@@ -70,7 +70,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   compute () {
     const computeStartTime = performance.now()
 
-    if (!this.movements.sanitize()) {
+    if (!this.movementProvider.sanitize()) {
       throw new Error('Movement Provider was not properly configured!')
     }
 
@@ -92,7 +92,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       // allow specific implementations to access visited and closed data.
       this.addToClosedDataSet(node)
 
-      const neighbors = this.movements.getNeighbors(node.data!)
+      const neighbors = this.movementProvider.getNeighbors(node.data!)
       for (const neighborData of neighbors) {
         if (this.closedDataSet.has(neighborData.hash)) {
           continue // skip closed neighbors

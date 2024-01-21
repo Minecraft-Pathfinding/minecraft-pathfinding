@@ -4,12 +4,10 @@ import { Vec3 } from "vec3";
 import { Move } from "../move";
 import { goals } from "../goals";
 import { World } from "../world/worldInterface";
-import { MovementProvider } from "../../abstract";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
-import { CancelError } from "./exceptions";
 
 export interface MovementOptions {
   canOpenDoors: boolean;
@@ -18,7 +16,7 @@ export interface MovementOptions {
   dontMineUnderFallingBlock: boolean;
 }
 
-const DefaultOpts: MovementOptions = {
+export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   canOpenDoors: true,
   canDig: true,
   dontCreateFlow: true,
@@ -92,6 +90,7 @@ export abstract class Movement {
 
 
   protected currentMove!: Move;
+
   /**
    * Current interaction.
    */
@@ -100,33 +99,8 @@ export abstract class Movement {
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot;
     this.world = world;
-    this.settings = Object.assign({}, DefaultOpts, settings);
+    this.settings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
   }
-
-  /**
-   * Simulation-time calculation.
-   *
-   * Decide whether or not movement is possible.
-   * If possible, append to provided storage.
-   */
-  abstract provideMovements(start: Move, storage: Move[], goal: goals.Goal): void;
-
-  /**
-   * Runtime calculation.
-   *
-   * Perform initial setup upon movement start.
-   * Can be sync or async.
-   */
-  abstract performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void>;
-
-  /**
-   * Runtime calculation.
-   *
-   * Perform modifications on bot per-tick.
-   * Return whether or not bot has reached the goal.
-   *
-   */
-  abstract performPerTick(thisMove: Move, tickCount: number,currentIndex: number, path: Move[]): boolean | number | Promise<boolean | number>;
 
   /**
    * Runtime calculation.
@@ -150,48 +124,8 @@ export abstract class Movement {
     && this.bot.entity.onGround;
   }
 
-  // /**
-  //  * Runtime calculation.
-  //  *
-  //  * Check whether or not movement should be canceled.
-  //  * This is called basically whenever you'd expect it to be.
-  //  *
-  //  * @param preMove Whether or not this cancel check was called BEFORE performInit was called, or afterward.
-  //  * @param thisMove the move to execute
-  //  * @param tickCount the current ticks in execution. This starts on zero BOTH for alignment AND performPerTick init.
-  //  * @param goal The goal the bot is executing towards.
-  //  */
-  // shouldCancel = (preMove: boolean, thisMove: Move, tickCount: number, goal: goals.Goal) => {
-  //   return tickCount > 50;
-  // };
-
-
   loadMove(move: Move) {
     this.currentMove = move;
-  }
-
-  performInteraction(interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}) {
-    this.cI = interaction;
-    if (interaction instanceof PlaceHandler) {
-      return this.performPlace(interaction, opts);
-    } else if (interaction instanceof BreakHandler) {
-      return this.performBreak(interaction, opts);
-    }
-  }
-
-  private async performPlace(place: PlaceHandler, opts: InteractOpts = {}) {
-    const item = place.getItem(this.bot, BlockInfo);
-    if (!item) throw new CancelError("ForwardJumpMove: no item to place");
-    await place.perform(this.bot, item, opts);
-    delete this.cI
-  }
-
-  private async performBreak(breakTarget: BreakHandler, opts: InteractOpts = {}) {
-    const block = breakTarget.getBlock(this.bot.pathfinder.world);
-    if (!block) throw new CancelError("ForwardJumpMove: no block");
-    const item = breakTarget.getItem(this.bot, BlockInfo, block);
-    await breakTarget.perform(this.bot, item, opts);
-    delete this.cI
   }
 
   getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {
@@ -357,97 +291,4 @@ export abstract class SimMovement extends Movement {
   simulateUntil(...args: Parameters<BaseSimulator["simulateUntil"]>): ReturnType<BaseSimulator["simulateUntil"]> {
     return this.sim.simulateUntil(...args);
   }
-}
-
-type BuildableMove = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => Movement;
-
-export class MovementHandler implements MovementProvider<Move> {
-  recognizedMovements: Movement[];
-  goal!: goals.Goal;
-  world: World;
-
-  constructor(private readonly bot: Bot, world: World, recMovement: Movement[]) {
-    this.world = world;
-    this.recognizedMovements = recMovement;
-  }
-
-  static create(bot: Bot, world: World, recMovement: BuildableMove[], settings: Partial<MovementOptions> = {}): MovementHandler {
-    const opts = Object.assign({}, DefaultOpts, settings);
-    return new MovementHandler(
-      bot,
-      world,
-      recMovement.map((m) => new m(bot, world, opts))
-    );
-  }
-
-  sanitize(): boolean {
-    return !!this.goal;
-  }
-
-  loadGoal(goal: goals.Goal) {
-    this.goal = goal;
-  }
-
-  getNeighbors(currentMove: Move): Move[] {
-    const moves: Move[] = [];
-
-    for (const newMove of this.recognizedMovements) {
-      newMove.loadMove(currentMove);
-      newMove.provideMovements(currentMove, moves, this.goal);
-    }
-
-    return moves;
-
-    // for differences less than 1 block, we only supply best movement to said block.
-
-    if (moves.length === 0) return moves;
-
-    const visited = new Set();
-    for (const move of moves) {
-      visited.add(move.hash);
-    }
-
-    // console.log(visited)
-
-    const goalVec = this.goal.toVec();
-    const ret = [];
-    for (const visit of visited) {
-      const tmp = moves.filter((m) => m.hash === visit);
-      const wantedCost = stableSort1(tmp, (a, b) => a.cost - b.cost)[0].cost;
-      const wanted = tmp
-        .filter((m) => m.cost === wantedCost)
-        .sort((a, b) => a.exitPos.distanceTo(goalVec) - b.exitPos.distanceTo(goalVec))[0]!;
-      ret.push(wanted);
-    }
-
-    // for (const move of moves) {
-    //   (move as any).cost = Math.round(move.cost);
-    // }
-
-    return ret;
-  }
-}
-
-type Comparator<T> = (a: T, b: T) => number;
-
-const defaultCmp: Comparator<any> = (a, b) => {
-  if (a < b) return -1;
-  if (a > b) return 1;
-  return 0;
-};
-
-function stableSort1<T>(arr: T[], cmp: Comparator<T> = defaultCmp): T[] {
-  const stabilized = arr.map((el, index) => [el, index] as [T, number]);
-  const stableCmp: Comparator<[T, number]> = (a, b) => {
-    const order = cmp(a[0], b[0]);
-    if (order != 0) return order;
-    return a[1] - b[1];
-  };
-
-  stabilized.sort(stableCmp);
-  for (let i = 0; i < arr.length; i++) {
-    arr[i] = stabilized[i][0];
-  }
-
-  return arr;
 }
