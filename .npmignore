@@ -1,0 +1,7 @@
+# specifically shouldn't be published to npm
+.gitignore
+.github/
+src/
+examples/
+tsconfig.json
+yarn*
