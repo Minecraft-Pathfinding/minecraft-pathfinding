@@ -5,18 +5,13 @@ import { World } from "../world/worldInterface";
 import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from "./movement";
 
 import { MovementProvider as AMovementProvider } from "../../abstract";
-import { Shit } from ".";
+import { ExecutorMap } from ".";
 
 /**
- * TODO: Separate calculation time from runtime.
+ * Movement provider.
  *
- * Calculation time is when the bot is deciding what to do.
- * Runtime is when the bot is actually doing it.
- *
- * This class is currently bloated by providing two functions.
- * It should be broken up.
+ * Provides movements to the pathfinder.
  */
-
 export abstract class MovementProvider extends Movement {
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings);
@@ -32,18 +27,18 @@ export abstract class MovementProvider extends Movement {
 }
 
 export class MovementHandler implements AMovementProvider<Move> {
-  movementMap: Shit;
+  movementMap: ExecutorMap;
   recognizedMovements: MovementProvider[];
   goal!: goals.Goal;
   world: World;
 
-  constructor(bot: Bot, world: World, recMovement: MovementProvider[], movementMap: Shit) {
+  constructor(bot: Bot, world: World, recMovement: MovementProvider[], movementMap: ExecutorMap) {
     this.world = world;
     this.recognizedMovements = recMovement;
     this.movementMap = movementMap;
   }
 
-  static create(bot: Bot, world: World, recMovement: Shit, settings: Partial<MovementOptions> = {}): MovementHandler {
+  static create(bot: Bot, world: World, recMovement: ExecutorMap, settings: Partial<MovementOptions> = {}): MovementHandler {
     const opts = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
     return new MovementHandler(
       bot,
@@ -53,7 +48,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     );
   }
 
-  getMovements(): Shit {
+  getMovements(): ExecutorMap {
       return this.movementMap
   }
 

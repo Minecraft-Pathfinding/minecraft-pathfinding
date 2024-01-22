@@ -9,7 +9,7 @@ export type BuildableMoveProvider = new (bot: Bot, world: World, settings: Parti
 export type BuildableMoveExecutor = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => MovementExecutor;
 
 export type MovementSetup = Map<BuildableMoveProvider, BuildableMoveExecutor>;
-export type Shit = Map<BuildableMoveProvider, MovementExecutor>;
+export type ExecutorMap = Map<BuildableMoveProvider, MovementExecutor>;
 
 
 export * from './movement'

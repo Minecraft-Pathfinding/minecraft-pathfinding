@@ -22,7 +22,7 @@ export class StraightAheadOpt extends MovementOptimizer {
   
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width, height: 1.8 });
-    const verts = bb.expand(0, -0.1, 0).toVertices();
+    const verts = bb.expand(0, -1, 0).toVertices();
 
     const verts1 = [
       orgPos.offset(-width / 2, -0.6, -width / 2),

@@ -1,28 +1,13 @@
-import { BaseSimulator, EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
 import { Bot } from "mineflayer";
 import { Vec3 } from "vec3";
 import { Move } from "../move";
 import { goals } from "../goals";
 import { World } from "../world/worldInterface";
-import { MovementProvider as AMovementProvider} from "../../abstract";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
-import * as nbt from "prismarine-nbt";
-import { AABB } from "@nxg-org/mineflayer-util-plugin";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
 import { CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
-import { MovementProvider } from "./movementProvider";
 
-
-/**
- * TODO: Separate calculation time from runtime.
- *
- * Calculation time is when the bot is deciding what to do.
- * Runtime is when the bot is actually doing it.
- *
- * This class is currently bloated by providing two functions.
- * It should be broken up.
- */
 
 export abstract class MovementExecutor extends Movement {
   protected currentMove!: Move;

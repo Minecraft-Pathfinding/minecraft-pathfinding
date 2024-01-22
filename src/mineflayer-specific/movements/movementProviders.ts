@@ -21,7 +21,6 @@ export class IdleMovement extends Movement {
 }
 
 export class Forward extends MovementProvider {
-  private currentIndex!: number;
 
   constructor(bot: Bot, world: World, settings: Partial<MovementOptions>) {
     super(bot, world, settings);

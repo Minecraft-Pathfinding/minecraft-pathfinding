@@ -8,6 +8,7 @@ import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
+import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 
 export interface MovementOptions {
   canOpenDoors: boolean;
@@ -119,6 +120,19 @@ export abstract class Movement {
    * Check whether or not the move is already currently completed. This is checked once, before alignment.
    */
   isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal) {
+
+    const offset = thisMove.exitPos.minus(this.bot.entity.position);
+    const dir = thisMove.exitPos.minus(thisMove.entryPos);
+
+    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9
+
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
+    const bb1 = AABB.fromBlock(thisMove.exitPos.floored())
+
+    const bbsTouching = bb0.intersects(bb1)
+    if (bbsTouching && similarDirection) return true;
+
+
     return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && 
     this.bot.entity.position.y === thisMove.exitPos.y
     && this.bot.entity.onGround;
