@@ -7,6 +7,7 @@ import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
 import { CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
+import {AABB, AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 
 
 export abstract class MovementExecutor extends Movement {
@@ -55,8 +56,45 @@ export abstract class MovementExecutor extends Movement {
    * Check whether or not the move is already currently completed. This is checked once, before alignment.
    */
   isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal) {
+
+    const offset = thisMove.exitPos.minus(this.bot.entity.position);
+    const dir = thisMove.exitPos.minus(thisMove.entryPos);
+
+    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9
+
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
+    const bb1 = AABB.fromBlock(thisMove.exitPos.floored())
+
+    const bbsTouching = bb0.intersects(bb1)
+    if (bbsTouching && similarDirection) return true;
+
+
     return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && 
     this.bot.entity.position.y === thisMove.exitPos.y
+    && this.bot.entity.onGround;
+  }
+
+
+  protected isComplete(startMove: Move, endMove: Move) {
+    const offset = endMove.exitPos.minus(this.bot.entity.position);
+    const dir = endMove.exitPos.minus(startMove.entryPos);
+
+    offset.translate(0, -offset.y, 0); // xz only
+    dir.translate(0, -dir.y, 0); // xz only
+
+    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9
+
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
+    bb0.extend(0, -0.1, 0)
+
+    const bb1 = AABB.fromBlock(startMove.exitPos.floored())
+
+    const bbsVertTouching = bb0.collides(bb1) && !(this.bot.entity as any).isCollidedHorizontally
+    if (bbsVertTouching && similarDirection) return true;
+
+
+    return this.bot.entity.position.xzDistanceTo(endMove.exitPos) < 0.2 && 
+    this.bot.entity.position.y === endMove.exitPos.y
     && this.bot.entity.onGround;
   }
 

@@ -121,7 +121,7 @@ export class ThePathfinder {
   }
 
   getPathTo(goal: goals.Goal, settings = this.defaultSettings) {
-    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings);
+    return this.getPathFromTo(this.bot.entity.position.floored().translate(0.5, 0, 0.5), this.bot.entity.velocity, goal, settings);
   }
 
   getScaffoldCount() {
@@ -235,14 +235,14 @@ export class ThePathfinder {
       await this.cleanupBot();
       console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)} (${move.toPlace.length} ${move.toBreak.length})`);
 
-      if (move.moveType.isAlreadyCompleted(move, tickCount, goal)) {
+      if (executor.isAlreadyCompleted(move, tickCount, goal)) {
         console.log("skipping");
         currentIndex++;
         continue;
       }
 
       try {
-        while (!(await move.moveType.align(move, tickCount++, goal)) && tickCount < 999) {
+        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
           await this.bot.waitForTicks(1);
         }
 
