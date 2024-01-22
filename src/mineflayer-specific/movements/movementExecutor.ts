@@ -27,17 +27,17 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Entity state of bot
    */
-  protected entityState: EPhysicsCtx;
+  protected simCtx: EPhysicsCtx;
 
   /** */
-  protected simCtx: EntityPhysics;
+  protected engine: EntityPhysics;
 
 
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings);
-    this.simCtx = new EntityPhysics(bot.registry);
-    this.sim = new BaseSimulator(this.simCtx);
-    this.entityState = EPhysicsCtx.FROM_BOT(this.simCtx, bot);
+    this.engine = new EntityPhysics(bot.registry);
+    this.sim = new BaseSimulator(this.engine);
+    this.simCtx = EPhysicsCtx.FROM_BOT(this.engine, bot);
   }
 
   /**
@@ -163,12 +163,7 @@ export abstract class MovementExecutor extends Movement {
 
 
   protected simUntil(...args: Parameters<BaseSimulator["simulateUntil"]>): ReturnType<BaseSimulator["simulateUntil"]> {
+    this.simCtx.state.updateFromBot(this.bot);
     return this.sim.simulateUntil(...args);
-  }
-
-
-  protected simUntilGrounded(): ReturnType<BaseSimulator["simulateUntil"]> {
-    return this.simUntil((entity) => entity.onGround);
-
   }
 }
