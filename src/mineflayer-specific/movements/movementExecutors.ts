@@ -494,7 +494,6 @@ export class StraightDownExecutor extends MovementExecutor {
 }
 
 export class StraightUpExecutor extends MovementExecutor {
-  allow1by1towers = true;
 
   isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     return this.bot.entity.position.y >= thisMove.exitPos.y;
@@ -504,15 +503,21 @@ export class StraightUpExecutor extends MovementExecutor {
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     this.bot.clearControlStates();
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.3 && xzVel.norm() < 0.05) {
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.05) {
       return true;
     }
     this.bot.lookAt(thisMove.exitPos, true);
-    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0.2) {
+
+    // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
+    // adjust as quickly as possible to goal.
+    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0 || this.bot.entity.position.distanceTo(thisMove.exitPos) > 0.5) {
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", true);
       this.bot.setControlState("sneak", false);
-    } else {
+    } 
+    
+    // if velocity is already heading towards the goal, slow down.
+    else {
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("sneak", true);

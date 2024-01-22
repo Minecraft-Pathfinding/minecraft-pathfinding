@@ -153,8 +153,6 @@ export class ForwardJump extends MovementProvider {
 }
 
 export class ForwardDropDown extends MovementProvider {
-  maxDropDown = 3;
-  infiniteLiquidDropdownDistance = true;
 
   private currentIndex!: number;
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
@@ -168,7 +166,7 @@ export class ForwardDropDown extends MovementProvider {
     while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
       if (blockLand.liquid && blockLand.safe) return blockLand;
       if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
+        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
         return null;
       }
       if (!blockLand.safe) return null;
@@ -190,7 +188,7 @@ export class ForwardDropDown extends MovementProvider {
     const blockLand = this.getLandingBlock(node, dir);
     if (!blockLand) return;
 
-    if (!this.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.maxDropDown) return; // Don't drop down into water
+    if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return; // Don't drop down into water
 
     cost += this.safeOrBreak(blockA, toBreak);
     if (cost > 100) return;
@@ -252,7 +250,6 @@ export class Diagonal extends MovementProvider {
 }
 
 export class StraightDown extends MovementProvider {
-  maxDropDown = 3;
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveDown(start, storage);
@@ -283,7 +280,7 @@ export class StraightDown extends MovementProvider {
     while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
       if (blockLand.liquid && blockLand.safe) return blockLand;
       if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
+        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
         return null;
       }
       if (!blockLand.safe) return null;
@@ -294,7 +291,6 @@ export class StraightDown extends MovementProvider {
 }
 
 export class StraightUp extends MovementProvider {
-  allow1by1towers = true;
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveUp(start, storage);
@@ -318,7 +314,7 @@ export class StraightUp extends MovementProvider {
     if (cost > 100) return;
 
     if (!block1.climbable) {
-      if (!this.allow1by1towers || node.remainingBlocks === 0) return; // not enough blocks to place
+      if (!this.settings.allow1by1towers || node.remainingBlocks === 0) return; // not enough blocks to place
       // console.log('hey')
       if (!block1.replaceable) {
         if (!this.safeToBreak(block1)) return;
@@ -340,7 +336,7 @@ export class StraightUp extends MovementProvider {
 }
 
 export class ParkourForward extends MovementProvider {
-  allowSprinting = true;
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.cardinalDirs) {
       this.getMoveParkourForward(start, dir, storage);
@@ -370,7 +366,7 @@ export class ParkourForward extends MovementProvider {
     // Similarly for the down path
     let floorCleared = !this.getBlockInfo(node, dir.x, -2, dir.z).physical;
 
-    const maxD = this.allowSprinting ? 4 : 2;
+    const maxD = this.settings.allowSprinting ? 4 : 2;
 
     for (let d = 2; d <= maxD; d++) {
       const dx = dir.x * d;

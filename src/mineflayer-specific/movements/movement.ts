@@ -15,6 +15,11 @@ export interface MovementOptions {
   canDig: boolean;
   dontCreateFlow: boolean;
   dontMineUnderFallingBlock: boolean;
+  allow1by1towers:boolean
+  maxDropDown:number;
+  infiniteLiquidDropdownDistance:boolean;
+  allowSprinting: boolean;
+  
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
@@ -22,6 +27,10 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   canDig: true,
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
+  allow1by1towers: true,
+  maxDropDown: 3,
+  infiniteLiquidDropdownDistance: true,
+  allowSprinting: true
 };
 
 const cardinalVec3s: Vec3[] = [

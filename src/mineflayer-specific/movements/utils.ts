@@ -413,7 +413,7 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  async performInfo(bot: Bot) {
+  async performInfo(bot: Bot, ticks=7) {
     return true as any;
   }
 
