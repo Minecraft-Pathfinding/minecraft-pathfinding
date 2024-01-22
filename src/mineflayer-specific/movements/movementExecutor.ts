@@ -8,7 +8,7 @@ import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./uti
 import { CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
-import { BaseSimulator, EPhysicsCtx, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
+import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 
 export abstract class MovementExecutor extends Movement {
   protected currentMove!: Move;
@@ -23,7 +23,6 @@ export abstract class MovementExecutor extends Movement {
    */
   protected sim: BaseSimulator;
 
-
   /**
    * Entity state of bot
    */
@@ -31,7 +30,6 @@ export abstract class MovementExecutor extends Movement {
 
   /** */
   protected engine: EntityPhysics;
-
 
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings);
@@ -97,6 +95,14 @@ export abstract class MovementExecutor extends Movement {
     );
   }
 
+  /**
+   * Default implementation of isComplete.
+   *
+   * Checks whether or not the bot hitting the target block is unavoidable.
+   *
+   * Does so via velocity direction check (heading towards the block)
+   * and bounding box check (touching OR slightly above block).
+   */
   protected isComplete(startMove: Move, endMove: Move) {
     const offset = endMove.exitPos.minus(this.bot.entity.position);
     const dir = endMove.exitPos.minus(startMove.entryPos);
@@ -114,6 +120,8 @@ export abstract class MovementExecutor extends Movement {
     const bbsVertTouching = bb0.collides(bb1) && !(this.bot.entity as any).isCollidedHorizontally;
     if (bbsVertTouching && similarDirection) return true;
 
+    // default implementation of being at the center of the block.
+    // Technically, this may be true when the bot overshoots, which is fine.
     return (
       this.bot.entity.position.xzDistanceTo(endMove.exitPos) < 0.2 &&
       this.bot.entity.position.y === endMove.exitPos.y &&
@@ -121,15 +129,25 @@ export abstract class MovementExecutor extends Movement {
     );
   }
 
-  async interactionPossible(ticks = 0): Promise<InteractHandler | undefined> {
-    for (const place of this.currentMove.toPlace) {
-      if (await place.performInfo(this.bot, ticks)) return place;
-    }
+  /**
+   * Provide information about the current move.
+   *
+   * Return breaks first as they will not interfere with placements,
+   * whereas placements will almost always interfere with breaks (LOS failure).
+   */
+  async interactPossible(ticks = 0): Promise<InteractHandler | undefined> {
     for (const breakTarget of this.currentMove.toBreak) {
       if (await breakTarget.performInfo(this.bot, ticks)) return breakTarget;
     }
+
+    for (const place of this.currentMove.toPlace) {
+      if (await place.performInfo(this.bot, ticks)) return place;
+    }
   }
 
+  /**
+   * Generalized function to perform an interaction.
+   */
   performInteraction(interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}) {
     this.cI = interaction;
     if (interaction instanceof PlaceHandler) {
@@ -154,16 +172,35 @@ export abstract class MovementExecutor extends Movement {
     delete this.cI;
   }
 
-  lookAtPathPos(vec3: Vec3) {
+  /**
+   * Utility function to have the bot look in the direction of the target, but only on the xz plane.
+   */
+  protected lookAtPathPos(vec3: Vec3) {
     const dx = vec3.x - this.bot.entity.position.x;
     const dz = vec3.z - this.bot.entity.position.z;
 
     this.bot.look(Math.atan2(-dx, -dz), 0, true);
   }
 
-
   protected simUntil(...args: Parameters<BaseSimulator["simulateUntil"]>): ReturnType<BaseSimulator["simulateUntil"]> {
     this.simCtx.state.updateFromBot(this.bot);
     return this.sim.simulateUntil(...args);
+  }
+
+  protected simUntilGrounded(controller: Controller, maxTicks = 1000) {
+    this.simCtx.state.updateFromBot(this.bot);
+    return this.sim.simulateUntil(
+      (state) => state.onGround,
+      () => {},
+      controller,
+      this.simCtx,
+      this.world,
+      maxTicks
+    );
+  }
+
+  protected simulateJump(goal: SimulationGoal, controller: Controller, maxTicks = 1000) {
+    this.simCtx.state.updateFromBot(this.bot);
+    return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks);
   }
 }
