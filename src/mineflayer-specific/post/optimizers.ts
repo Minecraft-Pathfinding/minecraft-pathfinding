@@ -6,12 +6,12 @@ import { MovementOptimizer } from "./optimizer";
 
 import { AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 
-export class StraightAheadOpt extends MovementOptimizer<Move> {
-  async identEndOpt(currentIndex: number): Promise<number> {
-    const thisMove = this.path[currentIndex]; // starting move
+export class StraightAheadOpt extends MovementOptimizer {
+  async identEndOpt(currentIndex: number, path: Move[]): Promise<number> {
+    const thisMove = path[currentIndex]; // starting move
 
-    let lastMove = this.path[currentIndex];
-    let nextMove = this.path[++currentIndex];
+    let lastMove = path[currentIndex];
+    let nextMove = path[++currentIndex];
 
     if (nextMove === undefined) return --currentIndex;
 
@@ -62,25 +62,21 @@ export class StraightAheadOpt extends MovementOptimizer<Move> {
       if (counter === 0) return --currentIndex;
 
       lastMove = nextMove;
-      nextMove = this.path[++currentIndex];
+      nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
     }
     return --currentIndex;
   }
-
-  makeResult(): Path<Move, Algorithm<Move>> {
-    return null as any;
-  }
 }
 
-export class DropDownOpt extends MovementOptimizer<Move> {
+export class DropDownOpt extends MovementOptimizer {
 
   // TODO: Add fall damage checks and whatnot.
 
-  identEndOpt(currentIndex: number): number | Promise<number> {
-    const thisMove = this.path[currentIndex]; // starting move
-    let lastMove = this.path[currentIndex];
-    let nextMove = this.path[++currentIndex];
+  identEndOpt(currentIndex: number, path: Move[]): number | Promise<number> {
+    const thisMove = path[currentIndex]; // starting move
+    let lastMove = path[currentIndex];
+    let nextMove = path[++currentIndex];
 
     if (nextMove === undefined) return --currentIndex;
 
@@ -91,14 +87,10 @@ export class DropDownOpt extends MovementOptimizer<Move> {
       lastMove.entryPos.y >= nextMove.exitPos.y
     ) {
       lastMove = nextMove;
-      nextMove = this.path[++currentIndex];
+      nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
     }
 
     return --currentIndex;
-  }
-
-  makeResult(): Path<Move, Algorithm<Move>> {
-    throw new Error("Method not implemented.");
   }
 }

@@ -42,11 +42,13 @@ const test = [
   [StraightUp, StraightUpExecutor],
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
+
+// commented out for now.
 const test1 = [
-  [Forward, StraightAheadOpt],
-  [Diagonal, StraightAheadOpt],
+  // [Forward, StraightAheadOpt],
+  // [Diagonal, StraightAheadOpt],
   // [ForwardDropDown, DropDownOpt],
-] as [BuildableMoveProvider, BuildableOptimizer<Move>][];
+] as [BuildableMoveProvider, BuildableOptimizer][];
 
 const DEFAULT_SETUP = new Map(test);
 
@@ -72,7 +74,7 @@ export class ThePathfinder {
       test.set(providerType, new executorType(bot, this.world, settings));
     }
 
-    const test1 = new Map<BuildableMoveProvider, MovementOptimizer<Move>>();
+    const test1 = new Map<BuildableMoveProvider, MovementOptimizer>();
     for (const [providerType, executorType] of optimizers ?? DEFAULT_OPTIMIZATION) {
       test1.set(providerType, new executorType(bot, this.world));
     }
@@ -102,7 +104,7 @@ export class ThePathfinder {
     }
   }
 
-  swapOptimizers(provider: BuildableMoveProvider, optimizer: BuildableOptimizer<Move> | MovementOptimizer<Move>) {
+  swapOptimizers(provider: BuildableMoveProvider, optimizer: BuildableOptimizer | MovementOptimizer) {
     if (optimizer instanceof MovementOptimizer) {
       this.optimizers.set(provider, optimizer);
     } else {

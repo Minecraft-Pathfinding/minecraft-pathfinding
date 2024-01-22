@@ -8,11 +8,11 @@ import { Move } from '../move';
 export * from './optimizer'
 
 
-export type OptimizationSetup = Map<BuildableMoveProvider, BuildableOptimizer<Move>>
+export type OptimizationSetup = Map<BuildableMoveProvider, BuildableOptimizer>
 
-export type BuildableOptimizer<Data extends PathData> = new (
+export type BuildableOptimizer = new (
     bot: Bot,
     world: World,
-  ) => MovementOptimizer<Data>;
+  ) => MovementOptimizer;
   
-export type OptimizationMap = Map<BuildableMoveProvider, MovementOptimizer<Move>>;
+export type OptimizationMap = Map<BuildableMoveProvider, MovementOptimizer>;
