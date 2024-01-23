@@ -7,8 +7,8 @@ const { Vec3 } = require("vec3");
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
 const bot = createBot({ username: "testing", auth: "offline", 
-// host: "Ic3TankD2HO.aternos.me", 
-// port: 44656 
+host: "Ic3TankD2HO.aternos.me", 
+port: 44656 
 });
 const pathfinder = createPlugin();
 

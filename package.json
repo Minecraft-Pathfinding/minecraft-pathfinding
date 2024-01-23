@@ -8,7 +8,7 @@
     "build": "tsc"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/GenerelSchwerz/minecraft-pathfinding.git",

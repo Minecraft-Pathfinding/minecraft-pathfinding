@@ -307,7 +307,8 @@ export class PlaceHandler extends InteractHandler {
 
         let invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos));
 
-        for (let i = 0; i < works.ticks; i++) {
+        let i = 0
+        for (; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState("sneak", true);
           const state = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
           // console.log(bb.pos, bot.entity.position)
@@ -321,7 +322,7 @@ export class PlaceHandler extends InteractHandler {
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face));
           const pos1Bl = AABB.fromBlock(pos1);
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
-            // console.log("skipping on tick", i);
+            console.log("skipping on tick", i);
             if (i < works.ticks - 1 && i !== 0) await bot.waitForTicks(1);
             break;
           }
@@ -339,8 +340,8 @@ export class PlaceHandler extends InteractHandler {
           throw new CancelError("Invalid placement");
         }
 
-        // console.log(works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
-        // console.log(bot.entity.position, bot.entity.velocity);
+        console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
+        console.log(bot.entity.position, bot.entity.velocity);
 
         let finished = false;
         let sneaking = false;
@@ -350,6 +351,10 @@ export class PlaceHandler extends InteractHandler {
           if (!sneaking) return;
           bot.setControlState("sneak", false);
         });
+
+        task.catch((err)=> {
+          throw new CancelError(err.message)
+        })
 
 
         console.log(bot._client.latency)
