@@ -83,9 +83,11 @@ export abstract class MovementExecutor extends Movement {
     const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9;
 
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-    const bb1 = AABB.fromBlock(thisMove.exitPos.floored());
+    bb0.extend(0, -0.251, 0);
+    bb0.expand(-0.0001, 0, -0.0001)
+    const bb1 = AABB.fromBlock(thisMove.exitPos.floored().translate(0, -1, 0));
 
-    const bbsTouching = bb0.intersects(bb1);
+    const bbsTouching = bb0.collides(bb1);
     if (bbsTouching && similarDirection) return true;
 
     return (
