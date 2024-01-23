@@ -7,7 +7,7 @@ import { World } from "../world/worldInterface";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
-import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
+import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./interactionUtils";
 import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 
 export interface MovementOptions {

@@ -6,7 +6,7 @@ import { World } from "../world/worldInterface";
 import { Movement, MovementOptions } from "./movement";
 import { CancelError } from "./exceptions";
 import { BlockInfo } from "../world/cacheWorld";
-import { BreakHandler, PlaceHandler, RayType } from "./utils";
+import { BreakHandler, PlaceHandler, RayType } from "./interactionUtils";
 import { onceWithCleanup } from "../../utils";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";

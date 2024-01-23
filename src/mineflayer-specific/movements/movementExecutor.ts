@@ -4,7 +4,7 @@ import { Move } from "../move";
 import { goals } from "../goals";
 import { World } from "../world/worldInterface";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
-import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./utils";
+import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./interactionUtils";
 import { CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";

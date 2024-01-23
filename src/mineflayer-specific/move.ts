@@ -2,7 +2,7 @@ import { Vec3 } from "vec3";
 import { Movement, MovementProvider, SimMovement } from "./movements";
 import { PathData } from "../abstract/node";
 import { EntityState } from "@nxg-org/mineflayer-physics-util";
-import { BreakHandler, InteractHandler, PlaceHandler } from "./movements/utils";
+import { BreakHandler, InteractHandler, PlaceHandler } from "./movements/interactionUtils";
 const emptyVec = new Vec3(0, 0, 0);
 
 export class Move implements PathData {

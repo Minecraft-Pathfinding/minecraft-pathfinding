@@ -1,5 +1,5 @@
 import { Move } from "../move";
-import { RayType } from "../movements/utils";
+import { RayType } from "../movements/interactionUtils";
 import { BlockInfo } from "../world/cacheWorld";
 import { MovementOptimizer } from "./optimizer";
 
