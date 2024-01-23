@@ -4,7 +4,7 @@ import { Bot } from "mineflayer";
 import { World } from "../world/worldInterface";
 import { Vec3 } from "vec3";
 
-type JumpInfo = {jumpTick: number, sprintTick: number};
+type JumpInfo = { jumpTick: number; sprintTick: number };
 
 export class JumpCalculator {
   readonly engine: BaseSimulator;
@@ -19,28 +19,29 @@ export class JumpCalculator {
     this.world = world;
   }
 
-
-  public findJumpPoint(goal: Vec3, maxTicks = 1000): JumpInfo | undefined {
+  public findJumpPoint(goal: Vec3, maxTicks = 1000): JumpInfo | null {
     this.resetState();
     if (this.checkImmediateSprintJump(goal)) {
-      return {jumpTick: 0, sprintTick: 0};
+      return { jumpTick: 0, sprintTick: 0 };
     }
 
-    
-
-    let jumpTick = 0;
-    let sprintTick = 0;
+    let firstTick = 1;
+    let secondTick = 0;
 
     // if less than zero, then we need to sprint before jumping.
     // we didn't cover enough distance to jump immediately.
     // if vel was up and we collided, we moved too far forward, so only sprint after jumping.
-    let sprintAfterJump = this.ctx.state.vel.y > 0; 
-    
-    while (jumpTick < 20 || sprintTick < 20) {
-        const res = this.checkSprintJump(goal, jumpTick, sprintTick, sprintAfterJump);
-        if (res) return {jumpTick, sprintTick} ;
-        
+    let sprintAfterJump = this.ctx.state.vel.y > 0;
+
+    while (firstTick < 20) {
+      while (secondTick < firstTick) {
+        const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump);
+        if (res) return sprintAfterJump ? { jumpTick: secondTick, sprintTick: firstTick } : { jumpTick: firstTick, sprintTick: secondTick };
+        secondTick++;
+      }
+      firstTick++;
     }
+    return null;
   }
 
   protected resetState() {
@@ -66,12 +67,12 @@ export class JumpCalculator {
     return false;
   }
 
-  protected checkSprintJump(goal: Vec3, jumpTicks = 0, sprintTicks = 0, sprintAfterJump = false) {
+  protected checkSprintJump(goal: Vec3, firstTicks = 0, secondTicks = 0, sprintAfterJump = false) {
     const state = this.resetState();
     this.stateLookAt(state, goal);
     this.simJumpAdvanced(state, {
-      jumpTicks,
-      sprintTicks,
+      firstTicks,
+      secondTicks,
       sprintAfterJump,
       maxTicks: 1000,
     });
@@ -99,15 +100,15 @@ export class JumpCalculator {
   protected simJumpAdvanced(
     state: EntityState,
     opts: {
-      jumpTicks?: number;
-      sprintTicks?: number;
+      firstTicks?: number;
+      secondTicks?: number;
       sprintAfterJump?: boolean;
       maxTicks?: number;
     } = {}
   ) {
-    let { jumpTicks, sprintTicks, sprintAfterJump, maxTicks } = opts;
-    jumpTicks = jumpTicks ?? 0;
-    sprintTicks = sprintTicks ?? 0;
+    let { firstTicks, secondTicks, sprintAfterJump, maxTicks } = opts;
+    firstTicks = firstTicks ?? 0;
+    secondTicks = secondTicks ?? 0;
     sprintAfterJump = sprintAfterJump ?? false;
     maxTicks = maxTicks ?? 1000;
 
@@ -116,19 +117,10 @@ export class JumpCalculator {
       () => {},
       (state, ticks) => {
         state.control.set("forward", true);
-        if (sprintAfterJump) {
-          if (ticks >= jumpTicks) {
-            state.control.set("jump", true);
-            if (ticks >= jumpTicks + sprintTicks) {
-              state.control.set("sprint", true);
-            }
-          }
-        } else {
-          if (ticks >= sprintTicks) {
-            state.control.set("sprint", true);
-            if (ticks >= jumpTicks + sprintTicks) {
-                state.control.set("jump", true);
-              }
+        if (ticks >= firstTicks) {
+          state.control.set(sprintAfterJump ? "jump" : "sprint", true);
+          if (ticks >= firstTicks + secondTicks) {
+            state.control.set(sprintAfterJump ? "sprint" : "jump", true);
           }
         }
       },
