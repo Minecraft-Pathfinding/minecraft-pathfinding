@@ -117,6 +117,14 @@ export abstract class Movement {
     this.currentMove = move;
   }
 
+  toBreakLen() {
+    return this.currentMove.toBreak.filter((b) => b.done).length;
+  }
+
+  toPlaceLen() {
+    return this.currentMove.toPlace.filter((b) => b.done).length;
+  }
+
   getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {
     return this.world.getBlock(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
   }
@@ -261,12 +269,6 @@ export abstract class Movement {
     return cost;
   }
 
-  lookAtPathPos(vec3: Vec3) {
-    const dx = vec3.x - this.bot.entity.position.x
-    const dz = vec3.z - this.bot.entity.position.z
-
-    this.bot.look(Math.atan2(-dx, -dz), 0, true)
-  }
 }
 
 export abstract class SimMovement extends Movement {

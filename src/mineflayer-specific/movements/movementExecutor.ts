@@ -110,15 +110,17 @@ export abstract class MovementExecutor extends Movement {
     offset.translate(0, -offset.y, 0); // xz only
     dir.translate(0, -dir.y, 0); // xz only
 
-    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9;
+    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5;
 
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-    bb0.extend(0, -0.1, 0);
+    bb0.extend(0, -0.251, 0);
+    bb0.expand(-0.0001, 0, -0.0001)
 
-    const bb1 = AABB.fromBlock(startMove.exitPos.floored());
+    const bb1 = AABB.fromBlock(startMove.exitPos.floored().translate(0, -1, 0));
 
-    const bbsVertTouching = bb0.collides(bb1) && !(this.bot.entity as any).isCollidedHorizontally;
-    if (bbsVertTouching && similarDirection) return true;
+    const bbsVertTouching = bb0.collides(bb1) //&& !(this.bot.entity as any).isCollidedHorizontally;
+    // console.log(bbsVertTouching, similarDirection, bb0, bb1)
+    if (bbsVertTouching && similarDirection && offset.y <= 0) return true;
 
     // default implementation of being at the center of the block.
     // Technically, this may be true when the bot overshoots, which is fine.
@@ -135,12 +137,14 @@ export abstract class MovementExecutor extends Movement {
    * Return breaks first as they will not interfere with placements,
    * whereas placements will almost always interfere with breaks (LOS failure).
    */
-  async interactPossible(ticks = 0): Promise<InteractHandler | undefined> {
+  async interactPossible(ticks = 0): Promise<PlaceHandler | BreakHandler | undefined> {
     for (const breakTarget of this.currentMove.toBreak) {
+      if (breakTarget !== this.cI && !breakTarget.done)
       if (await breakTarget.performInfo(this.bot, ticks)) return breakTarget;
     }
 
     for (const place of this.currentMove.toPlace) {
+      if (place !== this.cI && !place.done)
       if (await place.performInfo(this.bot, ticks)) return place;
     }
   }
@@ -175,11 +179,21 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Utility function to have the bot look in the direction of the target, but only on the xz plane.
    */
-  protected lookAtPathPos(vec3: Vec3) {
+  protected lookAtPathPos(vec3: Vec3, force=true) {
     const dx = vec3.x - this.bot.entity.position.x;
     const dz = vec3.z - this.bot.entity.position.z;
 
-    this.bot.look(Math.atan2(-dx, -dz), 0, true);
+    this.lookAt(vec3.offset(0, -vec3.y+this.bot.entity.position.y+1.62, 0), force);
+  }
+
+  protected lookAt(vec3: Vec3, force=true) {
+    const dx = vec3.x - this.bot.entity.position.x;
+    const dy = vec3.y - this.bot.entity.position.y;
+    const dz = vec3.z - this.bot.entity.position.z;
+
+    console.log("lookAt", Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))
+
+    this.bot.lookAt(vec3, force);
   }
 
   protected simUntil(...args: Parameters<BaseSimulator["simulateUntil"]>): ReturnType<BaseSimulator["simulateUntil"]> {

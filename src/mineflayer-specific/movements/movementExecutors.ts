@@ -25,7 +25,13 @@ export class IdleMovementExecutor extends Movement {
 export class ForwardExecutor extends MovementExecutor {
   private currentIndex!: number;
 
+
+  // protected isComplete(startMove: Move, endMove: Move): boolean {
+  //     return this.bot.entity.position.xzDistanceTo(endMove.exitPos) < 0.2 && this.bot.entity.position.y === endMove.exitPos.y;
+  // }
+
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+    // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
     return this.bot.entity.onGround
   }
 
@@ -34,27 +40,18 @@ export class ForwardExecutor extends MovementExecutor {
 
     this.bot.clearControlStates();
     this.currentIndex = 0;
-    for (const breakH of thisMove.toBreak) {
-      await this.performInteraction(breakH);
-    }
 
     if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
 
-      // console.log(thisMove.exitPos, offset, 'hi');
-
-      await this.bot.lookAt(offset, true);
+      await this.lookAt(offset, true);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("back", true);
     } else {
-      await this.bot.lookAt(thisMove.exitPos, true);
+      await this.lookAt(thisMove.exitPos, true);
       this.bot.setControlState("forward", true);
       if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
       else this.bot.setControlState("sprint", true);
-    }
-
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
     }
 
     // console.log("done move prehandle!");
@@ -81,7 +78,7 @@ export class ForwardExecutor extends MovementExecutor {
 
     const pos0 = this.bot.entity.position;
 
-    while (lastMove.exitPos.y === orgY) {
+    while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
       if (nextMove === undefined) return --currentIndex;
       for (const vert of verts) {
         const offset = vert.minus(this.bot.entity.position);
@@ -122,7 +119,15 @@ export class ForwardExecutor extends MovementExecutor {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
       this.bot.clearControlStates();
       return false;
+    } else if (!this.cI) {
+      const test = await this.interactPossible();
+      if (test) {
+        void this.performInteraction(test);
+        return false;
+      }
     }
+
+    
 
     console.log(this.bot.entity.position, this.bot.entity.onGround, this.bot.getControlState("jump"))
     if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
@@ -134,7 +139,7 @@ export class ForwardExecutor extends MovementExecutor {
 
     if (thisMove.toPlace.length > 0) {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
-      this.bot.lookAt(offset, true);
+      this.lookAt(offset, true);
       if (this.isComplete(thisMove, thisMove)) return true;
       // if (this.bot.entity.position.xzDistanceTo(offset) < 0.2) return true;
     } else {
@@ -143,23 +148,24 @@ export class ForwardExecutor extends MovementExecutor {
         this.currentIndex = Math.max(idx, this.currentIndex);
         const nextMove = path[this.currentIndex];
         console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
-        console.log(nextMove.moveType.constructor.name)
+        console.log(nextMove?.moveType.constructor.name, nextMove.exitPos)
         if (nextMove === undefined) {
           console.log(path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
         }
         if (currentIndex !== this.currentIndex && nextMove !== undefined) {
-          // this.bot.lookAt(nextMove.exitPos, true);
-          this.lookAtPathPos(nextMove.exitPos);
+          // this.lookAt(nextMove.exitPos, true);
+          this.lookAt(nextMove.exitPos);
           if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex;
           // if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
         } else {
-          // this.bot.lookAt(thisMove.exitPos, true);
-          this.lookAtPathPos(thisMove.exitPos);
+          console.log('here')
+          // this.lookAt(thisMove.exitPos, true);
+          this.lookAt(thisMove.exitPos);
           return this.isComplete(thisMove, thisMove);
           // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
         }
       } else {
-        this.lookAtPathPos(thisMove.exitPos);
+        this.lookAt(thisMove.exitPos);
         return this.isComplete(thisMove, thisMove);
         // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
       }
@@ -176,20 +182,20 @@ export class ForwardJumpExecutor extends MovementExecutor {
     const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 1, height: 1.8 });
     // console.log(bb.containsVec(offset), bb, offset)
     if (this.bot.entity.onGround) return true;
-    // this.bot.lookAt(offset, true);
+    // this.lookAt(offset, true);
     // this.bot.setControlState("forward", false);
     // this.bot.setControlState("back", true);
     return false;
 
     // if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos.offset(0.5, 0, 0.5)) < 0.2) return true;
-    // this.bot.lookAt(thisMove., true);
+    // this.lookAt(thisMove., true);
     // this.bot.setControlState('forward', true);
     // return this.bot.entity.onGround;
   }
 
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {
     // console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
-    await this.bot.lookAt(thisMove.exitPos, true);
+    await this.lookAt(thisMove.exitPos, true);
 
     if (thisMove.toBreak.length > 0) {
       await this.bot.clearControlStates();
@@ -209,20 +215,20 @@ export class ForwardJumpExecutor extends MovementExecutor {
         await this.performInteraction(thisMove.toPlace[0], { info });
       }
 
-      await this.bot.lookAt(thisMove.exitPos, true);
+      await this.lookAt(thisMove.exitPos, true);
       this.bot.setControlState("back", false);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
 
       while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
-        await this.bot.lookAt(thisMove.exitPos, true);
+        await this.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
         // console.log('loop 0')
       }
       info = await thisMove.toPlace[1].performInfo(this.bot);
       while (info.raycasts.length === 0) {
-        await this.bot.lookAt(thisMove.exitPos, true);
+        await this.lookAt(thisMove.exitPos, true);
         await this.bot.waitForTicks(1);
 
         info = await thisMove.toPlace[1].performInfo(this.bot);
@@ -235,7 +241,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       this.bot.setControlState("sprint", true);
       await this.performInteraction(thisMove.toPlace[1], { info });
 
-      await this.bot.lookAt(thisMove.exitPos, true);
+      await this.lookAt(thisMove.exitPos, true);
     } else {
       this.bot.setControlState("forward", true);
       this.bot.setControlState("jump", true);
@@ -247,7 +253,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
   };
 
   performPerTick = (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
-    this.bot.lookAt(thisMove.exitPos, true);
+    this.lookAt(thisMove.exitPos, true);
 
     if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
     if (this.bot.entity.position.y - thisMove.exitPos.y < -1) throw new CancelError("ForwardJumpMove: too low (1)");
@@ -265,22 +271,12 @@ export class ForwardJumpExecutor extends MovementExecutor {
 }
 
 export class ForwardDropDownExecutor extends MovementExecutor {
-  maxDropDown = 3;
-  infiniteLiquidDropdownDistance = true;
 
   private currentIndex!: number;
 
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {
     this.currentIndex = currentIndex;
-    await this.bot.lookAt(thisMove.exitPos, true);
-
-    for (const breakH of thisMove.toBreak) {
-      await this.performInteraction(breakH);
-    }
-
-    for (const place of thisMove.toPlace) {
-      await this.performInteraction(place);
-    }
+    await this.lookAt(thisMove.exitPos, true);
 
     // console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z);
     this.bot.setControlState("forward", true);
@@ -291,27 +287,35 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     let lastMove = thisMove;
     let nextMove = path[++currentIndex];
 
-    if (nextMove === undefined) return --currentIndex;
+    // if (nextMove === undefined) return --currentIndex;
 
-    const pos = this.bot.entity.position;
+    // const pos = this.bot.entity.position;
 
-    while (
-      lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
-      lastMove.entryPos.y >= nextMove.exitPos.y
-    ) {
-      lastMove = nextMove;
-      nextMove = path[++currentIndex];
-      if (!nextMove) return --currentIndex;
-    }
+    // while (
+    //   // lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
+    //   lastMove.exitPos.y >= nextMove.exitPos.y && nextMove.moveType.toPlaceLen() === 0 && pos.y >= nextMove.entryPos.y
+    // ) {
+    //   lastMove = nextMove;
+    //   nextMove = path[++currentIndex];
+    //   if (!nextMove) return --currentIndex;
+    // }
 
     return --currentIndex;
   }
 
-  performPerTick = (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
       this.bot.clearControlStates();
       return false;
+    } else if (!this.cI) {
+      const test = await this.interactPossible();
+      if (test) {
+        void this.performInteraction(test);
+        return false;
+      }
     }
+
+    console.log('hey', this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
 
     if (tickCount > 160) throw new CancelError("ForwardDropDown: tickCount > 160");
 
@@ -326,7 +330,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       //off0.dot(off1) > 0.85 &&
       if (currentIndex !== this.currentIndex && nextMove !== undefined) {
         // TODO: perform fall damage check to ensure this is allowed.
-        this.bot.lookAt(nextMove.exitPos, true);
+        this.lookAt(nextMove.exitPos, true);
         // console.log("hi", this.bot.entity.position, nextMove.exitPos, this.bot.entity.position.xzDistanceTo(nextMove.exitPos), this.bot.entity.position.y, nextMove.exitPos.y)
         // if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2 && this.bot.entity.position.y === nextMove.exitPos.y)
         if (this.isComplete(thisMove, nextMove)) 
@@ -337,10 +341,10 @@ export class ForwardDropDownExecutor extends MovementExecutor {
         // console.log(this.bot.entity.position, thisMove.exitPos, thisMove.entryPos, thisMove.exitPos.xzDistanceTo(this.bot.entity.position), thisMove.entryPos.xzDistanceTo(this.bot.entity.position))
         // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
         if (this.isComplete(thisMove, thisMove)) return true;
-        this.bot.lookAt(thisMove.exitPos, true);
+        this.lookAt(thisMove.exitPos, true);
       }
     } else {
-      this.bot.lookAt(thisMove.exitPos, true);
+      this.lookAt(thisMove.exitPos, true);
       if (this.isComplete(thisMove, thisMove)) return true;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
     }
@@ -357,7 +361,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
       if (blockLand.liquid && blockLand.safe) return blockLand;
       if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
+        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
         return null;
       }
       if (!blockLand.safe) return null;
@@ -381,13 +385,10 @@ export class DiagonalExecutor extends MovementExecutor {
     this.currentIndex = currentIndex;
 
     this.bot.clearControlStates();
-    await this.bot.lookAt(thisMove.exitPos, true);
+    await this.lookAt(thisMove.exitPos, true);
     this.bot.setControlState("forward", true);
     this.bot.setControlState("sprint", this.bot.food > 6);
 
-    for (const breakH of thisMove.toBreak) {
-      await this.performInteraction(breakH);
-    }
   };
 
   private async identMove(thisMove: Move, currentIndex: number, path: Move[]) {
@@ -411,7 +412,7 @@ export class DiagonalExecutor extends MovementExecutor {
 
     const pos0 = this.bot.entity.position;
 
-    while (lastMove.exitPos.y === orgY) {
+    while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
       if (nextMove === undefined) return --currentIndex;
       for (const vert of verts) {
         const offset = vert.minus(this.bot.entity.position);
@@ -452,6 +453,12 @@ export class DiagonalExecutor extends MovementExecutor {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
       this.bot.clearControlStates();
       return false;
+    } else if (!this.cI) {
+      const test = await this.interactPossible();
+      if (test) {
+        void this.performInteraction(test);
+        return false;
+      }
     }
 
     if (tickCount > 160) throw new CancelError("Diagonal: tickCount > 160");
@@ -463,11 +470,11 @@ export class DiagonalExecutor extends MovementExecutor {
       const nextMove = path[this.currentIndex];
       console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
       if (currentIndex !== this.currentIndex && nextMove !== undefined) {
-        // this.bot.lookAt(nextMove.exitPos, true);
+        // this.lookAt(nextMove.exitPos, true);
         this.lookAtPathPos(nextMove.exitPos);
         if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex;
       } else {
-        // this.bot.lookAt(thisMove.exitPos, true);
+        // this.lookAt(thisMove.exitPos, true);
         this.lookAtPathPos(thisMove.exitPos);
         return this.isComplete(thisMove, thisMove);
       }
@@ -481,7 +488,31 @@ export class DiagonalExecutor extends MovementExecutor {
 }
 
 export class StraightDownExecutor extends MovementExecutor {
-  maxDropDown = 3;
+
+  align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+    this.bot.clearControlStates();
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
+      return true;
+    }
+    this.lookAt(thisMove.exitPos, true);
+
+    // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
+    // adjust as quickly as possible to goal.
+    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0 || this.bot.entity.position.distanceTo(thisMove.exitPos) > 0.5) {
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("sneak", false);
+    } 
+    
+    // if velocity is already heading towards the goal, slow down.
+    else {
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("sprint", false);
+      this.bot.setControlState("sneak", true);
+    }
+    return false;
+  }
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     for (const breakH of thisMove.toBreak) {
@@ -489,7 +520,8 @@ export class StraightDownExecutor extends MovementExecutor {
     }
   }
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
-    return tickCount > 0 && this.bot.entity.onGround;
+    if (this.bot.entity.position.y < thisMove.exitPos.y) throw new CancelError("StraightDown: too low");
+    return tickCount > 0 && this.bot.entity.onGround && this.bot.entity.position.y === thisMove.exitPos.y;
   }
 }
 
@@ -500,13 +532,13 @@ export class StraightUpExecutor extends MovementExecutor {
   }
 
 
-  align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+  align(thisMove: Move): boolean {
     this.bot.clearControlStates();
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.05) {
+    if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
       return true;
     }
-    this.bot.lookAt(thisMove.exitPos, true);
+    this.lookAt(thisMove.exitPos, true);
 
     // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
     // adjust as quickly as possible to goal.
@@ -538,8 +570,10 @@ export class StraightUpExecutor extends MovementExecutor {
     }
   }
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
+    if (this.bot.entity.position.y < thisMove.entryPos.y) throw new CancelError("StraightUp: too low");
     // this.bot.setControlState('sneak', false)
-    return tickCount > 0 && this.bot.entity.onGround;
+    this.align(thisMove);
+    return tickCount > 0 && this.bot.entity.onGround && this.bot.entity.position.y >= thisMove.exitPos.y;
   }
 
 }
@@ -547,8 +581,11 @@ export class StraightUpExecutor extends MovementExecutor {
 export class ParkourForwardExecutor extends MovementExecutor {
   allowSprinting = true;
 
+
+
+
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    await this.bot.lookAt(thisMove.exitPos, true);
+    await this.lookAt(thisMove.exitPos, true);
     controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
     controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
     this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`);

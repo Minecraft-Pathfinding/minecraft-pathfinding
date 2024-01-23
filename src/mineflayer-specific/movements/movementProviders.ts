@@ -190,6 +190,15 @@ export class ForwardDropDown extends MovementProvider {
 
     if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return; // Don't drop down into water
 
+    const blockCheck0 = this.getBlockInfo(blockLand.position, dir.x, 0, dir.z);
+    const blockCheck1 = this.getBlockInfo(blockLand.position, dir.x, 1, dir.z);
+
+
+
+    cost += this.safeOrBreak(blockCheck0, toBreak)
+    if (cost > 100) return;
+    cost += this.safeOrBreak(blockCheck1, toBreak)
+    if (cost > 100) return;
     cost += this.safeOrBreak(blockA, toBreak);
     if (cost > 100) return;
     cost += this.safeOrBreak(blockB, toBreak);

@@ -209,7 +209,7 @@ export class PlaceHandler extends InteractHandler {
             ];
           });
 
-          verts.push(this.vec.offset(0.5, 0.1, 0.5));
+          // verts.push(this.vec.offset(0.5, 0.1, 0.5));
 
           // console.log(state.pos, this.vec)
           let good = 0;
@@ -351,12 +351,16 @@ export class PlaceHandler extends InteractHandler {
           bot.setControlState("sneak", false);
         });
 
+
+        console.log(bot._client.latency)
         setTimeout(() => {
           if (finished) return;
           sneaking = true;
           bot.setControlState("sneak", true);
-        }, 30);
+        }, Math.max(30 - bot._client.latency, 0));
 
+
+  
         await task;
 
         if (works.shiftTick !== Infinity) bot.setControlState("sneak", false);
