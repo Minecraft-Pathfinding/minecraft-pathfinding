@@ -12,8 +12,8 @@ export class JumpCalculator {
   readonly ctx: EPhysicsCtx;
   readonly world: World;
 
-  constructor(sim: EntityPhysics, bot: Bot, world: World, ctx: EPhysicsCtx) {
-    this.engine = new BaseSimulator(sim);
+  constructor(sim: BaseSimulator, bot: Bot, world: World, ctx: EPhysicsCtx) {
+    this.engine = sim;
     this.bot = bot;
     this.ctx = ctx;
     this.world = world;
@@ -22,11 +22,12 @@ export class JumpCalculator {
   public findJumpPoint(goal: Vec3, maxTicks = 1000): JumpInfo | null {
     this.resetState();
     if (this.checkImmediateSprintJump(goal)) {
+      console.log('lfg')
       return { jumpTick: 0, sprintTick: 0 };
     }
 
-    let firstTick = 1;
-    let secondTick = 0;
+    let firstTick = 0;
+    let secondTick = 1;
 
     // if less than zero, then we need to sprint before jumping.
     // we didn't cover enough distance to jump immediately.
@@ -34,9 +35,12 @@ export class JumpCalculator {
     let sprintAfterJump = this.ctx.state.vel.y > 0;
 
     while (firstTick < 20) {
-      while (secondTick < firstTick) {
+      while (secondTick < 20) {
         const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump);
-        if (res) return sprintAfterJump ? { jumpTick: secondTick, sprintTick: firstTick } : { jumpTick: firstTick, sprintTick: secondTick };
+        if (res)
+          return sprintAfterJump
+            ? { jumpTick: firstTick, sprintTick: firstTick + secondTick }
+            : { jumpTick: firstTick + secondTick, sprintTick: firstTick };
         secondTick++;
       }
       firstTick++;
@@ -94,6 +98,7 @@ export class JumpCalculator {
       maxTicks
     );
 
+    console.log(state.pos)
     return state;
   }
 
@@ -117,9 +122,9 @@ export class JumpCalculator {
       () => {},
       (state, ticks) => {
         state.control.set("forward", true);
-        if (ticks >= firstTicks) {
+        if (ticks >= firstTicks!) {
           state.control.set(sprintAfterJump ? "jump" : "sprint", true);
-          if (ticks >= firstTicks + secondTicks) {
+          if (ticks >= firstTicks! + secondTicks!) {
             state.control.set(sprintAfterJump ? "sprint" : "jump", true);
           }
         }
