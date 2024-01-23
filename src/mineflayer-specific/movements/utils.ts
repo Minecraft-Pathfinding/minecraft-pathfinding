@@ -323,7 +323,9 @@ export class PlaceHandler extends InteractHandler {
           const pos1Bl = AABB.fromBlock(pos1);
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
             console.log("skipping on tick", i);
-            if (i < works.ticks - 1 && i !== 0) await bot.waitForTicks(1);
+            if (i < works.ticks - 1 && i !== 0) {
+              await bot.waitForTicks(1);
+            }
             break;
           }
           await bot.waitForTicks(1);
@@ -352,9 +354,7 @@ export class PlaceHandler extends InteractHandler {
           bot.setControlState("sneak", false);
         });
 
-        task.catch((err)=> {
-          throw new CancelError(err.message)
-        })
+  
 
 
         console.log(bot._client.latency)
@@ -365,8 +365,12 @@ export class PlaceHandler extends InteractHandler {
         }, Math.max(30 - bot._client.latency, 0));
 
 
-  
-        await task;
+        try {
+          await task;
+        } catch (err: any) {
+          throw new CancelError("Invalid placement " + err.message)
+        }
+       
 
         if (works.shiftTick !== Infinity) bot.setControlState("sneak", false);
         break;

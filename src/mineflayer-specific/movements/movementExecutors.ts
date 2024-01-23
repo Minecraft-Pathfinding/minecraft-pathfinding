@@ -12,6 +12,7 @@ import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "./controls";
 import { MovementExecutor } from "./movementExecutor";
+import { Controller, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 
 export class IdleMovementExecutor extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
@@ -66,7 +67,7 @@ export class ForwardExecutor extends MovementExecutor {
 
     // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
     // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
-    return this.bot.entity.onGround
+    return this.bot.entity.onGround;
   }
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]) {
@@ -207,6 +208,8 @@ export class ForwardExecutor extends MovementExecutor {
 }
 
 export class ForwardJumpExecutor extends MovementExecutor {
+  sprintTick!: number;
+
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     // const offset = thisMove.exi();
     const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 1, height: 1.8 });
@@ -223,7 +226,94 @@ export class ForwardJumpExecutor extends MovementExecutor {
     // return this.bot.entity.onGround;
   }
 
+  private identBestMove(thisMove: Move) {
+    let state;
+    let sprintTick = 0;
+    let sprint = true;
+   
+    const bb = AABB.fromBlock(thisMove.entryPos.floored().translate(0, -1, 0));
+
+    do {
+      state = this.resetState();
+      state.clearControlStates();
+      let failed = false;
+      const goal: SimulationGoal = (state, ticks) => {
+        const bb0 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 });
+        if (!bb0.collides(bb) && state.onGround) {
+          failed = true;
+          return true;
+        }
+
+        if (ticks > 0 && state.onGround) {
+          return true;
+        }
+
+        if (state.isCollidedHorizontally) {
+          failed = true;
+          return true;
+        }
+        return false;
+      }
+      const controller: Controller = (state, ticks) => {
+        state.control.set("forward", true);
+        state.control.set("jump", true)
+        if (ticks >= sprintTick) {
+          state.control.set("sprint", sprint);
+        }
+      }
+      this.simJump({goal, controller}, 160);
+      if (failed) {
+        sprintTick++;
+        continue;
+      }
+    } while (state.isCollidedHorizontally && sprintTick < 10);
+
+    if (sprintTick >= 10) {
+      throw new CancelError("Didn't get a good sprint tick")
+    }
+    return sprintTick;
+  }
+
+  private async performTwoPlace(thisMove: Move) {
+    let info = await thisMove.toPlace[0].performInfo(this.bot, 0);
+    if (info.raycasts.length === 0) {
+      this.bot.setControlState("forward", true);
+      await this.performInteraction(thisMove.toPlace[0]);
+    } else {
+      this.bot.setControlState("forward", false);
+      await this.performInteraction(thisMove.toPlace[0], { info });
+    }
+
+    await this.lookAt(thisMove.exitPos, true);
+    this.bot.setControlState("back", false);
+    this.bot.setControlState("sprint", false);
+    this.bot.setControlState("forward", true);
+    this.bot.setControlState("jump", true);
+
+    while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
+      await this.lookAt(thisMove.exitPos, true);
+      await this.bot.waitForTicks(1);
+      // console.log('loop 0')
+    }
+    info = await thisMove.toPlace[1].performInfo(this.bot);
+    while (info.raycasts.length === 0) {
+      await this.lookAt(thisMove.exitPos, true);
+      await this.bot.waitForTicks(1);
+
+      info = await thisMove.toPlace[1].performInfo(this.bot);
+      // console.log('loop 1', this.bot.entity.position)
+    }
+
+    // console.log("YAY", thisMove.entryPos, this.bot.entity.position, info.raycasts[0].intersect)
+  
+    await this.performInteraction(thisMove.toPlace[1], { info });
+
+    await this.lookAt(thisMove.exitPos, true);
+  }
+
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {
+
+
     // console.log("ForwardJumpMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
     await this.lookAt(thisMove.exitPos, true);
 
@@ -236,46 +326,12 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
     // do some fancy handling here, will think of something later.
     if (thisMove.toPlace.length === 2) {
-      let info = await thisMove.toPlace[0].performInfo(this.bot, 0);
-      if (info.raycasts.length === 0) {
-        this.bot.setControlState("forward", true);
-        await this.performInteraction(thisMove.toPlace[0]);
-      } else {
-        this.bot.setControlState("forward", false);
-        await this.performInteraction(thisMove.toPlace[0], { info });
-      }
-
-      await this.lookAt(thisMove.exitPos, true);
-      this.bot.setControlState("back", false);
-      this.bot.setControlState("sprint", false);
-      this.bot.setControlState("forward", true);
-      this.bot.setControlState("jump", true);
-
-      while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
-        await this.lookAt(thisMove.exitPos, true);
-        await this.bot.waitForTicks(1);
-        // console.log('loop 0')
-      }
-      info = await thisMove.toPlace[1].performInfo(this.bot);
-      while (info.raycasts.length === 0) {
-        await this.lookAt(thisMove.exitPos, true);
-        await this.bot.waitForTicks(1);
-
-        info = await thisMove.toPlace[1].performInfo(this.bot);
-        // console.log('loop 1', this.bot.entity.position)
-      }
-
-      // console.log("YAY", thisMove.entryPos, this.bot.entity.position, info.raycasts[0].intersect)
-      this.bot.setControlState("forward", true);
-      this.bot.setControlState("jump", false);
-      this.bot.setControlState("sprint", true);
-      await this.performInteraction(thisMove.toPlace[1], { info });
-
-      await this.lookAt(thisMove.exitPos, true);
+      await this.performTwoPlace(thisMove);
     } else {
-      this.bot.setControlState("forward", true);
-      this.bot.setControlState("jump", true);
-      this.bot.setControlState("sprint", true);
+      this.sprintTick = this.identBestMove(thisMove);
+      console.log("Sprinttick", this.sprintTick)
+      this.bot.setControlState("forward", true)
+      this.bot.setControlState("jump", true)
       for (const place of thisMove.toPlace) {
         await this.performInteraction(place);
       }
@@ -283,6 +339,10 @@ export class ForwardJumpExecutor extends MovementExecutor {
   };
 
   performPerTick = (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
+
+    if (tickCount >= this.sprintTick) {
+      this.bot.setControlState("sprint", true);
+    }
     this.lookAt(thisMove.exitPos, true);
 
     if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
@@ -346,21 +406,13 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     }
 
-    console.log(
-      "hey",
-      this.bot.entity.position,
-      thisMove.exitPos,
-      this.bot.entity.position.xzDistanceTo(thisMove.exitPos),
-      this.bot.entity.onGround
-    );
-
     if (tickCount > 160) throw new CancelError("ForwardDropDown: tickCount > 160");
 
     if (true) {
       const idx = this.identMove(thisMove, currentIndex, path);
       this.currentIndex = Math.max(idx, this.currentIndex);
       const nextMove = path[this.currentIndex];
-      console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
+      // console.log(currentIndex, this.currentIndex, idx, path.length, thisMove !== nextMove);
 
       // make sure movements are in approximate conjunction.
       //off0.dot(off1) > 0.85 &&

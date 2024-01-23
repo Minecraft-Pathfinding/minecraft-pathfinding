@@ -193,9 +193,14 @@ export abstract class MovementExecutor extends Movement {
     const dy = vec3.y - this.bot.entity.position.y;
     const dz = vec3.z - this.bot.entity.position.z;
 
-    console.log("lookAt", Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))
+    // console.log("lookAt", Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))
 
     this.bot.lookAt(vec3, force);
+  }
+
+  protected resetState() {
+    this.simCtx.state.updateFromBot(this.bot);
+    return this.simCtx.state
   }
 
   protected simUntil(...args: Parameters<BaseSimulator["simulateUntil"]>): ReturnType<BaseSimulator["simulateUntil"]> {
@@ -215,8 +220,12 @@ export abstract class MovementExecutor extends Movement {
     );
   }
 
-  protected simulateJump(goal: SimulationGoal, controller: Controller, maxTicks = 1000) {
+  protected simJump({goal, controller}: {goal?: SimulationGoal, controller?: Controller} = {}, maxTicks = 1000) {
     this.simCtx.state.updateFromBot(this.bot);
+    goal = goal ?? ((state) => state.onGround);
+    controller = controller ?? ((state) => {
+      state.control.set("jump", true);
+    });
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks);
   }
 }
