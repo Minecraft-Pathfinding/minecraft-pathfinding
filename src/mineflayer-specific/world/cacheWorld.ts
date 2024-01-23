@@ -45,6 +45,7 @@ export class BlockInfo {
 
   static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0,0,0), -1)
 
+  public readonly substituteBlockStateId: number = 1;
 
   constructor(
     public readonly replaceable: boolean,
@@ -171,7 +172,7 @@ export class BlockInfoGroup implements BlockInfo {
   public readonly climbable: boolean;
   public readonly height: number;
   public readonly openable: boolean;
-
+  public substituteBlockStateId: number;
 
   constructor(...blockInfos: BlockInfo[]) {
 
@@ -183,6 +184,7 @@ export class BlockInfoGroup implements BlockInfo {
     this.climbable = false;
     this.height = 0;
     this.openable = false;
+    this.substituteBlockStateId = 1;
 
     for (const blockInfo of blockInfos) {
       if (!blockInfo.replaceable) this.replaceable = false;

@@ -268,7 +268,6 @@ export abstract class Movement {
     cost += laborCost;
     return cost;
   }
-
 }
 
 export abstract class SimMovement extends Movement {

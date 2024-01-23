@@ -29,6 +29,7 @@ export interface InteractOpts {
   info?: InteractionPerformInfo;
   returnToStart?: boolean;
   returnToPos?: Vec3;
+  predictBlock?: boolean;
 }
 
 export abstract class InteractHandler {
@@ -283,6 +284,7 @@ export class PlaceHandler extends InteractHandler {
       case "solid": {
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
+        const predictBlock = opts.predictBlock ?? true;
         let works = opts.info || (await this.performInfo(bot));
 
         while (works.raycasts.length === 0) {
@@ -347,7 +349,11 @@ export class PlaceHandler extends InteractHandler {
 
         let finished = false;
         let sneaking = false;
-        const task = bot._placeBlockWithOptions(rayRes, this.faceToVec(rayRes.face), { forceLook: "ignore", swingArm: "right" });
+        let direction = this.faceToVec(rayRes.face);
+        const task = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
+        if (predictBlock) {
+          bot.world.setBlockStateId(rayRes.position.plus(direction), this.blockInfo.substituteBlockStateId);
+        }
         task.then(() => {
           finished = true;
           if (!sneaking) return;
