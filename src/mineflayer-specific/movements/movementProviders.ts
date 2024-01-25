@@ -190,8 +190,8 @@ export class ForwardDropDown extends MovementProvider {
 
     if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return; // Don't drop down into water
 
-    const blockCheck0 = this.getBlockInfo(blockLand.position, dir.x, 0, dir.z);
-    const blockCheck1 = this.getBlockInfo(blockLand.position, dir.x, 1, dir.z);
+    const blockCheck0 = this.getBlockInfo(blockLand.position, dir.x, 1, dir.z);
+    const blockCheck1 = this.getBlockInfo(blockLand.position, dir.x, 2, dir.z);
 
 
 
@@ -218,7 +218,6 @@ export class ForwardDropDown extends MovementProvider {
 export class Diagonal extends MovementProvider {
   static diagonalCost = 1.4142135623730951; // sqrt(2)
 
-  private currentIndex!: number;
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.diagonalDirs) {
       this.getMoveDiagonal(start, dir, storage);
@@ -254,7 +253,7 @@ export class Diagonal extends MovementProvider {
       if (blockN1A.physical || blockN1B.physical) return;
     }
 
-    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 

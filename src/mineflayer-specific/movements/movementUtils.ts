@@ -1,4 +1,4 @@
-import { BaseSimulator, EPhysicsCtx, EntityState } from "@nxg-org/mineflayer-physics-util";
+import { BaseSimulator, ControlStateHandler, EPhysicsCtx, EntityState } from "@nxg-org/mineflayer-physics-util";
 import { EntityPhysics, IPhysics } from "@nxg-org/mineflayer-physics-util/dist/physics/engines";
 import { Bot } from "mineflayer";
 import { World } from "../world/worldInterface";
@@ -9,7 +9,7 @@ type JumpInfo = { jumpTick: number; sprintTick: number };
 export class JumpCalculator {
   readonly engine: BaseSimulator;
   readonly bot: Bot;
-  readonly ctx: EPhysicsCtx;
+  ctx: EPhysicsCtx;
   readonly world: World;
 
   constructor(sim: BaseSimulator, bot: Bot, world: World, ctx: EPhysicsCtx) {
@@ -19,7 +19,7 @@ export class JumpCalculator {
     this.world = world;
   }
 
-  public findJumpPoint(goal: Vec3, maxTicks = 1000): JumpInfo | null {
+  public findJumpPoint(goal: Vec3, maxTicks = 20): JumpInfo | null {
     this.resetState();
     if (this.checkImmediateSprintJump(goal)) {
       console.log('lfg')
@@ -34,8 +34,8 @@ export class JumpCalculator {
     // if vel was up and we collided, we moved too far forward, so only sprint after jumping.
     let sprintAfterJump = this.ctx.state.vel.y > 0;
 
-    while (firstTick < 20) {
-      while (secondTick < 20) {
+    while (firstTick < 10) {
+      while (secondTick < 10) {
         const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump);
         if (res)
           return sprintAfterJump
@@ -43,13 +43,16 @@ export class JumpCalculator {
             : { jumpTick: firstTick + secondTick, sprintTick: firstTick };
         secondTick++;
       }
+      secondTick = 0;
       firstTick++;
     }
     return null;
   }
 
   protected resetState() {
-    this.ctx.state.updateFromBot(this.bot);
+    this.ctx = EPhysicsCtx.FROM_BOT(this.engine.ctx, this.bot)
+    this.ctx.state.age = 0;
+    this.ctx.state.control = ControlStateHandler.DEFAULT();
     return this.ctx.state;
   }
 
@@ -66,8 +69,9 @@ export class JumpCalculator {
     const state = this.resetState();
     this.stateLookAt(state, goal);
     this.simJump(state);
+    console.log('immediate jump', state.pos, state.vel, goal)
     if (state.isCollidedHorizontally) return false;
-    if (state.onGround) return true;
+    if (state.onGround && state.pos.y === goal.y) return true;
     return false;
   }
 
@@ -78,27 +82,26 @@ export class JumpCalculator {
       firstTicks,
       secondTicks,
       sprintAfterJump,
-      maxTicks: 1000,
+      maxTicks: 20,
     });
+    // console.log('sim jump',firstTicks, secondTicks, sprintAfterJump, state.pos, state.control, state.age, goal)
     if (state.isCollidedHorizontally) return false;
-    if (state.onGround) return true;
+    if (state.onGround && state.pos.y === goal.y) return true;
     return false;
   }
 
-  protected simJump(state: EntityState, maxTicks = 1000) {
+  protected simJump(state: EntityState, maxTicks = 20) {
     state.control.set("forward", true);
     state.control.set("jump", true);
     state.control.set("sprint", true);
     this.engine.simulateUntil(
-      (state) => state.onGround || state.isCollidedHorizontally,
+      (state, ticks) => ticks > 0 && (state.onGround || state.isCollidedHorizontally),
       () => {},
       () => {},
       this.ctx,
       this.world,
       maxTicks
     );
-
-    console.log(state.pos)
     return state;
   }
 
@@ -115,19 +118,34 @@ export class JumpCalculator {
     firstTicks = firstTicks ?? 0;
     secondTicks = secondTicks ?? 0;
     sprintAfterJump = sprintAfterJump ?? false;
-    maxTicks = maxTicks ?? 1000;
+    maxTicks = maxTicks ?? 20;
 
+    // console.log("in sim:", firstTicks, secondTicks, sprintAfterJump, maxTicks, state.control)
     this.engine.simulateUntil(
-      (state) => state.onGround || state.isCollidedHorizontally,
+      (state, ticks) => {
+        console.log(firstTicks, secondTicks, 'checking goal', state.control.get('jump'), state.onGround, state.isCollidedVertically, state.isCollidedHorizontally)
+        return state.control.get('jump') && (state.onGround || state.isCollidedHorizontally)
+      },
       () => {},
       (state, ticks) => {
-        state.control.set("forward", true);
+        console.log(firstTicks, secondTicks, sprintAfterJump, ticks, state.pos)
+        state.control.set("forward", false);
         if (ticks >= firstTicks!) {
-          state.control.set(sprintAfterJump ? "jump" : "sprint", true);
+          if (sprintAfterJump) state.control.set("jump", true);
+          else {
+            state.control.set("sprint", true);
+            state.control.set("forward", true);
+          }
           if (ticks >= firstTicks! + secondTicks!) {
-            state.control.set(sprintAfterJump ? "sprint" : "jump", true);
+            if (sprintAfterJump) {
+              state.control.set("sprint", true);
+              state.control.set("forward", true);
+            } else {
+              state.control.set("jump", true);
+            }
           }
         }
+        // console.log('sim jump',firstTicks, secondTicks, sprintAfterJump, ticks, state.pos, state.control)
       },
       this.ctx,
       this.world,

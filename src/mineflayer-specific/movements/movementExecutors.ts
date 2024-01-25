@@ -164,12 +164,11 @@ export class ForwardExecutor extends MovementExecutor {
       }
     }
 
-    console.log(this.bot.entity.position, this.bot.entity.onGround, this.bot.getControlState("jump"));
     if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
     if (!this.bot.entity.onGround) throw new CancelError("ForwardMove: not on ground");
     if ((this.bot.entity as any).isCollidedHorizontally) {
-      if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.02)
-        throw new CancelError("ForwardMove: collided horizontally");
+      // if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.02)
+        // throw new CancelError("ForwardMove: collided horizontally");
     }
 
     if (thisMove.toPlace.length > 0) {
@@ -188,7 +187,6 @@ export class ForwardExecutor extends MovementExecutor {
           if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex;
           // if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
         } else {
-          console.log("here");
           // this.lookAt(thisMove.exitPos, true);
           this.lookAt(thisMove.exitPos);
           return this.isComplete(thisMove, thisMove);
@@ -206,7 +204,7 @@ export class ForwardExecutor extends MovementExecutor {
 }
 
 export class ForwardJumpExecutor extends MovementExecutor {
-  sprintInfo!: ReturnType<JumpCalculator["findJumpPoint"]>;
+  jumpInfo!: ReturnType<JumpCalculator["findJumpPoint"]>;
 
   private shitter: JumpCalculator = new JumpCalculator(this.sim, this.bot, this.world, this.simCtx);
 
@@ -281,13 +279,14 @@ export class ForwardJumpExecutor extends MovementExecutor {
     if (thisMove.toPlace.length === 2) {
       await this.performTwoPlace(thisMove);
     } else {
-      this.bot.setControlState("forward", true)
-      this.sprintInfo = this.shitter.findJumpPoint(thisMove.exitPos);
-      if (this.sprintInfo === null) {
+      
+      this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos);
+      if (this.jumpInfo === null) {
+        this.bot.setControlState("forward", true)
         this.bot.setControlState("jump", true)
         this.bot.setControlState("sprint", true)
       } 
-      console.log("Sprinttick", this.sprintInfo)
+      console.log("info", this.jumpInfo)
       for (const place of thisMove.toPlace) {
         await this.performInteraction(place);
       }
@@ -296,12 +295,18 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
   performPerTick = (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
 
-    if (this.sprintInfo) {
-      if (tickCount >= this.sprintInfo.sprintTick) {
+    if (this.jumpInfo) {
+      if (tickCount >= this.jumpInfo.sprintTick) {
         this.bot.setControlState("sprint", true);
+        this.bot.setControlState("forward", true)
+      } else {
+        this.bot.setControlState("sprint", false);
+        this.bot.setControlState("forward", false)
       }
-      if (tickCount >= this.sprintInfo.jumpTick) {
+      if (tickCount >= this.jumpInfo.jumpTick) {
         this.bot.setControlState("jump", true);
+      } else {
+        this.bot.setControlState("jump", false);
       }
     }
   
@@ -317,7 +322,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       this.bot.setControlState("sprint", true);
 
       // very lazy way of doing this.
-      if (this.bot.entity.position.y - thisMove.exitPos.y < -0.25) throw new CancelError("ForwardJumpMove: too low (2)");
+      if (this.bot.entity.position.y - thisMove.exitPos.y < -0.25) throw new CancelError("ForwardJumpMove: too low (2) " + this.bot.entity.position.y, thisMove.exitPos.y);
     }
 
     return this.isComplete(thisMove, thisMove);
