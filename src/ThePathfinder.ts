@@ -45,13 +45,19 @@ const test = [
 const test1 = [
   // [Forward, StraightAheadOpt],
   // [Diagonal, StraightAheadOpt],
-  // [ForwardDropDown, DropDownOpt],
+  [ForwardDropDown, DropDownOpt],
 ] as [BuildableMoveProvider, BuildableOptimizer][];
 
 const DEFAULT_SETUP = new Map(test);
 
 const DEFAULT_OPTIMIZATION = new Map(test1);
 
+
+/**
+ * Eventually, I want this entirely off-thread.
+ * 
+ * That will be a while, but remember to code this with that in mind.
+ */
 export class ThePathfinder {
   astar: AStar | null;
   world: CacheSyncWorld;
