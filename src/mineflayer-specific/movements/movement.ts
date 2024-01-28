@@ -11,6 +11,8 @@ import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./int
 import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 
 export interface MovementOptions {
+  jumpCost: number;
+  placeCost: number;
   canOpenDoors: boolean;
   canDig: boolean;
   dontCreateFlow: boolean;
@@ -28,9 +30,11 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
   allow1by1towers: true,
-  maxDropDown: 3,
+  maxDropDown: 4,
   infiniteLiquidDropdownDistance: true,
-  allowSprinting: true
+  allowSprinting: true,
+  placeCost: 1,
+  jumpCost: 0.5
 };
 
 const cardinalVec3s: Vec3[] = [
@@ -118,11 +122,11 @@ export abstract class Movement {
   }
 
   toBreakLen() {
-    return this.currentMove.toBreak.filter((b) => b.done).length;
+    return this.currentMove.toBreak.filter((b) => !b.done && !b.allowExit).length;
   }
 
   toPlaceLen() {
-    return this.currentMove.toPlace.filter((b) => b.done).length;
+    return this.currentMove.toPlace.filter((b) => !b.done && !b.allowExit).length;
   }
 
   getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {

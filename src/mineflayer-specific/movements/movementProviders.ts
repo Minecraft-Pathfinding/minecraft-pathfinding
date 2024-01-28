@@ -16,7 +16,6 @@ export class IdleMovement extends Movement {
 }
 
 export class Forward extends MovementProvider {
-
   constructor(bot: Bot, world: World, settings: Partial<MovementOptions>) {
     super(bot, world, settings);
   }
@@ -52,7 +51,7 @@ export class Forward extends MovementProvider {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-      cost += 1.1; // this.placeCost // additional cost for placing a block
+      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
     }
 
     cost += this.safeOrBreak(blockC, toBreak);
@@ -88,7 +87,7 @@ export class ForwardJump extends MovementProvider {
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z);
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z);
 
-    let cost = 2; // move cost (move+jump)
+    let cost = 1 + this.settings.jumpCost; // move cost (move+jump)
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
 
@@ -116,7 +115,7 @@ export class ForwardJump extends MovementProvider {
         }
         // cost += this.exclusionPlace(blockD)
         toPlace.push(PlaceHandler.fromVec(blockD.position, "solid"));
-        cost += 1.1; // this.placeCost // additional cost for placing a block
+        cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
       }
 
       if (!blockC.replaceable) {
@@ -126,7 +125,7 @@ export class ForwardJump extends MovementProvider {
       }
       // cost += this.exclusionPlace(blockC)
       toPlace.push(PlaceHandler.fromVec(blockC.position, "solid"));
-      cost += 1.1; // this.placeCost // additional cost for placing a block
+      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
 
       cHeight += 1;
     }
@@ -148,7 +147,6 @@ export class ForwardJump extends MovementProvider {
 }
 
 export class ForwardDropDown extends MovementProvider {
-
   private currentIndex!: number;
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.cardinalDirs) {
@@ -188,11 +186,9 @@ export class ForwardDropDown extends MovementProvider {
     const blockCheck0 = this.getBlockInfo(blockLand.position, dir.x, 1, dir.z);
     const blockCheck1 = this.getBlockInfo(blockLand.position, dir.x, 2, dir.z);
 
-
-
-    cost += this.safeOrBreak(blockCheck0, toBreak)
+    cost += this.safeOrBreak(blockCheck0, toBreak);
     if (cost > 100) return;
-    cost += this.safeOrBreak(blockCheck1, toBreak)
+    cost += this.safeOrBreak(blockCheck1, toBreak);
     if (cost > 100) return;
     cost += this.safeOrBreak(blockA, toBreak);
     if (cost > 100) return;
@@ -215,12 +211,11 @@ export class Diagonal extends MovementProvider {
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.diagonalDirs) {
-      this.getMoveDiagonal(start, dir, storage);
+      this.getMoveDiagonal(start, dir, storage, goal);
     }
   }
 
-
-  getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[]) {
+  getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal) {
     let cost = Diagonal.diagonalCost;
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
@@ -232,9 +227,55 @@ export class Diagonal extends MovementProvider {
     const block1 = this.getBlockInfo(node, dir.x, 1, dir.z);
     const blockN1 = this.getBlockInfo(node, dir.x, -1, dir.z);
     if (!blockN1.physical) {
-      // target block not solid
-      return;
+      const blockCheck0 = this.getBlockInfo(node, 0, -1, dir.z);
+      const blockCheck1 = this.getBlockInfo(node, dir.x, -1, 0);
+
+      // first sol.
+      if (!blockCheck0.physical && !blockCheck1.physical) {
+        const wanted =
+          goal.toVec().distanceTo(blockCheck0.position) > goal.toVec().distanceTo(blockCheck1.position) ? blockCheck0 : blockCheck1;
+
+        if (!wanted.replaceable) {
+          if (!this.safeToBreak(wanted)) return;
+          // cost += this.exclusionBreak(blockCheck0)
+          toBreak.push(BreakHandler.fromVec(wanted.position, "solid"));
+          cost += 1;
+        }
+
+        if (node.remainingBlocks === 0) return; // not enough blocks to place
+        // cost += this.exclusionPlace(blockCheck0)
+        toPlace.push(PlaceHandler.fromVec(wanted.position, "solid"));
+        cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
+      }
+
+      // second sol.
+
+      // if (!blockCheck0.physical) {
+      //   if (!blockCheck0.replaceable) {
+      //     if (!this.safeToBreak(blockCheck0)) return;
+      //     // cost += this.exclusionBreak(blockCheck0)
+      //     toBreak.push(BreakHandler.fromVec(blockCheck0.position, "solid"));
+      //   }
+      //   // cost += this.exclusionPlace(blockCheck0)
+      //   toPlace.push(PlaceHandler.fromVec(blockCheck0.position, "solid"));
+      //   cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
+      // }
+
+      //   if (!blockCheck1.physical) {
+      //     if (!blockCheck1.replaceable) {
+      //       if (!this.safeToBreak(blockCheck1)) return;
+      //       // cost += this.exclusionBreak(blockCheck1)
+      //       toBreak.push(BreakHandler.fromVec(blockCheck1.position, "solid"));
+      //     }
+      //     // cost += this.exclusionPlace(blockCheck1)
+      //     toPlace.push(PlaceHandler.fromVec(blockCheck1.position, "solid"));
+      //     cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
+      //   }
+
+      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
+      toPlace.push(PlaceHandler.fromVec(blockN1.position, "solid"));
     }
+
     cost += this.safeOrBreak(block0, toBreak);
     cost += this.safeOrBreak(block1, toBreak);
     cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 0, 0), toBreak);
@@ -242,18 +283,17 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak);
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak);
     if (cost > 100) return;
-    if (needSideClearance) {
-      const blockN1A = this.getBlockInfo(node, dir.x, -1, 0);
-      const blockN1B = this.getBlockInfo(node, 0, -1, dir.z);
-      if (blockN1A.physical || blockN1B.physical) return;
-    }
+    // if (needSideClearance) {
+    //   const blockN1A = this.getBlockInfo(node, dir.x, -1, 0);
+    //   const blockN1B = this.getBlockInfo(node, 0, -1, dir.z);
+    //   if (blockN1A.physical || blockN1B.physical) return;
+    // }
 
     neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 
 export class StraightDown extends MovementProvider {
-
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveDown(start, storage);
   }
@@ -294,11 +334,9 @@ export class StraightDown extends MovementProvider {
 }
 
 export class StraightUp extends MovementProvider {
-
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveUp(start, storage);
   }
-
 
   getMoveUp(node: Move, neighbors: Move[]) {
     const nodePos = node.toVec();
@@ -308,8 +346,7 @@ export class StraightUp extends MovementProvider {
 
     const block2 = this.getBlockInfo(node, 0, 2, 0);
 
-
-    let cost = 1; // move cost
+    let cost = this.settings.jumpCost; // move cost
     const toBreak: BreakHandler[] = [];
     const toPlace = [];
     cost += this.safeOrBreak(block2, toBreak);
@@ -330,7 +367,7 @@ export class StraightUp extends MovementProvider {
 
       // cost += this.exclusionPlace(block1)
       toPlace.push(PlaceHandler.fromVec(nodePos, "solid"));
-      cost += 1.1; // this.placeCost // additional cost for placing a block
+      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
     }
 
     if (cost > 100) return;
@@ -339,7 +376,6 @@ export class StraightUp extends MovementProvider {
 }
 
 export class ParkourForward extends MovementProvider {
-
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.cardinalDirs) {
       this.getMoveParkourForward(start, dir, storage);

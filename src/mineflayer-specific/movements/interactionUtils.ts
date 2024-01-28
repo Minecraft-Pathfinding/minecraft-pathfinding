@@ -38,8 +38,10 @@ export abstract class InteractHandler {
 
   protected _done = false;
 
+  protected _internalLock = false;
 
   public readonly blockInfo: BlockInfo;
+  public readonly bb: AABB;
 
   constructor(
     public readonly x: number,
@@ -49,6 +51,7 @@ export abstract class InteractHandler {
     public readonly offhand = false
   ) {
     this.vec = new Vec3(x, y, z);
+    this.bb = AABB.fromBlock(this.vec);
     this.blockInfo = this.toBlockInfo();
   }
 
@@ -58,6 +61,10 @@ export abstract class InteractHandler {
 
   public get done(): boolean {
     return this._done;
+  }
+
+  public get allowExit(): boolean {
+    return !this._internalLock;
   }
 
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
@@ -78,17 +85,21 @@ export abstract class InteractHandler {
     }
   }
 
-  allowExternalInfluence(bot: Bot, ticks = 1): boolean {
+  allowExternalInfluence(bot: Bot, ticks = 0, sneak = false): boolean {
     if (!this.performing) return true;
+    if (!this._internalLock) return true;
     const ectx = new EntityPhysics(bot.registry);
     const state = EPhysicsCtx.FROM_BOT(ectx, bot);
 
+    // state.state.control.set('sneak', sneak)
     for (let i = 0; i < ticks; i++) {
       ectx.simulate(state, bot.pathfinder.world);
     }
 
     // TODO: add raycast check to see if block is still visible.
-    return this.vec.distanceTo(state.position) < PlaceHandler.reach;
+    if (state.state.pos.y < bot.entity.position.y) return false;
+    return this.bb.distanceToVec(state.state.pos) < PlaceHandler.reach;
+    // return this.vec.distanceTo(state.position) < PlaceHandler.reach;
   }
 }
 
@@ -166,6 +177,9 @@ export class PlaceHandler extends InteractHandler {
   }
 
   async performInfo(bot: Bot, ticks = 15, scale = 0.5) {
+    bot.chat(`/particle flame ${this.vec.x} ${this.vec.y} ${this.vec.z} 0 0 0 0 1 force`);
+    bot.chat(`pointed to: ${this.vec}`);
+    // console.log(this.vec)
     switch (this.type) {
       case "water": {
         throw new Error("Not implemented");
@@ -193,9 +207,9 @@ export class PlaceHandler extends InteractHandler {
           const dz = state.pos.z - (this.vec.z + 0.5);
           // Check y first then x and z
           const visibleFaces: any = {
-            y: Math.sign(Math.abs(dy) > 0 ? dy : 0),
-            x: Math.sign(Math.abs(dx) > 0 ? dx : 0),
-            z: Math.sign(Math.abs(dz) > 0 ? dz : 0),
+            y: Math.sign(Math.abs(dy) >= 0 ? dy : 0),
+            x: Math.sign(Math.abs(dx) >= 0 ? dx : 0),
+            z: Math.sign(Math.abs(dz) >= 0 ? dz : 0),
           };
 
           // i need these to be perfect, but they're not lmao
@@ -203,16 +217,16 @@ export class PlaceHandler extends InteractHandler {
           const verts = Object.entries(visibleFaces).flatMap(([k, v]) => {
             return [
               this.vec.offset(
-                0.5 + (k === "x" ? visibleFaces[k] * 0.48 : 0),
-                0.5 + (k === "y" ? visibleFaces[k] * 0.48 : 0),
-                0.5 + (k === "z" ? visibleFaces[k] * 0.48 : 0)
+                0.5 + (k === "x" ? visibleFaces[k] * 0.49 : 0),
+                0.5 + (k === "y" ? visibleFaces[k] * 0.49 : 0),
+                0.5 + (k === "z" ? visibleFaces[k] * 0.49 : 0)
               ),
             ];
           });
 
           // verts.push(this.vec.offset(0.5, 0.1, 0.5));
 
-          // console.log(state.pos, this.vec)
+          // console.log(state.pos, this.vec, verts)
           let good = 0;
           for (const vert of verts) {
             const rayRes: RayType | null = (await bot.world.raycast(
@@ -224,11 +238,9 @@ export class PlaceHandler extends InteractHandler {
             const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face));
             // console.log(pos)
             if (pos.equals(this.vec)) {
-              
               if (bb1.containsVec(rayRes.intersect)) continue;
               if (AABB.fromBlock(pos).intersects(bb1)) {
                 if (shiftTick === Infinity) {
-               
                   shiftTick = i;
                   i--;
                   state.control.set("sneak", true);
@@ -267,10 +279,12 @@ export class PlaceHandler extends InteractHandler {
   async perform(bot: Bot, item: Item, opts: InteractOpts = {}) {
     if (this.performing) throw new Error("Already performing");
     this.performing = true;
+    this._internalLock = true;
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
     if (item === null) throw new Error("Invalid item");
 
+    let start = performance.now();
     switch (this.type) {
       case "water": {
         if (item.name !== "water_bucket") throw new Error("Invalid item");
@@ -296,10 +310,10 @@ export class PlaceHandler extends InteractHandler {
         }
 
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0);
-        const lookDir = bot.util.getViewDir()
+        const lookDir = bot.util.getViewDir();
         // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
         // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
-        works.raycasts.sort((a,b)=> b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir));
+        works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir));
 
         let rayRes = works.raycasts[0];
         if (rayRes === undefined) throw new Error("Invalid block");
@@ -309,10 +323,12 @@ export class PlaceHandler extends InteractHandler {
 
         let invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos));
 
-        let i = 0
+        let i = 0;
         for (; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState("sneak", true);
-          const state = bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot), bot.world);
+          const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
+          const state = ectx.state;
+          bot.physicsUtil.engine.simulate(ectx, bot.world);
           // console.log(bb.pos, bot.entity.position)
           const sPos = state.pos.offset(0, 1.62, 0);
           const testCheck = (await bot.world.raycast(
@@ -320,6 +336,8 @@ export class PlaceHandler extends InteractHandler {
             rayRes.intersect.minus(sPos).normalize().scale(0.5),
             PlaceHandler.reach * 2
           )) as unknown as RayType;
+
+          if (testCheck === null) break;
 
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face));
           const pos1Bl = AABB.fromBlock(pos1);
@@ -350,33 +368,32 @@ export class PlaceHandler extends InteractHandler {
         let finished = false;
         let sneaking = false;
         let direction = this.faceToVec(rayRes.face);
+        console.log("looking at", rayRes.intersect);
+        start = performance.now();
         const task = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
         if (predictBlock) {
           bot.world.setBlockStateId(rayRes.position.plus(direction), this.blockInfo.substituteBlockStateId);
         }
+
+        this._internalLock = false;
+
         task.then(() => {
           finished = true;
           if (!sneaking) return;
           bot.setControlState("sneak", false);
         });
 
-  
-
-
-        console.log(bot._client.latency)
         setTimeout(() => {
           if (finished) return;
           sneaking = true;
           bot.setControlState("sneak", true);
         }, Math.max(30 - bot._client.latency, 0));
 
-
         try {
           await task;
         } catch (err: any) {
-          throw new CancelError("Invalid placement " + err.message)
+          throw new CancelError("Invalid placement " + err.message);
         }
-       
 
         if (works.shiftTick !== Infinity) bot.setControlState("sneak", false);
         break;
@@ -396,11 +413,11 @@ export class PlaceHandler extends InteractHandler {
 
     this._done = true;
     this.performing = false;
+    console.log("done in ", performance.now() - start, "ms");
   }
 }
 
 export class BreakHandler extends InteractHandler {
-
   static reach = 4;
 
   static fromVec(vec: Vec3, type: InteractType, offhand = false) {
@@ -432,8 +449,12 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  async performInfo(bot: Bot, ticks=7) {
-    return true as any;
+  async performInfo(bot: Bot, ticks = 15) {
+    const bb = AABB.fromBlock(this.vec);
+
+    return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach
+      ? { ticks: 0, tickAllowance: 0, shiftTick: 0, raycasts: [] }
+      : { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: [] };
   }
 
   async perform(bot: Bot, item?: Item, opts: InteractOpts = {}): Promise<void> {
@@ -441,7 +462,6 @@ export class BreakHandler extends InteractHandler {
     this.performing = true;
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
-  
     switch (this.type) {
       case "water": {
         if (item === undefined) throw new Error("No item");
@@ -454,10 +474,8 @@ export class BreakHandler extends InteractHandler {
 
       case "solid": {
         if (item === undefined) {
-          if (this.getCurrentItem(bot) !== undefined)
-          bot.unequip(this.offhand ? "off-hand" : "hand")
-        }
-        else if (this.getCurrentItem(bot) !== item!) this.equipItem(bot, item!);
+          if (this.getCurrentItem(bot) !== undefined) bot.unequip(this.offhand ? "off-hand" : "hand");
+        } else if (this.getCurrentItem(bot) !== item!) this.equipItem(bot, item!);
         const block = await bot.world.getBlock(this.vec);
         if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, true);

@@ -18,7 +18,6 @@ import {
 import { MovementExecutor } from "./mineflayer-specific/movements";
 import { Diagonal, Forward, ForwardDropDown, ForwardJump, IdleMovement, StraightDown, StraightUp } from "./mineflayer-specific/movements";
 import {
-  DiagonalExecutor,
   ForwardDropDownExecutor,
   ForwardExecutor,
   ForwardJumpExecutor,
@@ -26,7 +25,7 @@ import {
   StraightUpExecutor,
 } from "./mineflayer-specific/movements";
 import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
-import { DropDownOpt, StraightAheadOpt } from "./mineflayer-specific/post/optimizers";
+import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from "./mineflayer-specific/post/optimizers";
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
@@ -35,30 +34,27 @@ const test = [
   [Forward, ForwardExecutor],
   [ForwardJump, ForwardJumpExecutor],
   [ForwardDropDown, ForwardDropDownExecutor],
-  [Diagonal, DiagonalExecutor],
+  [Diagonal, ForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
-
 // commented out for now.
 const test1 = [
-  // [Forward, StraightAheadOpt],
-  // [Diagonal, StraightAheadOpt],
-  // [ForwardDropDown, DropDownOpt],
+  [Forward, StraightAheadOpt],
+  [Diagonal, StraightAheadOpt],
+  [ForwardDropDown, DropDownOpt],
+  [ForwardJump, ForwardJumpUpOpt],
 ] as [BuildableMoveProvider, BuildableOptimizer][];
-
-
 
 // const test1 = new Map<BuildableMoveProvider, BuildableOptimizer>([
 const DEFAULT_SETUP = new Map(test);
 
 const DEFAULT_OPTIMIZATION = new Map(test1);
 
-
 /**
  * Eventually, I want this entirely off-thread.
- * 
+ *
  * That will be a while, but remember to code this with that in mind.
  */
 export class ThePathfinder {
@@ -68,7 +64,6 @@ export class ThePathfinder {
   optimizers: OptimizationMap;
   defaultSettings: MovementOptions;
 
-
   private _executing = false;
   private shouldExecute = false;
 
@@ -76,7 +71,7 @@ export class ThePathfinder {
     return this._executing;
   }
 
-  public set executing(value: boolean) {  
+  public set executing(value: boolean) {
     this.shouldExecute = value;
     this._executing = value;
   }
@@ -147,7 +142,7 @@ export class ThePathfinder {
   }
 
   getPathTo(goal: goals.Goal, settings = this.defaultSettings) {
-    return this.getPathFromTo(this.bot.entity.position.floored().translate(0.5, 0, 0.5), this.bot.entity.velocity, goal, settings);
+    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings);
   }
 
   getScaffoldCount() {
@@ -207,7 +202,7 @@ export class ThePathfinder {
   async goto(goal: goals.Goal) {
     if (this.executing) throw new Error("Already executing!");
     this.executing = true;
-    
+
     for await (const res of this.getPathTo(goal)) {
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
@@ -224,16 +219,16 @@ export class ThePathfinder {
     // Identify all nodes that are able to be straight-lined to each other.
     // Do so by comparing movement types && their respective y values.
 
-    const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+    const optimizer = new Optimizer(this.bot, this.world, this.optimizers);
 
     optimizer.loadPath(pathInfo.path);
 
     const res = await optimizer.compute();
 
-    const ret = {...pathInfo}
+    const ret = { ...pathInfo };
 
-    ret["path"] = res
-    return ret
+    ret["path"] = res;
+    return ret;
   }
 
   /**
@@ -244,7 +239,7 @@ export class ThePathfinder {
    * @param entry
    */
   async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
-    if (entry > 1) throw new Error("Too many failures, exiting performing.");
+    if (entry > 0) throw new Error("Too many failures, exiting performing.");
     if (!this.shouldExecute) {
       this.cleanupAll();
       return;
@@ -257,7 +252,6 @@ export class ThePathfinder {
     const newPath = await this.postProcess(path);
 
     outer: while (currentIndex < newPath.path.length) {
-
       if (!this.shouldExecute) {
         this.cleanupAll();
         return;
@@ -272,15 +266,17 @@ export class ThePathfinder {
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
       await this.cleanupBot();
-      console.log(`Performing ${move.moveType.constructor.name} to ${move.exitRounded(0)} (${move.toPlace.length} ${move.toBreak.length})`);
+      console.log(
+        `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
+      );
+
+      executor.loadMove(move);
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
         console.log("skipping");
         currentIndex++;
         continue;
       }
-
-      executor.loadMove(move);
 
       try {
         while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
@@ -344,7 +340,7 @@ export class ThePathfinder {
       newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
     }
 
-    const path1 = await this.getPathFromToRaw(this.bot.entity.position.floored(), EMPTY_VEC, newGoal);
+    const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal);
     if (path1 === null) {
       console.log("path1 === null");
       return; // done

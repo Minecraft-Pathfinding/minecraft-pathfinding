@@ -25,6 +25,10 @@ bot.once("spawn", () => {
     this.applyToBot(bot);
   };
 
+  // EntityPhysics.prototype.simulate = function (ctx, world) {
+  //   bot.physics.simulatePlayer(ctx.state, world);
+  // }
+
   bot.physics.autojumpCooldown = 0;
   // (bot.physics).jumpTicks = 0;
 
@@ -144,6 +148,13 @@ bot.on("chat", async (username, msg) => {
       break;
     }
 
+    case "therepos": {
+      if (!author) return bot.chat("failed to find player");
+      const authorPos = author.position.clone();
+      const rayBlock = rayTraceEntitySight({ entity: author });
+      if (!rayBlock) return bot.chat("No block in sight");
+      else return bot.chat(`Block in sight: ${rayBlock.position.x} ${rayBlock.position.y} ${rayBlock.position.z}`);
+    }
     case "there": {
       if (!author) return bot.chat("failed to find player");
       const authorPos = author.position.clone();

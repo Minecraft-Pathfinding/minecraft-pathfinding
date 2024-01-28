@@ -17,7 +17,7 @@ function setState(simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3) {
 export class ForwardJumpMovement extends SimMovement {
   controlAim(nextPoint: Vec3) {
     // const zero = controls.getControllerSmartMovement(nextPoint, true);
-    const one = controls.getControllerStrafeAim(nextPoint);
+    // const one = controls.getControllerStrafeAim(nextPoint);
     let aimed = false;
     return (state: EntityState, ticks: number) => {
       if (!aimed) {
@@ -40,13 +40,13 @@ export class ForwardJumpMovement extends SimMovement {
       }
 
       // zero(state, ticks);
-      one(state, ticks);
+      // one(state, ticks);
     };
   }
 
   botAim(bot: Bot, nextMove: Vec3, goal: goals.Goal) {
     // const zero = controls.getBotSmartMovement(bot, nextMove, true);
-    const one = controls.getBotStrafeAim(bot, nextMove);
+    // const one = controls.getBotStrafeAim(bot, nextMove);
     let aimed = false;
     return () => {
       if (!aimed) {
@@ -69,7 +69,7 @@ export class ForwardJumpMovement extends SimMovement {
         bot.setControlState("sprint", true);
       }
       // zero();
-      one();
+      // one();
     };
   }
 

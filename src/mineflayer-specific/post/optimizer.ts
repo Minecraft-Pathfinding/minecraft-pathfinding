@@ -19,14 +19,17 @@ export abstract class MovementOptimizer {
 
   mergeMoves(startIndex: number, endIndex: number, path: readonly Move[]) {
 
+    console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
       const startMove = path[startIndex];
       const endMove = path[endIndex];
   
-      const toBreak = [];
-      const toPlace = [];
+      console.log('start', startMove.x, startMove.y, startMove.z, startMove.entryPos, startMove.moveType.constructor.name)
+      console.log('end', endMove.x, endMove.y, endMove.z, endMove.exitPos, endMove.moveType.constructor.name)
+      const toBreak = [...startMove.toBreak];
+      const toPlace = [...startMove.toPlace];
       let costSum = 0;
   
-      for (let i = startIndex + 1; i < endIndex; i++) {
+      for (let i = startIndex + 1; i <= endIndex; i++) {
         const intermediateMove = path[i];
         toBreak.push(...intermediateMove.toBreak);
         toPlace.push(...intermediateMove.toPlace);
@@ -36,6 +39,7 @@ export abstract class MovementOptimizer {
         costSum += intermediateMove.cost;
       }
   
+      console.log('fully merged', startMove.entryPos, endMove.exitPos, costSum)
       return new Move(
         startMove.x,
         startMove.y,
@@ -80,10 +84,10 @@ export class Optimizer {
 
     const newMove = optimizer.mergeMoves(startIndex, endIndex, this.pathCopy);
 
-    // console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
     this.pathCopy[startIndex] = newMove;
     this.pathCopy.splice(startIndex + 1, endIndex - startIndex);
-    // console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
   }
 
   async compute() {
@@ -95,11 +99,14 @@ export class Optimizer {
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex];
       const opt = this.optMap.get(move.moveType.constructor as BuildableMoveProvider);
+      console.log(opt?.constructor.name, this.currentIndex)
       if (!opt) {
         this.currentIndex++;
         continue;
       }
       const newEnd = await opt.identEndOpt(this.currentIndex, this.pathCopy);
+
+      console.log('found opt for:', opt?.constructor.name, this.currentIndex, ': here, newEnd', newEnd)
       if (newEnd !== this.currentIndex) {
         this.mergeMoves(this.currentIndex, newEnd, opt);
       }
