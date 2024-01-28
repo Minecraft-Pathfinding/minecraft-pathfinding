@@ -68,7 +68,7 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal);
     }
 
-    return moves;
+    // return moves;
 
     // for differences less than 1 block, we only supply best movement to said block.
 
@@ -80,15 +80,14 @@ export class MovementHandler implements AMovementProvider<Move> {
     }
 
     // console.log(visited)
-
-    const goalVec = this.goal.toVec();
+    
     const ret = [];
     for (const visit of visited) {
       const tmp = moves.filter((m) => m.hash === visit);
       const wantedCost = stableSort1(tmp, (a, b) => a.cost - b.cost)[0].cost;
       const wanted = tmp
         .filter((m) => m.cost === wantedCost)
-        .sort((a, b) => a.exitPos.distanceTo(goalVec) - b.exitPos.distanceTo(goalVec))[0]!;
+        .sort((a, b) => this.goal.heuristic(a) - this.goal.heuristic(b))[0]!;
       ret.push(wanted);
     }
 

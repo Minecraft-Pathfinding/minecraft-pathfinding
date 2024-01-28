@@ -124,7 +124,16 @@ export class DropDownOpt extends MovementOptimizer {
       if (!nextMove) return --currentIndex;
     }
 
-    if (lastMove.entryPos.y === nextMove.exitPos.y) currentIndex++;
+    const firstPos = lastMove.exitPos;
+
+    while (
+      lastMove.entryPos.y === nextMove.exitPos.y && 
+      nextMove.exitPos.distanceTo(firstPos) <= 2
+    ) {
+      lastMove = nextMove;
+      nextMove = path[++currentIndex];
+      if (!nextMove) return --currentIndex;
+    }
 
 
     return --currentIndex;

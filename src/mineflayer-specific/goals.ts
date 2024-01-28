@@ -5,14 +5,6 @@ import { Move } from './move'
 export namespace goals {
 
   export abstract class Goal implements AGoal<Move> {
-    abstract x: number
-    abstract y: number
-    abstract z: number
-
-    public toVec () {
-      return new Vec3(this.x, this.y, this.z)
-    }
-
     abstract isEnd (node: Move): boolean
     abstract heuristic (node: Move): number
   }

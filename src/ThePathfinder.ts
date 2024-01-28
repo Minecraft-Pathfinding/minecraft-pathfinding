@@ -315,7 +315,7 @@ export class ThePathfinder {
   async recovery(move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
     await this.cleanupBot();
 
-    console.log("recovery", entry, goal.toVec());
+    console.log("recovery", entry, goal);
     const ind = path.path.indexOf(move);
     if (ind === -1) {
       console.log("ind === -1");

@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Vec3 } from "vec3";
 import { SimMovement } from "../movements";
 import * as controls from "./controls";

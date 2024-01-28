@@ -232,9 +232,7 @@ export class Diagonal extends MovementProvider {
 
       // first sol.
       if (!blockCheck0.physical && !blockCheck1.physical) {
-        const wanted =
-          goal.toVec().distanceTo(blockCheck0.position) > goal.toVec().distanceTo(blockCheck1.position) ? blockCheck0 : blockCheck1;
-
+        const wanted = blockCheck0;
         if (!wanted.replaceable) {
           if (!this.safeToBreak(wanted)) return;
           // cost += this.exclusionBreak(blockCheck0)

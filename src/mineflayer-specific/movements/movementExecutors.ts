@@ -27,6 +27,25 @@ export class ForwardExecutor extends MovementExecutor {
 
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     
+
+    
+    
+    if (thisMove.toPlace.length > 0) {
+      const offset = this.bot.entity.position.minus(thisMove.entryPos).plus(this.bot.entity.position);
+
+      void this.lookAt(offset, true);
+      this.bot.setControlState("sprint", false);
+      this.bot.setControlState("back", true);
+    } else {
+      void this.lookAt(thisMove.entryPos, true);
+      this.bot.setControlState("forward", true);
+      if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
+      else this.bot.setControlState("sprint", true);
+    }
+
+    // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
+    // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
+
     const off0 = thisMove.exitPos.minus(this.bot.entity.position);
     const off1 = thisMove.exitPos.minus(thisMove.entryPos);
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
@@ -47,23 +66,6 @@ export class ForwardExecutor extends MovementExecutor {
         // console.log("intersect");
         return true;
       }
-    
-    
-    if (thisMove.toPlace.length > 0 && false) {
-      const offset = this.bot.entity.position.minus(thisMove.entryPos).plus(this.bot.entity.position);
-
-      void this.lookAt(offset, true);
-      this.bot.setControlState("sprint", false);
-      this.bot.setControlState("back", true);
-    } else {
-      void this.lookAt(thisMove.entryPos, true);
-      this.bot.setControlState("forward", true);
-      if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
-      else this.bot.setControlState("sprint", true);
-    }
-
-    // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
-    // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
 
     return false
   }
