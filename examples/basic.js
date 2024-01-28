@@ -7,8 +7,8 @@ const { Vec3 } = require("vec3");
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
 const bot = createBot({ username: "testing", auth: "offline", 
-// host: "Ic3TankD2HO.aternos.me", 
-// port: 44656 
+host: "Ic3TankD2HO.aternos.me", 
+port: 44656 
 });
 const pathfinder = createPlugin();
 
@@ -49,6 +49,13 @@ bot.on("chat", async (username, msg) => {
 
 
   switch (cmd) {
+
+    case "cancel": 
+    case "stop": {
+      bot.chat('Canceling path')
+      bot.pathfinder.cancel();
+      break;
+    }
     case "lookat": {
       bot.lookAt(new Vec3(parseFloat(args[0]), parseFloat(args[1]), parseFloat(args[2])));
       break;

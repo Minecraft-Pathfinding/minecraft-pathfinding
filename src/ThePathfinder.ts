@@ -45,9 +45,12 @@ const test = [
 const test1 = [
   // [Forward, StraightAheadOpt],
   // [Diagonal, StraightAheadOpt],
-  [ForwardDropDown, DropDownOpt],
+  // [ForwardDropDown, DropDownOpt],
 ] as [BuildableMoveProvider, BuildableOptimizer][];
 
+
+
+// const test1 = new Map<BuildableMoveProvider, BuildableOptimizer>([
 const DEFAULT_SETUP = new Map(test);
 
 const DEFAULT_OPTIMIZATION = new Map(test1);
@@ -64,6 +67,19 @@ export class ThePathfinder {
   movements: ExecutorMap;
   optimizers: OptimizationMap;
   defaultSettings: MovementOptions;
+
+
+  private _executing = false;
+  private shouldExecute = false;
+
+  public get executing(): boolean {
+    return this._executing;
+  }
+
+  public set executing(value: boolean) {  
+    this.shouldExecute = value;
+    this._executing = value;
+  }
 
   constructor(
     private readonly bot: Bot,
@@ -86,6 +102,10 @@ export class ThePathfinder {
     this.optimizers = test1;
     this.defaultSettings = settings;
     this.astar = null;
+  }
+
+  async cancel() {
+    this.shouldExecute = false;
   }
 
   getCacheSize() {
@@ -185,6 +205,9 @@ export class ThePathfinder {
   }
 
   async goto(goal: goals.Goal) {
+    if (this.executing) throw new Error("Already executing!");
+    this.executing = true;
+    
     for await (const res of this.getPathTo(goal)) {
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
@@ -222,6 +245,10 @@ export class ThePathfinder {
    */
   async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
     if (entry > 1) throw new Error("Too many failures, exiting performing.");
+    if (!this.shouldExecute) {
+      this.cleanupAll();
+      return;
+    }
 
     let currentIndex = 0;
     const movementHandler = path.context.movementProvider as MovementHandler;
@@ -230,6 +257,12 @@ export class ThePathfinder {
     const newPath = await this.postProcess(path);
 
     outer: while (currentIndex < newPath.path.length) {
+
+      if (!this.shouldExecute) {
+        this.cleanupAll();
+        return;
+      }
+
       const move = newPath.path[currentIndex];
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
       if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
@@ -260,6 +293,10 @@ export class ThePathfinder {
 
         let adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
         while (!adding && tickCount < 999) {
+          if (!this.shouldExecute) {
+            this.cleanupAll();
+            return;
+          }
           await this.bot.waitForTicks(1);
           adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
         }
@@ -330,5 +367,6 @@ export class ThePathfinder {
     this.cleanupBot();
     this.bot.chat(this.world.getCacheSize());
     this.world.clearCache();
+    this.executing = false;
   }
 }

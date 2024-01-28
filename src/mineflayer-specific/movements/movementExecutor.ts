@@ -134,6 +134,14 @@ export abstract class MovementExecutor extends Movement {
   }
 
   /**
+   * Lazy code.
+   */
+  public safeToCancel(startMove: Move, endMove: Move): boolean {
+    return this.bot.entity.onGround;
+  }
+
+
+  /**
    * Provide information about the current move.
    *
    * Return breaks first as they will not interfere with placements,

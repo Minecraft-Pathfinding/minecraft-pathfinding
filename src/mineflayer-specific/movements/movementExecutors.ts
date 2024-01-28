@@ -1,18 +1,13 @@
-import { Bot } from "mineflayer";
 import { Vec3 } from "vec3";
 import { goals } from "../goals";
 import { Move } from "../move";
-import { World } from "../world/worldInterface";
-import { Movement, MovementOptions } from "./movement";
+import { Movement } from "./movement";
 import { CancelError } from "./exceptions";
 import { BlockInfo } from "../world/cacheWorld";
-import { BreakHandler, PlaceHandler, RayType } from "./interactionUtils";
-import { onceWithCleanup } from "../../utils";
+import { RayType } from "./interactionUtils";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
-import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import * as controls from "./controls";
 import { MovementExecutor } from "./movementExecutor";
-import { Controller, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 import { JumpCalculator } from "./movementUtils";
 
 export class IdleMovementExecutor extends Movement {
