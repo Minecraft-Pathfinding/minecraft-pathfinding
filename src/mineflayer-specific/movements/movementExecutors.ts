@@ -216,6 +216,10 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
   private flag = false;
 
+  protected isComplete(startMove: Move, endMove?: Move): boolean {
+      return super.isComplete(startMove, endMove, 1);
+  }
+
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     // const offset = thisMove.exi();
     const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
@@ -470,8 +474,9 @@ export class ForwardDropDownExecutor extends MovementExecutor {
 }
 
 export class StraightDownExecutor extends MovementExecutor {
-  align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+  align(thisMove: Move): boolean {
     this.bot.clearControlStates();
+    console.log('align down', this.bot.entity.position, thisMove.entryPos, this.bot.entity.position.xzDistanceTo(thisMove.entryPos)) 
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
       return true;

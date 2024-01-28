@@ -112,23 +112,16 @@ export class DropDownOpt extends MovementOptimizer {
 
     if (nextMove === undefined) return --currentIndex;
 
-    const pos = thisMove.entryPos.floored().translate(0.5, 0, 0.5); // ensure middle of block.
-
-    while (
-      // lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
-      lastMove.entryPos.y > nextMove.exitPos.y &&
-      nextMove.moveType.toPlaceLen() === 0
-    ) {
-      lastMove = nextMove;
-      nextMove = path[++currentIndex];
-      if (!nextMove) return --currentIndex;
-    }
 
     const firstPos = lastMove.exitPos;
 
+
     while (
-      lastMove.entryPos.y === nextMove.exitPos.y && 
-      nextMove.exitPos.distanceTo(firstPos) <= 2
+      
+      // lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
+      lastMove.entryPos.y >= nextMove.exitPos.y &&
+      nextMove.exitPos.xzDistanceTo(firstPos) <= 3 &&  // lazy fix.
+      nextMove.moveType.toPlaceLen() === 0
     ) {
       lastMove = nextMove;
       nextMove = path[++currentIndex];
@@ -155,6 +148,17 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     while (
       lastMove.exitPos.y === nextMove.exitPos.y && lastMove.entryPos.y !== lastMove.exitPos.y
+    ) {
+      lastMove = nextMove;
+      nextMove = path[++currentIndex];
+      if (!nextMove) return --currentIndex;
+    }
+
+    const firstPos = lastMove.exitPos;
+
+    while (
+      lastMove.exitPos.y === nextMove.exitPos.y && 
+      nextMove.exitPos.distanceTo(firstPos) <= 2
     ) {
       lastMove = nextMove;
       nextMove = path[++currentIndex];

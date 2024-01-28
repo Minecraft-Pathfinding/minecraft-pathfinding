@@ -78,33 +78,7 @@ export abstract class MovementExecutor extends Movement {
    * Check whether or not the move is already currently completed. This is checked once, before alignment.
    */
   isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal) {
-    if (goal.isEnd(thisMove)) {
-      return this.isComplete(thisMove, thisMove);
-    }
-
-    const offset = thisMove.exitPos.minus(this.bot.entity.position);
-    const dir = thisMove.exitPos.minus(thisMove.entryPos);
-
-    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9;
-
-    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-    bb0.extend(0, -0.251, 0);
-    bb0.expand(-0.0001, 0, -0.0001);
-    const bb1 = AABB.fromBlock(thisMove.exitPos.floored().translate(0, -1, 0));
-
-    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    const xzVelDir = xzVel.normalize();
-
-    const headingThatWay = xzVelDir.dot(dir.normalize()) > 0.9;
-
-    const bbsTouching = bb0.collides(bb1);
-    if (bbsTouching && similarDirection && headingThatWay) return true;
-
-    return (
-      this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 &&
-      this.bot.entity.position.y === thisMove.exitPos.y &&
-      this.bot.entity.onGround
-    );
+    return this.isComplete(thisMove);
   }
 
   /**
@@ -115,7 +89,7 @@ export abstract class MovementExecutor extends Movement {
    * Does so via velocity direction check (heading towards the block)
    * and bounding box check (touching OR slightly above block).
    */
-  protected isComplete(startMove: Move, endMove: Move = startMove) {
+  protected isComplete(startMove: Move, endMove: Move = startMove, ticks=1) {
     // if (this.toBreakLen() > 0) return false;
     // if (this.toPlaceLen() > 0) return false;
 
@@ -132,9 +106,12 @@ export abstract class MovementExecutor extends Movement {
     const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5;
 
     const ectx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
-    const state = this.bot.physicsUtil.engine.simulate(ectx, this.world);
-    const bb0 = AABBUtils.getPlayerAABB({ position: state.pos, width: 0.6, height: 1.8 });
-    bb0.extend(0, 0, 0);
+    for (let i = 0; i < ticks; i++) {
+      this.bot.physicsUtil.engine.simulate(ectx, this.world);
+    }
+  
+    const bb0 = AABBUtils.getPlayerAABB({ position: ectx.state.pos, width: 0.6, height: 1.8 });
+    bb0.extend(0, -0.1, 0);
     bb0.expand(-0.0001, 0, -0.0001);
 
     const bb1 = AABB.fromBlock(startMove.exitPos.floored().translate(0, -1, 0));
