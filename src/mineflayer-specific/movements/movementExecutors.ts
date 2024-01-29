@@ -217,7 +217,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
   private flag = false;
 
   protected isComplete(startMove: Move, endMove?: Move): boolean {
-      return super.isComplete(startMove, endMove, 1);
+      return super.isComplete(startMove, endMove, 0);
   }
 
   align(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
@@ -447,7 +447,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     } else {
       this.lookAt(thisMove.exitPos, true);
-      if (this.isComplete(thisMove, thisMove)) return true;
+      if (this.isComplete(thisMove)) return true;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
     }
 

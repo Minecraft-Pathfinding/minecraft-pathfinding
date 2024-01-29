@@ -102,6 +102,15 @@ export async function findStraightLine(thisMove: Move, currentIndex: number, pat
   return --currentIndex;
 }
 
+
+export function stateLookAt(state: EntityState, point: Vec3) {
+  const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0));
+  const yaw = Math.atan2(-delta.x, -delta.z);
+  const groundDistance = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+  const pitch = Math.atan2(delta.y, groundDistance);
+  state.yaw = yaw;
+  state.pitch = pitch;
+}
 export class JumpCalculator {
   readonly engine: BaseSimulator;
   readonly bot: Bot;
@@ -154,18 +163,9 @@ export class JumpCalculator {
     return this.ctx.state;
   }
 
-  protected stateLookAt(state: EntityState, point: Vec3) {
-    const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0));
-    const yaw = Math.atan2(-delta.x, -delta.z);
-    const groundDistance = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-    const pitch = Math.atan2(delta.y, groundDistance);
-    state.yaw = yaw;
-    state.pitch = pitch;
-  }
-
   protected checkImmediateSprintJump(goal: Vec3) {
     const state = this.resetState();
-    this.stateLookAt(state, goal);
+    stateLookAt(state, goal);
     this.simJump(state);
     // console.log('immediate jump', state.pos, state.vel, goal)
     if (state.isCollidedHorizontally) return false;
@@ -175,7 +175,7 @@ export class JumpCalculator {
 
   protected checkSprintJump(goal: Vec3, firstTicks = 0, secondTicks = 0, sprintAfterJump = false) {
     const state = this.resetState();
-    this.stateLookAt(state, goal);
+    stateLookAt(state, goal);
     this.simJumpAdvanced(state, {
       firstTicks,
       secondTicks,

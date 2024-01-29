@@ -5,14 +5,17 @@ import { PathData, PathNode } from "../../abstract/node";
 import { BuildableMoveProvider, MovementProvider } from "../movements";
 import { World } from "../world/worldInterface";
 import { Move } from "../move";
+import { BaseSimulator, EntityPhysics } from "@nxg-org/mineflayer-physics-util";
 
 export abstract class MovementOptimizer {
   bot: Bot;
   world: World;
+  sim: BaseSimulator;
 
   constructor(bot: Bot, world: World) {
     this.bot = bot;
     this.world = world;
+    this.sim = new BaseSimulator(new EntityPhysics(bot.registry));
   }
 
   abstract identEndOpt(currentIndex: number, path: Move[]): number | Promise<number>;
