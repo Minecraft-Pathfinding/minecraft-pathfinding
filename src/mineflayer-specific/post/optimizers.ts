@@ -119,10 +119,9 @@ export class DropDownOpt extends MovementOptimizer {
     const firstPos = lastMove.exitPos;
 
     while (currentIndex < path.length) {
-
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
       if (nextMove.exitPos.y === nextMove.entryPos.y) return currentIndex;
-      
+
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
       ctx.position.set(lastMove.entryPos.x, lastMove.entryPos.y, lastMove.entryPos.z);
       ctx.velocity.set(lastMove.entryVel.x, lastMove.entryVel.y, lastMove.entryVel.z); // 0,0,0
@@ -131,16 +130,15 @@ export class DropDownOpt extends MovementOptimizer {
       ctx.state.control.forward = true;
       // ctx.state.control.sprint = true;
 
-
       const blockBB0 = AABB.fromBlockPos(nextMove.entryPos.offset(0, -1, 0));
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0));
       let flag = false;
       let good = false;
       this.sim.simulateUntil(
         (state, ticks) => {
-          const pBB = AABBUtils.getPlayerAABB({position: ctx.state.pos, width: 0.6, height: 1.8})
+          const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 });
           const collided = pBB.collides(blockBB0) || pBB.collides(blockBB1);
-          console.log(state.pos, state.onGround, state.isCollidedHorizontally, pBB, blockBB0, collided)
+          console.log(state.pos, state.onGround, state.isCollidedHorizontally, pBB, blockBB0, collided);
           if (collided) {
             good = true;
             return true;
@@ -149,8 +147,7 @@ export class DropDownOpt extends MovementOptimizer {
           // if (state.pos.xzDistanceTo(nextMove.entryPos) > lastMove.entryPos.xzDistanceTo(nextMove.entryPos) + 1) {
           //   return false;
           // }
-      
-         
+
           if (state.pos.y < lastMove.entryPos.y) flag = true;
           if (flag) return (ticks > 0 && state.onGround) || state.isCollidedHorizontally;
           else return false;
@@ -173,13 +170,10 @@ export class DropDownOpt extends MovementOptimizer {
 
         //   return state.pos.distanceTo
 
-
         // }, ()=> {}, () =>{}, ctx, this.world, 1000)
         return --currentIndex;
-  
       }
-      
-   
+
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
@@ -200,7 +194,12 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     if (nextMove === undefined) return --currentIndex;
 
-    while (lastMove.exitPos.y === nextMove.exitPos.y && lastMove.entryPos.y !== lastMove.exitPos.y) {
+    while (
+      lastMove.exitPos.y === nextMove.exitPos.y &&
+      lastMove.entryPos.y !== lastMove.exitPos.y &&
+      nextMove.toPlace.length === 0 &&
+      nextMove.toBreak.length === 0
+    ) {
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
