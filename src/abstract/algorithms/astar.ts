@@ -62,7 +62,8 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       node.g,
       this.closedDataSet.size,
       this.closedDataSet.size + this.openHeap.size(),
-      reconstructPath(node).length
+      reconstructPath(node).length,
+      // reconstructPath(node)
     );
     return {
       status,

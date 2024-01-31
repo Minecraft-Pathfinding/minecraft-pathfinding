@@ -7,7 +7,7 @@ import { World } from "../world/worldInterface";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
-import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./interactionUtils";
+import { BreakHandler, InteractHandler, InteractOpts, InteractType, PlaceHandler } from "./interactionUtils";
 import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 import { Vec3Properties } from "../../types";
 
@@ -250,6 +250,8 @@ export abstract class Movement {
       }
     }
 
+    if (BlockInfo.replaceables.has(block.type)) return true; 
+    // console.log('block type:', this.bot.registry.blocks[block.type], block.position, !BlockInfo.blocksCantBreak.has(block.type))
     return !BlockInfo.blocksCantBreak.has(block.type); //&& this.exclusionBreak(block) < 100
   }
 
@@ -260,17 +262,34 @@ export abstract class Movement {
    * @returns {number}
    */
   safeOrBreak(block: BlockInfo, toBreak: BreakHandler[]) {
-    let cost = 0;
+
     // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
-    if (block.safe) return cost;
+    
+    // if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
+    
+    if (block.safe) return 0; // TODO: block is a carpet or a climbable (BUG)
 
-    if (block.block === null) return 100; // Don't know its type, so can't move
+    if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
+    
     if (!this.safeToBreak(block)) return 100; // Can't break, so can't move
-    toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+
+    const cost = this.breakCost(block);
+
+    // console.log('cost for:', block.position, cost)
+
+    if (cost >= 100) return cost;
 
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
+
+    toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+
+    return cost;
+  }
+
+  breakCost(block: BlockInfo) {
+    if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
     const tool = null as any;
@@ -278,9 +297,31 @@ export abstract class Movement {
     const effects = this.bot.entity.effects
     const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
     const laborCost = (1 + 3 * digTime / 1000) * this.settings.digCost;
-    cost += laborCost;
+    return laborCost;
+  }
+
+  safeOrPlace(block: BlockInfo, toPlace: PlaceHandler[], type: InteractType="solid") {
+    if (!this.settings.canPlace) return 100;
+    if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
+    if (block.physical) return 0; // block is already physical at location.
+
+    const cost = this.placeCost(block);
+
+    if (cost >= 100) return cost;
+
+    toPlace.push(PlaceHandler.fromVec(block.position, type));
+
     return cost;
   }
+
+  /**
+   * TODO: calculate more accurate place costs.
+   */
+  placeCost(block: BlockInfo) {
+    return this.settings.placeCost;
+  }
+
+
 }
 
 export abstract class SimMovement extends Movement {

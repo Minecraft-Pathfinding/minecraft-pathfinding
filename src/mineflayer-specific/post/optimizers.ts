@@ -8,6 +8,7 @@ import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { stateLookAt } from "../movements/movementUtils";
 
 export class StraightAheadOpt extends MovementOptimizer {
+
   async identEndOpt(currentIndex: number, path: Move[]): Promise<number> {
     const thisMove = path[currentIndex]; // starting move
 
@@ -109,6 +110,8 @@ export class StraightAheadOpt extends MovementOptimizer {
 export class DropDownOpt extends MovementOptimizer {
   // TODO: Add fall damage checks and whatnot.
 
+  readonly mergeInteracts = false;
+
   identEndOpt(currentIndex: number, path: Move[]): number | Promise<number> {
     const thisMove = path[currentIndex]; // starting move
     let lastMove = path[currentIndex];
@@ -118,18 +121,24 @@ export class DropDownOpt extends MovementOptimizer {
 
     const firstPos = lastMove.exitPos;
 
+    let flag1 = false
     while (currentIndex < path.length) {
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
-      if (nextMove.exitPos.y === nextMove.entryPos.y && nextMove.toPlace.length === 0 && nextMove.toBreak.length === 0) return currentIndex;
+
 
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
+      // ctx.position.set(firstPos.x, firstPos.y, firstPos.z);
+      ctx.velocity.set(0, 0, 0);
+      // ctx.position.set(lastMove.exitPos.x, lastMove.exitPos.y, lastMove.exitPos.z);
       ctx.position.set(lastMove.entryPos.x, lastMove.entryPos.y, lastMove.entryPos.z);
-      ctx.velocity.set(lastMove.entryVel.x, lastMove.entryVel.y, lastMove.entryVel.z); // 0,0,0
-      stateLookAt(ctx.state, nextMove.exitPos);
+      // ctx.velocity.set(lastMove.entryVel.x, lastMove.entryVel.y, lastMove.entryVel.z); // 0,0,0
+      stateLookAt(ctx.state, nextMove.entryPos);
       ctx.state.control = ControlStateHandler.DEFAULT();
       ctx.state.control.forward = true;
-      // ctx.state.control.sprint = true;
+      ctx.state.control.sprint = true;
 
+      const bb0solid = lastMove.moveType.getBlockInfo(nextMove.entryPos, 0, -1, 0).physical;
+      const bb1solid = lastMove.moveType.getBlockInfo(nextMove.exitPos, 0, -1, 0).physical;
       const blockBB0 = AABB.fromBlockPos(nextMove.entryPos.offset(0, -1, 0));
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0));
       let flag = false;
@@ -137,23 +146,22 @@ export class DropDownOpt extends MovementOptimizer {
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 });
-          const collided = pBB.collides(blockBB0) || pBB.collides(blockBB1) && state.onGround;
-          console.log(state.pos, state.onGround, state.isCollidedHorizontally, pBB, blockBB0, collided);
+          const collided = (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid) && state.onGround;
+          console.log(pBB, blockBB0, bb0solid, blockBB1, bb1solid);
+          console.log(state.onGround, state.isCollidedHorizontally, collided, flag)
           if (collided) {
             good = true;
             return true;
           }
 
-          if (state.pos.xzDistanceTo(nextMove.entryPos) > lastMove.entryPos.xzDistanceTo(nextMove.entryPos) + 1) {
-            return false;
-          }
+          if (state.pos.y < nextMove.entryPos.y && state.pos.y < nextMove.exitPos.y) flag = true
 
-          if (state.pos.y < lastMove.entryPos.y) flag = true;
+          // if (state.pos.y < lastMove.entryPos.y || state.pos.y < lastMove.exitPos.y) flag = true;
           if (flag) return (ticks > 0 && state.onGround) || state.isCollidedHorizontally;
           else return false;
         },
         () => {},
-        () => {},
+        (state) => stateLookAt(state, nextMove.exitPos),
         ctx,
         this.world,
         1000
@@ -172,6 +180,14 @@ export class DropDownOpt extends MovementOptimizer {
 
         // }, ()=> {}, () =>{}, ctx, this.world, 1000)
         return --currentIndex;
+      }
+
+      console.log('good', good, nextMove.entryPos, nextMove.exitPos, nextMove.moveType.constructor.name);
+
+      if (nextMove.exitPos.y === nextMove.entryPos.y) {
+        if (!bb1solid) return --currentIndex;
+        if (flag1) return currentIndex;
+        else flag1 = true;
       }
 
       lastMove = nextMove;
