@@ -381,7 +381,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
 export class ForwardDropDownExecutor extends MovementExecutor {
   private currentIndex!: number;
 
-  performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]) {
     this.currentIndex = currentIndex;
     this.alignToPath(thisMove);
 
@@ -551,7 +551,7 @@ export class StraightUpExecutor extends MovementExecutor {
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     for (const breakH of thisMove.toBreak) {
-      await this.lookAt(breakH.vec);
+      await this.lookAt(breakH.vec.offset(0.5, 0, 0.5));
       await this.performInteraction(breakH);
     }
 

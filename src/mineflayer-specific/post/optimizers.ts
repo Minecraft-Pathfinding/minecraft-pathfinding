@@ -209,7 +209,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     while (
       lastMove.exitPos.y === nextMove.exitPos.y &&
-      nextMove.exitPos.distanceTo(firstPos) <= 2 &&
+      nextMove.exitPos.distanceTo(firstPos) <= 2 && // remove for more aggressive opt.
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {

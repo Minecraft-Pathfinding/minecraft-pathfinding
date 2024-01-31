@@ -51,37 +51,61 @@ bot.on("chat", async (username, msg) => {
 
   switch (cmd) {
 
+    case "set":
     case "setting": {
-      const stuff = Object.entries(bot.pathfinder.defaultSettings);
-      const keys = stuff.map(([key]) => key);
-      const [key, value] = args;
-      if (!keys.includes(key)) return bot.chat(`Invalid setting ${key}`);
 
-      const newSets = {...bot.pathfinder.defaultSettings};
-      if (value === undefined) {
-        bot.chat(`${key} is ${bot.pathfinder.defaultSettings[key]}`);
+      
+      const stuff = Object.entries(bot.pathfinder.defaultSettings);
+      const stuff1 = Object.entries(bot.physics);
+      const keys = stuff.map(([key]) => key);
+      const keys1 = stuff1.map(([key]) => key);
+      const [key, value] = args;
+
+      if (key === 'list') {
+        bot.chat('Pathfinder settings: ' + keys.join(", ") );
+        bot.chat('Physics settings: ' + keys1.join(", ") );
+        break;
       }
+
+      if (!keys.includes(key) && !keys1.includes(key)) return bot.chat(`Invalid setting ${key}`);
+
+      let setter = null;
+    
+
 
 
       if (value === "true") {
-        newSets[key] = true;
+        setter = true;
       }
 
       if (value === "false") {
-        newSets[key] = false;
+        setter = false;
       }
 
       if (!isNaN(Number(value))) {
-        newSets[key] = Number(value);
+        setter = Number(value);
       }
 
-      bot.chat(`${key} is now ${newSets[key]}, was ${bot.pathfinder.defaultSettings[key]}`);
-      bot.pathfinder.setDefaultOptions(newSets);
-
+      if (keys.includes(key)) {
+      
+        if (value === undefined) {
+          bot.chat(`${key} is ${bot.pathfinder.defaultSettings[key]}`);
+          break;
+        }
+        const newSets = {...bot.pathfinder.defaultSettings};
+      
+        bot.chat(`${key} is now ${value}, was ${bot.pathfinder.defaultSettings[key]}`);
+        newSets[key] = setter;
+        bot.pathfinder.setDefaultOptions(newSets);
+      } else {
+        if (value === undefined) {
+          bot.chat(`${key} is ${bot.physics[key]}`);
+          break;
+        }
+        bot.chat(`${key} is now ${value}, was ${bot.physics[key]}`);
+        bot.physics[key] = setter;
+      }
       break;
-
-
-
     }
 
     case "walkto": {
