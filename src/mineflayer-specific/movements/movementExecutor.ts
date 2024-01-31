@@ -115,7 +115,7 @@ export abstract class MovementExecutor extends Movement {
     bb0.extend(0, -0.1, 0);
     bb0.expand(-0.0001, 0, -0.0001);
 
-    const bb1 = AABB.fromBlock(startMove.exitPos.floored().translate(0, -1, 0));
+    const bb1 = AABB.fromBlock(endMove.exitPos.floored().translate(0, -1, 0));
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
     const xzVelDir = xzVel.normalize();
 
@@ -352,6 +352,10 @@ export abstract class MovementExecutor extends Movement {
     // this.bot.setControlState("forward", true);
 
     // }
+
+    if (handleBack) {
+      botSmartMovement(this.bot, target, true);
+    }
 
     this.simCtx.state.updateFromBot(this.bot);
     const state = this.bot.physicsUtil.engine.simulate(this.simCtx, this.world);

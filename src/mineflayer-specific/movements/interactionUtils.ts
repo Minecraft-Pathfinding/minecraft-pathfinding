@@ -226,7 +226,7 @@ export class PlaceHandler extends InteractHandler {
           }
 
           const eyePos = state.pos.offset(0, 1.62, 0);
-          // const bb1 = state.getAABB();
+          const bb0 = AABB.fromBlock(this.vec)
           const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 });
 
           const dx = state.pos.x - (this.vec.x + 0.5);
@@ -251,6 +251,8 @@ export class PlaceHandler extends InteractHandler {
             ];
           });
 
+     
+          // verts.push(...bb0.expand(-0.01, -0.01, -0.01).toVertices())
           // verts.push(this.vec.offset(0.5, 0.1, 0.5));
 
           // console.log(state.pos, this.vec, verts)

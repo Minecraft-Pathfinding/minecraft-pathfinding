@@ -302,7 +302,7 @@ export abstract class Movement {
 
   safeOrPlace(block: BlockInfo, toPlace: PlaceHandler[], type: InteractType="solid") {
     if (!this.settings.canPlace) return 100;
-    if (block.block === null) return 0; // Don't know its type, but that's only replaceables so just return.
+    if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
     if (block.physical) return 0; // block is already physical at location.
 
     const cost = this.placeCost(block);

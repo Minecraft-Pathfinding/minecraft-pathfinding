@@ -126,11 +126,10 @@ export class ForwardJump extends MovementProvider {
 
     const block0 = this.getBlockInfo(pos, 0, -1, 0);
     if (cHeight - block0.height > 1.2) return; // Too high to jump
-
+ 
     if ((cost += this.safeOrBreak(blockA, toBreak)) > 100) return;
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return;
-    if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return;
-
+    if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return;
     // if (toPlace.length === 2) return;
     // set exitPos to center of block we want.
     neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));

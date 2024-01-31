@@ -68,7 +68,7 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal);
     }
 
-    // return moves;
+    return moves;
 
     // for differences less than 1 block, we only supply best movement to said block.
 
