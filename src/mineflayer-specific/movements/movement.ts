@@ -12,11 +12,13 @@ import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 import { Vec3Properties } from "../../types";
 
 export interface MovementOptions {
+  digCost: number;
   forceLook: boolean;
   jumpCost: number;
   placeCost: number;
   canOpenDoors: boolean;
   canDig: boolean;
+  canPlace: boolean;
   dontCreateFlow: boolean;
   dontMineUnderFallingBlock: boolean;
   allow1by1towers:boolean
@@ -29,6 +31,7 @@ export interface MovementOptions {
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   canOpenDoors: true,
   canDig: true,
+  canPlace: true,
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
   allow1by1towers: true,
@@ -36,6 +39,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
   placeCost: 1,
+  digCost: 1,
   jumpCost: 0.5,
   forceLook: true,
   careAboutLookAlignment: true
@@ -260,6 +264,8 @@ export abstract class Movement {
     // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
     if (block.safe) return cost;
+
+    if (block.block === null) return 100; // Don't know its type, so can't move
     if (!this.safeToBreak(block)) return 100; // Can't break, so can't move
     toBreak.push(BreakHandler.fromVec(block.position, "solid"));
 
@@ -267,12 +273,11 @@ export abstract class Movement {
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
-    // const tool = null as any;
-    // const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
-    // const effects = this.bot.entity.effects
-    // const digTime = block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
-    // const laborCost = (1 + 3 * digTime / 1000) * this.digCost
-    const laborCost = 1;
+    const tool = null as any;
+    const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
+    const effects = this.bot.entity.effects
+    const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
+    const laborCost = (1 + 3 * digTime / 1000) * this.settings.digCost;
     cost += laborCost;
     return cost;
   }

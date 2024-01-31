@@ -41,7 +41,7 @@ export class Forward extends MovementProvider {
     const toPlace: PlaceHandler[] = [];
 
     if (!blockD.physical && !blockC.liquid) {
-      if (start.remainingBlocks === 0) return; // not enough blocks to place
+      if (start.remainingBlocks <= 0) return; // not enough blocks to place
 
       // if (this.getNumEntitiesAt(blockD.position, 0, 0, 0) > 0) return // D intersects an entity hitbox
       if (!blockD.replaceable) {
@@ -98,7 +98,7 @@ export class ForwardJump extends MovementProvider {
     // if (blockB.physical && !blockH.physical && !blockC.physical && (this.getNumEntitiesAt(blockB.position, 0, 1, 0) > 0)) return // It is fine if an ent falls on B so long as we don't need to replace block C
 
     if (!blockC.physical) {
-      if (node.remainingBlocks === 0) return; // not enough blocks to place
+      if (node.remainingBlocks <= 0) return; // not enough blocks to place
 
       // if (this.getNumEntitiesAt(blockC.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
 
@@ -147,7 +147,7 @@ export class ForwardJump extends MovementProvider {
 }
 
 export class ForwardDropDown extends MovementProvider {
-  private currentIndex!: number;
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.cardinalDirs) {
       this.getMoveDropDown(start, dir, storage);
@@ -207,7 +207,7 @@ export class ForwardDropDown extends MovementProvider {
 }
 
 export class Diagonal extends MovementProvider {
-  static diagonalCost = 1.4142135623730951; // sqrt(2)
+  static diagonalCost = Math.SQRT2; // sqrt(2)
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.diagonalDirs) {
@@ -240,7 +240,7 @@ export class Diagonal extends MovementProvider {
           cost += 1;
         }
 
-        if (node.remainingBlocks === 0) return; // not enough blocks to place
+        if (node.remainingBlocks <= 0) return; // not enough blocks to place
         // cost += this.exclusionPlace(blockCheck0)
         toPlace.push(PlaceHandler.fromVec(wanted.position, "solid"));
         cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
@@ -270,8 +270,9 @@ export class Diagonal extends MovementProvider {
       //     cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
       //   }
 
-      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
+      
       toPlace.push(PlaceHandler.fromVec(blockN1.position, "solid"));
+      cost += this.settings.placeCost; // this.placeCost // additional cost for placing a block
     }
 
     cost += this.safeOrBreak(block0, toBreak);
@@ -281,11 +282,6 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak);
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak);
     if (cost > 100) return;
-    // if (needSideClearance) {
-    //   const blockN1A = this.getBlockInfo(node, dir.x, -1, 0);
-    //   const blockN1B = this.getBlockInfo(node, 0, -1, dir.z);
-    //   if (blockN1A.physical || blockN1B.physical) return;
-    // }
 
     neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
@@ -352,8 +348,8 @@ export class StraightUp extends MovementProvider {
     if (cost > 100) return;
 
     if (!block1.climbable) {
-      if (!this.settings.allow1by1towers || node.remainingBlocks === 0) return; // not enough blocks to place
-      // console.log('hey')
+      if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return; // not enough blocks to place
+
       if (!block1.replaceable) {
         if (!this.safeToBreak(block1)) return;
         toBreak.push(BreakHandler.fromVec(block1.position, "solid"));

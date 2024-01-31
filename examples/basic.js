@@ -14,8 +14,8 @@ bot.on("inject_allowed", () => {});
 bot.once("spawn", () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
-  bot.physics.yawSpeed = 5;
-  bot.physics.pitchSpeed = 3
+  // bot.physics.yawSpeed = 3;
+  // bot.physics.pitchSpeed = 3
 
   // apply hot-fix to mineflayer's physics engine.
   const val = new EntityPhysics(bot.registry);
@@ -226,7 +226,7 @@ bot.on("chat", async (username, msg) => {
       if (!author) return bot.chat("failed to find player");
       const authorPos = author.position.clone();
       const rayBlock = rayTraceEntitySight({ entity: author });
-      if (!rayBlock) return bot.chat("No block in sigth");
+      if (!rayBlock) return bot.chat("No block in sight");
       lastStart = rayBlock.position.clone().offset(0.5, 1, 0.5);
       const startTime = performance.now();
       await bot.pathfinder.goto(GoalBlock.fromVec(lastStart));
