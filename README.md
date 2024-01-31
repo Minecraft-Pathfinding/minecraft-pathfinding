@@ -4,6 +4,8 @@
 # What is it?
 This pathfinder is still in HEAVY development. It is not meant to be used in production. However, you can use the code in `examples` to understand how the pathfinder works.
 
+This pathfinder gets a minecraft bot from point A to point B with unnecessarily stylish movement:tm:.
+
 # Why is it better?
 Already, its execution is better than both Baritone's and mineflayer-pathfinder's. It also follows an entirely different paradigm--each move's execution is split into individual parts, which combined with a modular movement provider/executor/optimizer system makes this pathfinder *extremely* customizable. So long as a single movement's execution handles all entry cases (which is possible), it can be immediately integrated into this bot. I will add examples later.
 
