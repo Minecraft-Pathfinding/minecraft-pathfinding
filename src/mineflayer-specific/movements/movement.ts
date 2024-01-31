@@ -24,7 +24,6 @@ export interface MovementOptions {
   infiniteLiquidDropdownDistance:boolean;
   allowSprinting: boolean;
   careAboutLookAlignment: boolean;
-  
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
