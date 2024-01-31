@@ -15,6 +15,8 @@ Already, its execution is better than both Baritone's and mineflayer-pathfinder'
 ### Goals
 There is currently only one goal: `goals.GoalBlock`. You can easily make a goal via: `GoalBlock.fromVec(<vec3>)`
 
+This goal will have the bot stand on top of the block chosen.
+
 Code example:
 ```ts
 const {Vec3} = require('vec3')
