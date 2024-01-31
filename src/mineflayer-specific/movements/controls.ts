@@ -37,7 +37,7 @@ export function wrapDegrees(degrees: number): number {
 
 export function wrapRadians(radians: number): number {
   const tmp = radians % TWO_PI;
-  console.log('radians', radians, 'tmp', tmp, tmp < 0 ? tmp + Math.PI : tmp - Math.PI);
+  // console.log('radians', radians, 'tmp', tmp, tmp < 0 ? tmp + Math.PI : tmp - Math.PI);
   return tmp < 0 ? tmp + Math.PI : tmp > 0 ? tmp - Math.PI : tmp;
 }
 

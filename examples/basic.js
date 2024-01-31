@@ -15,6 +15,7 @@ bot.once("spawn", () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
   bot.physics.yawSpeed = 5;
+  bot.physics.pitchSpeed = 3
 
   // apply hot-fix to mineflayer's physics engine.
   const val = new EntityPhysics(bot.registry);

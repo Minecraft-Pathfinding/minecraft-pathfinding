@@ -151,7 +151,7 @@ export abstract class MovementExecutor extends Movement {
     for (const breakTarget of this.currentMove.toBreak) {
       if (breakTarget !== this._cI && !breakTarget.done) {
         const res = await breakTarget.performInfo(this.bot, ticks);
-        console.log("break", res, res.raycasts.length > 0);
+        // console.log("break", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return breakTarget;
       }
     }
@@ -159,7 +159,7 @@ export abstract class MovementExecutor extends Movement {
     for (const place of this.currentMove.toPlace) {
       if (place !== this._cI && !place.done) {
         const res = await place.performInfo(this.bot, ticks);
-        console.log("place", res, res.raycasts.length > 0);
+        // console.log("place", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return place;
       }
     }
@@ -265,7 +265,7 @@ export abstract class MovementExecutor extends Movement {
     const vec3XZ = vec3.offset(0, -vec3.y, 0)
 
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0);
-    console.log(blPosXZ, vec3XZ, vec3XZ.minus(eyePos).normalize().dot(blPosXZ.minus(eyePos).normalize()), 1 - limit);
+    // console.log(blPosXZ, vec3XZ, vec3XZ.minus(eyePos).normalize().dot(blPosXZ.minus(eyePos).normalize()), 1 - limit);
 
     return bl.intersect.minus(eyePos).normalize().dot(vec3.minus(eyePos).normalize()) > 1 - limit;
 
@@ -342,7 +342,7 @@ export abstract class MovementExecutor extends Movement {
     //   else this.lookAtPathPos(endMove.exitPos);
     // } else {
     // botStrafeMovement(this.bot, endMove.exitPos);
-    console.log("target", target, opts)
+    // console.log("target", target, opts)
     if (target !== endMove.exitPos) await this.lookAt(target);
     else await this.lookAtPathPos(target);
 

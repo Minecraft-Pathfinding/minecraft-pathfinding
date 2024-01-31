@@ -282,7 +282,7 @@ export class PlaceHandler extends InteractHandler {
             if (good === 0) return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick, raycasts: works };
           }
         }
-        console.log('RAN I', i)
+        // console.log('RAN I', i)
         return { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: works };
       }
 
@@ -369,7 +369,7 @@ export class PlaceHandler extends InteractHandler {
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face));
           const pos1Bl = AABB.fromBlock(pos1);
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
-            console.log("skipping on tick", i);
+            // console.log("skipping on tick", i);
             if (i < works.ticks - 1 && i !== 0) {
               await bot.waitForTicks(1);
             }
@@ -385,7 +385,7 @@ export class PlaceHandler extends InteractHandler {
           if (!this.move.isLookingAt(rayRes.intersect)) {
 
           
-          const start = performance.now();
+          // const start = performance.now();
           // const old0 = bot.getControlState('jump')
           // const old1 = bot.getControlState('sneak') 
           // const flag = bot.entity.onGround 
@@ -394,7 +394,7 @@ export class PlaceHandler extends InteractHandler {
           await bot.lookAt(rayRes.intersect,  this.settings.forceLook);
           // if (flag) bot.setControlState("sneak", old1);
 
-          console.log("look took", performance.now() - start, "ms");
+          // console.log("look took", performance.now() - start, "ms");
           // bot.setControlState('jump', old0)
           }
         }
@@ -408,13 +408,13 @@ export class PlaceHandler extends InteractHandler {
           throw new CancelError("Invalid placement");
         }
 
-        console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
-        console.log(bot.entity.position, bot.entity.velocity);
+        // console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
+        // console.log(bot.entity.position, bot.entity.velocity);
 
         let finished = false;
         let sneaking = false;
         let direction = this.faceToVec(rayRes.face);
-        console.log("looking at", rayRes.intersect);
+        // console.log("looking at", rayRes.intersect);
         start = performance.now();
         const task = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
         if (predictBlock) {

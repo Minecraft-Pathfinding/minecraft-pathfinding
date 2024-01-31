@@ -120,7 +120,7 @@ export class DropDownOpt extends MovementOptimizer {
 
     while (currentIndex < path.length) {
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
-      if (nextMove.exitPos.y === nextMove.entryPos.y) return --currentIndex;
+      if (nextMove.exitPos.y === nextMove.entryPos.y && nextMove.toPlace.length === 0 && nextMove.toBreak.length === 0) return currentIndex;
 
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
       ctx.position.set(lastMove.entryPos.x, lastMove.entryPos.y, lastMove.entryPos.z);
@@ -144,9 +144,9 @@ export class DropDownOpt extends MovementOptimizer {
             return true;
           }
 
-          // if (state.pos.xzDistanceTo(nextMove.entryPos) > lastMove.entryPos.xzDistanceTo(nextMove.entryPos) + 1) {
-          //   return false;
-          // }
+          if (state.pos.xzDistanceTo(nextMove.entryPos) > lastMove.entryPos.xzDistanceTo(nextMove.entryPos) + 1) {
+            return false;
+          }
 
           if (state.pos.y < lastMove.entryPos.y) flag = true;
           if (flag) return (ticks > 0 && state.onGround) || state.isCollidedHorizontally;

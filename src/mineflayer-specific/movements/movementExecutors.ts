@@ -165,7 +165,7 @@ export class ForwardExecutor extends MovementExecutor {
 
     if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
     if (!this.bot.entity.onGround) {
-      console.log(this.bot.entity.position, this.bot.entity.velocity);
+      // console.log(this.bot.entity.position, this.bot.entity.velocity);
       throw new CancelError("ForwardMove: not on ground");
     }
     if ((this.bot.entity as any).isCollidedHorizontally) {
@@ -321,7 +321,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
         this.bot.setControlState("sprint", true);
       }
 
-      console.log("info", this.jumpInfo);
+      // console.log("info", this.jumpInfo);
       for (const place of thisMove.toPlace) {
         const test = await place.performInfo(this.bot);
         if (test !== null) await this.performInteraction(place, { info: test });
@@ -479,7 +479,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
 export class StraightDownExecutor extends MovementExecutor {
   align(thisMove: Move): boolean {
     this.bot.clearControlStates();
-    console.log('align down', this.bot.entity.position, thisMove.entryPos, this.bot.entity.position.xzDistanceTo(thisMove.entryPos)) 
+    // console.log('align down', this.bot.entity.position, thisMove.entryPos, this.bot.entity.position.xzDistanceTo(thisMove.entryPos)) 
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
       return true;

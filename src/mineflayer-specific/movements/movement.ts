@@ -38,7 +38,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   allowSprinting: true,
   placeCost: 1,
   jumpCost: 0.5,
-  forceLook: false,
+  forceLook: true,
   careAboutLookAlignment: true
 };
 

@@ -6,10 +6,11 @@
     "mineflayer": "^4.10.1"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "pub": "npm run build && npm publish --access public"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/GenerelSchwerz/minecraft-pathfinding.git",
