@@ -29,10 +29,12 @@ export class ForwardExecutor extends MovementExecutor {
    * TOOD: not yet working.
    */
   private async facingCorrectDir() {
+
+    return this.currentMove?.toPlace.length === 0
     const wanted = await this.interactPossible(15);
 
     if (wanted) {
-      const test = await wanted.performInfo(this.bot, 15);
+      const test = await wanted!.performInfo(this.bot, 15);
 
       // cannot do interact while facing initial direction
       if (test.raycasts.length > 0) {
@@ -63,7 +65,7 @@ export class ForwardExecutor extends MovementExecutor {
   }
 
   async align(thisMove: Move, tickCount: number, goal: goals.Goal) {
-    let faceForward = thisMove.toPlace.length === 0//await this.facingCorrectDir();
+    let faceForward = await this.facingCorrectDir();
 
     if (faceForward) {
       void this.lookAt(thisMove.entryPos);
@@ -110,7 +112,7 @@ export class ForwardExecutor extends MovementExecutor {
     this.bot.clearControlStates();
     this.currentIndex = 0;
 
-    let faceForward = thisMove.toPlace.length === 0//await this.facingCorrectDir();
+    let faceForward = await this.facingCorrectDir();
 
     if (faceForward) {
       void this.lookAt(thisMove.entryPos);
@@ -208,7 +210,7 @@ export class ForwardExecutor extends MovementExecutor {
       // throw new CancelError("ForwardMove: collided horizontally");
     }
 
-    let faceForward = thisMove.toPlace.length === 0//await this.facingCorrectDir();
+    let faceForward = await this.facingCorrectDir();
 
     if (faceForward) {
       if (false) {
