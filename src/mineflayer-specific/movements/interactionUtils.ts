@@ -7,10 +7,11 @@ import { BlockInfo } from "../world/cacheWorld";
 import { EPhysicsCtx, EntityPhysics, EntityState } from "@nxg-org/mineflayer-physics-util";
 import { World } from "../world/worldInterface";
 import { AABB, AABBUtils, BlockFace } from "@nxg-org/mineflayer-util-plugin";
-import { onceWithCleanup } from "../../utils";
 
-import type { RaycastBlock } from "prismarine-world/types/iterators";
 import { CancelError } from "./exceptions";
+import { Movement, MovementOptions } from "./movement";
+import { MovementExecutor } from "./movementExecutor";
+import { Block } from "../../types";
 
 type InteractType = "water" | "solid" | "replaceable";
 export type RayType = {
@@ -32,6 +33,11 @@ export interface InteractOpts {
   predictBlock?: boolean;
 }
 
+/**
+ * TODO: Predict time of rotation for looking.
+ * 
+ * Allow looking sooner than the actual block placement.
+ */
 export abstract class InteractHandler {
   protected performing = false;
   public readonly vec: Vec3;
@@ -42,6 +48,12 @@ export abstract class InteractHandler {
 
   public readonly blockInfo: BlockInfo;
   public readonly bb: AABB;
+
+  protected readonly move!: MovementExecutor
+  
+  protected get settings() {
+    return this.move.settings;
+  }
 
   constructor(
     public readonly x: number,
@@ -67,6 +79,10 @@ export abstract class InteractHandler {
     return !this._internalLock;
   }
 
+  public loadMove(move: Movement) {
+    (this as any).move = move
+  }
+
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
   abstract perform(bot: Bot, item?: Item, opts?: InteractOpts): Promise<void>;
   abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
@@ -85,9 +101,16 @@ export abstract class InteractHandler {
     }
   }
 
-  allowExternalInfluence(bot: Bot, ticks = 0, sneak = false): boolean {
+  /**
+   * TODO: FUCK
+   */
+  async allowExternalInfluence(bot: Bot, ticks = 1, sneak = false) {
     if (!this.performing) return true;
     if (!this._internalLock) return true;
+
+    const res = await this.performInfo(bot, ticks);
+    if (res.ticks < Infinity) return true;
+
     const ectx = new EntityPhysics(bot.registry);
     const state = EPhysicsCtx.FROM_BOT(ectx, bot);
 
@@ -190,9 +213,13 @@ export class PlaceHandler extends InteractHandler {
 
         let startTick = 0;
         let shiftTick = Infinity;
-        for (let i = 0; i <= ticks; i++) {
+        let i = 0
+        for (; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
+
           const state = ectx.state;
+
+          state.control.set("sneak", shiftTick < Infinity);
           for (let j = 0; j < i; j++) {
             // inaccurate, should reset physics sim, but whatever.
             bot.physicsUtil.engine.simulate(ectx, bot.world);
@@ -236,14 +263,12 @@ export class PlaceHandler extends InteractHandler {
             )) as unknown as RayType;
             if (rayRes === null) continue;
             const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face));
-            // console.log(pos)
             if (pos.equals(this.vec)) {
               if (bb1.containsVec(rayRes.intersect)) continue;
               if (AABB.fromBlock(pos).intersects(bb1)) {
                 if (shiftTick === Infinity) {
                   shiftTick = i;
                   i--;
-                  state.control.set("sneak", true);
                 }
 
                 continue;
@@ -257,6 +282,7 @@ export class PlaceHandler extends InteractHandler {
             if (good === 0) return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick, raycasts: works };
           }
         }
+        console.log('RAN I', i)
         return { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: works };
       }
 
@@ -290,7 +316,7 @@ export class PlaceHandler extends InteractHandler {
         if (item.name !== "water_bucket") throw new Error("Invalid item");
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
 
-        await bot.lookAt(this.vec, true);
+        await bot.lookAt(this.vec, this.settings.forceLook);
         bot.activateItem(this.offhand);
         break; // not necessary.
       }
@@ -319,6 +345,7 @@ export class PlaceHandler extends InteractHandler {
         if (rayRes === undefined) throw new Error("Invalid block");
 
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face));
+        const posBlRef = AABB.fromBlockPos(rayRes.position);
         const posBl = AABB.fromBlock(pos);
 
         let invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos));
@@ -351,14 +378,33 @@ export class PlaceHandler extends InteractHandler {
           await bot.waitForTicks(1);
         }
 
-        await bot.lookAt(rayRes.intersect, true);
-
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 });
+
+        if (this.settings.forceLook) {
+
+          if (!this.move.isLookingAt(rayRes.intersect)) {
+
+          
+          const start = performance.now();
+          // const old0 = bot.getControlState('jump')
+          // const old1 = bot.getControlState('sneak') 
+          // const flag = bot.entity.onGround 
+          // // bot.setControlState('jump', false)
+          // if (flag) bot.setControlState("sneak", true);
+          await bot.lookAt(rayRes.intersect,  this.settings.forceLook);
+          // if (flag) bot.setControlState("sneak", old1);
+
+          console.log("look took", performance.now() - start, "ms");
+          // bot.setControlState('jump', old0)
+          }
+        }
+
+        
         const invalidPlacement = botBB.intersects(posBl);
         if (invalidPlacement) {
           // console.log("invalid placement", bot.entity.position, invalidPlacement1, invalidPlacement);
           // console.log(botBB, posBl);
-          await bot.lookAt(rayRes.intersect);
+          await bot.lookAt(rayRes.intersect, this.settings.forceLook);
           throw new CancelError("Invalid placement");
         }
 
@@ -406,9 +452,9 @@ export class PlaceHandler extends InteractHandler {
     }
 
     if (opts.returnToPos !== undefined) {
-      await bot.lookAt(opts.returnToPos, true);
+      await bot.lookAt(opts.returnToPos, this.settings.forceLook);
     } else if (opts.returnToStart) {
-      await bot.look(curInfo.yaw, curInfo.pitch, true);
+      await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook);
     }
 
     this._done = true;
@@ -460,6 +506,7 @@ export class BreakHandler extends InteractHandler {
   async perform(bot: Bot, item?: Item, opts: InteractOpts = {}): Promise<void> {
     if (this.performing) throw new Error("Already performing");
     this.performing = true;
+    this._internalLock = true;
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
     switch (this.type) {
@@ -467,7 +514,7 @@ export class BreakHandler extends InteractHandler {
         if (item === undefined) throw new Error("No item");
         if (item.name !== "bucket") throw new Error("Invalid item");
         if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
-        await bot.lookAt(this.vec, true);
+        await bot.lookAt(this.vec, this.settings.forceLook);
         bot.activateItem(this.offhand);
         break; // not necessary.
       }
@@ -478,8 +525,11 @@ export class BreakHandler extends InteractHandler {
         } else if (this.getCurrentItem(bot) !== item!) this.equipItem(bot, item!);
         const block = await bot.world.getBlock(this.vec);
         if (!block) throw new Error("Invalid block");
-        await bot.lookAt(this.vec, true);
-        await bot.dig(block, false);
+        await bot.lookAt(this.vec, this.settings.forceLook);
+        const task = bot.dig(block, false);
+        this._internalLock = false;
+
+        await task;
         break;
       }
 
@@ -495,11 +545,12 @@ export class BreakHandler extends InteractHandler {
     }
 
     if (opts.returnToPos !== undefined) {
-      await bot.lookAt(opts.returnToPos, true);
+      await bot.lookAt(opts.returnToPos, this.settings.forceLook);
     } else if (opts.returnToStart) {
-      await bot.util.move.forceLook(curInfo.yaw, curInfo.pitch, true);
+      await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook);
     }
 
     this.performing = false;
+    this._done = true;
   }
 }

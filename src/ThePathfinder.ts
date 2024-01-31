@@ -300,6 +300,7 @@ export class ThePathfinder {
         currentIndex += adding as number;
       } catch (err) {
         if (err instanceof CancelError) {
+          console.log('CANCEL ERROR', this.bot.entity.position, this.bot.entity.velocity, goal, move.entryPos, move.exitPos, move.moveType.constructor.name, currentIndex, newPath.path.length, tickCount, err);
           console.log(newPath.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
           await this.recovery(move, newPath, goal, entry);
           break outer;

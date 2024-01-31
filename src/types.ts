@@ -1,18 +1,17 @@
 
-interface Vec3Properties {
+export interface Vec3Properties {
     x: number
     y: number
     z: number
   }
   
 
-type BlockType = ReturnType<typeof import('prismarine-block')>
-type Block = InstanceType<BlockType>
+export type BlockType = ReturnType<typeof import('prismarine-block')>
+export type Block = import('prismarine-block').Block
 
+export type MCData = import('minecraft-data').IndexedData
 
-type MCData = import('minecraft-data').IndexedData
-
-interface PlaceBlockOptions {
+export interface PlaceBlockOptions {
   half?: 'top'|'bottom'
   delta?: Vec3Properties
   forceLook?: boolean | 'ignore'
@@ -22,7 +21,7 @@ interface PlaceBlockOptions {
  }
 
 
- interface InteractionPerformInfo {
+ export interface InteractionPerformInfo {
   raycasts: any[],
   ticks: number
   shiftTick: number

@@ -7,6 +7,7 @@ import { PCChunk } from 'prismarine-chunk'
 import type { Biome } from 'prismarine-biome'
 
 import interactables from './interactable.json'
+import { Block, BlockType, MCData } from '../../types'
 
 interface BlockInfoStatic {
   interactableBlocks: Set<string>;

@@ -9,8 +9,10 @@ import * as nbt from "prismarine-nbt";
 import { AABB } from "@nxg-org/mineflayer-util-plugin";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from "./interactionUtils";
 import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
+import { Vec3Properties } from "../../types";
 
 export interface MovementOptions {
+  forceLook: boolean;
   jumpCost: number;
   placeCost: number;
   canOpenDoors: boolean;
@@ -21,6 +23,7 @@ export interface MovementOptions {
   maxDropDown:number;
   infiniteLiquidDropdownDistance:boolean;
   allowSprinting: boolean;
+  careAboutLookAlignment: boolean;
   
 }
 
@@ -34,7 +37,9 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
   placeCost: 1,
-  jumpCost: 0.5
+  jumpCost: 0.5,
+  forceLook: false,
+  careAboutLookAlignment: true
 };
 
 const cardinalVec3s: Vec3[] = [
@@ -100,7 +105,7 @@ export abstract class Movement {
 
   protected readonly bot: Bot;
   protected readonly world: World;
-  protected readonly settings: MovementOptions;
+  public readonly settings: MovementOptions;
 
 
   protected currentMove!: Move;
@@ -108,7 +113,7 @@ export abstract class Movement {
   /**
    * Current interaction.
    */
-  protected cI?: InteractHandler;
+  protected _cI?: InteractHandler;
 
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot;

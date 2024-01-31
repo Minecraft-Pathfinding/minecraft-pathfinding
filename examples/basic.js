@@ -6,10 +6,7 @@ const { Vec3 } = require("vec3");
 
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
-const bot = createBot({ username: "testing1", auth: "offline", 
-host: "Ic3TankD2HO.aternos.me", 
-port: 44656 
-});
+const bot = createBot({ username: "testing1", auth: "offline", host: "Ic3TankD2HO.aternos.me", port: 44656 });
 const pathfinder = createPlugin();
 
 bot.on("inject_allowed", () => {});
@@ -17,7 +14,7 @@ bot.on("inject_allowed", () => {});
 bot.once("spawn", () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
-  bot.physics.yawSpeed = 3000;
+  bot.physics.yawSpeed = 5;
 
   // apply hot-fix to mineflayer's physics engine.
   const val = new EntityPhysics(bot.registry);
@@ -51,13 +48,24 @@ bot.on("chat", async (username, msg) => {
   const [cmd, ...args] = msg.split(" ");
   const author = bot.nearestEntity((e) => e.username === username);
 
-
   switch (cmd) {
-
-    case "cancel": 
+    case "walkto": {
+      if (args.length === 0) {
+        if (!author) return bot.chat("failed to find player");
+        bot.lookAt(author.position);
+      } else if (args.length === 3) {
+        bot.lookAt(new Vec3(parseFloat(args[0]), parseFloat(args[1]), parseFloat(args[2])));
+      } else {
+        bot.chat("walkto <x> <y> <z> | walkto <player>");
+      }
+      bot.setControlState("forward", true);
+      break;
+    }
+    case "cancel":
     case "stop": {
-      bot.chat('Canceling path')
+      bot.chat("Canceling path");
       bot.pathfinder.cancel();
+      bot.clearControlStates();
       break;
     }
     case "lookat": {
@@ -139,7 +147,7 @@ bot.on("chat", async (username, msg) => {
     case "cachesize": {
       bot.chat(bot.pathfinder.getCacheSize());
       break;
-    } 
+    }
 
     case "togglecache":
     case "cache": {
@@ -207,15 +215,15 @@ bot.on("chat", async (username, msg) => {
   }
 });
 
-bot._client.on('animation', (data) => {
-  if (data.animation !== 0) return
-  const entity = bot.entities[data.entityId]
-  if (!entity || entity.type !== 'player') return
-  if (!entity.heldItem || entity.heldItem.name !== 'stick') return
+bot._client.on("animation", (data) => {
+  if (data.animation !== 0) return;
+  const entity = bot.entities[data.entityId];
+  if (!entity || entity.type !== "player") return;
+  if (!entity.heldItem || entity.heldItem.name !== "stick") return;
   const block = rayTraceEntitySight({ entity: entity });
-  if (!block) return
+  if (!block) return;
   bot.pathfinder.goto(GoalBlock.fromVec(block.position.offset(0.5, 1, 0.5)));
-})
+});
 
 /**
  * @param { { entity: import('mineflayer').Entity } } options

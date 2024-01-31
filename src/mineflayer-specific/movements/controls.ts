@@ -35,6 +35,13 @@ export function wrapDegrees(degrees: number): number {
   return tmp < 0 ? tmp + TWO_PI : tmp;
 }
 
+export function wrapRadians(radians: number): number {
+  const tmp = radians % TWO_PI;
+  console.log('radians', radians, 'tmp', tmp, tmp < 0 ? tmp + Math.PI : tmp - Math.PI);
+  return tmp < 0 ? tmp + Math.PI : tmp > 0 ? tmp - Math.PI : tmp;
+}
+
+
 /**
  * control strafing left-to-right dependent on offset to current goal.
  * @param nextPoint

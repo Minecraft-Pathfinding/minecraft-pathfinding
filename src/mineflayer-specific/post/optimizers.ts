@@ -120,7 +120,7 @@ export class DropDownOpt extends MovementOptimizer {
 
     while (currentIndex < path.length) {
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
-      if (nextMove.exitPos.y === nextMove.entryPos.y) return currentIndex;
+      if (nextMove.exitPos.y === nextMove.entryPos.y) return --currentIndex;
 
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
       ctx.position.set(lastMove.entryPos.x, lastMove.entryPos.y, lastMove.entryPos.z);
@@ -207,7 +207,12 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     const firstPos = lastMove.exitPos;
 
-    while (lastMove.exitPos.y === nextMove.exitPos.y && nextMove.exitPos.distanceTo(firstPos) <= 2) {
+    while (
+      lastMove.exitPos.y === nextMove.exitPos.y &&
+      nextMove.exitPos.distanceTo(firstPos) <= 2 &&
+      nextMove.toPlace.length === 0 &&
+      nextMove.toBreak.length === 0
+    ) {
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
