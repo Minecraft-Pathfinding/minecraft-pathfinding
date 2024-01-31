@@ -137,7 +137,7 @@ export class DropDownOpt extends MovementOptimizer {
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 });
-          const collided = pBB.collides(blockBB0) || pBB.collides(blockBB1);
+          const collided = pBB.collides(blockBB0) || pBB.collides(blockBB1) && state.onGround;
           console.log(state.pos, state.onGround, state.isCollidedHorizontally, pBB, blockBB0, collided);
           if (collided) {
             good = true;
