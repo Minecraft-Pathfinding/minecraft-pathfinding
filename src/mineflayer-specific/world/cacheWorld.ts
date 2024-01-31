@@ -49,6 +49,9 @@ export class BlockInfo {
 
   public readonly substituteBlockStateId: number = 1;
 
+
+  public breakCost?: number;
+
   constructor(
     public readonly replaceable: boolean,
     public readonly canFall: boolean,

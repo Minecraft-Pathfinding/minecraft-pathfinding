@@ -265,24 +265,27 @@ export abstract class Movement {
 
     // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
-
-    if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
-    if (!this.safeToBreak(block)) return 100; // Can't break, so can't move
-
+    
+    if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
+    
     if (block.safe) return 0; // TODO: block is a carpet or a climbable (BUG)
+
+    if (block.block === null) return (block.breakCost = 100); // Don't know its type, but that's only replaceables so just return.
+    
+    if (!this.safeToBreak(block)) return (block.breakCost = 100); // Can't break, so can't move
 
     const cost = this.breakCost(block);
 
     // console.log('cost for:', block.position, cost)
 
-    if (cost >= 100) return cost;
+    if (cost >= 100) return (block.breakCost = cost);
 
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
 
     toBreak.push(BreakHandler.fromVec(block.position, "solid"));
 
-    return cost;
+    return (block.breakCost = cost);
   }
 
   breakCost(block: BlockInfo) {
