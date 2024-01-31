@@ -10,7 +10,7 @@
     "pub": "npm run build && npm publish --access public"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/GenerelSchwerz/minecraft-pathfinding.git",
