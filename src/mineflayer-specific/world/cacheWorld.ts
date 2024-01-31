@@ -42,6 +42,11 @@ export class BlockInfo {
 
   static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1);
 
+  static _waterBlock: Block;
+  static _solidBlock: Block;
+  static _airBlock: Block;
+  static _replaceableBlock: Block;
+
   public readonly substituteBlockStateId: number = 1;
 
   constructor(
@@ -62,6 +67,13 @@ export class BlockInfo {
   static init(registry: MCData) {
     if (BlockInfo.initialized) return;
     BlockInfo.initialized = true;
+
+    const PBlock: BlockType = require("prismarine-block")(registry);
+
+    BlockInfo._waterBlock = PBlock.fromString("minecraft:water", 0);
+    BlockInfo._solidBlock = PBlock.fromString("minecraft:dirt", 0);
+    BlockInfo._airBlock = PBlock.fromString("minecraft:air", 0);
+    BlockInfo._replaceableBlock = PBlock.fromString("minecraft:air", 0); // also replaceable
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b));
 
@@ -125,6 +137,8 @@ export class BlockInfo {
   static fromBlock(b: Block) {
     const b1 = {} as any;
     b1.climbable = BlockInfo.climbables.has(b.type);
+
+    // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
     b1.safe = (b.boundingBox === "empty" || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type);
     b1.physical = b.boundingBox === "block" && !BlockInfo.fences.has(b.type);
     b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical;
@@ -154,22 +168,34 @@ export class BlockInfo {
 
   static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0, 0, 0), -1);
   static SOLID(pos: Vec3) {
-    return new BlockInfo(false, false, false, true, false, false, pos.y + 1, false, pos, -1);
+    return new BlockInfo(false, false, false, true, false, false, pos.y + 1, false, pos, BlockInfo._solidBlock.type, BlockInfo._solidBlock);
   }
 
   static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1);
   static AIR(pos: Vec3) {
-    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, -1);
+    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, BlockInfo._airBlock.type, BlockInfo._airBlock);
   }
 
   static REPLACEABLE1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1);
   static REPLACEABLE(pos: Vec3) {
-    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, -1);
+    return new BlockInfo(
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      0,
+      false,
+      pos,
+      BlockInfo._replaceableBlock.type, // functionally identical for mining.
+      BlockInfo._replaceableBlock
+    );
   }
 
   static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0, 0, 0), -1);
   static WATER(pos: Vec3) {
-    return new BlockInfo(false, false, false, false, true, false, 0, false, pos, -1);
+    return new BlockInfo(false, false, false, false, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock);
   }
 }
 

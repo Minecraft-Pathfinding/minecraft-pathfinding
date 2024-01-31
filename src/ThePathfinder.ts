@@ -162,7 +162,7 @@ export class ThePathfinder {
     moveHandler.loadGoal(goal);
 
     const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
-    const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, -1e-6);
+    const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, 0);
 
     let result = astarContext.compute();
     let ticked = false;

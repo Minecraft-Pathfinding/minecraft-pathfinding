@@ -13,7 +13,7 @@ import { Movement, MovementOptions } from "./movement";
 import { MovementExecutor } from "./movementExecutor";
 import { Block } from "../../types";
 
-type InteractType = "water" | "solid" | "replaceable";
+export type InteractType = "water" | "solid" | "replaceable";
 export type RayType = {
   intersect: Vec3;
   face: BlockFace;

@@ -22,12 +22,12 @@ export abstract class MovementOptimizer {
 
   mergeMoves(startIndex: number, endIndex: number, path: readonly Move[]) {
 
-    console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
+    // console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
       const startMove = path[startIndex];
       const endMove = path[endIndex];
   
-      console.log('start', startMove.x, startMove.y, startMove.z, startMove.entryPos, startMove.moveType.constructor.name)
-      console.log('end', endMove.x, endMove.y, endMove.z, endMove.exitPos, endMove.moveType.constructor.name)
+      // console.log('start', startMove.x, startMove.y, startMove.z, startMove.entryPos, startMove.moveType.constructor.name)
+      // console.log('end', endMove.x, endMove.y, endMove.z, endMove.exitPos, endMove.moveType.constructor.name)
       const toBreak = [...startMove.toBreak];
       const toPlace = [...startMove.toPlace];
       let costSum = 0;
@@ -42,7 +42,7 @@ export abstract class MovementOptimizer {
         costSum += intermediateMove.cost;
       }
   
-      console.log('fully merged', startMove.entryPos, endMove.exitPos, costSum)
+      // console.log('fully merged', startMove.entryPos, endMove.exitPos, costSum)
       return new Move(
         startMove.x,
         startMove.y,
@@ -87,10 +87,10 @@ export class Optimizer {
 
     const newMove = optimizer.mergeMoves(startIndex, endIndex, this.pathCopy);
 
-    console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    // console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
     this.pathCopy[startIndex] = newMove;
     this.pathCopy.splice(startIndex + 1, endIndex - startIndex);
-    console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    // console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
   }
 
   async compute() {
