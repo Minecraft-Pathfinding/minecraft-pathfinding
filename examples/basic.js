@@ -50,6 +50,40 @@ bot.on("chat", async (username, msg) => {
   const author = bot.nearestEntity((e) => e.username === username);
 
   switch (cmd) {
+
+    case "setting": {
+      const stuff = Object.entries(bot.pathfinder.defaultSettings);
+      const keys = stuff.map(([key]) => key);
+      const [key, value] = args;
+      if (!keys.includes(key)) return bot.chat(`Invalid setting ${key}`);
+
+      const newSets = {...bot.pathfinder.defaultSettings};
+      if (value === undefined) {
+        bot.chat(`${key} is ${bot.pathfinder.defaultSettings[key]}`);
+      }
+
+
+      if (value === "true") {
+        newSets[key] = true;
+      }
+
+      if (value === "false") {
+        newSets[key] = false;
+      }
+
+      if (!isNaN(Number(value))) {
+        newSets[key] = Number(value);
+      }
+
+      bot.chat(`${key} is now ${newSets[key]}, was ${bot.pathfinder.defaultSettings[key]}`);
+      bot.pathfinder.setDefaultOptions(newSets);
+
+      break;
+
+
+
+    }
+
     case "walkto": {
       if (args.length === 0) {
         if (!author) return bot.chat("failed to find player");

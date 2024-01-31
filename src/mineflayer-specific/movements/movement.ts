@@ -105,7 +105,7 @@ export abstract class Movement {
 
   protected readonly bot: Bot;
   protected readonly world: World;
-  public readonly settings: MovementOptions;
+  public settings: MovementOptions;
 
 
   protected currentMove!: Move;

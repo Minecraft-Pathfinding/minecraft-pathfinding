@@ -213,6 +213,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
+      if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;

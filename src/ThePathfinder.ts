@@ -139,6 +139,9 @@ export class ThePathfinder {
 
   setDefaultOptions(settings: Partial<MovementOptions>) {
     this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
+    for (const [_, executor] of this.movements) {
+      executor.settings = this.defaultSettings;
+    }
   }
 
   getPathTo(goal: goals.Goal, settings = this.defaultSettings) {

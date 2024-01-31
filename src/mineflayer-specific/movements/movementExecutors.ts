@@ -156,7 +156,8 @@ export class ForwardExecutor extends MovementExecutor {
     } else 
     
     if (!this.cI) {
-      const test = await this.interactPossible(10);
+      const start = performance.now();
+      const test = await this.interactPossible(15);
       if (test) {
         void this.performInteraction(test);
         return false;
@@ -523,6 +524,7 @@ export class StraightUpExecutor extends MovementExecutor {
     this.bot.clearControlStates();
     this.lookAt(thisMove.entryPos);
 
+
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
     if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2 && xzVel.norm() < 0.1) {
       return this.isLookingAt(thisMove.entryPos);
@@ -556,7 +558,7 @@ export class StraightUpExecutor extends MovementExecutor {
   
     // console.log(thisMove.toPlace.length)
     for (const place of thisMove.toPlace) {
-      await this.lookAt(place.vec);
+      await this.lookAt(place.vec.offset(0.5, 0, 0.5));
       this.bot.setControlState("jump", true);
       await this.performInteraction(place);
     }
