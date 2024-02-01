@@ -201,7 +201,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
     let lastMove = path[currentIndex];
     let nextMove = path[++currentIndex];
 
-    if (lastMove.toPlace.length > 1) return --currentIndex;
+    if (lastMove.toPlace.length > 0) return --currentIndex;
 
     if (nextMove === undefined) return --currentIndex;
 

@@ -353,7 +353,7 @@ export class ParkourForward extends MovementProvider {
       return;
     if (this.getBlockInfo(node, 0, 0, 0).liquid) return; // cant jump from water
 
-    let cost = 1 + this.settings.jumpCost; // move cost (move+jump)
+    let cost = (1*2) + this.settings.jumpCost; // 2-move cost (move+jump)
 
     // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important
     // cost += this.getNumEntitiesAt(node, dir.x, 0, dir.z) * this.entityCost
