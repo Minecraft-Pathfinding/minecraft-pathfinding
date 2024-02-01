@@ -33,11 +33,11 @@ bot.once("spawn", () => {
   // bot.jumpTicks = 0;
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
-    // bot.jumpTicks = 0
-    // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-    // ctx.state.jumpTicks = 0; // allow immediate jumping
-    // // ctx.state.control.set('sneak', true)
-    // return val.simulate(ctx, bot.world)
+    bot.jumpTicks = 0
+    const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    ctx.state.jumpTicks = 0; // allow immediate jumping
+    // ctx.state.control.set('sneak', true)
+    return val.simulate(ctx, bot.world)
     return oldSim(...args);
   };
 });

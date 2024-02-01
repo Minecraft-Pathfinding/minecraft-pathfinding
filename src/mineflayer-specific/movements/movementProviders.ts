@@ -29,14 +29,15 @@ export class Forward extends MovementProvider {
   getMoveForward(start: Move, dir: Vec3, neighbors: Move[]) {
     const pos = start.toVec();
 
-    
-    if (this.getBlockInfo(pos, 0, 0, 0).liquid) return; //cost += this.liquidCost
+    let cost = 1; // move cost
+
+    if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z);
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z);
     const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z);
 
-    let cost = 1; // move cost
+    
 
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
@@ -54,8 +55,9 @@ export class Forward extends MovementProvider {
 
     // console.log('yay!')
     // console.log('hello?', cost, blockC.block, blockB.block, this.breakCost(blockC), this.breakCost(blockB))
-    if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return;
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return;
+    if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return;
+    
 
 
     // set exitPos to center of wanted block
@@ -87,6 +89,9 @@ export class ForwardJump extends MovementProvider {
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z);
 
     let cost = 1 + this.settings.jumpCost; // move cost (move+jump)
+
+    if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
+
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
 
@@ -108,7 +113,8 @@ export class ForwardJump extends MovementProvider {
         // if (this.getNumEntitiesAt(blockD.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
 
         if (!blockD.replaceable) {
-          if ((cost += this.safeOrBreak(blockD, toBreak)) > 100) return;
+          if ((cost += this.breakCost(blockD)) > 100) return;
+          toBreak.push(BreakHandler.fromVec(blockD.position, "solid"));
         }
         // cost += this.exclusionPlace(blockD)
 
@@ -116,7 +122,8 @@ export class ForwardJump extends MovementProvider {
       }
 
       if (!blockC.replaceable) {
-        if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return;
+        if ((cost += this.breakCost(blockC)) > 100) return;
+          toBreak.push(BreakHandler.fromVec(blockC.position, "solid"));
       }
 
       if ((cost += this.safeOrPlace(blockC, toPlace, "solid")) > 100) return;
@@ -165,7 +172,7 @@ export class ForwardDropDown extends MovementProvider {
     const blockB = this.getBlockInfo(node, dir.x, 1, dir.z);
     const blockD = this.getBlockInfo(node, dir.x, -1, dir.z);
 
-    let cost = 1; // move cost
+    let cost = 1 + this.settings.jumpCost; // move cost
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
 
@@ -200,6 +207,10 @@ export class Diagonal extends MovementProvider {
 
   getMoveDiagonal(node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal) {
     let cost = Diagonal.diagonalCost;
+
+    if (this.getBlockInfo(node.entryPos.floored(), 0, 0, 0).liquid) cost += this.settings.liquidCost
+
+
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
     const block00 = this.getBlockInfo(node, 0, 0, 0);
@@ -286,13 +297,16 @@ export class StraightUp extends MovementProvider {
   }
 
   getMoveUp(node: Move, neighbors: Move[]) {
+
+    let cost = this.settings.jumpCost; // move cost
+    
     const block1 = this.getBlockInfo(node, 0, 0, 0);
-    if (block1.liquid) return;
+    if (block1.liquid) cost += this.settings.liquidCost;
     // if (this.getNumEntitiesAt(node, 0, 0, 0) > 0) return // an entity (besides the player) is blocking the building area
 
     const block2 = this.getBlockInfo(node, 0, 2, 0);
 
-    let cost = this.settings.jumpCost; // move cost
+   
     const toBreak: BreakHandler[] = [];
     const toPlace: PlaceHandler[] = [];
 
@@ -304,11 +318,13 @@ export class StraightUp extends MovementProvider {
       if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return; // not enough blocks to place
 
       if (!block1.replaceable) {
-        if ((cost += this.safeOrBreak(block1, toBreak)) > 100) return;
+        if ((cost += this.breakCost(block1)) > 100) return;
+        toBreak.push(BreakHandler.fromVec(block1.position, "solid"));
       }
 
       const block0 = this.getBlockInfo(node, 0, -1, 0);
 
+      if (block0.liquid) return; // cant build in water
       if (block0.physical && block0.height - node.y < -0.2) return; // cannot jump-place from a half block
 
       if ((cost += this.safeOrPlace(block1, toPlace, "solid")) > 100) return;

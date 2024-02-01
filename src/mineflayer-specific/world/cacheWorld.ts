@@ -8,6 +8,7 @@ import type { Biome } from "prismarine-biome";
 
 import interactables from "./interactable.json";
 import { Block, BlockType, MCData } from "../../types";
+import { AABB } from "@nxg-org/mineflayer-util-plugin";
 
 interface BlockInfoStatic {
   interactableBlocks: Set<string>;
@@ -47,7 +48,7 @@ export class BlockInfo {
   static _airBlock: Block;
   static _replaceableBlock: Block;
 
-  public readonly substituteBlockStateId: number = 1;
+  public static readonly substituteBlockStateId: number = 1;
 
 
   public breakCost?: number;
@@ -106,6 +107,9 @@ export class BlockInfo {
     if (registry.blocksByName.void_air) BlockInfo.replaceables.add(registry.blocksByName.void_air.id);
     BlockInfo.replaceables.add(registry.blocksByName.water.id);
     BlockInfo.replaceables.add(registry.blocksByName.lava.id);
+
+    if (registry.blocksByName.tall_grass) BlockInfo.replaceables.add(registry.blocksByName.tall_grass.id);
+    if (registry.blocksByName.grass) BlockInfo.replaceables.add(registry.blocksByName.grass.id);
 
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.dirt.id);
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.cobblestone.id);
@@ -200,6 +204,23 @@ export class BlockInfo {
   static WATER(pos: Vec3) {
     return new BlockInfo(false, false, false, false, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock);
   }
+
+
+  public getBBs() {
+    if (this.block) {
+      return this.block.shapes.map((shape) => AABB.fromShape(shape, this.position));
+    } else {
+      const hW = 0.5; // TODO: account for fences, chains, etc.
+      return [new AABB(
+        this.position.x - hW,
+        this.position.y,
+        this.position.z - hW,
+        this.position.x + hW,
+        this.height, // height is already y + certain elevation
+        this.position.z + hW
+      )]
+    }
+  }
 }
 
 export class BlockInfoGroup implements BlockInfo {
@@ -247,6 +268,16 @@ export class BlockInfoGroup implements BlockInfo {
   }
 
   public get block() {
+    throw new Error("Method not implemented.");
+    return null as any;
+  }
+
+  public get breakCost() {
+    throw new Error("Method not implemented.");
+    return null as any;
+  }
+
+  public getBBs() {
     throw new Error("Method not implemented.");
     return null as any;
   }

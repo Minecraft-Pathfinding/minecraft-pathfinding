@@ -164,6 +164,10 @@ export class ThePathfinder {
     const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
     const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, 0);
 
+
+    // technically introducing a bug here, where resetting the pathingUtil fucks up.
+    this.bot.pathingUtil.refresh();
+
     let result = astarContext.compute();
     let ticked = false;
 

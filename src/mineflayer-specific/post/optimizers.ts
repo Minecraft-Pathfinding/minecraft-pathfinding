@@ -8,7 +8,6 @@ import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { stateLookAt } from "../movements/movementUtils";
 
 export class StraightAheadOpt extends MovementOptimizer {
-
   async identEndOpt(currentIndex: number, path: Move[]): Promise<number> {
     const thisMove = path[currentIndex]; // starting move
 
@@ -121,10 +120,13 @@ export class DropDownOpt extends MovementOptimizer {
 
     const firstPos = lastMove.exitPos;
 
-    let flag1 = false
+    let flag0 = false;
+    let flag1 = false;
     while (currentIndex < path.length) {
-      if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
+      if (nextMove.exitPos.y > lastMove.exitPos.y) return --currentIndex;
 
+      // rough fix.
+      if (nextMove.exitPos.xzDistanceTo(firstPos) < lastMove.exitPos.xzDistanceTo(firstPos)) return --currentIndex;
 
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
       // ctx.position.set(firstPos.x, firstPos.y, firstPos.z);
@@ -137,8 +139,10 @@ export class DropDownOpt extends MovementOptimizer {
       ctx.state.control.forward = true;
       ctx.state.control.sprint = true;
 
-      const bb0solid = lastMove.moveType.getBlockInfo(nextMove.entryPos, 0, -1, 0).physical;
-      const bb1solid = lastMove.moveType.getBlockInfo(nextMove.exitPos, 0, -1, 0).physical;
+      const bl0 = lastMove.moveType.getBlockInfo(nextMove.entryPos, 0, -1, 0);
+      const bl1 = lastMove.moveType.getBlockInfo(nextMove.exitPos, 0, -1, 0);
+      const bb0solid = bl0.physical || bl0.liquid;
+      const bb1solid = bl1.physical || bl1.liquid;
       const blockBB0 = AABB.fromBlockPos(nextMove.entryPos.offset(0, -1, 0));
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0));
       let flag = false;
@@ -146,15 +150,16 @@ export class DropDownOpt extends MovementOptimizer {
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 });
-          const collided = (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid) && state.onGround;
+          const collided =
+            (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid && (state.onGround || state.isInWater));
           console.log(pBB, blockBB0, bb0solid, blockBB1, bb1solid);
-          console.log(state.onGround, state.isCollidedHorizontally, collided, flag)
+          console.log(state.onGround, state.isCollidedHorizontally, collided, flag);
           if (collided) {
             good = true;
             return true;
           }
 
-          if (state.pos.y < nextMove.entryPos.y && state.pos.y < nextMove.exitPos.y) flag = true
+          if (state.pos.y < nextMove.entryPos.y && state.pos.y < nextMove.exitPos.y) flag = true;
 
           // if (state.pos.y < lastMove.entryPos.y || state.pos.y < lastMove.exitPos.y) flag = true;
           if (flag) return (ticks > 0 && state.onGround) || state.isCollidedHorizontally;
@@ -167,27 +172,15 @@ export class DropDownOpt extends MovementOptimizer {
         1000
       );
 
-      if (!good) {
-        // stateLookAt(ctx.state, nextMove.exitPos);
-        // this.sim.simulateUntil((state,ticks) => {
-        //   const pBB = AABBUtils.getPlayerAABB({position: ctx.state.pos, width: 0.6, height: 1.8})
-        //   if (pBB.collides(blockBB)) {
-        //     good = true;
-        //     return true;
-        //   }
-
-        //   return state.pos.distanceTo
-
-        // }, ()=> {}, () =>{}, ctx, this.world, 1000)
-        return --currentIndex;
-      }
-
-      console.log('good', good, nextMove.entryPos, nextMove.exitPos, nextMove.moveType.constructor.name);
-
+      if (!good) return --currentIndex;
+      
+      if (ctx.state.isInWater) flag1 = true;
+      else if (flag1) return --currentIndex;
+     
       if (nextMove.exitPos.y === nextMove.entryPos.y) {
         if (!bb1solid) return --currentIndex;
-        if (flag1) return currentIndex;
-        else flag1 = true;
+        if (flag0) return currentIndex;
+        else flag0 = true;
       }
 
       lastMove = nextMove;

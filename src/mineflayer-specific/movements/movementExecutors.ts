@@ -29,8 +29,7 @@ export class ForwardExecutor extends MovementExecutor {
    * TOOD: not yet working.
    */
   private async facingCorrectDir() {
-
-    return this.currentMove?.toPlace.length === 0
+    return this.currentMove?.toPlace.length === 0;
     const wanted = await this.interactPossible(15);
 
     if (wanted) {
@@ -38,13 +37,11 @@ export class ForwardExecutor extends MovementExecutor {
 
       // cannot do interact while facing initial direction
       if (test.raycasts.length > 0) {
-
         // sort by dot product
-        const works = test.raycasts
+        const works = test.raycasts;
         const stateEyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0);
         const lookDir = this.bot.util.getViewDir();
         works.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir));
-
 
         const wanted = works[0].intersect;
         const xzLookDir = lookDir.offset(0, -lookDir.y, 0).normalize();
@@ -54,7 +51,14 @@ export class ForwardExecutor extends MovementExecutor {
         const wantDir = wanted.minus(this.bot.entity.position).normalize();
         const xzWantDir = wantDir.offset(0, -wantDir.y, 0).normalize();
 
-        console.log(xzWantDir, xzLookDir, xzWantDir.dot(xzLookDir), wanted, this.bot.entity.position, this.bot.entity.position.distanceTo(wanted) < 5)
+        console.log(
+          xzWantDir,
+          xzLookDir,
+          xzWantDir.dot(xzLookDir),
+          wanted,
+          this.bot.entity.position,
+          this.bot.entity.position.distanceTo(wanted) < 5
+        );
         return xzWantDir.dot(xzLookDir) > 0.9;
       } else {
         return false;
@@ -95,12 +99,23 @@ export class ForwardExecutor extends MovementExecutor {
     // console.log(similarDirection, thisMove.moveType.constructor.name);
     // if (!similarDirection) {
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-    const bb1 = AABB.fromBlock(thisMove.entryPos.floored().translate(0, -1, 0));
+   
+    const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
+    const bb1 = bb1bl.getBBs();
+    if (bb1.length===0) bb1.push(AABB.fromBlock(bb1bl.position))
+    const bb1physical = bb1bl.physical || bb1bl.liquid;
 
+   
+    const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0);
+    const bb2 = bb2bl.getBBs();
+    if (bb2.length===0) bb2.push(AABB.fromBlock(bb1bl.position))
+    const bb2physical = bb2bl.physical || bb2bl.liquid;
+
+    // console.log(this.toPlaceLen(), bb1bl, bb1, bb0, (bb1.some(b=>b.collides(bb0)) && bb1physical) || (bb2.some(b=>b.collides(bb0))&& bb2physical));
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
-    if (bb0.collides(bb1) && this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) {
-      console.log("intersect");
-      return this.isLookingAt(thisMove.entryPos);
+    if ((bb1.some(b=>b.collides(bb0)) && bb1physical) || (bb2.some(b=>b.collides(bb0))&& bb2physical)) {
+      if (similarDirection) return true;
+      else if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return this.isLookingAt(thisMove.entryPos);
     }
 
     return false;
@@ -122,7 +137,7 @@ export class ForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
       void this.lookAt(offset);
-      this.bot.setControlState('forward', false)
+      this.bot.setControlState("forward", false);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("back", true);
     }
@@ -190,6 +205,7 @@ export class ForwardExecutor extends MovementExecutor {
   async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 1)) {
       this.bot.clearControlStates();
+      this.bot.setControlState('sneak', true)
       return false;
     } else if (!this.cI) {
       const start = performance.now();
@@ -200,8 +216,9 @@ export class ForwardExecutor extends MovementExecutor {
       }
     }
 
-    if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
-    if (!this.bot.entity.onGround) {
+    // if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
+
+    if (!this.bot.entity.onGround && this.bot.entity.position.y !== Math.round(this.bot.entity.position.y)) {
       // console.log(this.bot.entity.position, this.bot.entity.velocity);
       throw new CancelError("ForwardMove: not on ground");
     }
@@ -242,13 +259,12 @@ export class ForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
       void this.lookAt(offset);
-      this.bot.setControlState('forward', false)
+      this.bot.setControlState("forward", false);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("back", true);
       return this.isComplete(thisMove);
     }
 
- 
     return false;
     // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
   }
@@ -271,12 +287,15 @@ export class ForwardJumpExecutor extends MovementExecutor {
     // console.log(bb.containsVec(offset), bb, offset)
     // return this.bot.entity.onGround;
     if (this.flag) {
-      void this.lookAt(thisMove.entryPos);
+      void this.lookAt(thisMove.entryPos.floored().offset(0.5, 0, 0.5));
       this.bot.setControlState("forward", true);
       this.bot.setControlState("back", false);
       this.bot.setControlState("sprint", true);
-      const bigBB = AABB.fromBlock(thisMove.entryPos.floored()).extend(0, 1, 0);
-      return bigBB.contains(bb) && this.bot.entity.onGround;
+
+      const bl = this.getBlockInfo(thisMove.entryPos.floored(), 0,-1,0);
+      const bigBBs = bl.getBBs().map(b=>b.extend(0, 10, 0));
+      console.log(bigBBs, this.bot.entity.onGround, bb, bigBBs.some(b=>b.contains(bb)))
+      return bigBBs.some(b=>b.contains(bb)) && this.bot.entity.onGround;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return true;
     } else if (this.bot.entity.onGround) {
       if (thisMove.toPlace.length === 0) {
@@ -374,6 +393,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
   };
 
   async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
+    // console.log(tickCount, this.jumpInfo, this.bot.entity.position, this.bot.entity.velocity, this.bot.blockAt(this.bot.entity.position))
     if (this.cI && !(await this.cI.allowExternalInfluence(this.bot))) {
       this.bot.clearControlStates();
       return false;
@@ -399,11 +419,13 @@ export class ForwardJumpExecutor extends MovementExecutor {
       } else {
         this.bot.setControlState("jump", false);
       }
+    } else {
+      // this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos);
     }
 
     this.lookAt(thisMove.exitPos);
 
-    if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
+    // if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
 
     // very lazy way of doing this.
     if (this.bot.entity.position.y - thisMove.exitPos.y < -1.25) throw new CancelError("ForwardJumpMove: too low (1)");
@@ -468,7 +490,11 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     }
 
-    if (tickCount > 160) throw new CancelError("ForwardDropDown: tickCount > 160");
+    // if (tickCount > 160) throw new CancelError("ForwardDropDown: tickCount > 160");
+
+    this.bot.setControlState("forward", true);
+    if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
+    else this.bot.setControlState("sprint", true);
 
     if (false) {
       const idx = this.identMove(thisMove, currentIndex, path);
@@ -494,16 +520,12 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     } else {
       const nextMove = path[currentIndex + 1];
-      if (nextMove) this.alignToPath(nextMove, { target: nextMove.entryPos });
+      if (nextMove) this.alignToPath(nextMove, { target: nextMove.entryPos, handleBack: true });
       else this.alignToPath(thisMove);
 
       if (this.isComplete(thisMove)) return true;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
     }
-
-    this.bot.setControlState("forward", true);
-    if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
-    else this.bot.setControlState("sprint", true);
 
     return false;
   }
@@ -570,8 +592,17 @@ export class StraightUpExecutor extends MovementExecutor {
     this.bot.clearControlStates();
     this.lookAt(thisMove.entryPos);
 
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
+    const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
+
+    const bb1 = bb1bl.getBBs();
+    if (bb1.length===0) bb1.push(AABB.fromBlock(bb1bl.position))
+    bb1.forEach(b=>b.extend(0, 10, 0))
+
+
+
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2 && xzVel.norm() < 0.1) {
+    if (bb1.some(b=>b.contains(bb0))) {
       return this.isLookingAt(thisMove.entryPos);
     }
 
@@ -598,17 +629,21 @@ export class StraightUpExecutor extends MovementExecutor {
       await this.performInteraction(breakH);
     }
 
+    if (thisMove.toPlace.length > 1) throw new CancelError("StraightUp: toPlace.length > 1")
     // console.log(thisMove.toPlace.length)
     for (const place of thisMove.toPlace) {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5));
       this.bot.setControlState("jump", true);
-      await this.performInteraction(place);
+      this.performInteraction(place);
     }
   }
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     if (this.bot.entity.position.y < thisMove.entryPos.y) throw new CancelError("StraightUp: too low");
     // this.bot.setControlState('sneak', false)
     this.align(thisMove);
+
+    // console.log(this.bot.entity.position.y, thisMove.exitPos.y, this.bot.entity.position.y < thisMove.exitPos.y)
+    this.bot.setControlState("jump", this.bot.entity.position.y < thisMove.exitPos.y);
     return tickCount > 0 && this.bot.entity.onGround && this.bot.entity.position.y >= thisMove.exitPos.y;
   }
 }
@@ -628,22 +663,21 @@ export class ParkourForwardExecutor extends MovementExecutor {
       return false;
     }
 
-    const closeToGoal = thisMove.entryPos.distanceTo(this.bot.entity.position) > thisMove.exitPos.distanceTo(this.bot.entity.position);
 
-    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() > 145) {
+    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.1) {
       this.bot.setControlState("jump", true);
     }
 
     // controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
     // controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
 
-    if (tickCount > 160) throw new CancelError("ParkourForward: tickCount > 160");
+    // if (tickCount > 160) throw new CancelError("ParkourForward: tickCount > 160");
 
-    if (tickCount > 0 && this.bot.entity.onGround && closeToGoal) {
+    if (tickCount > 0 && this.bot.entity.position.y > thisMove.exitPos.y) {
       this.bot.setControlState("jump", false);
     }
 
-    return this.isComplete(thisMove, thisMove);
+    return this.isComplete(thisMove);
     // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
     return false;
   }

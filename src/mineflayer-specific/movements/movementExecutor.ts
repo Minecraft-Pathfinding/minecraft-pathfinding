@@ -91,8 +91,8 @@ export abstract class MovementExecutor extends Movement {
    * and bounding box check (touching OR slightly above block).
    */
   protected isComplete(startMove: Move, endMove: Move = startMove, ticks = 1) {
-    // if (this.toBreakLen() > 0) return false;
-    // if (this.toPlaceLen() > 0) return false;
+    if (this.toBreakLen() > 0) return false;
+    if (this.toPlaceLen() > 0) return false;
 
     if (this.cI !== undefined) {
       if (!this.cI.allowExit) return false;
@@ -111,19 +111,33 @@ export abstract class MovementExecutor extends Movement {
       this.bot.physicsUtil.engine.simulate(ectx, this.world);
     }
 
-    const bb0 = AABBUtils.getPlayerAABB({ position: ectx.state.pos, width: 0.6, height: 1.8 });
+    const pos = ectx.state.pos;
+    // const pos = this.bot.entity.position
+    const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
     bb0.extend(0, -0.1, 0);
-    bb0.expand(-0.0001, 0, -0.0001);
+    // bb0.expand(-0.0001, 0, -0.0001);
 
-    const bb1 = AABB.fromBlock(endMove.exitPos.floored().translate(0, -1, 0));
+    const bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0));
+
+    const bb1s = bb1bl.getBBs();
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
     const xzVelDir = xzVel.normalize();
 
     const headingThatWay = xzVelDir.dot(dir.normalize()) > -2;
 
-    const bbsVertTouching = bb0.collides(bb1); //&& !(this.bot.entity as any).isCollidedHorizontally;
+    const bb1physical = bb1bl.physical || bb1bl.liquid;
+    // console.log(endMove.exitPos.floored().translate(0, -1, 0), bb1physical)
+      //startMove.moveType.getBlockInfo(endMove.exitPos.floored(), 0, -1, 0).physical;
+
+    const bbsVertTouching = bb1s.some(b=>b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height; //&& !(this.bot.entity as any).isCollidedHorizontally;
+
     // console.log(bbsVertTouching, similarDirection, bb0, bb1)
-    if (bbsVertTouching && similarDirection && headingThatWay && offset.y <= 0) return true;
+    if (bbsVertTouching && offset.y <= 0) {
+      if (similarDirection && headingThatWay) return true;
+      
+
+      // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
+    }
 
     // default implementation of being at the center of the block.
     // Technically, this may be true when the bot overshoots, which is fine.
@@ -180,14 +194,14 @@ export abstract class MovementExecutor extends Movement {
 
   protected async performPlace(place: PlaceHandler, opts: InteractOpts = {}) {
     const item = place.getItem(this.bot, BlockInfo);
-    if (!item) throw new CancelError("ForwardJumpMove: no item to place");
+    if (!item) throw new CancelError("MovementExecutor: no item to place");
     await place.perform(this.bot, item, opts);
     this._cI = undefined;
   }
 
   protected async performBreak(breakTarget: BreakHandler, opts: InteractOpts = {}) {
     const block = breakTarget.getBlock(this.bot.pathfinder.world);
-    if (!block) throw new CancelError("ForwardJumpMove: no block");
+    if (!block) throw new CancelError("MovementExecutor: no block to break");
     const item = breakTarget.getItem(this.bot, BlockInfo, block);
     await breakTarget.perform(this.bot, item, opts);
     this._cI = undefined;
@@ -353,18 +367,20 @@ export abstract class MovementExecutor extends Movement {
 
     // }
 
-    if (handleBack) {
-      botSmartMovement(this.bot, target, true);
-    }
+    // if (handleBack) {
+    //   botSmartMovement(this.bot, target, true);
+    // }
+
+    // console.log(target)
 
     this.simCtx.state.updateFromBot(this.bot);
     const state = this.bot.physicsUtil.engine.simulate(this.simCtx, this.world);
     // const bb0 = AABBUtils.getPlayerAABB({ position: state.pos, width: 0.6, height: 1.8 });
 
-    if (state.pos.y < startMove.entryPos.y && state.pos.y < endMove.exitPos.y) {
-      this.bot.setControlState("sprint", false);
-      this.bot.setControlState("jump", false);
-      this.bot.setControlState("sneak", true);
-    }
+    // if (state.pos.y < startMove.entryPos.y && state.pos.y < endMove.exitPos.y) {
+    //   this.bot.setControlState("sprint", false);
+    //   this.bot.setControlState("jump", false);
+    //   this.bot.setControlState("sneak", true);
+    // }
   }
 }

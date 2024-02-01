@@ -35,7 +35,7 @@ export interface InteractOpts {
 
 /**
  * TODO: Predict time of rotation for looking.
- * 
+ *
  * Allow looking sooner than the actual block placement.
  */
 export abstract class InteractHandler {
@@ -44,13 +44,13 @@ export abstract class InteractHandler {
 
   protected _done = false;
 
-  protected _internalLock = false;
+  protected _internalLock = true;
 
   public readonly blockInfo: BlockInfo;
   public readonly bb: AABB;
 
-  protected readonly move!: MovementExecutor
-  
+  protected readonly move!: MovementExecutor;
+
   protected get settings() {
     return this.move.settings;
   }
@@ -80,11 +80,11 @@ export abstract class InteractHandler {
   }
 
   public loadMove(move: Movement) {
-    (this as any).move = move
+    (this as any).move = move;
   }
 
-  abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | undefined;
-  abstract perform(bot: Bot, item?: Item, opts?: InteractOpts): Promise<void>;
+  abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | null;
+  abstract perform(bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>;
   abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
   abstract toBlockInfo(): BlockInfo;
 
@@ -93,12 +93,15 @@ export abstract class InteractHandler {
     return bot.inventory.slots[bot.getEquipmentDestSlot("hand")];
   }
 
-  equipItem(bot: Bot, item: Item) {
-    if (this.offhand) {
-      bot.equip(item, "off-hand");
+  async equipItem(bot: Bot, item: Item | null) {
+    if (item === null) {
+      bot.unequip(this.offhand ? "off-hand" : "hand");
+    } else if (this.offhand) {
+      await bot.equip(item, "off-hand");
     } else {
-      bot.equip(item, "hand");
+      await bot.equip(item, "hand");
     }
+    bot.updateHeldItem();
   }
 
   /**
@@ -115,9 +118,13 @@ export abstract class InteractHandler {
     const state = EPhysicsCtx.FROM_BOT(ectx, bot);
 
     // state.state.control.set('sneak', sneak)
+
+    const flag0 = bot.entity.onGround
     for (let i = 0; i < ticks; i++) {
       ectx.simulate(state, bot.pathfinder.world);
     }
+
+    if (flag0) if (state.position.y < bot.entity.position.y) return false;
 
     // TODO: add raycast check to see if block is still visible.
     if (state.state.pos.y < bot.entity.position.y) return false;
@@ -154,10 +161,10 @@ export class PlaceHandler extends InteractHandler {
   getItem(bot: Bot, blockInfo: typeof BlockInfo) {
     switch (this.type) {
       case "water": {
-        return bot.inventory.items().find((item) => item.name === "water_bucket");
+        return bot.inventory.items().find((item) => item.name === "water_bucket") ?? null;
       }
       case "solid": {
-        return bot.inventory.items().find((item) => blockInfo.scaffoldingBlockItems.has(item.type));
+        return bot.inventory.items().find((item) => blockInfo.scaffoldingBlockItems.has(item.type)) ?? null;
       }
       case "replaceable": {
         throw new Error("Not implemented");
@@ -213,7 +220,7 @@ export class PlaceHandler extends InteractHandler {
 
         let startTick = 0;
         let shiftTick = Infinity;
-        let i = 0
+        let i = 0;
         for (; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot);
 
@@ -226,7 +233,7 @@ export class PlaceHandler extends InteractHandler {
           }
 
           const eyePos = state.pos.offset(0, 1.62, 0);
-          const bb0 = AABB.fromBlock(this.vec)
+          const bb0 = AABB.fromBlock(this.vec);
           const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 });
 
           const dx = state.pos.x - (this.vec.x + 0.5);
@@ -251,7 +258,6 @@ export class PlaceHandler extends InteractHandler {
             ];
           });
 
-     
           // verts.push(...bb0.expand(-0.01, -0.01, -0.01).toVertices())
           // verts.push(this.vec.offset(0.5, 0.1, 0.5));
 
@@ -316,7 +322,7 @@ export class PlaceHandler extends InteractHandler {
     switch (this.type) {
       case "water": {
         if (item.name !== "water_bucket") throw new Error("Invalid item");
-        if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
+        if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item);
 
         await bot.lookAt(this.vec, this.settings.forceLook);
         bot.activateItem(this.offhand);
@@ -324,7 +330,7 @@ export class PlaceHandler extends InteractHandler {
       }
 
       case "solid": {
-        if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
+        if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item);
 
         const predictBlock = opts.predictBlock ?? true;
         let works = opts.info || (await this.performInfo(bot));
@@ -383,25 +389,21 @@ export class PlaceHandler extends InteractHandler {
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 });
 
         if (this.settings.forceLook) {
-
           if (!this.move.isLookingAt(rayRes.intersect)) {
+            // const start = performance.now();
+            // const old0 = bot.getControlState('jump')
+            // const old1 = bot.getControlState('sneak')
+            // const flag = bot.entity.onGround
+            // // bot.setControlState('jump', false)
+            // if (flag) bot.setControlState("sneak", true);
+            await bot.lookAt(rayRes.intersect, this.settings.forceLook);
+            // if (flag) bot.setControlState("sneak", old1);
 
-          
-          // const start = performance.now();
-          // const old0 = bot.getControlState('jump')
-          // const old1 = bot.getControlState('sneak') 
-          // const flag = bot.entity.onGround 
-          // // bot.setControlState('jump', false)
-          // if (flag) bot.setControlState("sneak", true);
-          await bot.lookAt(rayRes.intersect,  this.settings.forceLook);
-          // if (flag) bot.setControlState("sneak", old1);
-
-          // console.log("look took", performance.now() - start, "ms");
-          // bot.setControlState('jump', old0)
+            // console.log("look took", performance.now() - start, "ms");
+            // bot.setControlState('jump', old0)
           }
         }
 
-        
         const invalidPlacement = botBB.intersects(posBl);
         if (invalidPlacement) {
           // console.log("invalid placement", bot.entity.position, invalidPlacement1, invalidPlacement);
@@ -420,7 +422,7 @@ export class PlaceHandler extends InteractHandler {
         start = performance.now();
         const task = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
         if (predictBlock) {
-          bot.world.setBlockStateId(rayRes.position.plus(direction), this.blockInfo.substituteBlockStateId);
+          bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 
         this._internalLock = false;
@@ -480,14 +482,14 @@ export class BreakHandler extends InteractHandler {
     return world.getBlock(this.vec);
   }
 
-  getItem(bot: Bot, blockInfo: typeof BlockInfo, block: Block): Item | undefined {
+  getItem(bot: Bot, blockInfo: typeof BlockInfo, block: Block): Item | null {
     switch (this.type) {
       case "water": {
-        return bot.inventory.items().find((item) => item.name === "bucket"); // empty bucket
+        return bot.inventory.items().find((item) => item.name === "bucket") ?? null; // empty bucket
       }
       case "solid": {
         // TODO: identify best tool for block.
-        return bot.inventory.items()[0];
+        return bot.pathingUtil.bestHarvestingTool(block);
       }
       case "replaceable": {
         throw new Error("Not implemented");
@@ -500,12 +502,12 @@ export class BreakHandler extends InteractHandler {
   async performInfo(bot: Bot, ticks = 15) {
     const bb = AABB.fromBlock(this.vec);
 
-    return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach
+    return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach + 5
       ? { ticks: 0, tickAllowance: 0, shiftTick: 0, raycasts: [] }
       : { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: [] };
   }
 
-  async perform(bot: Bot, item?: Item, opts: InteractOpts = {}): Promise<void> {
+  async perform(bot: Bot, item: Item | null = null, opts: InteractOpts = {}): Promise<void> {
     if (this.performing) throw new Error("Already performing");
     this.performing = true;
     this._internalLock = true;
@@ -513,22 +515,22 @@ export class BreakHandler extends InteractHandler {
 
     switch (this.type) {
       case "water": {
-        if (item === undefined) throw new Error("No item");
+        if (item === null) throw new Error("No item");
         if (item.name !== "bucket") throw new Error("Invalid item");
-        if (this.getCurrentItem(bot) !== item) this.equipItem(bot, item);
+        if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item);
         await bot.lookAt(this.vec, this.settings.forceLook);
         bot.activateItem(this.offhand);
         break; // not necessary.
       }
 
       case "solid": {
-        if (item === undefined) {
-          if (this.getCurrentItem(bot) !== undefined) bot.unequip(this.offhand ? "off-hand" : "hand");
-        } else if (this.getCurrentItem(bot) !== item!) this.equipItem(bot, item!);
+        if (item === null) {
+          if (this.getCurrentItem(bot) !== null) await bot.unequip(this.offhand ? "off-hand" : "hand");
+        } else if (this.getCurrentItem(bot) !== item!) await this.equipItem(bot, item!);
         const block = await bot.world.getBlock(this.vec);
         if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, this.settings.forceLook);
-        const task = bot.dig(block, false);
+        const task = bot.dig(block, 'ignore', 'auto');
         this._internalLock = false;
 
         await task;

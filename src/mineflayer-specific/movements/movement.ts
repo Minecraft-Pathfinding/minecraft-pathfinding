@@ -12,6 +12,7 @@ import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 import { Vec3Properties } from "../../types";
 
 export interface MovementOptions {
+  liquidCost: number;
   digCost: number;
   forceLook: boolean;
   jumpCost: number;
@@ -35,14 +36,15 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
   allow1by1towers: true,
-  maxDropDown: 4,
+  maxDropDown: 3,
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
+  liquidCost: 3,
   placeCost: 1,
   digCost: 1,
   jumpCost: 0.5,
   forceLook: true,
-  careAboutLookAlignment: true
+  careAboutLookAlignment: true,
 };
 
 const cardinalVec3s: Vec3[] = [
@@ -130,11 +132,11 @@ export abstract class Movement {
   }
 
   toBreakLen() {
-    return this.currentMove.toBreak.filter((b) => !b.done && !b.allowExit).length;
+    return this.currentMove.toBreak.filter((b) =>  !b.allowExit).length;
   }
 
   toPlaceLen() {
-    return this.currentMove.toPlace.filter((b) => !b.done && !b.allowExit).length;
+    return this.currentMove.toPlace.filter((b) => !b.allowExit).length;
   }
 
   getBlock(pos: Vec3Properties, dx: number, dy: number, dz: number) {
@@ -267,8 +269,11 @@ export abstract class Movement {
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
     
     // if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
-    
-    if (block.safe) return 0; // TODO: block is a carpet or a climbable (BUG)
+  
+    if (block.safe) {
+      // if (!block.replaceable) toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+      return 0; // TODO: block is a carpet or a climbable (BUG)
+    }
 
     if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
     
@@ -282,9 +287,9 @@ export abstract class Movement {
 
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
-
     toBreak.push(BreakHandler.fromVec(block.position, "solid"));
 
+    
     return cost;
   }
 
@@ -292,10 +297,12 @@ export abstract class Movement {
     if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
-    const tool = null as any;
-    const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
-    const effects = this.bot.entity.effects
-    const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
+
+    const digTime = this.bot.pathingUtil.digCost(block.block);
+    // const tool = null as any;
+    // const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
+    // const effects = this.bot.entity.effects
+    // const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
     const laborCost = (1 + 3 * digTime / 1000) * this.settings.digCost;
     return laborCost;
   }
