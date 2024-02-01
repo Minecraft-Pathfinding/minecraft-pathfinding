@@ -1,107 +1,14 @@
-import { BaseSimulator, ControlStateHandler, EPhysicsCtx, EntityState } from "@nxg-org/mineflayer-physics-util";
+import { BaseSimulator, ControlStateHandler, EPhysicsCtx, EntityPhysics, EntityState } from "@nxg-org/mineflayer-physics-util";
 import { Bot } from "mineflayer";
 import { World } from "../world/worldInterface";
-import { Vec3 } from "vec3";
+import v, { Vec3 } from "vec3";
 import { Move } from "../move";
-import { AABBUtils } from "@nxg-org/mineflayer-util-plugin";
+import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { RayType } from "./interactionUtils";
 import { BlockInfo } from "../world/cacheWorld";
+import { JumpSim } from "./simulators/jumpSim";
 
 type JumpInfo = { jumpTick: number; sprintTick: number };
-
-export async function findStraightLine(thisMove: Move, currentIndex: number, path: Move[], bot: Bot, world: World, hitW = 0.61, uW = 0.61) {
-  let lastMove = thisMove;
-  let nextMove = path[++currentIndex];
-
-  if (nextMove === undefined) return --currentIndex;
-
-  const orgY = thisMove.entryPos.y;
-
-  const bb = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: hitW, height: 1.8 });
-  const verts = bb.expand(-0.001, -0.1, -0.001).toVertices();
-  const verts1 = [
-    bot.entity.position.offset(-uW / 2, -0.6, -uW / 2),
-    bot.entity.position.offset(uW / 2, -0.6, -uW / 2),
-    bot.entity.position.offset(uW / 2, -0.6, uW / 2),
-    bot.entity.position.offset(-uW / 2, -0.6, uW / 2),
-  ];
-
-  const pos0 = bot.entity.position;
-
-  while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
-    if (nextMove === undefined) {
-      console.log('ret cuz no next')
-      return --currentIndex;
-    }
-    for (const vert of verts) {
-      const offset = vert.minus(bot.entity.position);
-      const test1 = nextMove.exitPos.offset(0, -nextMove.exitPos.y, 0);
-      const test = vert.plus(test1);
-      const dist = lastMove.exitPos.distanceTo(bot.entity.position) + 1;
-      const raycast0 = (await bot.world.raycast(
-        vert,
-        test.minus(vert).normalize(),
-        dist,
-        (block) => !BlockInfo.replaceables.has(block.type) && !BlockInfo.liquids.has(block.type) && block.shapes.length > 0
-      )) as unknown as RayType;
-      const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
-      if (!valid0) {
-        console.log('ret cuz block')
-
-        console.log('offset', offset)
-        console.log('vert', vert)
-        console.log('bot.entity.position', bot.entity.position)
-        console.log('test1', test1)
-        console.log('test', test)
-        console.log('raycast0', raycast0)
-        console.log('test.minus(vert).normalize()', test.minus(vert).normalize())
-        console.log('raycast0.position.distanceTo(pos0)', raycast0.position.distanceTo(pos0))
-        console.log('dist', dist)
-        return --currentIndex;
-      }
-    }
-
-    let counter = verts1.length;
-    for (const vert2 of verts1) {
-      const offset = vert2.minus(bot.entity.position);
-      const test1 = nextMove.exitPos.offset(0, 0, 0);
-      const test = test1.plus(offset);
-      const dist = lastMove.exitPos.distanceTo(bot.entity.position) + 1;
-      const raycast0 = (await bot.world.raycast(
-        vert2,
-        test.minus(vert2).normalize(),
-        dist,
-        (block) => BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || block.shapes.length === 0
-      )) as unknown as RayType;
-
-      // print all variables in below console.log, but with labels
-      // if (raycast0) console.log('\n\n', counter, offset, vert2, bot.entity.position, nextMove.exitPos, test1, test, raycast0, test.minus(vert2).normalize(), raycast0.position.distanceTo(pos0), dist,  vert2)
-      
-
-      const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist;
-      if (!valid0) {
-        
-        counter--;
-      }
-    }
-
-    if (counter === 0) {
-      console.log('ret cuz air')
-      return --currentIndex;
-    }
-
-    lastMove = nextMove;
-    nextMove = path[++currentIndex];
-    if (!nextMove) {
-      console.log('ret cuz no next')
-      return --currentIndex;
-    }
-  }
-
-  console.log('ret cuz break')
-  return --currentIndex;
-}
-
 
 export function stateLookAt(state: EntityState, point: Vec3) {
   const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0));
@@ -138,7 +45,7 @@ export class JumpCalculator {
     // if vel was up and we collided, we moved too far forward, so only sprint after jumping.
     let sprintAfterJump = this.ctx.state.vel.y > 0;
 
-    console.log(this.ctx.state.pos, this.ctx.state.vel, goal);
+    console.log(this.ctx.state.pos, this.ctx.state.vel, goal, sprintAfterJump);
     while (firstTick < 12) {
       while (secondTick < 12) {
         const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump);
@@ -253,5 +160,197 @@ export class JumpCalculator {
     );
 
     return state;
+  }
+}
+
+export class ParkourJumpHelper {
+  private readonly sim: JumpSim;
+  private readonly bot: Bot;
+  private readonly world: World;
+
+  constructor(bot: Bot, world: World) {
+    this.bot = bot;
+    this.sim = new JumpSim(new EntityPhysics(bot.registry), world);
+    this.world = world;
+  }
+
+  public getUnderlyingBBs(pos: Vec3, width: number, colliding = true) {
+    const verts = [pos.offset(-width/2, 0, -width/2), pos.offset(-width/2, 0, width/2), pos.offset(width/2, 0, -width/2), pos.offset(width/2, 0, width/2)];
+
+    const bb = AABBUtils.getPlayerAABB({ position: pos, width, height: 0.1 }); // whatever
+    const blocks = new Set(verts.map((v) => this.world.getBlockInfo(v.offset(0, -1, 0))));
+    
+    const ret = [];
+    for (const block of blocks) {
+      for (const bb0 of block.getBBs()) {
+        if (bb0.collides(bb) || !colliding) {
+          ret.push(bb0);
+        }
+      }
+    }
+
+    return ret;
+  }
+
+  public findGoalVertex(goal: AABB) {
+    // get top vertex that is closest to target.
+
+    const pos = this.bot.entity.position;
+
+    const closerX = goal.minX - pos.x < pos.x - goal.maxX ? goal.minX : goal.maxX;
+    const closerZ = goal.minZ - pos.z < pos.z - goal.maxZ ? goal.minZ : goal.maxZ;
+    
+
+    // 3 closest vectors to source position
+    const verts = [
+      v(closerX, goal.maxY, closerZ),
+      v(closerX, goal.maxY, goal.minZ),
+      v(closerX, goal.maxY, goal.maxZ),
+      v(goal.minX, goal.maxY, closerZ),
+      v(goal.maxX, goal.maxY, closerZ),
+    ];
+
+    // if position of bot and position of goal are less than 1 block on any axis away, push a vector that is a straight line to it.
+    // for example: bot pos is 0.7,0,0 and goal is 0,0,0 to 1,0,1, then push 0.7,0,0
+
+    if (goal.minX - pos.x < 1 && pos.x - goal.maxX < 1) {
+      verts.push(v(pos.x, goal.maxY, goal.minZ));
+      verts.push(v(pos.x, goal.maxY, goal.maxZ));
+    }
+
+    if (goal.minZ - pos.z < 1 && pos.z - goal.maxZ < 1) {
+      verts.push(v(goal.minX, goal.maxY, pos.z));
+      verts.push(v(goal.maxX, goal.maxY, pos.z));
+    }
+    
+    let minDist = Infinity;
+    let minVert = verts[0];
+    for (const vert of verts) {
+      const dist = vert.distanceTo(pos);
+      if (dist < minDist) {
+        minDist = dist;
+        minVert = vert;
+      }
+    }
+
+    return minVert;
+  }
+
+  findBackupVertex(goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position) {
+
+
+
+
+
+    const dir = goalVert.minus(this.bot.entity.position);
+    dir.translate(0, -dir.y, 0);
+    dir.normalize();
+
+    const test = this.bot.entity.position.floored().offset(0, -1, 0)
+ 
+    
+    const start = this.bot.entity.position.offset(0, -0.251, 0);
+
+  
+    const intersects = [];
+
+
+    for (const bb of this.getUnderlyingBBs(this.bot.entity.position, 0.6)) {
+      const intersect = bb.intersectsRay(start, dir);
+      if (intersect) intersects.push(intersect);
+    }
+    
+    intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start));
+    const intersect = intersects[0]; 
+    if (!intersect) throw Error("no intersect");
+
+    
+    const dir2 = intersect.minus(start);
+
+
+    let scale = 1.3;
+
+    outer: while (scale >= 1) {
+      const wanted = dir2.scale(1.3).plus(start);
+
+      const testBB = AABBUtils.getPlayerAABB({position: wanted, width: 0.6, height: 1.8})
+  
+      for (const vert of testBB.toVertices()) {
+        if (this.world.getBlockInfo(vert).physical) {
+          scale -= 0.05;
+          continue outer
+        }
+      }
+      return wanted;
+    }
+   
+    // if (this.world.getBlockInfo(wanted).physical) return intersect
+  
+    return intersect
+
+    // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));
+
+
+
+    return dir;
+  }
+
+  public simJumpFromEdge(goal: Vec3) {
+    const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6);
+
+    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
+
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+
+    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 30);
+
+    // console.log('sim jump from edge', state.age, state.pos, goalVert, state.onGround, state.isCollidedHorizontally, state.control, state.isInWater)
+    const reached = JumpSim.getReached(goal);
+    return reached(state, 0) as boolean;
+  }
+
+  public simJumpImmediately(goal: Vec3) {
+    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
+
+    // console.log('sim jump goals', goal, goalVert)
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+
+    ctx.state.control = ControlStateHandler.DEFAULT();
+    ctx.state.control.set("forward", true);
+    ctx.state.control.set("jump", true);
+    ctx.state.control.set("sprint", true);
+
+    const orgPos = this.bot.entity.position.clone();
+
+
+    const reached = JumpSim.getReached(goal);
+    const state = this.sim.simulateUntilOnGround(ctx, 30, reached);
+
+    // console.log("sim jump immediately", state.age, orgPos, state.pos, AABB.fromBlockPos(goal), state.onGround, state.isCollidedHorizontally, state.control)
+    
+
+    const testwtf = reached(state, 0)
+
+    // console.log('sim jump TEST', testwtf)
+
+
+    return testwtf;
+  }
+
+  public simBackupJump(goal: Vec3) {
+    const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6);
+
+    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+
+    ctx.state.control = ControlStateHandler.DEFAULT();
+    const reached = JumpSim.getReached(goal);
+
+    const lazyFix = this.findBackupVertex(goal);
+    this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 20);
+    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 20);
+
+    
+    return reached(state, 0) as boolean;
   }
 }

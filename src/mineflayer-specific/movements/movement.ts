@@ -17,6 +17,7 @@ export interface MovementOptions {
   forceLook: boolean;
   jumpCost: number;
   placeCost: number;
+  velocityKillCost: number;
   canOpenDoors: boolean;
   canDig: boolean;
   canPlace: boolean;
@@ -43,6 +44,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   placeCost: 1,
   digCost: 1,
   jumpCost: 0.5,
+  velocityKillCost: 2, // implement at a later date.
   forceLook: true,
   careAboutLookAlignment: true,
 };

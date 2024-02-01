@@ -14,6 +14,8 @@ import {
   MovementProvider,
   MovementSetup,
   ExecutorMap,
+  ParkourForward,
+  ParkourForwardExecutor,
 } from "./mineflayer-specific/movements";
 import { MovementExecutor } from "./mineflayer-specific/movements";
 import { Diagonal, Forward, ForwardDropDown, ForwardJump, IdleMovement, StraightDown, StraightUp } from "./mineflayer-specific/movements";
@@ -37,6 +39,7 @@ const test = [
   [Diagonal, ForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
+  [ParkourForward, ParkourForwardExecutor]
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
 // commented out for now.
@@ -364,6 +367,7 @@ export class ThePathfinder {
 
   async cleanupBot() {
     this.bot.clearControlStates();
+    // await this.bot.waitForTicks(1);
   }
 
   cleanupAll() {

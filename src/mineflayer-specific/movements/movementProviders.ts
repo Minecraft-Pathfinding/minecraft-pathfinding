@@ -353,7 +353,7 @@ export class ParkourForward extends MovementProvider {
       return;
     if (this.getBlockInfo(node, 0, 0, 0).liquid) return; // cant jump from water
 
-    let cost = 1;
+    let cost = 1 + this.settings.jumpCost; // move cost (move+jump)
 
     // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important
     // cost += this.getNumEntitiesAt(node, dir.x, 0, dir.z) * this.entityCost
@@ -384,7 +384,7 @@ export class ParkourForward extends MovementProvider {
         break;
       } else if (ceilingClear && blockB.safe && blockC.physical) {
         // Up
-        if (blockA.safe && d !== 4) {
+        // if (blockA.safe && d !== 4) {
           // 4 Blocks forward 1 block up is very difficult and fails often
           // cost += this.exclusionStep(blockA)
           if (blockC.height - block0.height > 1.2) break; // Too high to jump
@@ -392,7 +392,7 @@ export class ParkourForward extends MovementProvider {
           neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, [], []));
           // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
           break;
-        }
+        // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz);

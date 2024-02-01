@@ -8,7 +8,7 @@ import { RayType } from "./interactionUtils";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import * as controls from "./controls";
 import { MovementExecutor } from "./movementExecutor";
-import { JumpCalculator, findStraightLine } from "./movementUtils";
+import { JumpCalculator, ParkourJumpHelper } from "./movementUtils";
 
 export class IdleMovementExecutor extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
@@ -99,21 +99,20 @@ export class ForwardExecutor extends MovementExecutor {
     // console.log(similarDirection, thisMove.moveType.constructor.name);
     // if (!similarDirection) {
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-   
+
     const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
     const bb1 = bb1bl.getBBs();
-    if (bb1.length===0) bb1.push(AABB.fromBlock(bb1bl.position))
+    if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position));
     const bb1physical = bb1bl.physical || bb1bl.liquid;
 
-   
     const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0);
     const bb2 = bb2bl.getBBs();
-    if (bb2.length===0) bb2.push(AABB.fromBlock(bb1bl.position))
+    if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position));
     const bb2physical = bb2bl.physical || bb2bl.liquid;
 
     // console.log(this.toPlaceLen(), bb1bl, bb1, bb0, (bb1.some(b=>b.collides(bb0)) && bb1physical) || (bb2.some(b=>b.collides(bb0))&& bb2physical));
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
-    if ((bb1.some(b=>b.collides(bb0)) && bb1physical) || (bb2.some(b=>b.collides(bb0))&& bb2physical)) {
+    if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
       if (similarDirection) return true;
       else if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return this.isLookingAt(thisMove.entryPos);
     }
@@ -205,7 +204,7 @@ export class ForwardExecutor extends MovementExecutor {
   async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 1)) {
       this.bot.clearControlStates();
-      this.bot.setControlState('sneak', true)
+      this.bot.setControlState("sneak", true);
       return false;
     } else if (!this.cI) {
       const start = performance.now();
@@ -292,10 +291,15 @@ export class ForwardJumpExecutor extends MovementExecutor {
       this.bot.setControlState("back", false);
       this.bot.setControlState("sprint", true);
 
-      const bl = this.getBlockInfo(thisMove.entryPos.floored(), 0,-1,0);
-      const bigBBs = bl.getBBs().map(b=>b.extend(0, 10, 0));
-      console.log(bigBBs, this.bot.entity.onGround, bb, bigBBs.some(b=>b.contains(bb)))
-      return bigBBs.some(b=>b.contains(bb)) && this.bot.entity.onGround;
+      const bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
+      const bigBBs = bl.getBBs().map((b) => b.extend(0, 10, 0));
+      console.log(
+        bigBBs,
+        this.bot.entity.onGround,
+        bb,
+        bigBBs.some((b) => b.contains(bb))
+      );
+      return bigBBs.some((b) => b.contains(bb)) && this.bot.entity.onGround;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return true;
     } else if (this.bot.entity.onGround) {
       if (thisMove.toPlace.length === 0) {
@@ -596,13 +600,11 @@ export class StraightUpExecutor extends MovementExecutor {
     const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
 
     const bb1 = bb1bl.getBBs();
-    if (bb1.length===0) bb1.push(AABB.fromBlock(bb1bl.position))
-    bb1.forEach(b=>b.extend(0, 10, 0))
-
-
+    if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position));
+    bb1.forEach((b) => b.extend(0, 10, 0));
 
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    if (bb1.some(b=>b.contains(bb0))) {
+    if (bb1.some((b) => b.contains(bb0))) {
       return this.isLookingAt(thisMove.entryPos);
     }
 
@@ -629,7 +631,7 @@ export class StraightUpExecutor extends MovementExecutor {
       await this.performInteraction(breakH);
     }
 
-    if (thisMove.toPlace.length > 1) throw new CancelError("StraightUp: toPlace.length > 1")
+    if (thisMove.toPlace.length > 1) throw new CancelError("StraightUp: toPlace.length > 1");
     // console.log(thisMove.toPlace.length)
     for (const place of thisMove.toPlace) {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5));
@@ -649,36 +651,131 @@ export class StraightUpExecutor extends MovementExecutor {
 }
 
 export class ParkourForwardExecutor extends MovementExecutor {
-  allowSprinting = true;
+  jumpInfo!: ReturnType<JumpCalculator["findJumpPoint"]>;
+
+  private shitter: JumpCalculator = new JumpCalculator(this.sim, this.bot, this.world, this.simCtx);
+  private shitterTwo: ParkourJumpHelper = new ParkourJumpHelper(this.bot, this.world);
+
+  private backUpTarget?: Vec3;
+
+  private backingUp = false;
+  private jumped = false;
+
+  protected isComplete(startMove: Move, endMove?: Move, ticks?: number): boolean {
+    return super.isComplete(startMove, endMove, 0);
+  }
+
+  async align(thisMove: Move, tickCount: number, goal: goals.Goal) {
+    this.jumped = false;
+
+    const target = thisMove.exitPos.offset(0, -1, 0);
+
+    const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target));
+
+    // console.log('CALLED TEST IN ALIGN')
+    const test = this.shitterTwo.simJumpImmediately(target);
+
+    // return true;
+
+    const test1 = this.shitterTwo.simJumpFromEdge(target);
+
+    console.log("align", test, test1);
+
+    if (!this.bot.entity.onGround) {
+      return false;
+    }
+
+    if (test) {
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("jump", true);
+      this.bot.setControlState("sneak", false);
+      this.bot.setControlState("jump", false);
+      this.lookAt(target);
+      this.jumped = true;
+      return true;
+    }
+    if (test1) {
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+      // this.bot.setControlState("sneak", false);
+      this.lookAt(target);
+      return true;
+    }
+
+  
+    const bb = AABBUtils.getPlayerAABB(this.bot.entity).expand(0.0001, 0, 0.0001).extend(0, -0.252, 0)
+    if (this.backUpTarget && bb.containsVec(this.backUpTarget)) {
+      console.log("here1", this.backUpTarget, this.bot.entity.position);
+      this.bot.clearControlStates();
+      this.lookAt(target);
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+      this.backingUp = false;
+      return false;
+    } else if (!this.backUpTarget) {
+      this.backUpTarget = this.shitterTwo.findBackupVertex(targetVec);
+      console.log('here2', this.backUpTarget)
+      this.lookAt(this.backUpTarget);
+      this.backingUp = true;
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("sprint", false);
+      // this.bot.setControlState("sneak", true);
+      // console.log("here2", backupVec, this.bot.entity.position);
+      return false;
+    } else {
+      console.log("here3", this.backUpTarget, this.bot.entity.position, bb);
+      // this.lookAt(this.backUpTarget);
+      // this.bot.setControlState("forward", true);
+      // this.bot.setControlState("sprint", false);
+    }
+
+    return false;
+  }
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+    delete this.backUpTarget;
     await this.lookAt(thisMove.exitPos);
     this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`);
+
+    // this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos);
+
+    this.bot.setControlState("sprint", true);
+    this.bot.setControlState("forward", true);
   }
 
   // TODO: Fix this. Good thing I've done this before. >:)
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
-    if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
-      this.bot.clearControlStates();
-      return false;
-    }
+    const target = thisMove.exitPos.offset(0, -1, 0);
+    const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target));
 
+    this.alignToPath(thisMove);
 
-    if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.1) {
-      this.bot.setControlState("jump", true);
-    }
+    // console.log('CALLED TEST IN PER TICK')
+    const test = this.shitterTwo.simJumpImmediately(target);
+    const test1 = this.shitterTwo.simJumpFromEdge(target);
+    // console.log(test, test1, target);
+    // if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
+    //   this.bot.clearControlStates();
+    //   return false;
+    // }
 
-    // controls.getBotSmartMovement(this.bot, thisMove.exitPos, true)();
-    // controls.getBotStrafeAim(this.bot, thisMove.exitPos)();
-
-    // if (tickCount > 160) throw new CancelError("ParkourForward: tickCount > 160");
-
-    if (tickCount > 0 && this.bot.entity.position.y > thisMove.exitPos.y) {
+    if (this.jumped) {
       this.bot.setControlState("jump", false);
     }
 
-    return this.isComplete(thisMove);
-    // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2) return true;
+    if (this.isComplete(thisMove)) {
+      return true;
+    } else if (test && !this.jumped) {
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("jump", true);
+      this.jumped = true;
+    } else if (test1) {
+      this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+    }
+
     return false;
   }
 }

@@ -104,6 +104,9 @@ export abstract class MovementExecutor extends Movement {
     offset.translate(0, -offset.y, 0); // xz only
     dir.translate(0, -dir.y, 0); // xz only
 
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    const xzVelDir = xzVel.normalize();
+
     const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5;
 
     const ectx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
@@ -114,30 +117,36 @@ export abstract class MovementExecutor extends Movement {
     const pos = ectx.state.pos;
     // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
-    bb0.extend(0, -0.1, 0);
+    bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
     // bb0.expand(-0.0001, 0, -0.0001);
 
     const bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0));
 
     const bb1s = bb1bl.getBBs();
-    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
-    const xzVelDir = xzVel.normalize();
-
+ 
     const headingThatWay = xzVelDir.dot(dir.normalize()) > -2;
 
     const bb1physical = bb1bl.physical || bb1bl.liquid;
     // console.log(endMove.exitPos.floored().translate(0, -1, 0), bb1physical)
-      //startMove.moveType.getBlockInfo(endMove.exitPos.floored(), 0, -1, 0).physical;
+    //startMove.moveType.getBlockInfo(endMove.exitPos.floored(), 0, -1, 0).physical;
 
-    const bbsVertTouching = bb1s.some(b=>b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height; //&& !(this.bot.entity as any).isCollidedHorizontally;
+    const bbsVertTouching = bb1s.some((b) => b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height; //&& !(this.bot.entity as any).isCollidedHorizontally;
 
-    // console.log(bbsVertTouching, similarDirection, bb0, bb1)
+    // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     if (bbsVertTouching && offset.y <= 0) {
       if (similarDirection && headingThatWay) return true;
-      
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
+
+    // console.log(
+    //   "backup",
+    //   this.bot.entity.position.xzDistanceTo(endMove.exitPos),
+    //   this.bot.entity.position.y,
+    //   endMove.exitPos.y,
+    //   this.bot.entity.onGround,
+    //   this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm()
+    // );
 
     // default implementation of being at the center of the block.
     // Technically, this may be true when the bot overshoots, which is fine.
@@ -203,6 +212,7 @@ export abstract class MovementExecutor extends Movement {
     const block = breakTarget.getBlock(this.bot.pathfinder.world);
     if (!block) throw new CancelError("MovementExecutor: no block to break");
     const item = breakTarget.getItem(this.bot, BlockInfo, block);
+
     await breakTarget.perform(this.bot, item, opts);
     this._cI = undefined;
   }
@@ -223,7 +233,7 @@ export abstract class MovementExecutor extends Movement {
     const dz = vec3.z - this.bot.entity.position.z;
 
     // console.log("lookAt", Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))
-    
+
     if (this.isLookingAt(vec3, 0.001)) return;
     return this.bot.lookAt(vec3, force);
   }
@@ -275,8 +285,8 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bl)
     if (!bl) return false;
 
-    const blPosXZ = bl.position.offset(0, -bl.position, 0)
-    const vec3XZ = vec3.offset(0, -vec3.y, 0)
+    const blPosXZ = bl.position.offset(0, -bl.position, 0);
+    const vec3XZ = vec3.offset(0, -vec3.y, 0);
 
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0);
     // console.log(blPosXZ, vec3XZ, vec3XZ.minus(eyePos).normalize().dot(blPosXZ.minus(eyePos).normalize()), 1 - limit);
@@ -335,12 +345,12 @@ export abstract class MovementExecutor extends Movement {
   protected async alignToPath(startMove: Move, endMove?: any, opts?: any) {
     if (endMove === undefined) {
       endMove = startMove;
-      opts = {}
+      opts = {};
     } else if (endMove instanceof Move) {
       opts = opts ?? {};
     } else {
-      opts = endMove
-      endMove = startMove
+      opts = endMove;
+      endMove = startMove;
     }
 
     const handleBack = opts.handleBack ?? false;
@@ -359,7 +369,6 @@ export abstract class MovementExecutor extends Movement {
     // console.log("target", target, opts)
     if (target !== endMove.exitPos) await this.lookAt(target);
     else await this.lookAtPathPos(target);
-
 
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

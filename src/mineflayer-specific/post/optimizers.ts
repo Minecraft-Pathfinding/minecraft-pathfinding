@@ -125,6 +125,8 @@ export class DropDownOpt extends MovementOptimizer {
     while (currentIndex < path.length) {
       if (nextMove.exitPos.y > lastMove.exitPos.y) return --currentIndex;
 
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex;
+
       // rough fix.
       if (nextMove.exitPos.xzDistanceTo(firstPos) < lastMove.exitPos.xzDistanceTo(firstPos)) return --currentIndex;
 
