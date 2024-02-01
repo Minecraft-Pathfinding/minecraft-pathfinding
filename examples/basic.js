@@ -6,7 +6,12 @@ const { Vec3 } = require("vec3");
 
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
-const bot = createBot({ username: "testing1", auth: "offline", host: "Ic3TankD2HO.aternos.me", port: 44656 });
+const bot = createBot({ username: "testing1", auth: "offline", 
+
+host: "node2.endelon-hosting.de", port: 31997
+// host: "Ic3TankD2HO.aternos.me", port: 44656
+
+});
 const pathfinder = createPlugin();
 
 bot.on("inject_allowed", () => {});
@@ -45,7 +50,13 @@ bot.once("spawn", () => {
 /** @type { Vec3 | null } */
 let lastStart = null;
 
+bot.on('messagestr', (msg, pos, jsonMsg) => {
+  console.log(msg, jsonMsg)
+
+})
 bot.on("chat", async (username, msg) => {
+
+ 
   const [cmd, ...args] = msg.split(" ");
   const author = bot.nearestEntity((e) => e.username === username);
 

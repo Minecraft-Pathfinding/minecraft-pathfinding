@@ -207,8 +207,8 @@ export class PlaceHandler extends InteractHandler {
   }
 
   async performInfo(bot: Bot, ticks = 15, scale = 0.5) {
-    bot.chat(`/particle flame ${this.vec.x} ${this.vec.y} ${this.vec.z} 0 0 0 0 1 force`);
-    bot.chat(`pointed to: ${this.vec}`);
+    // bot.chat(`/particle flame ${this.vec.x} ${this.vec.y} ${this.vec.z} 0 0 0 0 1 force`);
+    // bot.chat(`pointed to: ${this.vec}`);
     // console.log(this.vec)
     switch (this.type) {
       case "water": {

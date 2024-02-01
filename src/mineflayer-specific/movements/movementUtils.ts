@@ -302,7 +302,7 @@ export class ParkourJumpHelper {
 
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
 
-    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 30);
+    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 40);
 
     // console.log('sim jump from edge', state.age, state.pos, goalVert, state.onGround, state.isCollidedHorizontally, state.control, state.isInWater)
     const reached = JumpSim.getReached(goal);
@@ -324,7 +324,7 @@ export class ParkourJumpHelper {
 
 
     const reached = JumpSim.getReached(goal);
-    const state = this.sim.simulateUntilOnGround(ctx, 30, reached);
+    const state = this.sim.simulateUntilOnGround(ctx, 40, reached);
 
     // console.log("sim jump immediately", state.age, orgPos, state.pos, AABB.fromBlockPos(goal), state.onGround, state.isCollidedHorizontally, state.control)
     
@@ -347,8 +347,8 @@ export class ParkourJumpHelper {
     const reached = JumpSim.getReached(goal);
 
     const lazyFix = this.findBackupVertex(goal);
-    this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 20);
-    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 20);
+    this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40);
+    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 40);
 
     
     return reached(state, 0) as boolean;
