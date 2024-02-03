@@ -29,6 +29,8 @@ import {
 import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from "./mineflayer-specific/post/optimizers";
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
+import { Performer } from "./abstract/performer";
+import { ContinuesPathProducer } from "./mineflayer-specific/pathProducers/continuesPathProducer";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
@@ -156,33 +158,23 @@ export class ThePathfinder {
   }
 
   async *getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultSettings) {
-    let { x, y, z } = startPos;
-    x = Math.floor(x);
-    y = Math.ceil(y);
-    z = Math.floor(z);
-
-    const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, settings);
-    moveHandler.loadGoal(goal);
-
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
-    const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, 0);
-
-
+    const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh();
-
-    let result = astarContext.compute();
-    let ticked = false;
+    const foo = new ContinuesPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    let { result, astarContext } = foo.advance();
 
     yield { result, astarContext };
 
+    let ticked = false;
     const listener = () => {
       ticked = true;
     };
     this.bot.on("physicsTick", listener);
 
     while (result.status === "partial") {
-      result = astarContext.compute();
+      let { result: result2, astarContext } = foo.advance();
+      result = result2;
       if (result.status === "success") {
         yield { result, astarContext };
         break;
@@ -217,14 +209,16 @@ export class ThePathfinder {
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
       } else {
-        await this.perform(res.result, goal);
+
+        const newPath = await this.postProcess(res.result);
+        await this.perform(newPath, goal);
       }
     }
     console.log("clear states goddamnit");
     this.cleanupAll();
   }
 
-  private async postProcess(pathInfo: Path<Move, Algorithm<Move>>) {
+  private async postProcess(pathInfo: Path<Move, Algorithm<Move>>): Promise<Path<Move, Algorithm<Move>>> {
     // aggressive optimization.
     // Identify all nodes that are able to be straight-lined to each other.
     // Do so by comparing movement types && their respective y values.
@@ -259,15 +253,13 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler;
     const movements = movementHandler.getMovements();
 
-    const newPath = await this.postProcess(path);
-
-    outer: while (currentIndex < newPath.path.length) {
+    outer: while (currentIndex < path.path.length) {
       if (!this.shouldExecute) {
         this.cleanupAll();
         return;
       }
 
-      const move = newPath.path[currentIndex];
+      const move = path.path[currentIndex];
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
       if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
 
@@ -295,24 +287,24 @@ export class ThePathfinder {
 
         tickCount = 0;
 
-        await executor.performInit(move, currentIndex, newPath.path);
+        await executor.performInit(move, currentIndex, path.path);
 
-        let adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
+        let adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         while (!adding && tickCount < 999) {
           if (!this.shouldExecute) {
             this.cleanupAll();
             return;
           }
           await this.bot.waitForTicks(1);
-          adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
+          adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         }
 
         currentIndex += adding as number;
       } catch (err) {
         if (err instanceof CancelError) {
-          console.log('CANCEL ERROR', this.bot.entity.position, this.bot.entity.velocity, goal, move.entryPos, move.exitPos, move.moveType.constructor.name, currentIndex, newPath.path.length, tickCount, err);
-          console.log(newPath.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
-          await this.recovery(move, newPath, goal, entry);
+          console.log('CANCEL ERROR', this.bot.entity.position, this.bot.entity.velocity, goal, move.entryPos, move.exitPos, move.moveType.constructor.name, currentIndex, path.path.length, tickCount, err);
+          console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
+          await this.recovery(move, path, goal, entry);
           break outer;
         } else throw err;
       }
