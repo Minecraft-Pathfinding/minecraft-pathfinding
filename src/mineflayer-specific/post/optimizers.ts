@@ -211,6 +211,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex;
       lastMove = nextMove;
       nextMove = path[++currentIndex];
       if (!nextMove) return --currentIndex;
@@ -223,7 +224,8 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.exitPos.distanceTo(firstPos) <= 2 && // remove for more aggressive opt.
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
-    ) {
+      ) {
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex;
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
       lastMove = nextMove;
       nextMove = path[++currentIndex];

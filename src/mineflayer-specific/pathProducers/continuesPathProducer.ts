@@ -6,13 +6,14 @@ import { ExecutorMap, MovementHandler, MovementOptions } from "../movements";
 import { World } from "../world/worldInterface";
 import { AStar } from "../../abstract/algorithms/astar";
 
-export class ContinuesPathProducer implements PathProducer {
+export class ContinuesPathProducer implements PathProducer<Move> {
   private start: Move;
   private goal: goals.Goal;
   private settings: MovementOptions;
   private bot: Bot;
   private world: World;
   private movements: ExecutorMap;
+  private astarContext: AStar<Move> | undefined;
   constructor(start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
     this.start = start;
     this.goal = goal;
@@ -23,12 +24,14 @@ export class ContinuesPathProducer implements PathProducer {
   }
   
   advance() {
-    const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings);
-    moveHandler.loadGoal(this.goal);
+    if (!this.astarContext) {
+      const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings);
+      moveHandler.loadGoal(this.goal);
+  
+      this.astarContext = new AStar(this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
+    }
 
-    const astarContext = new AStar(this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
-
-    const result = astarContext.compute();
-    return { result, astarContext };
+    const result = this.astarContext.compute();
+    return { result, astarContext: this.astarContext };
   }
 }

@@ -117,7 +117,7 @@ export abstract class MovementExecutor extends Movement {
     const pos = ectx.state.pos;
     // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
-    bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
+    // bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
     // bb0.expand(-0.0001, 0, -0.0001);
 
     const bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0));
@@ -132,7 +132,9 @@ export abstract class MovementExecutor extends Movement {
 
     const bbsVertTouching = bb1s.some((b) => b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height; //&& !(this.bot.entity as any).isCollidedHorizontally;
 
-    // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
+    console.info('bb0', bb0, 'bb1s', bb1s)
+    console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
+    console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
       if (similarDirection && headingThatWay) return true;
 

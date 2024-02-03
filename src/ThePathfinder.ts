@@ -31,6 +31,7 @@ import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from "./mineflayer-sp
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
 import { Performer } from "./abstract/performer";
 import { ContinuesPathProducer } from "./mineflayer-specific/pathProducers/continuesPathProducer";
+import { PartialPathProducer } from "./mineflayer-specific/pathProducers/partialPathProducer";
 
 const EMPTY_VEC = new Vec3(0, 0, 0);
 
@@ -161,7 +162,8 @@ export class ThePathfinder {
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh();
-    const foo = new ContinuesPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    // const foo = new ContinuesPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    const foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
     let { result, astarContext } = foo.advance();
 
     yield { result, astarContext };

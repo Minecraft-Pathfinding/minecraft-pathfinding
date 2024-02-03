@@ -271,7 +271,7 @@ export class ParkourJumpHelper {
     let scale = 1.3;
 
     outer: while (scale >= 1) {
-      const wanted = dir2.scale(1.3).plus(start);
+      const wanted = dir2.scale(scale).plus(start);
 
       const testBB = AABBUtils.getPlayerAABB({position: wanted, width: 0.6, height: 1.8})
   

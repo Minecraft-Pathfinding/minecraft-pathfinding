@@ -5,8 +5,10 @@ import { Move } from "../move";
 import { ExecutorMap, MovementHandler, MovementOptions } from "../movements";
 import { World } from "../world/worldInterface";
 import { AStar } from "../../abstract/algorithms/astar";
+import { PathData } from "../../abstract/node";
+import { Path } from "../../abstract";
 
-export class PartialPathProducer implements PathProducer {
+export class PartialPathProducer implements PathProducer<Move> {
   private start: Move;
   private goal: goals.Goal;
   private settings: MovementOptions;
@@ -14,6 +16,7 @@ export class PartialPathProducer implements PathProducer {
   private world: World;
   private movements: ExecutorMap;
   private bestMove: Move | undefined;
+  private lastPath: Move[] = [];
   constructor(start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
     this.start = start;
     this.goal = goal;
@@ -23,14 +26,22 @@ export class PartialPathProducer implements PathProducer {
     this.movements = movements;
   }
   
-  advance() {
+  advance(): { result: Path<Move, AStar<Move>>, astarContext: AStar<Move> } {
     const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings);
     moveHandler.loadGoal(this.goal);
 
-    const astarContext = new AStar(this.bestMove || this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
+    const astarContext = new AStar<Move>(this.bestMove || this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
 
     const result = astarContext.compute();
     this.bestMove = result.path[result.path.length - 1]
-    return { result, astarContext };
+    this.lastPath = [...this.lastPath, ...result.path]
+    return { result: {
+      ...result,
+      path: this.lastPath
+    }, astarContext };
+  }
+
+  private mergePathspath(path1: Move[], path2: Move[]) {
+    let last: Move = path1[0]
   }
 }

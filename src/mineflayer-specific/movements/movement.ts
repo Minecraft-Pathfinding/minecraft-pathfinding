@@ -32,8 +32,8 @@ export interface MovementOptions {
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   canOpenDoors: true,
-  canDig: true,
-  canPlace: true,
+  canDig: false,
+  canPlace: false,
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
   allow1by1towers: true,
