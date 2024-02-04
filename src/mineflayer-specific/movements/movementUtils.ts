@@ -284,7 +284,7 @@ export class ParkourJumpHelper {
         for (let y = testBB.minY; y <= testBB.maxY; y+=height/2) {
           for (let z = testBB.minZ; z <= testBB.maxZ; z+=width/2) {
             cursor.set(x,y,z);
-            console.log(cursor)
+            // console.log(cursor)
             const bl = this.world.getBlockInfo(cursor);
             if (bl.physical && bl.getBBs().some(b=>b.collides(testBB))) {
               console.log('scale', scale, 'failed')
@@ -331,12 +331,18 @@ export class ParkourJumpHelper {
     const goalCenter = goal.floored().offset(0.5, 0, 0.5);
 
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
-
+  
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, srcBBs, goalCenter, goalCenter, true, 40);
 
     // console.log('sim jump from edge', state.age, state.pos, goalVert, state.onGround, state.isCollidedHorizontally, state.control, state.isInWater)
     const reached = JumpSim.getReached(goal);
     return reached(state, 0) as boolean;
+  }
+
+  public simJumpTest(srcBBS: AABB[], goal: Vec3) {
+
+    
+
   }
 
   public simJumpImmediately(goal: Vec3) {

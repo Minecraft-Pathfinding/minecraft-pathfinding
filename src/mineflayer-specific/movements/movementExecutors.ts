@@ -726,6 +726,14 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize();
     const dir = target.minus(this.bot.entity.position).normalize();
    
+    const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
+    this.bot.physicsUtil.engine.simulate(ctx, this.world);
+    this.bot.physicsUtil.engine.simulate(ctx, this.world);
+
+    const state = ctx.state;
+    
+    const goingToFall = state.pos.y < this.bot.entity.position.y
+
     if (this.backUpTarget && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true;
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
@@ -737,8 +745,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.setControlState("sprint", dist > 0);
       this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.5 && true);
 
-      return false;
-    } else if (!this.backUpTarget) {
+    } else if (!this.backUpTarget && goingToFall) {
+
+
       this.reachedBackup = false;
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, targetVec);
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
@@ -748,11 +757,11 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.setControlState("sprint", dist > 0);
       this.bot.setControlState("sneak", dist < 0 && xzvdir.dot(dir) < 0.5);
 
-      await this.lookAt(this.backUpTarget);
+      this.lookAt(this.backUpTarget);
       
       console.log("here2", this.backUpTarget, this.bot.entity.position);
-      return false;
-    } else if (!this.reachedBackup) {
+
+    } else if (!this.reachedBackup && this.backUpTarget) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       // console.log("here3", this.backUpTarget, this.bot.entity.position, bb);
       if (this.world.getBlockInfo(this.backUpTarget.offset(0, 1, 0)).physical) {
@@ -769,14 +778,13 @@ export class ParkourForwardExecutor extends MovementExecutor {
     } else {
 
       const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world);
-      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       // if (state.pos.y < this.bot.entity.position.y) {
       //   console.log("HI", state.pos, this.bot.entity.position)
       //   this.bot.setControlState('sneak', true)
       //   // throw new CancelError('ParkourForward: Not making this jump.')
       // } else {
         this.bot.clearControlStates();
-        console.log("here4", this.backUpTarget, this.bot.entity.position, bb, dist, xzvdir.dot(dir));
+        console.log("here4", this.backUpTarget, this.bot.entity.position, bb, xzvdir.dot(dir));
         
         this.bot.setControlState("forward", true);
         this.bot.setControlState("sprint", xzvdir.dot(dir) > 0.3);
@@ -790,6 +798,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   
     }
+
+    console.log('done')
 
     return false;
   }

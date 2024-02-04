@@ -160,6 +160,7 @@ bot.on("chat", async (username, msg) => {
       break;
     }
 
+    case "ggoto":
     case "goto":
     case "#goto": {
       const x = Math.floor(Number(args[0]));
