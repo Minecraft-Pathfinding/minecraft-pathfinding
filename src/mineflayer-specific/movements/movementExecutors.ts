@@ -4,11 +4,12 @@ import { Move } from "../move";
 import { Movement } from "./movement";
 import { CancelError } from "./exceptions";
 import { BlockInfo } from "../world/cacheWorld";
-import { RayType } from "./interactionUtils";
+import { BreakHandler, RayType } from "./interactionUtils";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import * as controls from "./controls";
 import { MovementExecutor } from "./movementExecutor";
 import { JumpCalculator, ParkourJumpHelper } from "./movementUtils";
+import { EPhysicsCtx } from "@nxg-org/mineflayer-physics-util";
 
 export class IdleMovementExecutor extends Movement {
   provideMovements(start: Move, storage: Move[]): void {}
@@ -71,13 +72,14 @@ export class ForwardExecutor extends MovementExecutor {
   async align(thisMove: Move, tickCount: number, goal: goals.Goal) {
     let faceForward = await this.facingCorrectDir();
 
+    const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5);
     if (faceForward) {
-      void this.lookAt(thisMove.entryPos);
+      void this.lookAt(target);
       this.bot.setControlState("forward", true);
       if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
       else this.bot.setControlState("sprint", true);
     } else {
-      const offset = this.bot.entity.position.minus(thisMove.entryPos).plus(this.bot.entity.position);
+      const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position);
       void this.lookAt(offset);
       this.bot.setControlState("forward", false);
       this.bot.setControlState("sprint", false);
@@ -87,7 +89,7 @@ export class ForwardExecutor extends MovementExecutor {
     // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
 
     const off0 = thisMove.exitPos.minus(this.bot.entity.position);
-    const off1 = thisMove.exitPos.minus(thisMove.entryPos);
+    const off1 = thisMove.exitPos.minus(target);
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
 
     // console.log(off0.dot(off1), off0, off1)
@@ -100,7 +102,7 @@ export class ForwardExecutor extends MovementExecutor {
     // if (!similarDirection) {
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
 
-    const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
+    const bb1bl = this.getBlockInfo(target, 0, -1, 0);
     const bb1 = bb1bl.getBBs();
     if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position));
     const bb1physical = bb1bl.physical || bb1bl.liquid;
@@ -114,7 +116,7 @@ export class ForwardExecutor extends MovementExecutor {
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
     if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
       if (similarDirection) return true;
-      else if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return this.isLookingAt(thisMove.entryPos);
+      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAt(target);
     }
 
     return false;
@@ -593,24 +595,31 @@ export class StraightUpExecutor extends MovementExecutor {
   }
 
   async align(thisMove: Move) {
+
+    const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5)
     this.bot.clearControlStates();
-    this.lookAt(thisMove.entryPos);
+
+    this.lookAt(target);
 
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 });
-    const bb1bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0);
+    const bb1bl = this.getBlockInfo(target, 0, -1, 0);
 
     const bb1 = bb1bl.getBBs();
     if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position));
     bb1.forEach((b) => b.extend(0, 10, 0));
 
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    // console.log(bb1.some((b) => b.contains(bb0)), this.isLookingAt(target))
     if (bb1.some((b) => b.contains(bb0))) {
-      return this.isLookingAt(thisMove.entryPos);
+      return this.isLookingAt(target);
     }
+
+    
+
 
     // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
     // adjust as quickly as possible to goal.
-    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0 || this.bot.entity.position.distanceTo(thisMove.entryPos) > 0.5) {
+    if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= 0 || this.bot.entity.position.distanceTo(target) > 0.5) {
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", true);
       this.bot.setControlState("sneak", false);
@@ -622,6 +631,8 @@ export class StraightUpExecutor extends MovementExecutor {
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("sneak", true);
     }
+
+    console.log(this.bot.getControlState('sneak'), this.bot.getControlState('sprint'), this.bot.getControlState('forward'))
     return false;
   }
 
@@ -636,6 +647,7 @@ export class StraightUpExecutor extends MovementExecutor {
     for (const place of thisMove.toPlace) {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5));
       this.bot.setControlState("jump", true);
+      console.log('sup')
       this.performInteraction(place);
     }
   }
@@ -651,14 +663,12 @@ export class StraightUpExecutor extends MovementExecutor {
 }
 
 export class ParkourForwardExecutor extends MovementExecutor {
-  jumpInfo!: ReturnType<JumpCalculator["findJumpPoint"]>;
 
-  private shitter: JumpCalculator = new JumpCalculator(this.sim, this.bot, this.world, this.simCtx);
   private shitterTwo: ParkourJumpHelper = new ParkourJumpHelper(this.bot, this.world);
 
   private backUpTarget?: Vec3;
 
-  private backingUp = false;
+  private reachedBackup = false;
   private jumped = false;
 
   protected isComplete(startMove: Move, endMove?: Move, ticks?: number): boolean {
@@ -677,13 +687,18 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     // return true;
 
-    const test1 = this.shitterTwo.simJumpFromEdge(target);
+    const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6);
 
-    console.log("align", test, test1);
-
-    if (!this.bot.entity.onGround) {
-      return false;
+    if (bbs.length === 0) {
+      bbs.push(AABB.fromBlockPos(thisMove.entryPos));
     }
+
+    const test1 = this.shitterTwo.simJumpFromEdge(bbs, target);
+
+    console.log("align", test, test1, this.bot.entity.onGround);
+
+
+    if (!this.bot.entity.onGround) return false;
 
     if (test) {
       this.bot.setControlState("sprint", true);
@@ -703,31 +718,84 @@ export class ParkourForwardExecutor extends MovementExecutor {
       return true;
     }
 
+    // return true;
+
+
   
-    const bb = AABBUtils.getPlayerAABB(this.bot.entity).expand(0.0001, 0, 0.0001).extend(0, -0.252, 0)
+    const bb = AABBUtils.getPlayerAABB({position:this.bot.entity.position, width:0.15, height: 1.8}).extend(0, -0.252, 0)
+    const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize();
+    const dir = target.minus(this.bot.entity.position).normalize();
+   
     if (this.backUpTarget && bb.containsVec(this.backUpTarget)) {
-      console.log("here1", this.backUpTarget, this.bot.entity.position);
+      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
+      console.log("here1", this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir));
       this.bot.clearControlStates();
       this.lookAt(target);
-      this.bot.setControlState("sprint", true);
+
       this.bot.setControlState("forward", true);
-      this.backingUp = false;
+
+      this.reachedBackup = true;
+      this.bot.setControlState("sprint", dist > 0);
+      this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.5 && true);
+
       return false;
     } else if (!this.backUpTarget) {
-      this.backUpTarget = this.shitterTwo.findBackupVertex(targetVec);
+      this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, targetVec);
+      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       console.log('here2', this.backUpTarget)
-      this.lookAt(this.backUpTarget);
-      this.backingUp = true;
+
+      if (this.world.getBlockInfo(this.backUpTarget.offset(0, 1, 0)).physical) {
+        console.log('sup')
+        await this.performInteraction(BreakHandler.fromVec(this.backUpTarget.offset(0, 1, 0), "solid"))
+      }
+
+      
+      this.reachedBackup = false;
       this.bot.setControlState("forward", true);
-      this.bot.setControlState("sprint", false);
-      // this.bot.setControlState("sneak", true);
-      // console.log("here2", backupVec, this.bot.entity.position);
+      this.bot.setControlState("sprint", dist > 0);
+      this.bot.setControlState("sneak", dist < 0.2 && xzvdir.dot(dir) < 0.5);
+
+      await this.lookAt(this.backUpTarget);
+      
+      console.log("here2", this.backUpTarget, this.bot.entity.position);
       return false;
+    } else if (!this.reachedBackup) {
+      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
+      // console.log("here3", this.backUpTarget, this.bot.entity.position, bb);
+      if (this.world.getBlockInfo(this.backUpTarget.offset(0, 1, 0)).physical) {
+        console.log('sup')
+        await this.performInteraction(BreakHandler.fromVec(this.backUpTarget.offset(0, 1, 0), "solid"))
+      }
+
+    
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("sprint", dist > 0 || this.reachedBackup);
+      this.bot.setControlState("sneak", dist < 0.2 && true);
+
+      await this.lookAt(this.backUpTarget);
     } else {
-      console.log("here3", this.backUpTarget, this.bot.entity.position, bb);
-      // this.lookAt(this.backUpTarget);
-      // this.bot.setControlState("forward", true);
-      // this.bot.setControlState("sprint", false);
+
+      const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world);
+      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
+      // if (state.pos.y < this.bot.entity.position.y) {
+      //   console.log("HI", state.pos, this.bot.entity.position)
+      //   this.bot.setControlState('sneak', true)
+      //   // throw new CancelError('ParkourForward: Not making this jump.')
+      // } else {
+        this.bot.clearControlStates();
+        console.log("here4", this.backUpTarget, this.bot.entity.position, bb, dist, xzvdir.dot(dir));
+        
+        this.bot.setControlState("forward", true);
+        this.bot.setControlState("sprint", xzvdir.dot(dir) > 0.3);
+        this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && true);
+
+        await this.lookAt(target);
+      // }
+
+     
+
+
+  
     }
 
     return false;
@@ -746,19 +814,29 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   // TODO: Fix this. Good thing I've done this before. >:)
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
+    if (!this.bot.entity.onGround) return false;
+    
     const target = thisMove.exitPos.offset(0, -1, 0);
     const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target));
 
+    const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6);
+    if (bbs.length === 0) {
+      bbs.push(AABB.fromBlockPos(thisMove.entryPos));
+    }
+
     this.alignToPath(thisMove);
 
-    // console.log('CALLED TEST IN PER TICK')
+ 
+    // console.log('CALLED TEST IN PER TICK', this.bot.entity.position, this.shitterTwo.getUnderlyingBBs(this.bot.entity.position,0.6))
     const test = this.shitterTwo.simJumpImmediately(target);
-    const test1 = this.shitterTwo.simJumpFromEdge(target);
+    const test1 = this.shitterTwo.simJumpFromEdge(bbs, target);
     // console.log(test, test1, target);
     // if (this.cI && !this.cI.allowExternalInfluence(this.bot, 5)) {
     //   this.bot.clearControlStates();
     //   return false;
     // }
+
+    console.log("per tick", test, test1);
 
     if (this.jumped) {
       this.bot.setControlState("jump", false);

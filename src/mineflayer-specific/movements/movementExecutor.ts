@@ -132,9 +132,9 @@ export abstract class MovementExecutor extends Movement {
 
     const bbsVertTouching = bb1s.some((b) => b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height; //&& !(this.bot.entity as any).isCollidedHorizontally;
 
-    console.info('bb0', bb0, 'bb1s', bb1s)
-    console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
-    console.info('end move exit pos', endMove.exitPos.toString())
+    // console.info('bb0', bb0, 'bb1s', bb1s)
+    // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
+    // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
       if (similarDirection && headingThatWay) return true;
 

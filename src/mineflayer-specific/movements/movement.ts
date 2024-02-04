@@ -32,8 +32,8 @@ export interface MovementOptions {
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   canOpenDoors: true,
-  canDig: false,
-  canPlace: false,
+  canDig: true,
+  canPlace: true,
   dontCreateFlow: true,
   dontMineUnderFallingBlock: true,
   allow1by1towers: true,
@@ -311,6 +311,7 @@ export abstract class Movement {
 
   safeOrPlace(block: BlockInfo, toPlace: PlaceHandler[], type: InteractType="solid") {
     if (!this.settings.canPlace) return 100;
+    if (this.currentMove.remainingBlocks <= 0) return 100;
     if (block.block === null) return 100; // Don't know its type, but that's only replaceables so just return.
     if (block.physical) return 0; // block is already physical at location.
 

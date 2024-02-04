@@ -109,6 +109,7 @@ export class StraightAheadOpt extends MovementOptimizer {
 export class DropDownOpt extends MovementOptimizer {
   // TODO: Add fall damage checks and whatnot.
 
+  // TODO: Fix bugs. (e.g. if bot is on a block that is not a full block, it will not be able to drop down)
   readonly mergeInteracts = false;
 
   identEndOpt(currentIndex: number, path: Move[]): number | Promise<number> {
@@ -225,7 +226,6 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
       ) {
-      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex;
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex;
       lastMove = nextMove;
       nextMove = path[++currentIndex];

@@ -364,7 +364,7 @@ export class ParkourForward extends MovementProvider {
     // Similarly for the down path
     let floorCleared = !this.getBlockInfo(node, dir.x, -2, dir.z).physical;
 
-    const maxD = this.settings.allowSprinting ? 4 : 2;
+    const maxD = this.settings.allowSprinting ? 5 : 2;
 
     for (let d = 2; d <= maxD; d++) {
       const dx = dir.x * d;
@@ -377,6 +377,7 @@ export class ParkourForward extends MovementProvider {
       // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
 
       if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
+        if (d === 5) continue;
         // cost += this.exclusionStep(blockB)
         // Forward
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this, [], []));
@@ -384,7 +385,7 @@ export class ParkourForward extends MovementProvider {
         break;
       } else if (ceilingClear && blockB.safe && blockC.physical) {
         // Up
-        // if (blockA.safe && d !== 4) {
+        if (d === 5) continue;
           // 4 Blocks forward 1 block up is very difficult and fails often
           // cost += this.exclusionStep(blockA)
           if (blockC.height - block0.height > 1.2) break; // Too high to jump

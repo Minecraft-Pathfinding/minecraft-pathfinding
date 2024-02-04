@@ -96,8 +96,8 @@ export class JumpSim extends BaseSimulator {
       JumpSim.getCleanupPosition(goal),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goal),
-        JumpSim.getControllerStrafeAim(goal),
-        JumpSim.getControllerSmartMovement(goal, sprint),
+        // JumpSim.getControllerStrafeAim(goal),
+        // JumpSim.getControllerSmartMovement(goal, sprint),
         JumpSim.getControllerJumpSprint(jump, sprint, jumpAfter)
       ),
       ctx,
@@ -127,20 +127,21 @@ export class JumpSim extends BaseSimulator {
   simulateJumpFromEdgeOfBlock(ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: Vec3, sprint: boolean, ticks = 20) {
     let jump = false;
     let changed = false;
+    const goalBlockTop = goalBlock.floored().translate(0.5, 0, 0.5)
     return this.simulateUntil(
       JumpSim.getReached(goalBlock),
       JumpSim.getCleanupPosition(goalCorner),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goalCorner),
-        JumpSim.getControllerStrafeAim(goalCorner),
-        JumpSim.getControllerSmartMovement(goalCorner, sprint),
+        // JumpSim.getControllerStrafeAim(goalCorner),
+        // JumpSim.getControllerSmartMovement(goalCorner, sprint),
         (state, ticks) => {
           state.control.sneak = false;
           // check if player is leaving src block collision
           const playerBB = state.getAABB();
           playerBB.expand(0, 1e-1, 0);
           if (jump && state.pos.xzDistanceTo(goalCorner) < 0.5 && !changed) {
-            goalCorner.set(goalBlock.x + 0.5, goalBlock.y + 1, goalBlock.z + 0.5);
+            goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z);
             changed = true;
           }
           if (ticks > 0 && srcAABBs.every((src) => !src.intersects(playerBB)) && !jump) {

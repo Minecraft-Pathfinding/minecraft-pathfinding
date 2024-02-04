@@ -534,6 +534,7 @@ export class BreakHandler extends InteractHandler {
         this._internalLock = false;
 
         await task;
+        console.log('done')
         break;
       }
 
