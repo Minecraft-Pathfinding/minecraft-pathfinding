@@ -83,10 +83,21 @@ export abstract class InteractHandler {
     (this as any).move = move;
   }
 
+  
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | null;
   abstract perform(bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>;
   abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
   abstract toBlockInfo(): BlockInfo;
+
+  /**
+   * TODO: Implement
+   */
+  abort() {
+    if (this._done) return;
+
+    
+    return;
+  }
 
   getCurrentItem(bot: Bot) {
     if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot("off-hand")]; // could be wrong lol

@@ -15,7 +15,7 @@ export class PartialPathProducer implements PathProducer<Move> {
   private bot: Bot;
   private world: World;
   private movements: ExecutorMap;
-  private bestMove: Move | undefined;
+  private latestMove: Move | undefined;
   private lastPath: Move[] = [];
   constructor(start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
     this.start = start;
@@ -30,10 +30,10 @@ export class PartialPathProducer implements PathProducer<Move> {
     const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings);
     moveHandler.loadGoal(this.goal);
 
-    const astarContext = new AStar<Move>(this.bestMove || this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
+    const astarContext = new AStar<Move>(this.latestMove || this.start, moveHandler, this.goal, -1, 45, -1, 0);
 
     const result = astarContext.compute();
-    this.bestMove = result.path[result.path.length - 1]
+    this.latestMove = result.path[result.path.length - 1]
     this.lastPath = [...this.lastPath, ...result.path]
     return { result: {
       ...result,

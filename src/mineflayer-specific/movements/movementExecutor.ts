@@ -41,6 +41,34 @@ export abstract class MovementExecutor extends Movement {
   }
 
   /**
+   * TODO: Implement.
+   */
+  public async abort(timeout = 1000): Promise<void> {
+    for (const breakTarget of this.currentMove.toBreak) {
+      await breakTarget.abort();
+    }
+
+    for (const place of this.currentMove.toPlace) {
+      await place.abort();
+    }
+
+    // default: wait until on ground and not water to abort.
+    return new Promise<void>((res, rej) => {
+      const listener = () => {
+        if (this.bot.entity.onGround && !(this.bot.entity as any).isInWater) {
+          this.bot.off("physicsTick", listener);
+          res();
+        }
+        this.bot.on("physicsTick", listener);
+        setTimeout(() => {
+          this.bot.off("physicsTick", listener);
+          rej(new CancelError("Movement failed to abort properly."));
+        }, timeout);
+      };
+    });
+  }
+
+  /**
    * Runtime calculation.
    *
    * Perform initial setup upon movement start.
@@ -123,7 +151,7 @@ export abstract class MovementExecutor extends Movement {
     const bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0));
 
     const bb1s = bb1bl.getBBs();
- 
+
     const headingThatWay = xzVelDir.dot(dir.normalize()) > -2;
 
     const bb1physical = bb1bl.physical || bb1bl.liquid;

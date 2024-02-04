@@ -727,33 +727,26 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const dir = target.minus(this.bot.entity.position).normalize();
    
     if (this.backUpTarget && bb.containsVec(this.backUpTarget)) {
+      this.reachedBackup = true;
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       console.log("here1", this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir));
       this.bot.clearControlStates();
-      this.lookAt(target);
+      await this.lookAt(target);
 
       this.bot.setControlState("forward", true);
-
-      this.reachedBackup = true;
       this.bot.setControlState("sprint", dist > 0);
       this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.5 && true);
 
       return false;
     } else if (!this.backUpTarget) {
+      this.reachedBackup = false;
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, targetVec);
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       console.log('here2', this.backUpTarget)
-
-      if (this.world.getBlockInfo(this.backUpTarget.offset(0, 1, 0)).physical) {
-        console.log('sup')
-        await this.performInteraction(BreakHandler.fromVec(this.backUpTarget.offset(0, 1, 0), "solid"))
-      }
-
       
-      this.reachedBackup = false;
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", dist > 0);
-      this.bot.setControlState("sneak", dist < 0.2 && xzvdir.dot(dir) < 0.5);
+      this.bot.setControlState("sneak", dist < 0 && xzvdir.dot(dir) < 0.5);
 
       await this.lookAt(this.backUpTarget);
       
@@ -770,7 +763,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", dist > 0 || this.reachedBackup);
-      this.bot.setControlState("sneak", dist < 0.2 && true);
+      this.bot.setControlState("sneak", dist < 0 && false);
 
       await this.lookAt(this.backUpTarget);
     } else {
@@ -787,7 +780,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
         
         this.bot.setControlState("forward", true);
         this.bot.setControlState("sprint", xzvdir.dot(dir) > 0.3);
-        this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && true);
+        this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && false);
 
         await this.lookAt(target);
       // }
@@ -803,6 +796,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     delete this.backUpTarget;
+    this.reachedBackup = false;
     await this.lookAt(thisMove.exitPos);
     this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`);
 
