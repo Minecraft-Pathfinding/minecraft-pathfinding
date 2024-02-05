@@ -30,8 +30,8 @@ export class ContinuesPathProducer implements PathProducer<Move> {
   
       this.astarContext = new AStar(this.start, moveHandler, this.goal, -1, 45, -1, -1e-6);
     }
-
-    const result = this.astarContext.compute();
+    
+    const result = this.astarContext.compute()!;
     return { result, astarContext: this.astarContext };
   }
 }

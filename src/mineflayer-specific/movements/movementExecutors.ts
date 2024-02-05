@@ -74,14 +74,14 @@ export class ForwardExecutor extends MovementExecutor {
 
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5);
     if (faceForward) {
-      this.alignToPath(thisMove, {target: target})
+      this.alignToPath(thisMove, { target: target });
       // void this.lookAt(target);
       // this.bot.setControlState("forward", true);
       // if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
       // else this.bot.setControlState("sprint", true);
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position);
-      this.alignToPath(thisMove, {target: offset})
+      this.alignToPath(thisMove, { target: offset });
       // void this.lookAt(offset);
       // this.bot.setControlState("forward", false);
       // this.bot.setControlState("sprint", false);
@@ -141,7 +141,7 @@ export class ForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
       // void this.lookAt(offset);
-      this.alignToPath(thisMove, {target: offset, sprint: true})
+      this.alignToPath(thisMove, { target: offset, sprint: true });
       this.bot.setControlState("forward", false);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("back", true);
@@ -207,6 +207,35 @@ export class ForwardExecutor extends MovementExecutor {
     return --currentIndex;
   }
 
+  // TODO: clean this up.
+  private canJump(thisMove: Move) {
+    if (!this.bot.entity.onGround) return false;
+    if (this.toBreakLen() > 0 || this.toPlaceLen() > 0) return false;
+
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+    if (xzVel.norm() < 0.15) return false;
+
+    console.log("hey");
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+    this.sim.simulateUntil(
+      (state, ticks) => (ticks > 0 && state.onGround) || state.isCollidedHorizontally,
+      () => {},
+      (state) => {
+        state.control.set("jump", true);
+      },
+      ctx,
+      this.world,
+      20
+    );
+
+    if (ctx.state.pos.y > thisMove.entryPos.y) return false;
+
+    if (thisMove.entryPos.xzDistanceTo(ctx.state.pos) > thisMove.entryPos.xzDistanceTo(thisMove.exitPos) - 0.5) return false;
+
+    if (ctx.state.isCollidedHorizontally) return false;
+    return ctx.state.onGround;
+  }
+
   async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
     if (this.cI && !this.cI.allowExternalInfluence(this.bot, 1)) {
       this.bot.clearControlStates();
@@ -223,7 +252,11 @@ export class ForwardExecutor extends MovementExecutor {
 
     // if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
 
-    if (!this.bot.entity.onGround && this.bot.entity.position.y !== Math.round(this.bot.entity.position.y)) {
+    if (
+      !this.bot.entity.onGround &&
+      this.bot.entity.position.y < thisMove.entryPos.y && // 
+      !this.bot.getControlState("jump")
+    ) {
       // console.log(this.bot.entity.position, this.bot.entity.velocity);
       throw new CancelError("ForwardMove: not on ground");
     }
@@ -254,17 +287,16 @@ export class ForwardExecutor extends MovementExecutor {
           // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
         }
       } else {
-        this.alignToPath(thisMove)
-        // this.lookAt(thisMove.exitPos);
-        // this.bot.setControlState("forward", true);
-        // this.bot.setControlState("sprint", true);
-        // this.bot.setControlState("back", false);
+        const jump = this.canJump(thisMove);
+        console.log("should jump", jump);
+        this.bot.setControlState("jump", jump);
+        this.alignToPath(thisMove);
         return this.isComplete(thisMove);
         // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
       }
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
-      this.alignToPath(thisMove, {target: offset})
+      this.alignToPath(thisMove, { target: offset });
       return this.isComplete(thisMove);
     }
 
@@ -413,8 +445,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       }
     }
 
-    
-    await this.alignToPath(thisMove, {sprint: false});
+    await this.alignToPath(thisMove, { sprint: false });
     if (this.jumpInfo) {
       if (tickCount >= this.jumpInfo.sprintTick) {
         this.bot.setControlState("sprint", true);
@@ -431,8 +462,6 @@ export class ForwardJumpExecutor extends MovementExecutor {
     } else {
       // this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos);
     }
-
-    
 
     // if (tickCount > 160) throw new CancelError("ForwardJumpMove: tickCount > 160");
 
@@ -457,7 +486,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]) {
     this.currentIndex = currentIndex;
-    this.alignToPath(thisMove, {sprint: true});
+    this.alignToPath(thisMove, { sprint: true });
 
     // console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z);
     // this.bot.setControlState("forward", true);
@@ -530,7 +559,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     } else {
       const nextMove = path[currentIndex + 1];
       if (nextMove) this.alignToPath(thisMove, { target: nextMove.entryPos, sprint: true });
-      else this.alignToPath(thisMove, {sprint: true});
+      else this.alignToPath(thisMove, { sprint: true });
 
       if (this.isComplete(thisMove)) return true;
       // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
@@ -598,8 +627,7 @@ export class StraightUpExecutor extends MovementExecutor {
   }
 
   async align(thisMove: Move) {
-
-    const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5)
+    const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5);
     this.bot.clearControlStates();
 
     this.lookAt(target);
@@ -617,9 +645,6 @@ export class StraightUpExecutor extends MovementExecutor {
       return this.isLookingAt(target);
     }
 
-    
-
-
     // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
     // adjust as quickly as possible to goal.
     if (xzVel.normalize().dot(this.bot.util.getViewDir()) <= -0.2 || this.bot.entity.position.distanceTo(target) > 0.5) {
@@ -635,7 +660,7 @@ export class StraightUpExecutor extends MovementExecutor {
       this.bot.setControlState("sneak", true);
     }
 
-    console.log(this.bot.getControlState('sneak'), this.bot.getControlState('sprint'), this.bot.getControlState('forward'))
+    console.log(this.bot.getControlState("sneak"), this.bot.getControlState("sprint"), this.bot.getControlState("forward"));
     return false;
   }
 
@@ -650,7 +675,7 @@ export class StraightUpExecutor extends MovementExecutor {
     for (const place of thisMove.toPlace) {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5));
       this.bot.setControlState("jump", true);
-      console.log('sup')
+      console.log("sup");
       this.performInteraction(place);
     }
   }
@@ -666,7 +691,6 @@ export class StraightUpExecutor extends MovementExecutor {
 }
 
 export class ParkourForwardExecutor extends MovementExecutor {
-
   private shitterTwo: ParkourJumpHelper = new ParkourJumpHelper(this.bot, this.world);
 
   private backUpTarget?: Vec3;
@@ -700,7 +724,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     console.log("align", test, test1, this.bot.entity.onGround);
 
-
     if (!this.bot.entity.onGround) return false;
 
     if (test) {
@@ -724,20 +747,18 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     // return true;
 
-
-  
-    const bb = AABBUtils.getPlayerAABB({position:this.bot.entity.position, width:0.3, height: 1.8}).extend(0, -0.252, 0)
+    const bb = AABBUtils.getPlayerAABB({ position: this.bot.entity.position, width: 0.3, height: 1.8 }).extend(0, -0.252, 0);
     const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize();
     const dir = target.minus(this.bot.entity.position).normalize();
-   
+
     const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot);
     this.bot.physicsUtil.engine.simulate(ctx, this.world);
     this.bot.physicsUtil.engine.simulate(ctx, this.world);
     // this.bot.physicsUtil.engine.simulate(ctx, this.world);
-    
+
     const state = ctx.state;
 
-    const goingToFall = state.pos.y < this.bot.entity.position.y
+    const goingToFall = state.pos.y < this.bot.entity.position.y;
 
     if (this.backUpTarget && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true;
@@ -748,58 +769,48 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", dist > 0);
-      this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.5 && true);
-
+      this.bot.setControlState("sneak", xzvdir.dot(dir) < 0.5 && true);
     } else if ((this.reachedBackup || !this.backUpTarget) && goingToFall) {
-
-
       this.reachedBackup = false;
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, targetVec);
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
-      console.log('here2', this.backUpTarget)
-      
+      console.log("here2", this.backUpTarget);
+
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", dist > 0);
       this.bot.setControlState("sneak", dist < 0 && xzvdir.dot(dir) < 0.5);
 
       await this.lookAt(this.backUpTarget);
-      
-      console.log("here2", this.backUpTarget, this.bot.entity.position);
 
+      console.log("here2", this.backUpTarget, this.bot.entity.position);
     } else if (!this.reachedBackup && this.backUpTarget) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       console.log("here3", this.backUpTarget, this.bot.entity.position, bb);
-    
+
       this.bot.setControlState("forward", true);
       this.bot.setControlState("sprint", dist > 0 || this.reachedBackup);
       this.bot.setControlState("sneak", dist < 0 && false);
 
       await this.lookAt(this.backUpTarget);
     } else {
-
       const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world);
       // if (state.pos.y < this.bot.entity.position.y) {
       //   console.log("HI", state.pos, this.bot.entity.position)
       //   this.bot.setControlState('sneak', true)
       //   // throw new CancelError('ParkourForward: Not making this jump.')
       // } else {
-        this.bot.clearControlStates();
-        console.log("here4", this.backUpTarget, this.bot.entity.position, bb, xzvdir.dot(dir));
-        
-        this.bot.setControlState("forward", true);
-        this.bot.setControlState("sprint", xzvdir.dot(dir) > 0.3);
-        this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && false);
+      this.bot.clearControlStates();
+      console.log("here4", this.backUpTarget, this.bot.entity.position, bb, xzvdir.dot(dir));
 
-        await this.lookAt(target);
+      this.bot.setControlState("forward", true);
+      this.bot.setControlState("sprint", xzvdir.dot(dir) > 0.3);
+      this.bot.setControlState("sneak", xzvdir.dot(dir) < 0.3 && false);
+
+      await this.lookAt(target);
       // }
-
-     
-
-
-  
     }
 
-    console.log('done')
+    console.log("done");
 
     return false;
   }
@@ -819,7 +830,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   // TODO: Fix this. Good thing I've done this before. >:)
   performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     if (!this.bot.entity.onGround) return false;
-    
+
     const target = thisMove.exitPos.offset(0, -1, 0);
     const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target));
 
@@ -831,7 +842,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.alignToPath(thisMove);
     // this.lookAtPathPos(thisMove.exitPos)
 
- 
     // console.log('CALLED TEST IN PER TICK', this.bot.entity.position, this.shitterTwo.getUnderlyingBBs(this.bot.entity.position,0.6))
     const test = this.shitterTwo.simJumpImmediately(target);
     const test1 = this.shitterTwo.simJumpFromEdge(bbs, target);

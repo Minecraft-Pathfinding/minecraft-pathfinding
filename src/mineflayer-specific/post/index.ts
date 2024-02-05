@@ -4,6 +4,7 @@ import { BuildableMoveProvider, MovementProvider } from '../movements'
 import { World } from '../world/worldInterface';
 import { MovementOptimizer } from './optimizer';
 import { Move } from '../move';
+import { MovementReplacement } from './replacement';
 
 export * from './optimizer'
 
@@ -16,3 +17,6 @@ export type BuildableOptimizer = new (
   ) => MovementOptimizer;
   
 export type OptimizationMap = Map<BuildableMoveProvider, MovementOptimizer>;
+
+
+export type ReplacementMap = Map<BuildableMoveProvider, MovementReplacement>;

@@ -32,7 +32,7 @@ export class PartialPathProducer implements PathProducer<Move> {
 
     const astarContext = new AStar<Move>(this.latestMove || this.start, moveHandler, this.goal, -1, 45, -1, 0);
 
-    const result = astarContext.compute();
+    const result = astarContext.compute()!;
     this.latestMove = result.path[result.path.length - 1]
     this.lastPath = [...this.lastPath, ...result.path]
     return { result: {
