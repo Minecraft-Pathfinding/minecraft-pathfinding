@@ -55,11 +55,11 @@ export function strafeMovement(state: EntityState, nextPoint: Vec3) {
   const wantedYaw = wrapDegrees(Math.atan2(-dx, -dz));
   const diff = wrapDegrees(wantedYaw - state.yaw);
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-    state.control.set("left", true); // are these reversed? tf
-    state.control.set("right", false);
-  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-    state.control.set("left", false);
+    state.control.set("left", false); // are these reversed? tf
     state.control.set("right", true);
+  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
+    state.control.set("left", true);
+    state.control.set("right", false);
   } else {
     state.control.set("left", false);
     state.control.set("right", false);
@@ -68,24 +68,124 @@ export function strafeMovement(state: EntityState, nextPoint: Vec3) {
   }
 }
 
+
+function findDiff(bot: Bot, currentPoint: Vec3, nextPoint: Vec3) {
+
+  const xzVel = bot.entity.velocity
+  const dir1 = bot.util.getViewDir()
+
+  const offset = bot.entity.position.minus(bot.entity.velocity);
+  const lookDiff= wrapRadians(wrapRadians(bot.entity.yaw))
+  if (xzVel.norm() < 0.03) {
+    console.log('no vel, so different calc.', currentPoint, nextPoint, bot.entity.position)
+    // return 0;
+
+    const dir = nextPoint.minus(offset)
+    const dx = dir.x
+    const dz = dir.z
+
+  
+    // const dir1 = nextPoint.minus(bot.entity.position)
+    const dx1 = dir1.x
+    const dz1 = dir1.z
+
+    const wantedYaw = wrapRadians(Math.atan2(-dx, -dz));
+    const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1));
+
+    
+
+    let diff = wrapRadians((wantedYaw - lookDiff));
+    // console.log('diff', diff)
+    // // diff = wrapRadians(diff - lookDiff)
+  
+    // console.log('wantedYaw', wantedYaw)
+    // console.log('moveYaw', moveYaw)
+    // console.log('look diff', lookDiff)
+  
+    // console.log('entity yaw', bot.entity.yaw, lookDiff)
+    // console.log('return', diff)
+    // console.log("ratio", diff / Math.PI * 12, '\n\n')
+    return diff;
+
+
+  }
+
+  // const dx = nextPoint.x - currentPoint.x;
+  // const dz = nextPoint.z - currentPoint.z;
+
+  const dir = nextPoint.minus(offset)
+  const dx = dir.x
+  const dz = dir.z
+
+
+  
+  // const dir1 = bot.entity.velocity;
+  const dx1 = dir1.x
+  const dz1 = dir1.z
+
+  
+
+  const wantedYaw = wrapRadians(Math.atan2(-dx, -dz));
+
+  
+  // console.log(nextPoint, currentPoint, dx, dz, dx1, dz1)
+
+  // const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1));
+  const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
+
+
+  let diff = wrapRadians((wantedYaw - lookDiff));
+  // console.log('diff', diff)
+  // // diff = wrapRadians(diff - lookDiff)
+
+
+
+  // console.log('diff', diff)
+  // diff = wrapRadians(diff + lookDiff)
+  
+
+  // console.log('wantedYaw', wantedYaw)
+  // console.log('moveYaw', moveYaw)
+  // console.log('look diff', lookDiff)
+  // console.log('entity yaw', bot.entity.yaw, lookDiff)
+  // console.log('return', diff)
+  // console.log("ratio", diff / Math.PI * 12, '\n\n')
+  return diff;
+}
+
 /**
  * control strafing left-to-right dependent on offset to current goal.
  * @param nextPoint
  * @returns
  */
-export function botStrafeMovement(bot: Bot, nextPoint: Vec3) {
-  const offset = bot.entity.position.plus(bot.entity.velocity);
-  const dx = nextPoint.x - offset.x;
-  const dz = nextPoint.z - offset.z;
-  const wantedYaw = wrapDegrees(Math.atan2(-dx, -dz));
-  const diff = wrapDegrees(wantedYaw - bot.entity.yaw);
+export function botStrafeMovement(bot: Bot, currentPoint: Vec3, nextPoint: Vec3) {
+  const xzVel = bot.entity.velocity.offset(0, -bot.entity.velocity.y, 0);
+  // if (xzVel.norm() < 0.03) {
+  //   console.log('no vel, so strafing neither')
+  //   // bot.setControlState("left", false);
+  //   // bot.setControlState("right", false);
+  //   return;
+  // };
+  
+  let diff = findDiff(bot, currentPoint, nextPoint);
+
+  const lookDiff= wrapRadians(wrapRadians(bot.entity.yaw))
+
+  // diff = wrapRadians(diff + lookDiff)
+
+  // console.log('strafe diff', diff, diff / Math.PI * 12)
+
+
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-    bot.setControlState("left", true); // are these reversed? tf
-    bot.setControlState("right", false);
-  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-    bot.setControlState("left", false);
+    // console.log('going left')
+    bot.setControlState("left", false); // are these reversed? tf
     bot.setControlState("right", true);
+  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
+    // console.log('going right')
+    bot.setControlState("left", true);
+    bot.setControlState("right", false);
   } else {
+    // console.log('going neither strafe')
     bot.setControlState("left", false);
     bot.setControlState("right", false);
   }
@@ -131,24 +231,40 @@ export function smartMovement(state: EntityState, goal: Vec3, sprint: boolean) {
  * @param sprint
  * @returns
  */
-export function botSmartMovement(bot: Bot, goal: Vec3, sprint: boolean) {
-  const offset = bot.entity.position.plus(bot.entity.velocity);
-  const dx = goal.x - offset.x;
-  const dz = goal.z - offset.z;
-  const wantedYaw = wrapDegrees(Math.atan2(-dx, -dz));
-  const diff = wrapDegrees(wantedYaw - bot.entity.yaw);
-  // console.log(diff / Math.PI * 12)
+export function botSmartMovement(bot: Bot, currentPoint: Vec3, nextPoint: Vec3, sprint: boolean) {
+  const xzVel = bot.entity.velocity.offset(0, -bot.entity.velocity.y, 0);
+  // if (xzVel.norm() < 0.03) {
+  //   console.log('no vel, so going forward')
+  //   // bot.setControlState("forward", true);
+  //   // bot.setControlState("sprint", sprint);
+  //   // bot.setControlState("back", false);
+  //   return
+  // };
+
+  // console.log('hey!')
+  let diff = findDiff(bot, currentPoint, nextPoint);
+
+  const lookDiff= wrapRadians(wrapRadians(bot.entity.yaw))
+
+  // diff = wrapRadians(diff + lookDiff)
+
+  // console.log('forward/back diff', diff, diff / Math.PI * 12)
+
+
   if (SEVEN_PI_OVER_TWELVE < diff && diff < SEVENTEEN_PI_OVER_TWELVE) {
+    // console.log('going back')
     bot.setControlState("forward", false);
     bot.setControlState("sprint", false);
     bot.setControlState("back", true);
 
     // console.log("back");
   } else if (NINETEEN_PI_OVER_TWELVE < diff || diff < FIVE_PI_OVER_TWELVE) {
+    // console.log('going forward')
     bot.setControlState("forward", true);
     bot.setControlState("sprint", sprint);
     bot.setControlState("back", false);
   } else {
+    // console.log('going neither')
     bot.setControlState("forward", false);
     bot.setControlState("sprint", false);
     bot.setControlState("back", false);

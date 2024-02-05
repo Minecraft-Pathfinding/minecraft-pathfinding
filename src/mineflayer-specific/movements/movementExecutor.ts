@@ -142,7 +142,12 @@ export abstract class MovementExecutor extends Movement {
       this.bot.physicsUtil.engine.simulate(ectx, this.world);
     }
 
-    const pos = ectx.state.pos;
+    const pos = ectx.state.pos.clone();
+
+    this.bot.physicsUtil.engine.simulate(ectx, this.world); // needed for later.
+
+    console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+
     // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
     // bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
@@ -164,7 +169,8 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
-      if (similarDirection && headingThatWay) return true;
+      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally;
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
@@ -370,8 +376,8 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks);
   }
 
-  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; target?: Vec3 }): Promise<void>;
-  protected async alignToPath(startMove: Move, endMove?: Move, opts?: { handleBack?: boolean; target?: Vec3 }): Promise<void>;
+  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; target?: Vec3, sprint?: boolean }): Promise<void>;
+  protected async alignToPath(startMove: Move, endMove?: Move, opts?: { handleBack?: boolean; target?: Vec3, sprint?:boolean }): Promise<void>;
   protected async alignToPath(startMove: Move, endMove?: any, opts?: any) {
     if (endMove === undefined) {
       endMove = startMove;
@@ -387,6 +393,7 @@ export abstract class MovementExecutor extends Movement {
     const target = opts.target ?? endMove.exitPos;
     const offset = endMove.exitPos.minus(this.bot.entity.position);
     const dir = endMove.exitPos.minus(startMove.entryPos);
+    const sprint = opts.sprint ?? true;
     const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9;
 
     // if (similarDirection) {
@@ -395,11 +402,19 @@ export abstract class MovementExecutor extends Movement {
     //   if (handleBack) botSmartMovement(this.bot, endMove.exitPos, true);
     //   else this.lookAtPathPos(endMove.exitPos);
     // } else {
-    // botStrafeMovement(this.bot, endMove.exitPos);
-    // console.log("target", target, opts)
-    if (target !== endMove.exitPos) await this.lookAt(target);
-    else await this.lookAtPathPos(target);
 
+    // console.log("target", target, opts)
+
+    let task;
+    if (target !== endMove.exitPos) task =  this.lookAt(target);
+    else task = this.lookAtPathPos(target);
+
+
+    this.bot.chat(`/particle flame ${endMove.exitPos.x} ${endMove.exitPos.y} ${endMove.exitPos.z} 0 0.5 0 0 10 force`);
+    botStrafeMovement(this.bot, startMove.entryPos, endMove.exitPos);
+    botSmartMovement(this.bot, startMove.entryPos, endMove.exitPos, sprint);
+
+    await task;
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);
     // this.bot.setControlState("forward", true);

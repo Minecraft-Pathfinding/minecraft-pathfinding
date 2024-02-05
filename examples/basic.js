@@ -9,8 +9,8 @@ const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHa
 const bot = createBot({ username: "testing1", auth: "offline", 
 
 // host: "node2.endelon-hosting.de", port: 31997
-// host: "Ic3TankD2HO.aternos.me", port: 44656
-host: "us1.node.minecraft.sneakyhub.com", port: 25607
+host: "Ic3TankD2HO.aternos.me", port: 44656
+// host: "us1.node.minecraft.sneakyhub.com", port: 25607
 
 });
 const pathfinder = createPlugin();
@@ -39,11 +39,11 @@ bot.once("spawn", () => {
   // bot.jumpTicks = 0;
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
-    bot.jumpTicks = 0
-    const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-    ctx.state.jumpTicks = 0; // allow immediate jumping
-    // ctx.state.control.set('sneak', true)
-    return val.simulate(ctx, bot.world)
+    // bot.jumpTicks = 0
+    // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    // ctx.state.jumpTicks = 0; // allow immediate jumping
+    // // ctx.state.control.set('sneak', true)
+    // return val.simulate(ctx, bot.world)
     return oldSim(...args);
   };
 });
@@ -55,13 +55,22 @@ bot.on('messagestr', (msg, pos, jsonMsg) => {
   // console.log(msg, jsonMsg)
 
 })
-bot.on("chat", async (username, msg) => {
 
+const prefix = "!"
+bot.on("chat", async (username, msg) => {
+  if (username === bot.username) return;
  
-  const [cmd, ...args] = msg.split(" ");
+  const [cmd1, ...args] = msg.split(" ");
   const author = bot.nearestEntity((e) => e.username === username);
 
+  const cmd = cmd1.toLowerCase().replace(prefix, "");
+
   switch (cmd) {
+    
+    case "hi": {
+      bot.chat("hi");
+      break
+    }
 
     case "set":
     case "setting": {
@@ -160,7 +169,7 @@ bot.on("chat", async (username, msg) => {
       break;
     }
 
-    case "ggoto":
+    case "goto":
     case "goto":
     case "#goto": {
       const x = Math.floor(Number(args[0]));

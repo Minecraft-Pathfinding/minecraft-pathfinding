@@ -45,6 +45,8 @@ const test = [
   [ParkourForward, ParkourForwardExecutor]
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
+test.reverse()
+
 // commented out for now.
 const test1 = [
   [Forward, StraightAheadOpt],

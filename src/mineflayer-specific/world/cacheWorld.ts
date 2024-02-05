@@ -50,7 +50,6 @@ export class BlockInfo {
 
   public static readonly substituteBlockStateId: number = 1;
 
-
   public breakCost?: number;
 
   constructor(
@@ -75,9 +74,19 @@ export class BlockInfo {
     const PBlock: BlockType = require("prismarine-block")(registry);
 
     BlockInfo._waterBlock = PBlock.fromString("minecraft:water", 0);
+    BlockInfo._waterBlock.position = new Vec3(0, 0, 0);
     BlockInfo._solidBlock = PBlock.fromString("minecraft:dirt", 0);
+    BlockInfo._solidBlock.position = new Vec3(0, 0, 0);
     BlockInfo._airBlock = PBlock.fromString("minecraft:air", 0);
+    BlockInfo._airBlock.position = new Vec3(0, 0, 0);
     BlockInfo._replaceableBlock = PBlock.fromString("minecraft:air", 0); // also replaceable
+    BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0);
+
+    console.log(BlockInfo._waterBlock)
+    BlockInfo.WATER1 = BlockInfo.fromBlock(BlockInfo._waterBlock);
+    BlockInfo.SOLID1 = BlockInfo.fromBlock(BlockInfo._solidBlock);
+    BlockInfo.AIR1 = BlockInfo.fromBlock(BlockInfo._airBlock);
+    BlockInfo.REPLACEABLE1 = BlockInfo.fromBlock(BlockInfo._replaceableBlock);
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b));
 
@@ -141,7 +150,10 @@ export class BlockInfo {
     });
   }
 
-  static fromBlock(b: Block) {
+  static fromBlock(b: Block | null) {
+
+    if (b === null) return BlockInfo.DEFAULT;
+
     const b1 = {} as any;
     b1.climbable = BlockInfo.climbables.has(b.type);
 
@@ -200,25 +212,37 @@ export class BlockInfo {
     );
   }
 
-  static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0, 0, 0), -1);
+  static WATER1: BlockInfo = new BlockInfo(
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    0,
+    false,
+    new Vec3(0, 0, 0),
+    -1
+  );
   static WATER(pos: Vec3) {
     return new BlockInfo(false, false, false, false, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock);
   }
-
 
   public getBBs() {
     if (this.block) {
       return this.block.shapes.map((shape) => AABB.fromShape(shape, this.position));
     } else {
       const hW = 0.5; // TODO: account for fences, chains, etc.
-      return [new AABB(
-        this.position.x - hW,
-        this.position.y,
-        this.position.z - hW,
-        this.position.x + hW,
-        this.height, // height is already y + certain elevation
-        this.position.z + hW
-      )]
+      return [
+        new AABB(
+          this.position.x - hW,
+          this.position.y,
+          this.position.z - hW,
+          this.position.x + hW,
+          this.height, // height is already y + certain elevation
+          this.position.z + hW
+        ),
+      ];
     }
   }
 }
@@ -351,6 +375,8 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlockInfo(pos: Vec3) {
+    return BlockInfo.fromBlock(this.world.getBlock(pos))
+
     if (!this.enabled) {
       const block = this.world.getBlock(pos);
       if (!block) return BlockInfo.DEFAULT;
@@ -359,13 +385,24 @@ export class CacheSyncWorld implements WorldType {
     this.cacheCalls++;
     pos = pos.floored();
     const key = `${pos.x}:${pos.y}:${pos.z}`;
-    if (this.blockInfos.has(key)) return this.blockInfos.get(key)!;
-    const block = this.world.getBlock(pos);
-    if (block === null) return BlockInfo.DEFAULT;
-    const blockInfo = BlockInfo.fromBlock(block);
-    this.blockInfos.set(key, blockInfo);
-    return blockInfo;
+
+    
+
+    if (!this.blockInfos.has(key)) {
+      const block = this.world.getBlock(pos);
+      if (block === null) return BlockInfo.DEFAULT;
+      const blockInfo = BlockInfo.fromBlock(block!);
+      this.blockInfos.set(key, blockInfo);
+      // console.log('didnt have info:', key, blockInfo, this.blockInfos.get(key))
+      return blockInfo;
+      // console.log("already have info:", key, this.blockInfos.get(key))
+    }
+
+    return this.blockInfos.get(key)!;
+   
   }
+
+  
 
   getBlockStateId(pos: Vec3): number | undefined {
     if (!this.enabled) {

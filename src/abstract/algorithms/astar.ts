@@ -55,6 +55,8 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     return this.goal.heuristic(node)
   }
 
+
+  private lastAmt: number = 0;
   makeResult (status: string, node: PathNode<Data>): Path<Data, AStar<Data>> {
     console.log(
       status,
@@ -63,8 +65,13 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       this.closedDataSet.size,
       this.closedDataSet.size + this.openHeap.size(),
       reconstructPath(node).length,
+
+      `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`
       // reconstructPath(node)
     );
+
+    this.lastAmt = this.closedDataSet.size;
+
     return {
       status,
       cost: node.g,

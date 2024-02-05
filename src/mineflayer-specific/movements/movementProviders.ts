@@ -7,7 +7,11 @@ import { Movement, MovementOptions } from "./movement";
 import { BreakHandler, PlaceHandler } from "./interactionUtils";
 import { emptyVec } from "@nxg-org/mineflayer-physics-util/dist/physics/settings";
 import { MovementProvider } from "./movementProvider";
-export class IdleMovement extends Movement {
+import { isBlockTypeInChunks } from "./movementUtils";
+import { BlockInfo } from "../world/cacheWorld";
+import type {PCChunk} from 'prismarine-chunk'
+export class IdleMovement extends MovementProvider {
+  movementDirs: Vec3[] = [];
   provideMovements(start: Move, storage: Move[]): void {}
   performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {};
   performPerTick = async (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
@@ -16,12 +20,15 @@ export class IdleMovement extends Movement {
 }
 
 export class Forward extends MovementProvider {
+
+  movementDirs = Movement.cardinalDirs;
+
   constructor(bot: Bot, world: World, settings: Partial<MovementOptions>) {
     super(bot, world, settings);
   }
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
-    for (const dir of Movement.cardinalDirs) {
+    for (const dir of this.movementDirs) {
       this.getMoveForward(start, dir, storage);
     }
   }
@@ -66,8 +73,12 @@ export class Forward extends MovementProvider {
 }
 
 export class ForwardJump extends MovementProvider {
+  
+  movementDirs = Movement.cardinalDirs;
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
-    for (const dir of Movement.cardinalDirs) {
+    
+    for (const dir of this.movementDirs) {
       this.getMoveJumpUp(start, dir, storage);
     }
   }
@@ -143,26 +154,50 @@ export class ForwardJump extends MovementProvider {
   }
 }
 
-export class ForwardDropDown extends MovementProvider {
+
+abstract class DropDownProvider extends MovementProvider {
+  getLandingBlock(node: Move, dir: Vec3 = emptyVec) {
+    // const chunk = this.bot.world.getColumn(node.x >> 4, node.z >> 4) as unknown as PCChunk;
+    
+    // TODO: optimize this.
+    // If the chunk is cached, this will double our calculation speed.
+    let min; 
+    if (this.settings.infiniteLiquidDropdownDistance) {
+      min = (this.bot.game as any).minY;
+      // min = isBlockTypeInChunks(BlockInfo.WATER1.block!, chunk) ? (this.bot.game as any).minY : node.y - this.settings.maxDropDown;
+    } else {
+      min = node.y - this.settings.maxDropDown;
+    }
+
+  
+    let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z);
+
+    while (blockLand.position && blockLand.position.y >= min) {
+      if (blockLand.liquid && blockLand.safe) return blockLand;
+      if (blockLand.physical) {
+        if (node.y - blockLand.position.y <= this.settings.maxDropDown) 
+          return this.getBlockInfo(blockLand.position, 0, 1, 0);
+        // return null;
+      }
+      if (!blockLand.safe) return null;
+      // console.log("before drop:", blockLand.position)
+      blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0);
+      // console.log("after drop:", blockLand.position)if (node.y - blockLand.position.y <= this.settings.maxDropDown) 
+    }
+    return null;
+  }
+}
+
+export class ForwardDropDown extends DropDownProvider {
+  movementDirs = Movement.cardinalDirs;
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
-    for (const dir of Movement.cardinalDirs) {
+    for (const dir of this.movementDirs) {
       this.getMoveDropDown(start, dir, storage);
     }
   }
 
-  getLandingBlock(node: Move, dir: Vec3) {
-    let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z);
-    while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
-      if (blockLand.liquid && blockLand.safe) return blockLand;
-      if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
-        return null;
-      }
-      if (!blockLand.safe) return null;
-      blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0);
-    }
-    return null;
-  }
+
 
   getMoveDropDown(node: Move, dir: Vec3, neighbors: Move[]) {
     const blockC = this.getBlockInfo(node, dir.x, 0, dir.z);
@@ -197,10 +232,12 @@ export class ForwardDropDown extends MovementProvider {
 }
 
 export class Diagonal extends MovementProvider {
+  movementDirs = Movement.diagonalDirs;
+
   static diagonalCost = Math.SQRT2; // sqrt(2)
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
-    for (const dir of Movement.diagonalDirs) {
+    for (const dir of this.movementDirs) {
       this.getMoveDiagonal(start, dir, storage, goal);
     }
   }
@@ -251,7 +288,10 @@ export class Diagonal extends MovementProvider {
   }
 }
 
-export class StraightDown extends MovementProvider {
+export class StraightDown extends DropDownProvider {
+  movementDirs = [emptyVec];
+
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveDown(start, storage);
   }
@@ -275,23 +315,11 @@ export class StraightDown extends MovementProvider {
 
     neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
-
-  getLandingBlock(node: Move, dir: Vec3 = emptyVec) {
-    let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z);
-    while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
-      if (blockLand.liquid && blockLand.safe) return blockLand;
-      if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0);
-        return null;
-      }
-      if (!blockLand.safe) return null;
-      blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0);
-    }
-    return null;
-  }
 }
 
 export class StraightUp extends MovementProvider {
+  movementDirs = [emptyVec];
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     return this.getMoveUp(start, storage);
   }
@@ -335,6 +363,9 @@ export class StraightUp extends MovementProvider {
 }
 
 export class ParkourForward extends MovementProvider {
+
+  movementDirs = Movement.cardinalDirs;
+
   provideMovements(start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of Movement.cardinalDirs) {
       this.getMoveParkourForward(start, dir, storage);
@@ -375,13 +406,15 @@ export class ParkourForward extends MovementProvider {
       const blockC = this.getBlockInfo(node, dx, 0, dz);
       const blockD = this.getBlockInfo(node, dx, -1, dz);
 
+      // ceilingClear &&= this.getBlockInfo(node, dx, 2, dx).safe
+
       // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
 
       if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
         if (d === 5) continue;
         // cost += this.exclusionStep(blockB)
         // Forward
-        neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this, [], []));
+        neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this));
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break;
       } else if (ceilingClear && blockB.safe && blockC.physical) {
@@ -391,7 +424,7 @@ export class ParkourForward extends MovementProvider {
           // cost += this.exclusionStep(blockA)
           if (blockC.height - block0.height > 1.2) break; // Too high to jump
           // cost += this.getNumEntitiesAt(blockB.position, 0, 0, 0) * this.entityCost
-          neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, [], []));
+          neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this));
           // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
           break;
         // }
@@ -401,7 +434,7 @@ export class ParkourForward extends MovementProvider {
         if (blockE.physical) {
           // cost += this.exclusionStep(blockD)
           // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
-          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this, [], []));
+          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this));
           // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
         }
         floorCleared = floorCleared && !blockE.physical;

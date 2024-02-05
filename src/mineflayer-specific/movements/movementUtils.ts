@@ -7,6 +7,8 @@ import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { RayType } from "./interactionUtils";
 import { BlockInfo } from "../world/cacheWorld";
 import { JumpSim } from "./simulators/jumpSim";
+import { Block } from "../../types";
+import type { PCChunk } from "prismarine-chunk";
 
 type JumpInfo = { jumpTick: number; sprintTick: number };
 
@@ -18,6 +20,19 @@ export function stateLookAt(state: EntityState, point: Vec3) {
   state.yaw = yaw;
   state.pitch = pitch;
 }
+
+export function isBlockTypeInChunks(info: Block | number, ...chunks: PCChunk[]) {
+  info = info instanceof Number ? info : (info as Block).stateId ?? -1;
+
+  for (const chunk of chunks) {
+    for (const section of chunk.sections) {
+      // console.log(section)
+      if (section.palette) for (const id of section.palette) if (info === id) return true;
+    }
+  }
+  return false;
+}
+
 export class JumpCalculator {
   readonly engine: BaseSimulator;
   readonly bot: Bot;
@@ -175,12 +190,17 @@ export class ParkourJumpHelper {
   }
 
   public getUnderlyingBBs(pos: Vec3, width: number, colliding = true) {
-    const verts = [pos.offset(-width/2, 0, -width/2), pos.offset(-width/2, 0, width/2), pos.offset(width/2, 0, -width/2), pos.offset(width/2, 0, width/2)];
+    const verts = [
+      pos.offset(-width / 2, 0, -width / 2),
+      pos.offset(-width / 2, 0, width / 2),
+      pos.offset(width / 2, 0, -width / 2),
+      pos.offset(width / 2, 0, width / 2),
+    ];
 
     // console.log('checking verts', verts, 'for blocks')
     const bb = AABBUtils.getPlayerAABB({ position: pos, width, height: 0.1 }); // whatever
     const blocks = new Set(verts.map((v) => this.world.getBlockInfo(v.offset(0, -1, 0))));
-    
+
     const ret = [];
     for (const block of blocks) {
       for (const bb0 of block.getBBs()) {
@@ -200,7 +220,6 @@ export class ParkourJumpHelper {
 
     const closerX = goal.minX - pos.x < pos.x - goal.maxX ? goal.minX : goal.maxX;
     const closerZ = goal.minZ - pos.z < pos.z - goal.maxZ ? goal.minZ : goal.maxZ;
-    
 
     // 3 closest vectors to source position
     const verts = [
@@ -223,7 +242,7 @@ export class ParkourJumpHelper {
       verts.push(v(goal.minX, goal.maxY, pos.z));
       verts.push(v(goal.maxX, goal.maxY, pos.z));
     }
-    
+
     let minDist = Infinity;
     let minVert = verts[0];
     for (const vert of verts) {
@@ -238,86 +257,78 @@ export class ParkourJumpHelper {
   }
 
   findBackupVertex(bbs: AABB[], goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position) {
-
-
     const dir = goalVert.minus(this.bot.entity.position);
     dir.translate(0, -dir.y, 0);
     dir.normalize();
 
-    const test = this.bot.entity.position.floored().offset(0, -1, 0)
- 
-    
-    const start = this.bot.entity.position.clone()
+    const test = this.bot.entity.position.floored().offset(0, -1, 0);
+
+    const start = this.bot.entity.position.clone();
     start.y = Math.floor(start.y);
-    
-    console.log(this.bot.entity.position, start)
+
+    console.log(this.bot.entity.position, start);
     const intersects = [];
 
     // const bbs = this.getUnderlyingBBs(start, 0.6)
 
-    start.translate(0, -0.251, 0)
+    start.translate(0, -0.251, 0);
     for (const bb of bbs) {
       const intersect = bb.intersectsRay(start, dir);
       if (intersect) intersects.push(intersect);
     }
-    
+
     intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start));
-    const intersect = intersects[0]; 
+    const intersect = intersects[0];
     if (!intersect) throw Error("no intersect");
     // if (!intersect) return null;
 
-    
     const dir2 = intersect.minus(start);
-
 
     let scale = 1.25;
 
     outer: while (scale >= 0.6) {
       const wanted = dir2.scaled(scale).plus(start);
 
-      const width = 0.6
-      const height = 1.8
-      const testBB = AABBUtils.getPlayerAABB({position: wanted.offset(0, 0.252, 0), width, height})
-      
-      const cursor = new Vec3(0,0,0);
-      for (let x = testBB.minX; x <= testBB.maxX; x+=width/2) {
-        for (let y = testBB.minY; y <= testBB.maxY; y+=height/2) {
-          for (let z = testBB.minZ; z <= testBB.maxZ; z+=width/2) {
-            cursor.set(x,y,z);
+      const width = 0.6;
+      const height = 1.8;
+      const testBB = AABBUtils.getPlayerAABB({ position: wanted.offset(0, 0.252, 0), width, height });
+
+      const cursor = new Vec3(0, 0, 0);
+      for (let x = testBB.minX; x <= testBB.maxX; x += width / 2) {
+        for (let y = testBB.minY; y <= testBB.maxY; y += height / 2) {
+          for (let z = testBB.minZ; z <= testBB.maxZ; z += width / 2) {
+            cursor.set(x, y, z);
             // console.log(cursor)
             const bl = this.world.getBlockInfo(cursor);
-            if (bl.physical && bl.getBBs().some(b=>b.collides(testBB))) {
-              console.log('scale', scale, 'failed')
+            if (bl.physical && bl.getBBs().some((b) => b.collides(testBB))) {
+              console.log("scale", scale, "failed");
               scale -= 0.03;
-              continue outer
+              continue outer;
             }
           }
         }
       }
 
-      console.log('scale', scale, 'success', wanted, intersect)
+      console.log("scale", scale, "success", wanted, intersect);
       // if (this.world.getBlockInfo(wanted).physical) {
-        return wanted
+      return wanted;
       // }
 
-
       // for (const vert of testBB.toVertices()) {
-        
+
       //   if (this.world.getBlockInfo(vert).getBBs().some(b=>!b.collides(testBB))) {
       //     scale -= 0.03;
       //     continue outer
       //   }
       // }
     }
-   
+
     // if (this.world.getBlockInfo(wanted).physical) return intersect
-  
-    console.log('defaulted')
-    return intersect
+
+    console.log("defaulted");
+    return intersect;
 
     // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));
-
-
 
     return dir;
   }
@@ -331,7 +342,7 @@ export class ParkourJumpHelper {
     const goalCenter = goal.floored().offset(0.5, 0, 0.5);
 
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
-  
+
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, srcBBs, goalCenter, goalCenter, true, 40);
 
     // console.log('sim jump from edge', state.age, state.pos, goalVert, state.onGround, state.isCollidedHorizontally, state.control, state.isInWater)
@@ -339,11 +350,7 @@ export class ParkourJumpHelper {
     return reached(state, 0) as boolean;
   }
 
-  public simJumpTest(srcBBS: AABB[], goal: Vec3) {
-
-    
-
-  }
+  public simJumpTest(srcBBS: AABB[], goal: Vec3) {}
 
   public simJumpImmediately(goal: Vec3) {
     const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
@@ -359,19 +366,16 @@ export class ParkourJumpHelper {
 
     const orgPos = this.bot.entity.position.clone();
 
-
     const goalCenter = goal.floored().offset(0.5, 0, 0.5);
     const reached = JumpSim.getReached(goalCenter);
     // const state = this.sim.simulateSmartAim(goalCenter, ctx, true, true, 0, 40);
     const state = this.sim.simulateUntilOnGround(ctx, 40, reached);
 
     // console.log("sim jump immediately", state.age, orgPos, state.pos, AABB.fromBlockPos(goal), state.onGround, state.isCollidedHorizontally, state.control)
-    
 
-    const testwtf = reached(state, 0)
+    const testwtf = reached(state, 0);
 
     // console.log('sim jump TEST', testwtf)
-
 
     return testwtf;
   }
@@ -390,7 +394,6 @@ export class ParkourJumpHelper {
     if (lazyFix) this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40);
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 40);
 
-    
     return reached(state, 0) as boolean;
   }
 }

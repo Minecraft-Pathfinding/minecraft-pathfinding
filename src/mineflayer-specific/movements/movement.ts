@@ -41,7 +41,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
   liquidCost: 3,
-  placeCost: 1,
+  placeCost: 2,
   digCost: 1,
   jumpCost: 0.5,
   velocityKillCost: 2, // implement at a later date.
@@ -151,14 +151,19 @@ export abstract class Movement {
 
     let i = 0;
     while (move !== undefined && i++ < 2) { // 3 levels
-      const test = move.toPlace.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
-      if (test !== undefined) {
-        return test.blockInfo;
+      // console.log('i', i)
+      for (const m of move.toPlace) {
+        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+          return m.blockInfo;
+        }
       }
-      const test1 = move.toBreak.find((p) => p.x === yes.x && p.y === yes.y && p.z === yes.z)
-      if (test1 !== undefined) {
-        return test1.blockInfo;
+      
+      for (const m of move.toBreak) {
+        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+          return m.blockInfo;
+        }
       }
+      
       move = move.parent;
     }
     
@@ -170,6 +175,8 @@ export abstract class Movement {
     //     return handler.toBlockInfo();
     //   }
     // }
+
+    // console.log('not found', yes)
     return this.world.getBlockInfo(yes);
   }
 
