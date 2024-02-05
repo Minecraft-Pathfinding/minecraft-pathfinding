@@ -266,7 +266,7 @@ export class ParkourJumpHelper {
     const start = this.bot.entity.position.clone();
     start.y = Math.floor(start.y);
 
-    console.log(this.bot.entity.position, start);
+    console.log(this.bot.entity.position, start, bbs);
     const intersects = [];
 
     // const bbs = this.getUnderlyingBBs(start, 0.6)
@@ -369,7 +369,7 @@ export class ParkourJumpHelper {
     const goalCenter = goal.floored().offset(0.5, 0, 0.5);
     const reached = JumpSim.getReached(goalCenter);
     // const state = this.sim.simulateSmartAim(goalCenter, ctx, true, true, 0, 40);
-    const state = this.sim.simulateUntilOnGround(ctx, 40, reached);
+    const state = this.sim.simulateUntilOnGround(ctx, 45, reached);
 
     // console.log("sim jump immediately", state.age, orgPos, state.pos, AABB.fromBlockPos(goal), state.onGround, state.isCollidedHorizontally, state.control)
 

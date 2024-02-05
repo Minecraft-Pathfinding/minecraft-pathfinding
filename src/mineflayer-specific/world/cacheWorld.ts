@@ -325,7 +325,7 @@ export class CacheSyncWorld implements WorldType {
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 });
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 });
     this.blocks = new LRUCache({ size: 10000, max: 2000 });
-    this.blockInfos = new LRUCache({ max: 10000, ttl: 2000 });
+    this.blockInfos = new LRUCache({ max: 1000000, ttl: 5000 });
     this.world = referenceWorld;
     if (!CacheSyncWorld.Block) {
       CacheSyncWorld.Block = require("prismarine-block")(bot.registry);
@@ -375,7 +375,8 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlockInfo(pos: Vec3) {
-    return BlockInfo.fromBlock(this.world.getBlock(pos))
+    // this.cacheCalls++;
+    // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
       const block = this.world.getBlock(pos);

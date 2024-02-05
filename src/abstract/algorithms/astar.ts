@@ -26,7 +26,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   bestNode: PathNode<Data>
   maxCost: number
 
-  constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 40, searchRadius = -1, differential = 0) {
+  constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 45, searchRadius = -1, differential = 0) {
     this.startTime = performance.now()
 
     this.movementProvider = movements
@@ -66,8 +66,11 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       this.closedDataSet.size + this.openHeap.size(),
       reconstructPath(node).length,
 
-      `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`
+      `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`,
       // reconstructPath(node)
+
+      // used heap memory
+      Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 10) / 10, 'MB'
     );
 
     this.lastAmt = this.closedDataSet.size;

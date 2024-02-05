@@ -6,12 +6,14 @@ const { Vec3 } = require("vec3");
 
 const { default: loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } = require("@nxg-org/mineflayer-physics-util");
 
-const bot = createBot({ username: "testing1", auth: "offline", 
+const bot = createBot({
+  username: "testing1",
+  auth: "offline",
 
-// host: "node2.endelon-hosting.de", port: 31997
-host: "Ic3TankD2HO.aternos.me", port: 44656
-// host: "us1.node.minecraft.sneakyhub.com", port: 25607
-
+  // host: "node2.endelon-hosting.de", port: 31997
+  host: "Ic3TankD2HO.aternos.me",
+  port: 44656,
+  // host: "us1.node.minecraft.sneakyhub.com", port: 25607
 });
 const pathfinder = createPlugin();
 
@@ -51,49 +53,42 @@ bot.once("spawn", () => {
 /** @type { Vec3 | null } */
 let lastStart = null;
 
-bot.on('messagestr', (msg, pos, jsonMsg) => {
+bot.on("messagestr", (msg, pos, jsonMsg) => {
   // console.log(msg, jsonMsg)
+});
 
-})
-
-const prefix = "!"
+const prefix = "!";
 bot.on("chat", async (username, msg) => {
   if (username === bot.username) return;
- 
+
   const [cmd1, ...args] = msg.split(" ");
   const author = bot.nearestEntity((e) => e.username === username);
 
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
   switch (cmd) {
-    
     case "hi": {
       bot.chat("hi");
-      break
+      break;
     }
 
     case "set":
     case "setting": {
-
-      
       const stuff = Object.entries(bot.pathfinder.defaultSettings);
       const stuff1 = Object.entries(bot.physics);
       const keys = stuff.map(([key]) => key);
       const keys1 = stuff1.map(([key]) => key);
       const [key, value] = args;
 
-      if (key === 'list') {
-        bot.chat('Pathfinder settings: ' + keys.join(", ") );
-        bot.chat('Physics settings: ' + keys1.join(", ") );
+      if (key === "list") {
+        bot.chat("Pathfinder settings: " + keys.join(", "));
+        bot.chat("Physics settings: " + keys1.join(", "));
         break;
       }
 
       if (!keys.includes(key) && !keys1.includes(key)) return bot.chat(`Invalid setting ${key}`);
 
       let setter = null;
-    
-
-
 
       if (value === "true") {
         setter = true;
@@ -108,13 +103,12 @@ bot.on("chat", async (username, msg) => {
       }
 
       if (keys.includes(key)) {
-      
         if (value === undefined) {
           bot.chat(`${key} is ${bot.pathfinder.defaultSettings[key]}`);
           break;
         }
-        const newSets = {...bot.pathfinder.defaultSettings};
-      
+        const newSets = { ...bot.pathfinder.defaultSettings };
+
         bot.chat(`${key} is now ${value}, was ${bot.pathfinder.defaultSettings[key]}`);
         newSets[key] = setter;
         bot.pathfinder.setDefaultOptions(newSets);
@@ -212,16 +206,40 @@ bot.on("chat", async (username, msg) => {
       break;
     }
 
-    case "repath": {
-      if (!lastStart) {
-        bot.chat("no last start");
-        return;
+    case "pathtothere": {
+    
+      const startTime = performance.now();
+
+      let rayBlock;
+      if (args.length === 3) {
+        rayBlock = bot.blockAt(new Vec3(Number(args[0]), Number(args[1]), Number(args[2])));
+      } else if (args.length === 0) {
+        if (!author) return bot.chat("failed to find player.");
+   
+        rayBlock = await rayTraceEntitySight({ entity: author });
+      } else {
+        bot.chat("pathtothere <x> <y> <z> | pathtothere");
+        return
       }
-      const res = bot.pathfinder.getPathFromTo(lastStart, bot.entity.velocity, GoalBlock.fromVec(author.position));
-      let test;
-      while ((test = await res.next()).done === false) {
-        console.log(test);
+
+      if (!rayBlock) return bot.chat("No block in sight");
+
+      bot.chat(`pathing to ${rayBlock.position.x} ${rayBlock.position.y} ${rayBlock.position.z}`)
+      const res1 = bot.pathfinder.getPathTo(GoalBlock.fromVec(rayBlock.position.offset(0, 1, 0)));
+      let test1;
+      let test2 = [];
+      while ((test1 = await res1.next()).done === false) {
+        test2.concat(test1.value.result.path);
       }
+      const endTime = performance.now();
+      bot.chat(
+        `took ${(endTime - startTime).toFixed(3)} ms, ${Math.ceil((endTime - startTime) / 50)} ticks, ${(
+          (endTime - startTime) /
+          1000
+        ).toFixed(3)} seconds`
+      );
+      bot.chat(bot.pathfinder.world.getCacheSize());
+      console.log(test2.length);
       break;
     }
 
@@ -315,7 +333,7 @@ function rayTraceEntitySight(options) {
     const x = -Math.sin(yaw) * Math.cos(pitch);
     const y = Math.sin(pitch);
     const z = -Math.cos(yaw) * Math.cos(pitch);
-    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), 120);
+    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), Infinity);
     if (rayBlock) {
       return rayBlock;
     }

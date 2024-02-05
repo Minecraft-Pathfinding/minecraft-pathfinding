@@ -169,6 +169,7 @@ abstract class DropDownProvider extends MovementProvider {
       min = node.y - this.settings.maxDropDown;
     }
 
+    min = node.y - this.settings.maxDropDown;
   
     let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z);
 
