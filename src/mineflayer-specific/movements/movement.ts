@@ -150,7 +150,7 @@ export abstract class Movement {
     let move: Move | undefined = this.currentMove;
 
     let i = 0;
-    while (move !== undefined && i++ < 2) { // 3 levels
+    while (move !== undefined && i++ < 4) { // 5 levels
       // console.log('i', i)
       for (const m of move.toPlace) {
         if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {

@@ -731,6 +731,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     console.log("align", test, test1, this.bot.entity.onGround);
 
+    if (!this.bot.entity.onGround) return false;
     if (this.bot.entity.onGround) {
       if (test) {
         this.bot.setControlState("sprint", true);
