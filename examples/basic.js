@@ -10,9 +10,8 @@ const bot = createBot({
   username: "testing1",
   auth: "offline",
 
-  host: "node2.endelon-hosting.de", port: 31997
-  // host: "Ic3TankD2HO.aternos.me",
-  // port: 44656,
+  // host: "node2.endelon-hosting.de", port: 31997
+  host: "Ic3TankD2HO.aternos.me", port: 44656,
   // host: "us1.node.minecraft.sneakyhub.com", port: 25607
 });
 const pathfinder = createPlugin();

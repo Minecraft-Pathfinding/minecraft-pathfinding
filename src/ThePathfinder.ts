@@ -5,7 +5,7 @@ import { Vec3 } from "vec3";
 import { Move } from "./mineflayer-specific/move";
 import { Path, Algorithm } from "./abstract";
 import { BlockInfo, CacheSyncWorld } from "./mineflayer-specific/world/cacheWorld";
-import { CancelError } from "./mineflayer-specific/movements/exceptions";
+import { AbortError, CancelError } from "./mineflayer-specific/movements/exceptions";
 import {
   BuildableMoveExecutor,
   BuildableMoveProvider,
@@ -42,10 +42,10 @@ const test = [
   [Diagonal, ForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
-  [ParkourForward, ParkourForwardExecutor]
+  [ParkourForward, ParkourForwardExecutor],
 ] as [BuildableMoveProvider, BuildableMoveExecutor][];
 
-test.reverse()
+test.reverse();
 
 // commented out for now.
 const test1 = [
@@ -72,17 +72,10 @@ export class ThePathfinder {
   optimizers: OptimizationMap;
   defaultSettings: MovementOptions;
 
-  private _executing = false;
-  private shouldExecute = false;
+  public executing = false;
+  private currentMove?: Move;
+  public currentExecutor?: MovementExecutor;
 
-  public get executing(): boolean {
-    return this._executing;
-  }
-
-  public set executing(value: boolean) {
-    this.shouldExecute = value;
-    this._executing = value;
-  }
 
   constructor(
     private readonly bot: Bot,
@@ -107,8 +100,13 @@ export class ThePathfinder {
     this.astar = null;
   }
 
-  async cancel() {
-    this.shouldExecute = false;
+  async cancel(timeout=1000) {
+    if (!this.currentExecutor) return;
+    if (!this.currentMove) throw new Error("No current move, but there is a current executor.");
+
+    await this.currentExecutor.abort(this.currentMove, timeout)
+    delete this.currentMove;
+    delete this.currentExecutor;
   }
 
   getCacheSize() {
@@ -164,8 +162,8 @@ export class ThePathfinder {
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh();
-    // const foo = new ContinuesPathProducer(move, goal, settings, this.bot, this.world, this.movements)
-    const foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    const foo = new ContinuesPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    // const foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements);
     let { result, astarContext } = foo.advance();
 
     yield { result, astarContext };
@@ -213,7 +211,6 @@ export class ThePathfinder {
       if (res.result.status !== "success") {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
       } else {
-
         const newPath = await this.postProcess(res.result);
         await this.perform(newPath, goal);
       }
@@ -247,25 +244,20 @@ export class ThePathfinder {
    * @param entry
    */
   async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
+   
     if (entry > 0) throw new Error("Too many failures, exiting performing.");
-    if (!this.shouldExecute) {
-      this.cleanupAll();
-      return;
-    }
 
     let currentIndex = 0;
     const movementHandler = path.context.movementProvider as MovementHandler;
     const movements = movementHandler.getMovements();
 
     outer: while (currentIndex < path.path.length) {
-      if (!this.shouldExecute) {
-        this.cleanupAll();
-        return;
-      }
-
       const move = path.path[currentIndex];
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
       if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
+
+      this.currentMove = move;
+      this.currentExecutor = executor;
 
       let tickCount = 0;
 
@@ -275,7 +267,6 @@ export class ThePathfinder {
       console.log(
         `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
       );
-
       executor.loadMove(move);
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
@@ -295,18 +286,28 @@ export class ThePathfinder {
 
         let adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         while (!adding && tickCount < 999) {
-          if (!this.shouldExecute) {
-            this.cleanupAll();
-            return;
-          }
           await this.bot.waitForTicks(1);
           adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
         }
 
         currentIndex += adding as number;
       } catch (err) {
-        if (err instanceof CancelError) {
-          console.log('CANCEL ERROR', this.bot.entity.position, this.bot.entity.velocity, goal, move.entryPos, move.exitPos, move.moveType.constructor.name, currentIndex, path.path.length, tickCount, err);
+        if (err instanceof AbortError) {
+          break outer;
+        } else if (err instanceof CancelError) {
+          console.log(
+            "CANCEL ERROR",
+            this.bot.entity.position,
+            this.bot.entity.velocity,
+            goal,
+            move.entryPos,
+            move.exitPos,
+            move.moveType.constructor.name,
+            currentIndex,
+            path.path.length,
+            tickCount,
+            err
+          );
           console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
           await this.recovery(move, path, goal, entry);
           break outer;

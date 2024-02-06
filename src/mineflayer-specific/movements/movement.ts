@@ -134,7 +134,7 @@ export abstract class Movement {
   }
 
   toBreakLen() {
-    return this.currentMove.toBreak.filter((b) =>  !b.allowExit).length;
+    return this.currentMove.toBreak.filter((b) => !b.allowExit).length;
   }
 
   toPlaceLen() {

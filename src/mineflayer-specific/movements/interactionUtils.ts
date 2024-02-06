@@ -12,6 +12,7 @@ import { CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
 import { MovementExecutor } from "./movementExecutor";
 import { Block } from "../../types";
+import { Task } from "../../utils";
 
 export type InteractType = "water" | "solid" | "replaceable";
 export type RayType = {
@@ -46,6 +47,8 @@ export abstract class InteractHandler {
 
   protected _internalLock = true;
 
+  protected task = new Task<void, Error>();
+
   public readonly blockInfo: BlockInfo;
   public readonly bb: AABB;
 
@@ -60,7 +63,7 @@ export abstract class InteractHandler {
     public readonly y: number,
     public readonly z: number,
     public readonly type: InteractType,
-    public readonly offhand = false
+    public readonly offhand = false,
   ) {
     this.vec = new Vec3(x, y, z);
     this.bb = AABB.fromBlock(this.vec);
@@ -83,20 +86,40 @@ export abstract class InteractHandler {
     (this as any).move = move;
   }
 
-  
   abstract getItem(bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | null;
   abstract perform(bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>;
   abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>;
   abstract toBlockInfo(): BlockInfo;
 
-  /**
-   * TODO: Implement
-   */
-  abort() {
-    if (this._done) return;
+  abstract abort(bot: Bot): Promise<void>;
 
-    
-    return;
+  public _abort(bot: Bot) {
+    if (this.performing) {
+      this.abort(bot);
+      this.performing = false;
+    }
+  }
+
+  public async _perform(bot: Bot, item: Item | null, opts: InteractOpts = {}) {
+    if (this.performing) throw new Error("Already performing");
+    this.performing = true;
+    this._internalLock = true;
+
+    // icky code.
+    const ret = await this.perform(bot, item, opts).catch((err) => {
+      this._internalLock = false;
+      this._done = true;
+      this.performing = false;
+
+      if (this.task.canceled) return;
+      // this.task.cancel(err);
+      throw new CancelError(`Failed to perform ${this.constructor.name}: ${err.message}`);
+    });
+
+    this._internalLock = false;
+    this._done = true;
+    this.performing = false;
+    return ret;
   }
 
   getCurrentItem(bot: Bot) {
@@ -130,7 +153,7 @@ export abstract class InteractHandler {
 
     // state.state.control.set('sneak', sneak)
 
-    const flag0 = bot.entity.onGround
+    const flag0 = bot.entity.onGround;
     for (let i = 0; i < ticks; i++) {
       ectx.simulate(state, bot.pathfinder.world);
     }
@@ -146,6 +169,7 @@ export abstract class InteractHandler {
 
 export class PlaceHandler extends InteractHandler {
   static reach = 4;
+  private _placeTask?: Promise<void>;
 
   static fromVec(vec: Vec3, type: InteractType, offhand = false) {
     return new PlaceHandler(vec.x, vec.y, vec.z, type, offhand);
@@ -322,9 +346,7 @@ export class PlaceHandler extends InteractHandler {
    * @param opts
    */
   async perform(bot: Bot, item: Item, opts: InteractOpts = {}) {
-    if (this.performing) throw new Error("Already performing");
-    this.performing = true;
-    this._internalLock = true;
+   
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
     if (item === null) throw new Error("Invalid item");
@@ -401,17 +423,7 @@ export class PlaceHandler extends InteractHandler {
 
         if (this.settings.forceLook) {
           if (!this.move.isLookingAt(rayRes.intersect)) {
-            // const start = performance.now();
-            // const old0 = bot.getControlState('jump')
-            // const old1 = bot.getControlState('sneak')
-            // const flag = bot.entity.onGround
-            // // bot.setControlState('jump', false)
-            // if (flag) bot.setControlState("sneak", true);
             await bot.lookAt(rayRes.intersect, this.settings.forceLook);
-            // if (flag) bot.setControlState("sneak", old1);
-
-            // console.log("look took", performance.now() - start, "ms");
-            // bot.setControlState('jump', old0)
           }
         }
 
@@ -428,35 +440,31 @@ export class PlaceHandler extends InteractHandler {
 
         let finished = false;
         let sneaking = false;
-        let direction = this.faceToVec(rayRes.face);
+        const direction = this.faceToVec(rayRes.face);
         // console.log("looking at", rayRes.intersect);
         start = performance.now();
-        const task = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
+        this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
         if (predictBlock) {
           bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 
         this._internalLock = false;
 
-        task.then(() => {
-          finished = true;
-          if (!sneaking) return;
-          bot.setControlState("sneak", false);
-        });
-
+        // auto crouch if block does not update (this is outdated code, see predictBlock)
         setTimeout(() => {
           if (finished) return;
           sneaking = true;
           bot.setControlState("sneak", true);
         }, Math.max(30 - bot._client.latency, 0));
 
-        try {
-          await task;
-        } catch (err: any) {
-          throw new CancelError("Invalid placement " + err.message);
-        }
 
+        await this._placeTask;
+        finished = true;
+
+        if (sneaking) bot.setControlState("sneak", false);
         if (works.shiftTick !== Infinity) bot.setControlState("sneak", false);
+
+        this.task.finish();
         break;
       }
       case "replaceable":
@@ -474,12 +482,37 @@ export class PlaceHandler extends InteractHandler {
 
     this._done = true;
     this.performing = false;
+    delete this._placeTask;
     console.log("done in ", performance.now() - start, "ms");
+  }
+
+  async abort(bot: Bot): Promise<void> {
+    if (!this.task.done) {
+      this.task.cancel(new Error("Aborted"));
+    }
+
+    if (this._placeTask) {
+      switch (this.type) {
+        case "water": {
+          break;
+        }
+        case "solid": {
+          // TODO: edit mineflayer to stop waiting for block updates at region.
+          // bot.stopDigging();
+          break;
+        }
+        case "replaceable": {
+          break;
+        }
+      }
+      await this._placeTask.catch(() => {});
+    }
   }
 }
 
 export class BreakHandler extends InteractHandler {
   static reach = 4;
+  private _breakTask?: Promise<void>;
 
   static fromVec(vec: Vec3, type: InteractType, offhand = false) {
     return new BreakHandler(vec.x, vec.y, vec.z, type, offhand);
@@ -519,9 +552,6 @@ export class BreakHandler extends InteractHandler {
   }
 
   async perform(bot: Bot, item: Item | null = null, opts: InteractOpts = {}): Promise<void> {
-    if (this.performing) throw new Error("Already performing");
-    this.performing = true;
-    this._internalLock = true;
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
     switch (this.type) {
@@ -541,11 +571,11 @@ export class BreakHandler extends InteractHandler {
         const block = await bot.world.getBlock(this.vec);
         if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, this.settings.forceLook);
-        const task = bot.dig(block, 'ignore', 'auto');
-        this._internalLock = false;
 
-        await task;
-        console.log('done')
+        this._breakTask = bot.dig(block, "ignore", "auto");
+
+        await this._breakTask;
+        this.task.finish();
         break;
       }
 
@@ -566,7 +596,28 @@ export class BreakHandler extends InteractHandler {
       await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook);
     }
 
-    this.performing = false;
-    this._done = true;
+    delete this._breakTask;
+  }
+
+  async abort(bot: Bot): Promise<void> {
+    if (!this.task.done) {
+      this.task.cancel(new Error("Aborted"));
+    }
+
+    if (this._breakTask) {
+      switch (this.type) {
+        case "water": {
+          break;
+        }
+        case "solid": {
+          bot.stopDigging();
+          break;
+        }
+        case "replaceable": {
+          break;
+        }
+      }
+      await this._breakTask.catch(() => {});
+    }
   }
 }

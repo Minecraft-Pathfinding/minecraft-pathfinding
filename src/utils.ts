@@ -20,3 +20,58 @@ export function onceWithCleanup<T>(
       emitter.on(event, listener);
     });
   }
+
+
+
+export class Task<Res, Rej> {
+  done: boolean = false;
+  canceled: boolean = false;
+  promise: Promise<Res>;
+  cancel!: (err: Rej) => void;
+  finish!: (result: Res) => void;
+
+  constructor() {
+    this.promise = new Promise((resolve, reject) => {
+      this.cancel = (err) => {
+        if (!this.done) {
+          this.done = true;
+          this.canceled = true;
+          reject(err);
+          throw err;
+        }
+      };
+      this.finish = (result) => {
+        if (!this.done) {
+          this.done = true;
+          resolve(result);
+          return result;
+        }
+      };
+    });
+  }
+
+  static doneTask() {
+    const task = new Task();
+    task.done = true;
+    task.promise = Promise.resolve();
+    task.cancel = () => {};
+    task.finish = () => {};
+    return task;
+  }
+}
+
+
+
+// (async () => {
+//   const task0 = new Task<number, Error>();
+//   const task1 = new Task<number, Error>();
+//   const task2 = new Task<number, Error>();
+//   const task3 = new Task<number, Error>();
+
+//   const data = task0.promise
+//   task0.finish(1);
+  
+//   console.log(await data)
+
+
+// })()

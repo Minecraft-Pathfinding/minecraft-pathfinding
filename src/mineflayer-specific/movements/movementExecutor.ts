@@ -5,13 +5,18 @@ import { goals } from "../goals";
 import { World } from "../world/worldInterface";
 import { BlockInfo, BlockInfoGroup } from "../world/cacheWorld";
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from "./interactionUtils";
-import { CancelError } from "./exceptions";
+import { AbortError, CancelError } from "./exceptions";
 import { Movement, MovementOptions } from "./movement";
 import { AABB, AABBUtils } from "@nxg-org/mineflayer-util-plugin";
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
 import { botStrafeMovement, botSmartMovement, smartMovement, strafeMovement, wrapDegrees, wrapRadians } from "./controls";
 
 export abstract class MovementExecutor extends Movement {
+  /**
+   * Current move being executed.
+   *
+   * This move is the same as the thisMove argument provided to functions.
+   */
   protected currentMove!: Move;
 
   /**
@@ -27,11 +32,19 @@ export abstract class MovementExecutor extends Movement {
   /** */
   protected engine: EntityPhysics;
 
+  /**
+   * Return the current interaction.
+   */
   public get cI(): InteractHandler | undefined {
     // if (this._cI === undefined) return undefined;
     // if (this._cI.allowExit) return undefined;
     return this._cI;
   }
+
+  /**
+   * Whether or not this movement has been cancelled/aborted.
+   */
+  public cancelled = false;
 
   public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings);
@@ -43,30 +56,47 @@ export abstract class MovementExecutor extends Movement {
   /**
    * TODO: Implement.
    */
-  public async abort(timeout = 1000): Promise<void> {
-    for (const breakTarget of this.currentMove.toBreak) {
-      await breakTarget.abort();
+  public async abort(move: Move = this.currentMove, timeout = 1000): Promise<void> {
+    if (this.cancelled) return;
+
+    for (const breakTarget of move.toBreak) {
+      await breakTarget._abort(this.bot);
     }
 
-    for (const place of this.currentMove.toPlace) {
-      await place.abort();
+    for (const place of move.toPlace) {
+      await place._abort(this.bot);
     }
 
-    // default: wait until on ground and not water to abort.
+    // TODO: handle bug (nextMove not included).
     return new Promise<void>((res, rej) => {
       const listener = () => {
-        if (this.bot.entity.onGround && !(this.bot.entity as any).isInWater) {
+        if (this.safeToCancel(move)) {
           this.bot.off("physicsTick", listener);
-          res();
+          rej(new AbortError("Movement aborted."));
         }
-        this.bot.on("physicsTick", listener);
-        setTimeout(() => {
-          this.bot.off("physicsTick", listener);
-          rej(new CancelError("Movement failed to abort properly."));
-        }, timeout);
       };
+      this.bot.on("physicsTick", listener);
+      setTimeout(() => {
+        this.bot.off("physicsTick", listener);
+        rej(new Error("Movement failed to abort properly."));
+      }, timeout);
     });
   }
+
+  // public _performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {
+  //   if (this.cancelled) return;
+  //   return this.performInit(thisMove, currentIndex, path);
+  // }
+
+  // public async _performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  //   if (this.cancelled) return true;
+  //   return await this.performPerTick(thisMove, tickCount, currentIndex, path);
+  // }
+
+  // public async _align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  //   if (this.cancelled) return true;
+  //   return await this.align(thisMove, tickCount, goal);
+  // }
 
   /**
    * Runtime calculation.
@@ -146,7 +176,7 @@ export abstract class MovementExecutor extends Movement {
 
     this.bot.physicsUtil.engine.simulate(ectx, this.world); // needed for later.
 
-    console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+    console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
 
     // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
@@ -169,7 +199,7 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
-      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally;
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
@@ -196,7 +226,7 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Lazy code.
    */
-  public safeToCancel(startMove: Move, endMove: Move): boolean {
+  public safeToCancel(startMove: Move, endMove: Move = startMove): boolean {
     return this.bot.entity.onGround;
   }
 
@@ -376,8 +406,12 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks);
   }
 
-  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; target?: Vec3, sprint?: boolean }): Promise<void>;
-  protected async alignToPath(startMove: Move, endMove?: Move, opts?: { handleBack?: boolean; target?: Vec3, sprint?:boolean }): Promise<void>;
+  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; target?: Vec3; sprint?: boolean }): Promise<void>;
+  protected async alignToPath(
+    startMove: Move,
+    endMove?: Move,
+    opts?: { handleBack?: boolean; target?: Vec3; sprint?: boolean }
+  ): Promise<void>;
   protected async alignToPath(startMove: Move, endMove?: any, opts?: any) {
     if (endMove === undefined) {
       endMove = startMove;
@@ -406,9 +440,8 @@ export abstract class MovementExecutor extends Movement {
     // console.log("target", target, opts)
 
     let task;
-    if (target !== endMove.exitPos) task =  this.lookAt(target);
+    if (target !== endMove.exitPos) task = this.lookAt(target);
     else task = this.lookAtPathPos(target);
-
 
     this.bot.chat(`/particle flame ${endMove.exitPos.x} ${endMove.exitPos.y} ${endMove.exitPos.z} 0 0.5 0 0 10 force`);
     botStrafeMovement(this.bot, startMove.entryPos, endMove.exitPos);
