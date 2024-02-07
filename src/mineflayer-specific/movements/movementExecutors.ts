@@ -749,7 +749,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6);
 
     if (bbs.length === 0) {
-      bbs.push(AABB.fromBlockPos(thisMove.entryPos));
+      bbs.push(AABB.fromBlockPos(thisMove.entryPos.offset(0, -1, 0)));
     }  
     
     // console.log('CALLED TEST IN ALIGN')
@@ -802,7 +802,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     
     // this is currently failing occasionally when blocks are placed but are not updated properly.
     this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
-    this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
+    // this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
     // this.bot.physicsUtil.engine.simulate(ctx, this.world);
 
     const state = ctx.state;
@@ -824,7 +824,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       goingToFall
     ) {
       this.reachedBackup = false;
-      this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, targetEyeVec);
+      this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, target);
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget);
       console.log("here2", this.backUpTarget, this.bot.entity.position, state.pos, state.age);
 

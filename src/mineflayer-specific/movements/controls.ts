@@ -56,7 +56,7 @@ function findDiff(position: Vec3, velocity: Vec3, yaw: number, pitch: number, ne
   // 0.15 is about full speed for sprinting. Anything above that and we're jumping.
   // another method of doing this is vel.y > 0 ? 2 : 1
   // const offset = bot.entity.position.plus(bot.entity.velocity.scaled(amt > 0.15 ? 2 : 1));
-  const offset = position.plus(velocity.scaled(amt < 1.15 ? 1 : 2));
+  const offset = position.plus(velocity.scaled(amt < 0.15 ? 1 : 2));
   const lookDiff = wrapRadians(wrapRadians(yaw));
   if (xzVel.norm() < 0.03) {
     // console.log("no vel, so different calc.", currentPoint, nextPoint, position);
@@ -135,12 +135,12 @@ export function strafeMovement(ctx: EntityState, nextPoint: Vec3) {
 
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
     // console.log('going left')
-    ctx.control.set("left", true); // are these reversed? tf
-    ctx.control.set("right", false);
+    ctx.control.set("left", false); // are these reversed? tf
+    ctx.control.set("right", true);
   } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
     // console.log('going right')
-    ctx.control.set("left", false);
-    ctx.control.set("right", true);
+    ctx.control.set("left", true);
+    ctx.control.set("right", false);
   } else {
     // console.log('going neither strafe')
     ctx.control.set("left", false);

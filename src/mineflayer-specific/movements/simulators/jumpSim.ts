@@ -124,8 +124,8 @@ export class JumpSim extends BaseSimulator {
       JumpSim.getCleanupPosition(goalCorner),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goalCorner),
-        // JumpSim.getControllerStrafeAim(goalCorner),
-        // JumpSim.getControllerSmartMovement(goalCorner, sprint),
+        JumpSim.getControllerStrafeAim(goalCorner),
+        JumpSim.getControllerSmartMovement(goalCorner, sprint),
         (state, ticks) => {
           state.control.sneak = false;
           // check if player is leaving src block collision

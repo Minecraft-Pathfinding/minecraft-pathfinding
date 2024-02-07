@@ -208,6 +208,7 @@ export class ParkourJumpHelper {
     const bb = AABBUtils.getPlayerAABB({ position: pos, width, height: 0.1 }); // whatever
     const blocks = new Set(verts.map((v) => this.world.getBlockInfo(v.offset(0, -1, 0))));
 
+    console.log(blocks)
     const ret = [];
     for (const block of blocks) {
       for (const bb0 of block.getBBs()) {
@@ -217,6 +218,7 @@ export class ParkourJumpHelper {
       }
     }
 
+    console.log(ret)
     return ret;
   }
 
@@ -273,7 +275,7 @@ export class ParkourJumpHelper {
     const start = this.bot.entity.position.clone();
     start.y = Math.floor(start.y);
 
-    console.log(this.bot.entity.position, start, bbs);
+    // console.log(this.bot.entity.position, start, bbs);
     const intersects = [];
 
     // const bbs = this.getUnderlyingBBs(start, 0.6)
@@ -287,7 +289,7 @@ export class ParkourJumpHelper {
     intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start));
     const intersect = intersects[0];
     if (!intersect) {
-      console.log(bbs, start, dir, goalVert);
+      console.log(bbs, this.bot.entity.position, start, dir, goalVert);
       throw Error("no intersect");
     }
     // if (!intersect) return null;
