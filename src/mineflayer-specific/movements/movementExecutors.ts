@@ -232,7 +232,7 @@ export class ForwardExecutor extends MovementExecutor {
     if (ctx.state.pos.y > thisMove.entryPos.y) return false;
 
     const nextPos = path[currentIndex + 1];
-    let offset = 0;
+    let offset = 0.3;
     if (nextPos) {
 
       if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8;

@@ -450,7 +450,7 @@ export abstract class MovementExecutor extends Movement {
     if (target !== endMove.exitPos) task = await this.lookAt(target);
     else task = await this.lookAtPathPos(target);
 
-    this.bot.chat(`/particle flame ${endMove.exitPos.x} ${endMove.exitPos.y} ${endMove.exitPos.z} 0 0.5 0 0 10 force`);
+    // this.bot.chat(`/particle flame ${endMove.exitPos.x} ${endMove.exitPos.y} ${endMove.exitPos.z} 0 0.5 0 0 10 force`);
     botStrafeMovement(this.bot, startMove.entryPos, endMove.exitPos);
     botSmartMovement(this.bot, startMove.entryPos, endMove.exitPos, sprint);
 
