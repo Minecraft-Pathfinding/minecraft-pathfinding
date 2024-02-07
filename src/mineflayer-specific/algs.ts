@@ -16,4 +16,3 @@ export class AStar extends AAStar<Move> {
     this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
   }
 }
-

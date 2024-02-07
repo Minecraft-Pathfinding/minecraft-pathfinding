@@ -1,17 +1,17 @@
-import { Vec3 } from "vec3";
-import { Movement, MovementProvider, SimMovement } from "./movements";
-import { PathData } from "../abstract/node";
-import { EntityState } from "@nxg-org/mineflayer-physics-util";
-import { BreakHandler, InteractHandler, PlaceHandler } from "./movements/interactionUtils";
-const emptyVec = new Vec3(0, 0, 0);
+import { Vec3 } from 'vec3'
+import { Movement, MovementProvider, SimMovement } from './movements'
+import { PathData } from '../abstract/node'
+import { EntityState } from '@nxg-org/mineflayer-physics-util'
+import { BreakHandler, InteractHandler, PlaceHandler } from './movements/interactionUtils'
+const emptyVec = new Vec3(0, 0, 0)
 
 export class Move implements PathData {
-  hash: string;
+  hash: string
 
-  targetPos: Vec3;
+  targetPos: Vec3
   // remainingBlocks: number = 0 // TODO: implement this
 
-  constructor(
+  constructor (
     public readonly x: number,
     public readonly y: number,
     public readonly z: number,
@@ -27,23 +27,23 @@ export class Move implements PathData {
     // public readonly interactMap: Map<string, PlaceHandler | BreakHandler>,
     public readonly parent?: Move
   ) {
-    this.x = Math.floor(x);
-    this.y = Math.floor(y);
-    this.z = Math.floor(z);
-    this.hash = this.x + "," + this.y + "," + this.z;
-    this.targetPos = this.exitPos;
+    this.x = Math.floor(x)
+    this.y = Math.floor(y)
+    this.z = Math.floor(z)
+    this.hash = this.x + ',' + this.y + ',' + this.z
+    this.targetPos = this.exitPos
     // this.x = x;
     // this.y = y;
     // this.z = z;
     // this.hash = this.x.toFixed(1) + "," + this.y.toFixed(1) + "," + this.z.toFixed(1);
   }
 
-  static startMove(type: MovementProvider, pos: Vec3, vel: Vec3, remainingBlocks: number) {
+  static startMove (type: MovementProvider, pos: Vec3, vel: Vec3, remainingBlocks: number) {
     return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel)
     // new Map());
   }
 
-  static fromPreviousState(
+  static fromPreviousState (
     cost: number,
     state: EntityState,
     prevMove: Move,
@@ -72,12 +72,12 @@ export class Move implements PathData {
       state.pos.clone(),
       state.vel.clone(),
       // prevMove.interactMap,
-      prevMove,
+      prevMove
       // p
-    );
+    )
   }
 
-  static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: MovementProvider, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
+  static fromPrevious (cost: number, pos: Vec3, prevMove: Move, type: MovementProvider, toPlace: PlaceHandler[] = [], toBreak: BreakHandler[] = []) {
     // const p = new Map(prevMove.interactMap);
     // for (const place of toPlace) {
     //   p.set(`(${place.x}, ${place.y}, ${place.z})`, place);
@@ -99,29 +99,29 @@ export class Move implements PathData {
       pos,
       emptyVec,
       // prevMove.interactMap,
-      prevMove,
+      prevMove
       // p
-    );
+    )
   }
 
-  public clone() {
-    return {...this} // lazy.
+  public clone () {
+    return { ...this } // lazy.
   }
 
-  public toVec() {
-    return new Vec3(this.x, this.y, this.z);
+  public toVec () {
+    return new Vec3(this.x, this.y, this.z)
   }
 
-  public toVecCenter() {
-    return new Vec3(this.x + 0.5, this.y, this.z + 0.5);
+  public toVecCenter () {
+    return new Vec3(this.x + 0.5, this.y, this.z + 0.5)
   }
 
-  public exitRounded(digits: number) {
-    const mult = Math.pow(10, digits);
+  public exitRounded (digits: number) {
+    const mult = Math.pow(10, digits)
     return new Vec3(
       Math.round(this.exitPos.x * mult) / mult,
       Math.round(this.exitPos.y * mult) / mult,
       Math.round(this.exitPos.z * mult) / mult
-    );
+    )
   }
 }
