@@ -413,7 +413,7 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks);
   }
 
-  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; target?: Vec3; sprint?: boolean }): Promise<void>;
+  protected async alignToPath(startMove: Move, opts?: { handleBack?: boolean; lookAt?: Vec3; sprint?: boolean }): Promise<void>;
   protected async alignToPath(
     startMove: Move,
     endMove?: Move,

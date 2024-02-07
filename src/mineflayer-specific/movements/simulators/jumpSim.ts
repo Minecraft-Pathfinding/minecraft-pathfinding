@@ -161,7 +161,7 @@ export class JumpSim extends BaseSimulator {
     // console.trace(pathGoal, path[0]);
     return (state) => {
       // console.log(state.getAABB(), state.pos, pathGoal, state.getAABB().collides(pathGoal))
-      return state.pos.y >= pathGoal.maxY && AABBUtils.getPlayerAABB({ position: state.pos, width: 0.599, height: 1.8 }).collides(pathGoal);
+      return state.pos.y >= pathGoal.maxY && AABBUtils.getPlayerAABB({ position: state.pos, width: 0.5999, height: 1.8 }).collides(pathGoal);
     };
   }
 

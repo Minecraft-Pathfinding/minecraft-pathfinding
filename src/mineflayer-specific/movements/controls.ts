@@ -43,10 +43,8 @@ export function wrapRadians(radians: number): number {
   // return tmp < 0 ? tmp + Math.PI : tmp > 0 ? tmp - Math.PI : tmp;
 }
 
-
-
 // currentPoint: Vec3
-function findDiff(position: Vec3, velocity: Vec3, yaw: number, pitch: number, nextPoint: Vec3) {
+function findDiff(position: Vec3, velocity: Vec3, yaw: number, pitch: number, nextPoint: Vec3, onGround: boolean) {
   const xzVel = velocity;
   const dir1 = getViewDir({ yaw, pitch });
 
@@ -56,7 +54,9 @@ function findDiff(position: Vec3, velocity: Vec3, yaw: number, pitch: number, ne
   // 0.15 is about full speed for sprinting. Anything above that and we're jumping.
   // another method of doing this is vel.y > 0 ? 2 : 1
   // const offset = bot.entity.position.plus(bot.entity.velocity.scaled(amt > 0.15 ? 2 : 1));
-  const offset = position.plus(velocity.scaled(amt < 0.15 ? 1 : 2));
+  let scale = onGround ? 0 : 1;
+  if (amt > 0.16) scale = 2;
+  const offset = position.plus(velocity.scaled(scale));
   const lookDiff = wrapRadians(wrapRadians(yaw));
   if (xzVel.norm() < 0.03) {
     // console.log("no vel, so different calc.", currentPoint, nextPoint, position);
@@ -128,10 +128,9 @@ function findDiff(position: Vec3, velocity: Vec3, yaw: number, pitch: number, ne
  */
 //currentPoint: Vec3
 export function strafeMovement(ctx: EntityState, nextPoint: Vec3) {
-  let diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint);
+  let diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround);
 
   const lookDiff = wrapRadians(wrapRadians(ctx.yaw));
-
 
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
     // console.log('going left')
@@ -155,7 +154,7 @@ export function strafeMovement(ctx: EntityState, nextPoint: Vec3) {
  */
 // currentPoint,
 export function botStrafeMovement(bot: Bot, currentPoint: Vec3, nextPoint: Vec3) {
-  let diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint);
+  let diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround);
 
   const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw));
 
@@ -188,7 +187,7 @@ export function botStrafeMovement(bot: Bot, currentPoint: Vec3, nextPoint: Vec3)
 //currentPoint,
 export function smartMovement(ctx: EntityState, nextPoint: Vec3, sprint = true) {
   // console.log('hey!')
-  let diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch,  nextPoint);
+  let diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround);
 
   const lookDiff = wrapRadians(wrapRadians(ctx.yaw));
 
@@ -225,7 +224,7 @@ export function smartMovement(ctx: EntityState, nextPoint: Vec3, sprint = true) 
  */
 //currentPoint,
 export function botSmartMovement(bot: Bot, currentPoint: Vec3, nextPoint: Vec3, sprint: boolean) {
-  let diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch,  nextPoint);
+  let diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround);
 
   const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw));
 

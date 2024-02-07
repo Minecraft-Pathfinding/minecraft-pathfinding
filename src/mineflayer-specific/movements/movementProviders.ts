@@ -418,7 +418,7 @@ export class ParkourForward extends MovementProvider {
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this));
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break;
-      } else if (ceilingClear && blockB.safe && blockC.physical) {
+      } else if (ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
         // Up
         if (d === 5) continue;
           // 4 Blocks forward 1 block up is very difficult and fails often

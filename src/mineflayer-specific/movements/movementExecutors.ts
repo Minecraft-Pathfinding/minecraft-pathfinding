@@ -74,14 +74,14 @@ export class ForwardExecutor extends MovementExecutor {
 
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5);
     if (faceForward) {
-      this.alignToPath(thisMove, { target: target });
+      this.alignToPath(thisMove, { lookAt: target });
       // void this.lookAt(target);
       // this.bot.setControlState("forward", true);
       // if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
       // else this.bot.setControlState("sprint", true);
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position);
-      this.alignToPath(thisMove, { target: offset });
+      this.alignToPath(thisMove, { lookAt: offset });
       // void this.lookAt(offset);
       // this.bot.setControlState("forward", false);
       // this.bot.setControlState("sprint", false);
@@ -141,7 +141,7 @@ export class ForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
       // void this.lookAt(offset);
-      this.alignToPath(thisMove, { target: offset, sprint: true });
+      this.alignToPath(thisMove, { lookAt: offset, sprint: true });
       this.bot.setControlState("forward", false);
       this.bot.setControlState("sprint", false);
       this.bot.setControlState("back", true);
@@ -311,7 +311,7 @@ export class ForwardExecutor extends MovementExecutor {
       }
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position);
-      this.alignToPath(thisMove, { target: offset });
+      this.alignToPath(thisMove, { lookAt: offset });
       return this.isComplete(thisMove);
     }
 
@@ -462,7 +462,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       }
     }
 
-    this.lookAt(thisMove.exitPos);
+    this.lookAtPathPos(thisMove.exitPos);
     this.bot.setControlState("forward", true);  
     // this.bot.setControlState("sprint", true);
 
@@ -579,7 +579,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     } else {
       const nextMove = path[currentIndex + 1];
-      if (nextMove) this.alignToPath(thisMove, { target: nextMove.entryPos, sprint: true });
+      if (nextMove) this.alignToPath(thisMove, { lookAt: nextMove.entryPos, sprint: true });
       else this.alignToPath(thisMove, { sprint: true });
 
       if (this.isComplete(thisMove)) return true;
