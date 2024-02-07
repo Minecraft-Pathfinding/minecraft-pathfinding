@@ -235,6 +235,8 @@ export class ForwardExecutor extends MovementExecutor {
     let offset = 0;
     if (nextPos) {
 
+      if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8;
+
       // handle potential collisions here.
       if (nextPos.exitPos.xzDistanceTo(nextPos.entryPos) && nextPos.exitPos.y > thisMove.entryPos.y) {
         offset = 0.8;
@@ -802,7 +804,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     
     // this is currently failing occasionally when blocks are placed but are not updated properly.
     this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
-    // this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
+    this.bot.physicsUtil.engine.simulate(ctx, this.bot.world);
     // this.bot.physicsUtil.engine.simulate(ctx, this.world);
 
     const state = ctx.state;

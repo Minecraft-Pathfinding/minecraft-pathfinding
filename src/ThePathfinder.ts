@@ -243,7 +243,7 @@ export class ThePathfinder {
    */
   async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
    
-    if (entry > 0) throw new Error("Too many failures, exiting performing.");
+    if (entry > 10) throw new Error("Too many failures, exiting performing.");
 
     let currentIndex = 0;
     const movementHandler = path.context.movementProvider as MovementHandler;
