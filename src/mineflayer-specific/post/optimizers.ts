@@ -155,8 +155,8 @@ export class DropDownOpt extends MovementOptimizer {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 });
           const collided =
             (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid && (state.onGround || state.isInWater));
-          console.log(pBB, blockBB0, bb0solid, blockBB1, bb1solid);
-          console.log(state.onGround, state.isCollidedHorizontally, collided, flag);
+          // console.log(pBB, blockBB0, bb0solid, blockBB1, bb1solid);
+          // console.log(state.onGround, state.isCollidedHorizontally, collided, flag);
           if (collided) {
             good = true;
             return true;

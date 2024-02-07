@@ -105,8 +105,6 @@ export class ThePathfinder {
     if (!this.currentMove) throw new Error("No current move, but there is a current executor.");
 
     await this.currentExecutor.abort(this.currentMove, timeout)
-    delete this.currentMove;
-    delete this.currentExecutor;
   }
 
   getCacheSize() {
@@ -212,7 +210,7 @@ export class ThePathfinder {
         if (res.result.status === "noPath" || res.result.status === "timeout") break;
       } else {
         const newPath = await this.postProcess(res.result);
-        await this.perform(newPath, goal);
+        await this.perform(newPath, goal)
       }
     }
     console.log("clear states goddamnit");
@@ -276,25 +274,28 @@ export class ThePathfinder {
       }
 
       try {
-        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
+        while (!(await executor._align(move, tickCount++, goal)) && tickCount < 999) {
           await this.bot.waitForTicks(1);
         }
 
         tickCount = 0;
 
-        await executor.performInit(move, currentIndex, path.path);
+        await executor._performInit(move, currentIndex, path.path);
 
-        let adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
+        let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path);
         while (!adding && tickCount < 999) {
           await this.bot.waitForTicks(1);
-          adding = await executor.performPerTick(move, tickCount++, currentIndex, path.path);
+          adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path);
         }
 
         currentIndex += adding as number;
       } catch (err) {
         if (err instanceof AbortError) {
-          break outer;
-        } else if (err instanceof CancelError) {
+          console.trace('aborted')
+          this.currentExecutor.reset();
+          break outer
+        }
+        else if (err instanceof CancelError) {
           console.log(
             "CANCEL ERROR",
             this.bot.entity.position,
@@ -373,5 +374,8 @@ export class ThePathfinder {
     this.bot.chat(this.world.getCacheSize());
     this.world.clearCache();
     this.executing = false;
+
+    delete this.currentMove;
+    delete this.currentExecutor;
   }
 }

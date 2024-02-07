@@ -41,6 +41,7 @@ export interface InteractOpts {
  */
 export abstract class InteractHandler {
   protected performing = false;
+  public cancelled = false;
   public readonly vec: Vec3;
 
   protected _done = false;
@@ -63,7 +64,7 @@ export abstract class InteractHandler {
     public readonly y: number,
     public readonly z: number,
     public readonly type: InteractType,
-    public readonly offhand = false,
+    public readonly offhand = false
   ) {
     this.vec = new Vec3(x, y, z);
     this.bb = AABB.fromBlock(this.vec);
@@ -94,9 +95,10 @@ export abstract class InteractHandler {
   abstract abort(bot: Bot): Promise<void>;
 
   public _abort(bot: Bot) {
-    if (this.performing) {
+    if (this.performing && !this.cancelled) {
       this.abort(bot);
       this.performing = false;
+      this.cancelled = true;
     }
   }
 
@@ -346,7 +348,6 @@ export class PlaceHandler extends InteractHandler {
    * @param opts
    */
   async perform(bot: Bot, item: Item, opts: InteractOpts = {}) {
-   
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch };
 
     if (item === null) throw new Error("Invalid item");
@@ -445,7 +446,9 @@ export class PlaceHandler extends InteractHandler {
         start = performance.now();
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: "ignore", swingArm: "right" });
         if (predictBlock) {
-          bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
+          console.log('predicting block')
+          bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0));
+          // bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 
         this._internalLock = false;
@@ -456,7 +459,6 @@ export class PlaceHandler extends InteractHandler {
           sneaking = true;
           bot.setControlState("sneak", true);
         }, Math.max(30 - bot._client.latency, 0));
-
 
         await this._placeTask;
         finished = true;
@@ -572,7 +574,7 @@ export class BreakHandler extends InteractHandler {
         if (!block) throw new Error("Invalid block");
         await bot.lookAt(this.vec, this.settings.forceLook);
 
-        this._breakTask = bot.dig(block, "ignore", "auto");
+        this._breakTask = bot.dig(block, "ignore", "raycast");
 
         await this._breakTask;
         this.task.finish();

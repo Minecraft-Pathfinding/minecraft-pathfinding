@@ -1,4 +1,12 @@
-import { BaseSimulator, ControlStateHandler, EPhysicsCtx, EntityPhysics, EntityState } from "@nxg-org/mineflayer-physics-util";
+import {
+  BaseSimulator,
+  ControlStateHandler,
+  Controller,
+  EPhysicsCtx,
+  EntityPhysics,
+  EntityState,
+  SimulationGoal,
+} from "@nxg-org/mineflayer-physics-util";
 import { Bot } from "mineflayer";
 import { World } from "../world/worldInterface";
 import v, { Vec3 } from "vec3";
@@ -48,7 +56,6 @@ export class JumpCalculator {
 
   public findJumpPoint(goal: Vec3, maxTicks = 20): JumpInfo | null {
     if (this.checkImmediateSprintJump(goal)) {
-      console.log("lfg");
       return { jumpTick: 0, sprintTick: 0 };
     }
 
@@ -234,13 +241,13 @@ export class ParkourJumpHelper {
     // for example: bot pos is 0.7,0,0 and goal is 0,0,0 to 1,0,1, then push 0.7,0,0
 
     if (goal.minX - pos.x < 1 && pos.x - goal.maxX < 1) {
-      verts.push(v(pos.x, goal.maxY, goal.minZ));
-      verts.push(v(pos.x, goal.maxY, goal.maxZ));
+      verts.push(v(goal.maxX - pos.x + goal.minX, goal.maxY, goal.minZ));
+      verts.push(v(goal.maxX - pos.x + goal.minX, goal.maxY, goal.maxZ));
     }
 
     if (goal.minZ - pos.z < 1 && pos.z - goal.maxZ < 1) {
-      verts.push(v(goal.minX, goal.maxY, pos.z));
-      verts.push(v(goal.maxX, goal.maxY, pos.z));
+      verts.push(v(goal.minX, goal.maxY, goal.maxZ - pos.z + goal.minZ));
+      verts.push(v(goal.maxX, goal.maxY, goal.maxZ - pos.z + goal.minZ));
     }
 
     let minDist = Infinity;
@@ -279,7 +286,10 @@ export class ParkourJumpHelper {
 
     intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start));
     const intersect = intersects[0];
-    if (!intersect) throw Error("no intersect");
+    if (!intersect) {
+      console.log(bbs, start, dir, goalVert);
+      throw Error("no intersect");
+    }
     // if (!intersect) return null;
 
     const dir2 = intersect.minus(start);
@@ -350,28 +360,80 @@ export class ParkourJumpHelper {
     return reached(state, 0) as boolean;
   }
 
-  public simJumpTest(srcBBS: AABB[], goal: Vec3) {}
-
-  public simJumpImmediately(goal: Vec3) {
+  public simFallOffEdge(goal: Vec3) {
     const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
 
     // console.log('sim jump goals', goal, goalVert)
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
 
+    const goalCenter = goal.floored().offset(0.5, 0, 0.5);
+
     ctx.state.control = ControlStateHandler.DEFAULT();
     stateLookAt(ctx.state, goal);
     ctx.state.control.set("forward", true);
-    ctx.state.control.set("jump", true);
+    ctx.state.control.set("jump", false);
     ctx.state.control.set("sprint", true);
 
     const orgPos = this.bot.entity.position.clone();
 
+    const reached0 = JumpSim.getReached(goal);
+    const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks);
+    const state = this.sim.simulateUntil(
+      reached,
+      () => {},
+      (state) => {
+        stateLookAt(state, goalCenter);
+      },
+      ctx,
+      this.world,
+      45
+    );
+
+    // console.log(reached(state, 0), reached0(state, 0), reached0(state, 1), state.age, orgPos, state.pos, goal, state.onGround, state.isCollidedHorizontally, state.control);
+    return reached0(state, 0);
+  }
+
+  public simForwardMove(goal: Vec3, jump = true, ...constraints: SimulationGoal[]) {
+    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal));
+
+    // console.log('sim jump goals', goal, goalVert)
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
     const goalCenter = goal.floored().offset(0.5, 0, 0.5);
-    const reached = JumpSim.getReached(goalCenter);
+
+    ctx.state.control = ControlStateHandler.DEFAULT();
+    stateLookAt(ctx.state, goal);
+    ctx.state.control.set("forward", true);
+    ctx.state.control.set("jump", jump);
+    ctx.state.control.set("sprint", true);
+
+    const orgPos = this.bot.entity.position.clone();
+
+    
+
+    let reached = JumpSim.getReached(goal) as SimulationGoal;
+    if (constraints.length > 0) {
+      const old = reached;
+      reached = (state, ticks) => {
+        for (const constraint of constraints) {
+          if (!constraint(state, ticks)) return false;
+        }
+        return old(state, ticks);
+      };
+    }
+
     // const state = this.sim.simulateSmartAim(goalCenter, ctx, true, true, 0, 40);
     const state = this.sim.simulateUntilOnGround(ctx, 45, reached);
 
-    // console.log("sim jump immediately", state.age, orgPos, state.pos, AABB.fromBlockPos(goal), state.onGround, state.isCollidedHorizontally, state.control)
+    // console.log(
+    //   "sim jump immediately",
+    //   state.age,
+    //   orgPos,
+    //   state.pos,
+    //   AABB.fromBlockPos(goal),
+    //   state.onGround,
+    //   state.isCollidedHorizontally,
+    //   state.control
+    // );
 
     const testwtf = reached(state, 0);
 

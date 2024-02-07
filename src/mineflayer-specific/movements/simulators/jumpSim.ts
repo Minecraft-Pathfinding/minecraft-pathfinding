@@ -8,7 +8,7 @@ import { promisify } from "util";
 import { Vec3 } from "vec3";
 import { World } from "../../world/worldInterface";
 import { BaseSimulator, Controller, EPhysicsCtx, OnGoalReachFunction, SimulationGoal } from "@nxg-org/mineflayer-physics-util";
-import { wrapDegrees, wrapRadians } from "../controls";
+import { smartMovement, strafeMovement, wrapDegrees, wrapRadians } from "../controls";
 
 const ZERO = (0 * Math.PI) / 12;
 const PI_OVER_TWELVE = (1 * Math.PI) / 12;
@@ -65,17 +65,8 @@ export class JumpSim extends BaseSimulator {
   }
 
   simulateUntilOnGround(ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false) {
-    // const orgPos = ctx.state.pos.clone();
-    let print = false;
     const state = this.simulateUntil(
-      JumpSim.buildAnyGoal(goal, (state, ticks) => {
-        if (state.pos.y > 70 && state.pos.z > 6.8 && state.vel.y > -0.1) print = true;
-        if (print) {
-        //   console.log(state.onGround, state.pos, state.vel);
-          // print = false;
-        }
-        return ticks > 0 && state.onGround;
-      }),
+      JumpSim.buildAnyGoal(goal, (state, ticks) => ticks > 0 && state.onGround),
       () => {},
       () => {},
       ctx,
@@ -167,7 +158,7 @@ export class JumpSim extends BaseSimulator {
 
   static getReached(...path: Vec3[]): (state: EntityState, age: number) => boolean {
     const pathGoal = AABB.fromBlockPos(path[0]);
-    // console.log(pathGoal, path[0]);
+    // console.trace(pathGoal, path[0]);
     return (state) => {
       // console.log(state.getAABB(), state.pos, pathGoal, state.getAABB().collides(pathGoal))
       return state.pos.y >= pathGoal.maxY && AABBUtils.getPlayerAABB({ position: state.pos, width: 0.599, height: 1.8 }).collides(pathGoal);
@@ -191,6 +182,9 @@ export class JumpSim extends BaseSimulator {
   // right should be positiive,
   // left should be negative.
   static getControllerStrafeAim(nextPoint: Vec3): Controller {
+    return (state, ticks) => strafeMovement(state, nextPoint);
+
+
     return (state, ticks) => {
       const offset = state.pos.plus(state.onGround ? state.vel : state.vel.scaled(1));
       const dx = nextPoint.x - offset.x;
@@ -225,6 +219,8 @@ export class JumpSim extends BaseSimulator {
   // forward should be any value that abs. val to below pi / 2
   // backward is any value that abs. val to above pi / 2
   static getControllerSmartMovement(goal: Vec3, sprint: boolean): Controller {
+    return (state, ticks) => smartMovement(state, goal, sprint);
+
     return (state, ticks) => {
       const offset = state.pos.plus(state.onGround ? state.vel : state.vel.scaled(1));
       const dx = goal.x - offset.x;

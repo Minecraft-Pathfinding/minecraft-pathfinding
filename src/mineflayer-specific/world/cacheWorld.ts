@@ -42,6 +42,7 @@ export class BlockInfo {
   static readonly mlgItems = new Set<number>();
 
   static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1);
+  static PBlock: BlockType;
 
   static _waterBlock: Block;
   static _solidBlock: Block;
@@ -71,15 +72,15 @@ export class BlockInfo {
     if (BlockInfo.initialized) return;
     BlockInfo.initialized = true;
 
-    const PBlock: BlockType = require("prismarine-block")(registry);
+    BlockInfo.PBlock = require("prismarine-block")(registry);
 
-    BlockInfo._waterBlock = PBlock.fromString("minecraft:water", 0);
+    BlockInfo._waterBlock = BlockInfo.PBlock.fromString("minecraft:water", 0);
     BlockInfo._waterBlock.position = new Vec3(0, 0, 0);
-    BlockInfo._solidBlock = PBlock.fromString("minecraft:dirt", 0);
+    BlockInfo._solidBlock = BlockInfo.PBlock.fromString("minecraft:dirt", 0);
     BlockInfo._solidBlock.position = new Vec3(0, 0, 0);
-    BlockInfo._airBlock = PBlock.fromString("minecraft:air", 0);
+    BlockInfo._airBlock = BlockInfo.PBlock.fromString("minecraft:air", 0);
     BlockInfo._airBlock.position = new Vec3(0, 0, 0);
-    BlockInfo._replaceableBlock = PBlock.fromString("minecraft:air", 0); // also replaceable
+    BlockInfo._replaceableBlock = BlockInfo.PBlock.fromString("minecraft:air", 0); // also replaceable
     BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0);
 
     console.log(BlockInfo._waterBlock)
@@ -332,6 +333,7 @@ export class CacheSyncWorld implements WorldType {
     }
 
     referenceWorld.on("blockUpdate", (oldBlock: Block, newBlock: Block) => {
+      // console.log(newBlock.position)
       const pos = newBlock.position;
       if (this.blockInfos.has(`${pos.x}:${pos.y}:${pos.z}`))
         this.blockInfos.set(`${pos.x}:${pos.y}:${pos.z}`, BlockInfo.fromBlock(newBlock));

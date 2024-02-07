@@ -53,6 +53,10 @@ export abstract class MovementExecutor extends Movement {
     this.simCtx = EPhysicsCtx.FROM_BOT(this.engine, bot);
   }
 
+  public reset() {
+    this.cancelled = false;
+  }
+
   /**
    * TODO: Implement.
    */
@@ -68,11 +72,11 @@ export abstract class MovementExecutor extends Movement {
     }
 
     // TODO: handle bug (nextMove not included).
-    return new Promise<void>((res, rej) => {
+    await new Promise<void>((res, rej) => {
       const listener = () => {
         if (this.safeToCancel(move)) {
           this.bot.off("physicsTick", listener);
-          rej(new AbortError("Movement aborted."));
+          res();
         }
       };
       this.bot.on("physicsTick", listener);
@@ -81,22 +85,24 @@ export abstract class MovementExecutor extends Movement {
         rej(new Error("Movement failed to abort properly."));
       }, timeout);
     });
+
+    this.cancelled = true;
   }
 
-  // public _performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {
-  //   if (this.cancelled) return;
-  //   return this.performInit(thisMove, currentIndex, path);
-  // }
+  public _performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {
+    if (this.cancelled) throw new AbortError("Movement aborted.");
+    return this.performInit(thisMove, currentIndex, path);
+  }
 
-  // public async _performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
-  //   if (this.cancelled) return true;
-  //   return await this.performPerTick(thisMove, tickCount, currentIndex, path);
-  // }
+  public async _performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+    if (this.cancelled) throw new AbortError("Movement aborted.");
+    return await this.performPerTick(thisMove, tickCount, currentIndex, path);
+  }
 
-  // public async _align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-  //   if (this.cancelled) return true;
-  //   return await this.align(thisMove, tickCount, goal);
-  // }
+  public async _align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+    if (this.cancelled) throw new AbortError("Movement aborted.");
+    return await this.align(thisMove, tickCount, goal);
+  }
 
   /**
    * Runtime calculation.
@@ -176,7 +182,7 @@ export abstract class MovementExecutor extends Movement {
 
     this.bot.physicsUtil.engine.simulate(ectx, this.world); // needed for later.
 
-    console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
+    // console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
 
     // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 });
@@ -199,7 +205,7 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
-      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
+      // console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally;
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
@@ -270,7 +276,7 @@ export abstract class MovementExecutor extends Movement {
   protected async performPlace(place: PlaceHandler, opts: InteractOpts = {}) {
     const item = place.getItem(this.bot, BlockInfo);
     if (!item) throw new CancelError("MovementExecutor: no item to place");
-    await place.perform(this.bot, item, opts);
+    await place._perform(this.bot, item, opts);
     this._cI = undefined;
   }
 
@@ -279,7 +285,8 @@ export abstract class MovementExecutor extends Movement {
     if (!block) throw new CancelError("MovementExecutor: no block to break");
     const item = breakTarget.getItem(this.bot, BlockInfo, block);
 
-    await breakTarget.perform(this.bot, item, opts);
+    await breakTarget._perform(this.bot, item, opts);
+    console.log('finished dig')
     this._cI = undefined;
   }
 
@@ -447,6 +454,7 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, startMove.entryPos, endMove.exitPos);
     botSmartMovement(this.bot, startMove.entryPos, endMove.exitPos, sprint);
 
+    console.log(this.bot.getControlState('forward'), this.bot.getControlState('back'), ' | ', this.bot.getControlState('left'), this.bot.getControlState('right'), ' | ', this.bot.getControlState('sprint'), this.bot.getControlState('jump'), this.bot.getControlState('sneak'))
     await task;
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

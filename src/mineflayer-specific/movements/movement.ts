@@ -12,6 +12,8 @@ import {AABBUtils} from "@nxg-org/mineflayer-util-plugin";
 import { Vec3Properties } from "../../types";
 
 export interface MovementOptions {
+  allowJumpSprint: boolean;
+  allow1by1towers:boolean
   liquidCost: number;
   digCost: number;
   forceLook: boolean;
@@ -23,7 +25,7 @@ export interface MovementOptions {
   canPlace: boolean;
   dontCreateFlow: boolean;
   dontMineUnderFallingBlock: boolean;
-  allow1by1towers:boolean
+
   maxDropDown:number;
   infiniteLiquidDropdownDistance:boolean;
   allowSprinting: boolean;
@@ -31,6 +33,7 @@ export interface MovementOptions {
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
+  allowJumpSprint: true,
   canOpenDoors: true,
   canDig: true,
   canPlace: true,
