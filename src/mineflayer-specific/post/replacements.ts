@@ -7,7 +7,7 @@ import { MovementReplacement } from './replacement'
 export class ReplacementHandler implements AMovementProvider<Move> {
   constructor (private readonly orgMove: Move, private readonly replacement: MovementProvider) {}
 
-  static createFromSingle (move: Move, replacement: MovementProvider) {
+  static createFromSingle (move: Move, replacement: MovementProvider): ReplacementHandler {
     return new ReplacementHandler(move, replacement)
   }
 
@@ -34,7 +34,7 @@ export class SimpleJumpSprintReplacement extends Movement implements MovementRep
     return sameY && distance > 6
   }
 
-  initialize (move: Move) {
+  initialize (move: Move): void {
     this.startPosition = move.entryPos
     this.endPosition = move.exitPos
 

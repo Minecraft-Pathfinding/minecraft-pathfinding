@@ -14,11 +14,11 @@ export namespace goals {
       super()
     }
 
-    static fromVec (vec: Vec3) {
+    static fromVec (vec: Vec3): GoalBlock {
       return new GoalBlock(Math.floor(vec.x), Math.floor(vec.y), Math.floor(vec.z))
     }
 
-    static fromBlock (block: { position: Vec3 }) {
+    static fromBlock (block: { position: Vec3 }): GoalBlock {
       return new GoalBlock(block.position.x, block.position.y, block.position.z)
     }
 
@@ -28,17 +28,17 @@ export namespace goals {
          * @param node
          * @returns
          */
-    heuristic (node: Move) {
+    heuristic (node: Move): number {
       // return 0;
       const dx = this.x - node.x
       const dy = this.y - node.y
       const dz = this.z - node.z
       return (Math.sqrt(dx * dx + dz * dz + (dy * dy)))
-      return (Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))
+      // return (Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))
       // return distanceXZ(dx, dz) + Math.abs(dy)
     }
 
-    isEnd (node: Move) {
+    isEnd (node: Move): boolean {
       return node.x === this.x && node.y === this.y && node.z === this.z
     }
   }

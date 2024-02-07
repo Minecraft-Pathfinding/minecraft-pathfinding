@@ -11,8 +11,13 @@ export class AStar extends AAStar<Move> {
     this.visitedChunks = new Set()
   }
 
-  protected addToClosedDataSet (node: PathNode) {
+  protected addToClosedDataSet (node: PathNode): void {
+    // Checking with if statement is slow.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.closedDataSet.add(node.data!.hash)
+
+    // Checking with if statement is slow.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
   }
 }

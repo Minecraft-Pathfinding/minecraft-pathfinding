@@ -1,6 +1,4 @@
 import { Path } from '.'
-import { goals } from '../mineflayer-specific/goals'
-import { MovementOptions } from '../mineflayer-specific/movements'
 import { AStar } from './algorithms/astar'
 import { PathData } from './node'
 

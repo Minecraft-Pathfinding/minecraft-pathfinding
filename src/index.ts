@@ -12,7 +12,7 @@ export { goals } from './mineflayer-specific/goals'
 
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {
-    BlockInfo.init(bot.registry) // set up block info
+    void BlockInfo.init(bot.registry) // set up block info
     if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
     bot.pathfinder = new ThePathfinder(bot)
     bot.pathingUtil = new PathingUtil(bot)
@@ -24,6 +24,6 @@ declare module 'mineflayer' {
     pathfinder: ThePathfinder
     pathingUtil: PathingUtil
 
-    _placeBlockWithOptions(referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions): Promise<void>
+    _placeBlockWithOptions: (referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions) => Promise<void>
   }
 }

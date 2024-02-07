@@ -34,7 +34,7 @@ export class ForwardExecutor extends MovementExecutor {
     const wanted = await this.interactPossible(15)
 
     if (wanted != null) {
-      const test = await wanted.performInfo(this.bot, 15)
+      const test = await wanted!.performInfo(this.bot, 15)
 
       // cannot do interact while facing initial direction
       if (test.raycasts.length > 0) {

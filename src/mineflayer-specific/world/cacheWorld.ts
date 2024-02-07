@@ -3,27 +3,9 @@ import type { World as WorldType } from './worldInterface'
 import { Bot } from 'mineflayer'
 import { LRUCache } from 'lru-cache'
 
-import { PCChunk } from 'prismarine-chunk'
-import type { Biome } from 'prismarine-biome'
-
 import interactables from './interactable.json'
 import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
-
-interface BlockInfoStatic {
-  interactableBlocks: Set<string>
-  blocksCantBreak: Set<number>
-  blocksToAvoid: Set<number>
-  climbables: Set<number>
-  carpets: Set<number>
-  fences: Set<number>
-  replaceables: Set<number>
-  liquids: Set<number>
-  gravityBlocks: Set<number>
-  openable: Set<number>
-  emptyBlocks: Set<number>
-  scafoldingBlocks: Set<number>
-}
 
 export class BlockInfo {
   static initialized = false
@@ -99,8 +81,13 @@ export class BlockInfo {
     })
 
     BlockInfo.blocksToAvoid.add(registry.blocksByName.fire.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.cobweb) BlockInfo.blocksToAvoid.add(registry.blocksByName.cobweb.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.web) BlockInfo.blocksToAvoid.add(registry.blocksByName.web.id)
+
     BlockInfo.blocksToAvoid.add(registry.blocksByName.lava.id)
 
     BlockInfo.liquids.add(registry.blocksByName.water.id)
@@ -113,27 +100,32 @@ export class BlockInfo {
     // BlockInfo.climbables.add(registry.blocksByName.vine.id)
 
     BlockInfo.replaceables.add(registry.blocksByName.air.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.cave_air) BlockInfo.replaceables.add(registry.blocksByName.cave_air.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.void_air) BlockInfo.replaceables.add(registry.blocksByName.void_air.id)
+
     BlockInfo.replaceables.add(registry.blocksByName.water.id)
     BlockInfo.replaceables.add(registry.blocksByName.lava.id)
 
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.tall_grass) BlockInfo.replaceables.add(registry.blocksByName.tall_grass.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.grass) BlockInfo.replaceables.add(registry.blocksByName.grass.id)
 
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.dirt.id)
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.cobblestone.id)
 
-    const Block: BlockType = require('prismarine-block')(registry)
-
     // this code is stolen from original pathfinder and it makes no sense.
     registry.blocksArray
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      .filter((x) => x.minStateId !== undefined)
 
-      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-      .filter((x) => !x.minStateId)
-
-      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-      .map((x) => Block.fromStateId(x.minStateId!, 0))
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      .map((x) => BlockInfo.PBlock.fromStateId(x.minStateId!, 0))
       .forEach((block) => {
         if (block.shapes.length > 0) {
           // Fences or any block taller than 1, they will be considered as non-physical to avoid

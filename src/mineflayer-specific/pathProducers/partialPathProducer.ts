@@ -30,7 +30,13 @@ export class PartialPathProducer implements PathProducer<Move> {
     const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
     moveHandler.loadGoal(this.goal)
 
-    const astarContext = new AStar<Move>((this.latestMove != null) || this.start, moveHandler, this.goal, -1, 45, -1, 0)
+    let start
+    if (this.latestMove != null) {
+      start = this.latestMove
+    } else {
+      start = this.start
+    }
+    const astarContext = new AStar<Move>(start, moveHandler, this.goal, -1, 45, -1, 0)
 
     const result = astarContext.compute()!
     this.latestMove = result.path[result.path.length - 1]

@@ -1,8 +1,6 @@
 import { Bot } from 'mineflayer'
-import { BuildableOptimizer, OptimizationMap, OptimizationSetup } from '.'
-import { Algorithm, Path } from '../../abstract'
-import { PathData, PathNode } from '../../abstract/node'
-import { BuildableMoveProvider, MovementProvider } from '../movements'
+import { OptimizationMap } from '.'
+import { BuildableMoveProvider } from '../movements'
 import { World } from '../world/worldInterface'
 import { Move } from '../move'
 import { BaseSimulator, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
@@ -22,7 +20,7 @@ export abstract class MovementOptimizer {
 
   abstract identEndOpt (currentIndex: number, path: Move[]): number | Promise<number>
 
-  mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]) {
+  mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]): Move {
     // console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
     const startMove = path[startIndex]
     const endMove = path[endIndex]
@@ -58,7 +56,7 @@ export abstract class MovementOptimizer {
       toPlace,
       toBreak,
       endMove.remainingBlocks,
-      endMove.cost - startMove.cost,
+      costSum,
       startMove.moveType,
       startMove.entryPos,
       startMove.entryVel,
@@ -80,13 +78,14 @@ export class Optimizer {
     this.optMap = optMap
   }
 
-  loadPath (path: Move[]) {
+  loadPath (path: Move[]): void {
     console.log('original path length', path.length)
     this.pathCopy = path
     this.currentIndex = 0
   }
 
-  sanitize () {
+  sanitize (): boolean {
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     return !!this.pathCopy
   }
 
@@ -99,7 +98,7 @@ export class Optimizer {
     // console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
   }
 
-  async compute () {
+  async compute (): Promise<Move[]> {
     if (!this.sanitize()) {
       throw new Error('Optimizer not sanitized')
     }

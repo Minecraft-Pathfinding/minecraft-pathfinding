@@ -2,9 +2,8 @@ import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
 import type { Item } from 'prismarine-item'
-import type { Item as MdItem } from 'minecraft-data'
 import { BlockInfo } from '../world/cacheWorld'
-import { EPhysicsCtx, EntityPhysics, EntityState } from '@nxg-org/mineflayer-physics-util'
+import { EPhysicsCtx, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
 import { World } from '../world/worldInterface'
 import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
@@ -55,7 +54,7 @@ export abstract class InteractHandler {
 
   protected readonly move!: MovementExecutor
 
-  protected get settings () {
+  protected get settings (): MovementOptions {
     return this.move.settings
   }
 
@@ -83,7 +82,7 @@ export abstract class InteractHandler {
     return !this._internalLock
   }
 
-  public loadMove (move: Movement) {
+  public loadMove (move: Movement): void {
     (this as any).move = move
   }
 
@@ -94,15 +93,15 @@ export abstract class InteractHandler {
 
   abstract abort (bot: Bot): Promise<void>
 
-  public _abort (bot: Bot) {
+  public async _abort (bot: Bot): Promise<void> {
     if (this.performing && !this.cancelled) {
-      this.abort(bot)
+      await this.abort(bot)
       this.performing = false
       this.cancelled = true
     }
   }
 
-  public async _perform (bot: Bot, item: Item | null, opts: InteractOpts = {}) {
+  public async _perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
     if (this.performing) throw new Error('Already performing')
     this.performing = true
     this._internalLock = true
@@ -124,14 +123,14 @@ export abstract class InteractHandler {
     return ret
   }
 
-  getCurrentItem (bot: Bot) {
+  getCurrentItem (bot: Bot): Item | null {
     if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')] // could be wrong lol
     return bot.inventory.slots[bot.getEquipmentDestSlot('hand')]
   }
 
-  async equipItem (bot: Bot, item: Item | null) {
+  async equipItem (bot: Bot, item: Item | null): Promise<void> {
     if (item === null) {
-      bot.unequip(this.offhand ? 'off-hand' : 'hand')
+      await bot.unequip(this.offhand ? 'off-hand' : 'hand')
     } else if (this.offhand) {
       await bot.equip(item, 'off-hand')
     } else {
@@ -143,7 +142,7 @@ export abstract class InteractHandler {
   /**
    * TODO: FUCK
    */
-  async allowExternalInfluence (bot: Bot, ticks = 1, sneak = false) {
+  async allowExternalInfluence (bot: Bot, ticks = 1, sneak = false): Promise<boolean> {
     if (!this.performing) return true
     if (!this._internalLock) return true
 
@@ -173,7 +172,7 @@ export class PlaceHandler extends InteractHandler {
   static reach = 4
   private _placeTask?: Promise<void>
 
-  static fromVec (vec: Vec3, type: InteractType, offhand = false) {
+  static fromVec (vec: Vec3, type: InteractType, offhand = false): PlaceHandler {
     return new PlaceHandler(vec.x, vec.y, vec.z, type, offhand)
   }
 
@@ -195,7 +194,7 @@ export class PlaceHandler extends InteractHandler {
    * @param bot
    * @param blockInfo
    */
-  getItem (bot: Bot, blockInfo: typeof BlockInfo) {
+  getItem (bot: Bot, blockInfo: typeof BlockInfo): Item | null {
     switch (this.type) {
       case 'water': {
         return bot.inventory.items().find((item) => item.name === 'water_bucket') ?? null
@@ -211,7 +210,7 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  getNearbyBlocks (world: World) {
+  getNearbyBlocks (world: World): BlockInfo[] {
     return [
       world.getBlockInfo(this.vec.offset(0, 1, 0)),
       world.getBlockInfo(this.vec.offset(0, -1, 0)),
@@ -222,7 +221,7 @@ export class PlaceHandler extends InteractHandler {
     ]
   }
 
-  faceToVec (face: BlockFace) {
+  faceToVec (face: BlockFace): Vec3 {
     switch (face) {
       case BlockFace.BOTTOM:
         return new Vec3(0, -1, 0)
@@ -243,7 +242,7 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  async performInfo (bot: Bot, ticks = 15, scale = 0.5) {
+  async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
     // bot.chat(`/particle flame ${this.vec.x} ${this.vec.y} ${this.vec.z} 0 0 0 0 1 force`);
     // bot.chat(`pointed to: ${this.vec}`);
     // console.log(this.vec)
@@ -270,7 +269,7 @@ export class PlaceHandler extends InteractHandler {
           }
 
           const eyePos = state.pos.offset(0, 1.62, 0)
-          const bb0 = AABB.fromBlock(this.vec)
+          // const bb0 = AABB.fromBlock(this.vec)
           const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 })
 
           const dx = state.pos.x - (this.vec.x + 0.5)
@@ -307,7 +306,7 @@ export class PlaceHandler extends InteractHandler {
               PlaceHandler.reach / scale
             )) as unknown as RayType
             if (rayRes === null) continue
-            const pos = (rayRes as any).position.plus(this.faceToVec(rayRes.face))
+            const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
             if (pos.equals(this.vec)) {
               if (bb1.containsVec(rayRes.intersect)) continue
               if (AABB.fromBlock(pos).intersects(bb1)) {
@@ -347,7 +346,7 @@ export class PlaceHandler extends InteractHandler {
    * @param item
    * @param opts
    */
-  async perform (bot: Bot, item: Item, opts: InteractOpts = {}) {
+  async perform (bot: Bot, item: Item, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
 
     if (item === null) throw new Error('Invalid item')
@@ -375,9 +374,9 @@ export class PlaceHandler extends InteractHandler {
 
         while (works.raycasts.length === 0) {
           await bot.waitForTicks(1)
-          const start = performance.now()
+          // const start = performance.now()
           works = await this.performInfo(bot)
-          const end = performance.now()
+          // const end = performance.now()
           // console.log("info took", end - start, "ms");
         }
 
@@ -391,10 +390,10 @@ export class PlaceHandler extends InteractHandler {
         if (rayRes === undefined) throw new Error('Invalid block')
 
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
-        const posBlRef = AABB.fromBlockPos(rayRes.position)
+        // const posBlRef = AABB.fromBlockPos(rayRes.position)
         const posBl = AABB.fromBlock(pos)
 
-        const invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
+        // const invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
 
         let i = 0
         for (; i < works.ticks; i++) {
@@ -451,7 +450,7 @@ export class PlaceHandler extends InteractHandler {
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
         if (predictBlock) {
           console.log('predicting block')
-          bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
+          await bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
           // bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 
@@ -476,7 +475,7 @@ export class PlaceHandler extends InteractHandler {
       case 'replaceable':
       default: {
         throw new Error('Not implemented')
-        break // not necessary.
+        // break // not necessary.
       }
     }
 

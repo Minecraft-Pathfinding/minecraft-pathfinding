@@ -1,4 +1,4 @@
-import { Controller, EPhysicsCtx, EntityState } from '@nxg-org/mineflayer-physics-util'
+import { EntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { getViewDir } from '../../utils'
@@ -56,6 +56,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
   // const offset = bot.entity.position.plus(bot.entity.velocity.scaled(amt > 0.15 ? 2 : 1));
   let scale = onGround ? 0 : 1
   if (amt > 0.16) scale = 2
+  if (position.distanceTo(nextPoint) < 0.3) scale = 0
   const offset = position.plus(velocity.scaled(scale))
   const lookDiff = wrapRadians(wrapRadians(yaw))
   if (xzVel.norm() < 0.03) {
@@ -71,7 +72,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
     const dz1 = dir1.z
 
     const wantedYaw = wrapRadians(Math.atan2(-dx, -dz))
-    const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
+    // const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
 
     const diff = wrapRadians(wantedYaw - lookDiff)
     // console.log('diff', diff)
@@ -103,7 +104,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
   // console.log(nextPoint, currentPoint, dx, dz, dx1, dz1)
 
   // const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1));
-  const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
+  // const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
 
   const diff = wrapRadians(wantedYaw - lookDiff)
   // console.log('diff', diff)
@@ -127,10 +128,10 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
  * @returns
  */
 // currentPoint: Vec3
-export function strafeMovement (ctx: EntityState, nextPoint: Vec3) {
+export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
-  const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
+  // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
 
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
     // console.log('going left')
@@ -156,7 +157,7 @@ export function strafeMovement (ctx: EntityState, nextPoint: Vec3) {
 export function botStrafeMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3) {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
-  const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
+  // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
   // diff = wrapRadians(diff + lookDiff)
 
@@ -185,11 +186,11 @@ export function botStrafeMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3
  * @returns
  */
 // currentPoint,
-export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true) {
+export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true): void {
   // console.log('hey!')
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
-  const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
+  // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
 
   // diff = wrapRadians(diff + lookDiff)
 
@@ -223,10 +224,10 @@ export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true)
  * @returns
  */
 // currentPoint,
-export function botSmartMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3, sprint: boolean) {
+export function botSmartMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3, sprint: boolean): void {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
-  const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
+  // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
   // diff = wrapRadians(diff + lookDiff)
 

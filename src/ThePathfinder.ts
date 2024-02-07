@@ -240,7 +240,7 @@ export class ThePathfinder {
     return null
   }
 
-  async goto (goal: goals.Goal) {
+  async goto (goal: goals.Goal): Promise<void> {
     if (this.executing) throw new Error('Already executing!')
     this.executing = true
 
@@ -300,9 +300,9 @@ export class ThePathfinder {
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
       await this.cleanupBot()
-      console.log(
-        `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
-      )
+      // console.log(
+      //   `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
+      // )
       executor.loadMove(move)
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {

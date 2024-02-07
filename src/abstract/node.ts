@@ -18,7 +18,7 @@ export class PathNode<Data extends PathData> {
     h: number,
     data: Data | null = null,
     parent: PathNode<Data> | null = null
-  ) {
+  ): this {
     this.g = g
     this.h = h
     this.data = data

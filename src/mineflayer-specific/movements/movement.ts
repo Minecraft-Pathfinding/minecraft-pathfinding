@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import { goals } from '../goals'
 import { World } from '../world/worldInterface'
-import { BlockInfo, BlockInfoGroup } from '../world/cacheWorld'
+import { BlockInfo } from '../world/cacheWorld'
 import * as nbt from 'prismarine-nbt'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { BreakHandler, InteractHandler, InteractOpts, InteractType, PlaceHandler } from './interactionUtils'
@@ -177,50 +177,6 @@ export abstract class Movement {
 
     // console.log('not found', yes)
     return this.world.getBlockInfo(yes)
-  }
-
-  /**
-   * To be as performant as possible, BlockInfoGroup should also be cached.
-   * Right now, this is significantly slower than getBlockInfo due to the extra allocations.
-   * @param pos
-   * @param dx
-   * @param dy
-   * @param dz
-   * @param halfwidth
-   * @param height
-   * @returns
-   */
-  getBlockInfoBB (pos: Vec3Properties, dx: number, dy: number, dz: number, halfwidth: number = 0.3, height: number = 1.8) {
-    const vertices = new AABB(
-      pos.x + dx - halfwidth,
-      pos.y + dy,
-      pos.z + dz - halfwidth,
-      pos.x + dx + halfwidth,
-      pos.y + dy + height,
-      pos.z + dz + halfwidth
-    ).toVecs()
-    return new BlockInfoGroup(...vertices.map((v) => this.world.getBlockInfo(v)))
-    // return this.world.getBlockInfo(new Vec3(pos.x+dx, pos.y+dy, pos.z+dz))
-  }
-
-  /**
-   * Same logic as getBlockInfoBB.
-   * @param pos
-   * @param dx
-   * @param dy
-   * @param dz
-   * @param halfwidth
-   * @returns
-   */
-  getBlockInfoPlane (pos: Vec3Properties, dx: number, dy: number, dz: number, halfwidth: number = 0.3) {
-    const vertices = [
-      new Vec3(pos.x + dx - halfwidth, pos.y + dy, pos.z + dz - halfwidth),
-      new Vec3(pos.x + dx + halfwidth, pos.y + dy, pos.z + dz + halfwidth),
-      new Vec3(pos.x + dx - halfwidth, pos.y + dy, pos.z + dz + halfwidth),
-      new Vec3(pos.x + dx + halfwidth, pos.y + dy, pos.z + dz - halfwidth)
-    ]
-    return new BlockInfoGroup(...vertices.map((v) => this.world.getBlockInfo(v)))
-    // return this.world.getBlockInfo(new Vec3(pos.x+dx, pos.y+dy, pos.z+dz))
   }
 
   /**

@@ -44,8 +44,8 @@ export class StraightAheadOpt extends MovementOptimizer {
           test.minus(vert).normalize(),
           dist,
           (block) => !BlockInfo.replaceables.has(block.type) && !BlockInfo.liquids.has(block.type) && block.shapes.length > 0
-        )) as unknown as RayType
-        const valid0 = !raycast0 || raycast0.position.distanceTo(orgPos) > dist
+        )) as unknown as RayType | null
+        const valid0 = (raycast0 == null) || raycast0.position.distanceTo(orgPos) > dist
 
         // console.log('\n\nBLOCK CHECK')
         // console.log('offset', offset)
@@ -98,9 +98,9 @@ export class StraightAheadOpt extends MovementOptimizer {
 
       if (counter === 0) return --currentIndex
 
+      if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
     return --currentIndex
   }
@@ -113,7 +113,7 @@ export class DropDownOpt extends MovementOptimizer {
   readonly mergeInteracts = false
 
   identEndOpt (currentIndex: number, path: Move[]): number | Promise<number> {
-    const thisMove = path[currentIndex] // starting move
+    // const thisMove = path[currentIndex] // starting move
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
 
@@ -186,9 +186,9 @@ export class DropDownOpt extends MovementOptimizer {
         else flag0 = true
       }
 
+      if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
 
     return --currentIndex
@@ -213,9 +213,9 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toBreak.length === 0
     ) {
       if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex
+      if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
 
     const firstPos = lastMove.exitPos
@@ -227,9 +227,9 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toBreak.length === 0
     ) {
       if (nextMove.exitPos.y > firstPos.y) return --currentIndex
+      if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
 
     return --currentIndex

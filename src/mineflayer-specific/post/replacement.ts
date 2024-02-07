@@ -1,5 +1,5 @@
 import { Move } from '../move'
-import { Algorithm, Path, PathNode } from '../../abstract'
+import { Algorithm, Path } from '../../abstract'
 import { ReplacementMap } from '.'
 import { Bot } from 'mineflayer'
 import { World } from '../world/worldInterface'
@@ -10,6 +10,14 @@ import { BuildableMoveProvider } from '../movements'
  *
  * This will be A* based.
  */
+
+// temp typing
+interface Result {
+  referencePath: Move[]
+  replacements: Map<number, Path<Move, MovementReplacement>>
+  context: Replacer
+}
+
 export interface MovementReplacement extends Algorithm<Move> {
   canReplace: (move: Move) => boolean
   initialize: (move: Move) => void
@@ -27,17 +35,18 @@ export class Replacer {
     this.repMap = optMap
   }
 
-  loadPath (path: Move[]) {
+  loadPath (path: Move[]): void {
     console.log('original path length', path.length)
     this.pathCopy = path
     this.currentIndex = 0
   }
 
-  sanitize () {
+  sanitize (): boolean {
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     return !!this.pathCopy
   }
 
-  makeResult (this: Replacer, repRetMap: Map<number, Path<Move, MovementReplacement>>) {
+  makeResult (this: Replacer, repRetMap: Map<number, Path<Move, MovementReplacement>>): Result {
     return {
       referencePath: this.pathCopy,
       replacements: repRetMap,
@@ -45,7 +54,7 @@ export class Replacer {
     }
   }
 
-  async compute () {
+  async compute (): Promise<Result> {
     if (!this.sanitize()) {
       throw new Error('Optimizer not sanitized')
     }
