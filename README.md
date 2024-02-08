@@ -40,5 +40,5 @@ Examples will be added as the project undergoes more development.
 
 | Link | Description |
 | --- | --- |
-| [API](https://github.com/GenerelSchwerz/minecraft-pathfinding) | The documentation with the available methods and properties. |
+| [API](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/API.md) | The documentation with the available methods and properties. |
 | [Examples](https://github.com/GenerelSchwerz/minecraft-pathfinding/tree/main/examples) | The folder with the examples. |
