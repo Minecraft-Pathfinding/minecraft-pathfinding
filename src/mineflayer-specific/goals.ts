@@ -157,7 +157,7 @@ export class GoalLookAt extends Goal {
    */
   isEnd (node: Move): boolean {
     const dist = this.heuristic(node)
-   
+
     if (dist > this.distance + 3) return false
     const pos = new Vec3(node.x, node.y + this.eyeHeight, node.z)
     const dir = new Vec3(this.x - node.x, this.y - pos.y, this.z - node.z).normalize()

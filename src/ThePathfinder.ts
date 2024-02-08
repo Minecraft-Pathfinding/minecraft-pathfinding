@@ -120,7 +120,6 @@ export class ThePathfinder {
   private currentMove?: Move
   public currentExecutor?: MovementExecutor
 
-
   constructor (
     private readonly bot: Bot,
     movements?: MovementSetup,
@@ -239,10 +238,9 @@ export class ThePathfinder {
     this.bot.on('physicsTick', listener)
 
     while (result.status === 'partial') {
-
       if (this.cancelCalculation) {
         console.log('cancelling!')
-        return;
+        return
       }
 
       const { result: result2, astarContext } = foo.advance()
