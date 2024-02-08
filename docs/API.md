@@ -1,7 +1,7 @@
 <h3>Table of contents</h3>
 
-- [Goals](##Goals)
-- [Settings](##Settings)
+- [Goals](#goals)
+- [Settings](#settings)
 
 ## Goals
 There is currently only one goal: `goals.GoalBlock`. You can easily make a goal via: `GoalBlock.fromVec(<vec3>)`
