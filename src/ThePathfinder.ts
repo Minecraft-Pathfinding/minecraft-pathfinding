@@ -113,7 +113,6 @@ export class ThePathfinder {
   movements: ExecutorMap
   optimizers: OptimizationMap
   defaultMoveSettings: MovementOptions
-
   pathfinderSettings: PathfinderOptions
 
   public executing = false
@@ -205,7 +204,10 @@ export class ThePathfinder {
   }
 
   getScaffoldCount (): number {
-    return this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0)
+    const amt = this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0);
+    if (this.bot.game.gameMode === "creative") 
+      return amt > 0 ? Infinity : 0
+    return amt
   }
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
