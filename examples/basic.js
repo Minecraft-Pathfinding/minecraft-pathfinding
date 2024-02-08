@@ -1,24 +1,43 @@
 "use strict";
 const { createBot } = require("mineflayer");
 const { createPlugin, goals } = require("../dist");
-const { GoalBlock } = goals;
+const { GoalBlock, GoalLookAt } = goals;
 const { Vec3 } = require("vec3");
-
+const rl = require('readline')
 const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-util");
+
+
 
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  // host: 'it-mil-1.halex.gg',
-  // port: 25046
+  host: 'it-mil-1.halex.gg',
+  port: 25046
 
   // host: "node2.endelon-hosting.de", port: 31997
   // host: 'Ic3TankD2HO.aternos.me',
   // port: 44656
-  host: "us1.node.minecraft.sneakyhub.com",
-  port: 25607,
+  // host: "us1.node.minecraft.sneakyhub.com",
+  // port: 25607,
 });
 const pathfinder = createPlugin();
+
+
+const validTypes = ["block" , "lookat"]
+let type = "block"
+function getGoal(world, x, y, z) {
+  const block = bot.blockAt(new Vec3(x, y, z));
+  if (block === null) return new GoalBlock(x, y+1, z);
+  switch (type) {
+    case "block":
+      return new GoalBlock(x, y+1, z);
+    case "lookat":
+      return GoalLookAt.fromBlock(world, block);
+  }
+
+  return new GoalBlock(x, y+1, z);
+}
+
 
 bot.on("inject_allowed", () => {});
 
@@ -51,12 +70,29 @@ bot.once("spawn", () => {
     // return val.simulate(ctx, bot.world)
     return oldSim(...args);
   };
+
+  const rlline = rl.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  
+  })
+  
+  rlline.on('line', (line) => {
+    console.log('line!', line)
+    if (line === "exit") {
+      bot.quit()
+      process.exit()
+    }
+  
+    bot.chat(line)
+  })
 });
 
 /** @type { Vec3 | null } */
 let lastStart = null;
 
 async function cmdHandler(username, msg) {
+  console.log(msg)
   if (username === bot.username) return;
 
   const [cmd1, ...args] = msg.split(" ");
@@ -65,6 +101,16 @@ async function cmdHandler(username, msg) {
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
   switch (cmd) {
+    case "mode": {
+      if (args.length === 0) {
+        bot.whisper(username, `mode is ${type}`);
+        break;
+      }
+      if (!validTypes.includes(args[0])) return bot.whisper(username, `Invalid mode ${args[0]}`);
+      type = args[0];
+      bot.whisper(username, `mode is now ${type}`);
+      break;
+    }
     case "hi": {
       bot.whisper(username, "hi");
       break;
@@ -165,7 +211,8 @@ async function cmdHandler(username, msg) {
 
     case "path": {
       lastStart = bot.entity.position.clone();
-      const res = bot.pathfinder.getPathTo(new GoalBlock(Number(args[0]), Number(args[1]), Number(args[2])));
+      const goal = getGoal(bot.world, Number(args[0]), Number(args[1]), Number(args[2]));
+      const res = bot.pathfinder.getPathTo(goal);
       let test;
       while ((test = await res.next()).done === false) {
         console.log(test);
@@ -179,10 +226,15 @@ async function cmdHandler(username, msg) {
       const y = Math.floor(Number(args[1]));
       const z = Math.floor(Number(args[2]));
       if (isNaN(x) || isNaN(y) || isNaN(z)) return bot.whisper(username, "goto <x> <y> <z> failed | invalid args");
+      
+      const block = bot.blockAt(new Vec3(x, y, z));
+      if (block === null) return bot.whisper(username, "goto <x> <y> <z> failed | invalid block");
+    
       bot.whisper(username, `going to ${args[0]} ${args[1]} ${args[2]}`);
 
       const startTime = performance.now();
-      await bot.pathfinder.goto(new GoalBlock(x, y, z));
+      const goal = getGoal(bot.world, x, y, z);
+      await bot.pathfinder.goto(goal);
       const endTime = performance.now();
       bot.whisper(
         username,
@@ -198,7 +250,8 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player.");
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      const res1 = bot.pathfinder.getPathTo(GoalBlock.fromVec(author.position));
+      const goal = getGoal(bot.world, author.position.x, author.position.y, author.position.z);
+      const res1 = bot.pathfinder.getPathTo(goal);
       let test1;
       const test2 = [];
       while ((test1 = await res1.next()).done === false) {
@@ -235,7 +288,8 @@ async function cmdHandler(username, msg) {
       if (!rayBlock) return bot.whisper(username, "No block in sight");
 
       bot.whisper(username, `pathing to ${rayBlock.position.x} ${rayBlock.position.y} ${rayBlock.position.z}`);
-      const res1 = bot.pathfinder.getPathTo(GoalBlock.fromVec(rayBlock.position.offset(0, 1, 0)));
+      const goal = getGoal(bot.world, rayBlock.position.x, rayBlock.position.y, rayBlock.position.z);
+      const res1 = bot.pathfinder.getPathTo(goal);
       let test1;
       const test2 = [];
       while ((test1 = await res1.next()).done === false) {
@@ -278,7 +332,8 @@ async function cmdHandler(username, msg) {
       if (!rayBlock) return bot.whisper(username, "No block in sight");
       lastStart = rayBlock.position.clone().offset(0.5, 1, 0.5);
       const startTime = performance.now();
-      await bot.pathfinder.goto(GoalBlock.fromVec(lastStart));
+      const goal = getGoal(bot.world, rayBlock.position.x, rayBlock.position.y, rayBlock.position.z);
+      await bot.pathfinder.goto(goal);
       const endTime = performance.now();
       bot.whisper(
         username,
@@ -295,7 +350,8 @@ async function cmdHandler(username, msg) {
       lastStart = author.position.clone();
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      await bot.pathfinder.goto(GoalBlock.fromVec(author.position));
+      const goal = getGoal(bot.world, author.position.x, author.position.y, author.position.z);
+      await bot.pathfinder.goto(goal);
       const endTime = performance.now();
       bot.whisper(
         username,
@@ -336,7 +392,8 @@ bot._client.on("animation", (data) => {
   if (!entity.heldItem || entity.heldItem.name !== "stick") return;
   const block = rayTraceEntitySight({ entity });
   if (!block) return;
-  bot.pathfinder.goto(GoalBlock.fromVec(block.position.offset(0.5, 1, 0.5)));
+  const goal = getGoal(bot.world, block.position.x, block.position.y, block.position.z);
+  bot.pathfinder.goto(goal);
 });
 
 /**

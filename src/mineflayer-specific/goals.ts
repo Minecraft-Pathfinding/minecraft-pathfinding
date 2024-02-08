@@ -157,15 +157,20 @@ export class GoalLookAt extends Goal {
    */
   isEnd (node: Move): boolean {
     const dist = this.heuristic(node)
-    if (dist > this.distance) return false
-
+   
+    if (dist > this.distance + 3) return false
     const pos = new Vec3(node.x, node.y + this.eyeHeight, node.z)
     const dir = new Vec3(this.x - node.x, this.y - pos.y, this.z - node.z).normalize()
-    const raycast = this.world.raycast(pos, dir, this.distance)
+    const raycast = this.world.raycast(pos, dir, this.distance + 3)
     if (raycast === null) return false
     const intsec = raycast.intersect
     if (intsec === null) return false
-
+    if (intsec.distanceTo(pos) > this.distance) return false
     return this.bb.containsVec(intsec)
+  }
+
+  override async onFinish (bot: Bot): Promise<void> {
+    await bot.lookAt(new Vec3(this.x, this.y, this.z))
+    await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
   }
 }

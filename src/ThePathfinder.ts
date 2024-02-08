@@ -116,8 +116,10 @@ export class ThePathfinder {
   pathfinderSettings: PathfinderOptions
 
   public executing = false
+  public cancelCalculation = false
   private currentMove?: Move
   public currentExecutor?: MovementExecutor
+
 
   constructor (
     private readonly bot: Bot,
@@ -147,6 +149,8 @@ export class ThePathfinder {
   }
 
   async cancel (timeout = 1000): Promise<void> {
+    this.cancelCalculation = true
+
     if (this.currentExecutor == null) return
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
@@ -210,6 +214,7 @@ export class ThePathfinder {
   }
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
+    this.cancelCalculation = false
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
@@ -234,6 +239,12 @@ export class ThePathfinder {
     this.bot.on('physicsTick', listener)
 
     while (result.status === 'partial') {
+
+      if (this.cancelCalculation) {
+        console.log('cancelling!')
+        return;
+      }
+
       const { result: result2, astarContext } = foo.advance()
       result = result2
       if (result.status === 'success') {
