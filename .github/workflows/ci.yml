@@ -16,4 +16,4 @@ jobs:
       uses: actions/setup-node@v1.4.4
       with:
         node-version: 18.x
-    - run: npm i && npm run lint
+    - run: npm i && npx ts-standard -y
