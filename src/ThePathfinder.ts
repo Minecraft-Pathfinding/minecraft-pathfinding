@@ -241,7 +241,10 @@ export class ThePathfinder {
   }
 
   async goto (goal: goals.Goal): Promise<void> {
-    if (this.executing) throw new Error('Already executing!')
+    // if (this.executing) throw new Error('Already executing!')
+    if (this.executing) {
+      await this.cancel()
+    }
     this.executing = true
 
     for await (const res of this.getPathTo(goal)) {
@@ -252,7 +255,6 @@ export class ThePathfinder {
         await this.perform(newPath, goal)
       }
     }
-    console.log('clear states goddamnit')
     await this.cleanupAll()
   }
 
@@ -300,18 +302,19 @@ export class ThePathfinder {
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
+      // reset bot.
       await this.cleanupBot()
-      // console.log(
-      //   `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
-      // )
+
+      // provide current move to executor as a reference.
       executor.loadMove(move)
 
+      // if the movement has already been completed (another movement has already completed it), skip it.
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
-        console.log('skipping')
         currentIndex++
         continue
       }
 
+      // wrap this code in a try-catch as we intentionally throw errors.
       try {
         while (!(await executor._align(move, tickCount++, goal)) && tickCount < 999) {
           await this.bot.waitForTicks(1)
@@ -319,6 +322,7 @@ export class ThePathfinder {
 
         tickCount = 0
 
+        // allow the initial execution of this code.
         await executor._performInit(move, currentIndex, path.path)
 
         let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
@@ -330,26 +334,17 @@ export class ThePathfinder {
 
         currentIndex += adding as number
       } catch (err) {
+
+        // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
           this.currentExecutor.reset()
 
           // eslint-disable-next-line no-labels
           break outer
+
         } else if (err instanceof CancelError) {
-          console.log(
-            'CANCEL ERROR',
-            this.bot.entity.position,
-            this.bot.entity.velocity,
-            goal,
-            move.entryPos,
-            move.exitPos,
-            move.moveType.constructor.name,
-            currentIndex,
-            path.path.length,
-            tickCount,
-            err
-          )
-          console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
+
+          // allow recovery if movement intentionall canceled.
           await this.recovery(move, path, goal, entry)
 
           // eslint-disable-next-line no-labels
@@ -357,19 +352,14 @@ export class ThePathfinder {
         } else throw err
       }
     }
-
-    console.log('done!')
-    await this.cleanupBot()
   }
 
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
     await this.cleanupBot()
 
-    console.log('recovery', entry, goal)
     const ind = path.path.indexOf(move)
     if (ind === -1) {
-      console.log('ind === -1')
       return // done
     }
 
@@ -393,15 +383,15 @@ export class ThePathfinder {
 
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
     if (path1 === null) {
-      console.log('path1 === null')
       // done
     } else if (no) {
+      // execution of past recoveries failed or not easily saveable, so full recovery needed.
       await this.perform(path1, goal, entry + 1)
     } else {
+      // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
       path.path.splice(0, ind)
       await this.perform(path, goal, 0)
-      console.log(path.path.length, 'yayyy')
     }
   }
 
@@ -411,7 +401,6 @@ export class ThePathfinder {
   }
 
   async cleanupAll (): Promise<void> {
-    console.log('clearing A*')
     await this.cleanupBot()
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()

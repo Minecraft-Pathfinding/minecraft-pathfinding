@@ -1,6 +1,6 @@
 import { Bot } from 'mineflayer'
 import { PathProducer } from '../../abstract/pathProducer'
-import { goals } from '../goals'
+import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
