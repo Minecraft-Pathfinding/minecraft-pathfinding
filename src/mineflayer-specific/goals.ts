@@ -4,11 +4,17 @@ import { Move } from './move'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 
+/**
+ * The abstract goal definition used by the pathfinder.
+ */
 export abstract class Goal implements AGoal<Move> {
   abstract isEnd (node: Move): boolean
   abstract heuristic (node: Move): number
 }
 
+/**
+ * A goal to be directly at a specific coordinate.
+ */
 export class GoalBlock extends Goal {
   constructor (public x: number, public y: number, public z: number) {
     super()
@@ -37,6 +43,9 @@ export class GoalBlock extends Goal {
   }
 }
 
+/**
+ * A goal to be near a specific coordinate within a certain distance.
+ */
 export class GoalNear extends Goal {
   constructor (public x: number, public y: number, public z: number, public distance: number) {
     super()
@@ -70,6 +79,9 @@ export class GoalNear extends Goal {
   }
 }
 
+/**
+ * A goal to be near a specific coordinate within a certain distance on the XZ plane.
+ */
 export class GoalNearXZ extends Goal {
   constructor (public x: number, public z: number, public distance: number) {
     super()
@@ -90,6 +102,9 @@ export class GoalNearXZ extends Goal {
   }
 }
 
+/**
+ * A goal to look at a specific coordinate within a certain distance.
+ */
 export class GoalLookAt extends Goal {
   private readonly bb: AABB
 
@@ -109,7 +124,7 @@ export class GoalLookAt extends Goal {
   ) {
     super()
 
-    // set x,y,z to center of the block.
+    // set x,y,z to center of the bounding box.
     this.x = x + width / 2
     this.y = y + height / 2
     this.z = z + width / 2
@@ -135,6 +150,9 @@ export class GoalLookAt extends Goal {
     return Math.sqrt(dx * dx + dz * dz + dy * dy)
   }
 
+  /**
+   * TODO: account for entity collision (prismarine-world currently does not support this).
+   */
   isEnd (node: Move): boolean {
     const dist = this.heuristic(node)
     if (dist > this.distance) return false
