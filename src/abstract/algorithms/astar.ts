@@ -2,10 +2,11 @@ import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 import { PathData, PathNode } from '../node'
 
-function reconstructPath<Data extends PathData> (node: PathNode<Data>) {
+function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
   const path: Data[] = []
   while (node.parent != null) {
-    path.push(node.data!)
+    if (node.data == null) throw new Error('Node data is null!') // should never occur.
+    path.push(node.data)
     node = node.parent
   }
   return path.reverse()
@@ -26,7 +27,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   bestNode: PathNode<Data>
   maxCost: number
 
-  constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 40, searchRadius = -1, differential = 0) {
+  constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 45, searchRadius = -1, differential = 0) {
     this.startTime = performance.now()
 
     this.movementProvider = movements
@@ -40,21 +41,29 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     this.openDataMap = new Map()
 
     const startNode = new PathNode<Data>().set(0, goal.heuristic(start), start)
+
+    // dumb type check, thanks ts-standard.
+    if (startNode.data == null) throw new Error('Start node data is null!')
+
     this.openHeap.push(startNode)
-    this.openDataMap.set(startNode.data!.hash, startNode)
+    this.openDataMap.set(startNode.data.hash, startNode)
     this.bestNode = startNode
 
     this.maxCost = searchRadius < 0 ? -1 : startNode.h + searchRadius
   }
 
-  protected addToClosedDataSet (node: PathNode<Data>) {
+  protected addToClosedDataSet (node: PathNode<Data>): void {
+    // data is not null here. Adding a check is slow.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.closedDataSet.add(node.data!.hash)
   }
 
-  protected heuristic (node: Data) {
+  protected heuristic (node: Data): number {
     return this.goal.heuristic(node)
   }
 
+  // for debugging.
+  private lastAmt: number = 0
   makeResult (status: string, node: PathNode<Data>): Path<Data, AStar<Data>> {
     console.log(
       status,
@@ -63,8 +72,16 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       this.closedDataSet.size,
       this.closedDataSet.size + this.openHeap.size(),
       reconstructPath(node).length,
+
+      `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`,
       // reconstructPath(node)
-    );
+
+      // used heap memory
+      Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 10) / 10, 'MB'
+    )
+
+    this.lastAmt = this.closedDataSet.size
+
     return {
       status,
       cost: node.g,
@@ -76,7 +93,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     }
   }
 
-  compute () {
+  compute (): Path<Data, AStar<Data>> {
     const computeStartTime = performance.now()
 
     if (!this.movementProvider.sanitize()) {
@@ -92,15 +109,20 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
         return this.makeResult('timeout', this.bestNode)
       }
       const node = this.openHeap.pop()
+
+      // again, cannot afford another if-statement.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (this.goal.isEnd(node.data!)) {
         return this.makeResult('success', node)
       }
       // not done yet
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
       // allow specific implementations to access visited and closed data.
       this.addToClosedDataSet(node)
 
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const neighbors = this.movementProvider.getNeighbors(node.data!)
       for (const neighborData of neighbors) {
         if (this.closedDataSet.has(neighborData.hash)) {

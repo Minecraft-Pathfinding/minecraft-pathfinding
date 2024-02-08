@@ -6,14 +6,18 @@ import { PathNode } from './node'
 export class AStar extends AAStar<Move> {
   visitedChunks: Set<string>
 
-  constructor (start: Move, movements: MovementProvider<Move>, goal: Goal<Move>, timeout: number, tickTimeout = 40, searchRadius = -1, differential = 0) {
+  constructor (start: Move, movements: MovementProvider<Move>, goal: Goal<Move>, timeout: number, tickTimeout = 45, searchRadius = -1, differential = 0) {
     super(start, movements, goal, timeout, tickTimeout, searchRadius, differential)
     this.visitedChunks = new Set()
   }
 
-  protected addToClosedDataSet (node: PathNode) {
+  protected addToClosedDataSet (node: PathNode): void {
+    // Checking with if statement is slow.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.closedDataSet.add(node.data!.hash)
+
+    // Checking with if statement is slow.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
   }
 }
-

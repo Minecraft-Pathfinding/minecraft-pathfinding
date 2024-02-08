@@ -4,15 +4,15 @@ export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> 
   // Initialing the array heap and adding a dummy element at index 0
   heap: N[] = [null] as any
 
-  size () {
+  size (): number {
     return this.heap.length - 1
   }
 
-  isEmpty () {
+  isEmpty (): boolean {
     return this.heap.length === 1
   }
 
-  push (val: N) {
+  push (val: N): void {
     // Inserting the new node at the end of the heap array
     this.heap.push(val)
 
@@ -28,7 +28,7 @@ export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> 
     }
   }
 
-  update (val: N) {
+  update (val: N): void {
     let current = this.heap.indexOf(val)
     let parent = current >>> 1
 
@@ -40,7 +40,7 @@ export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> 
     }
   }
 
-  pop () {
+  pop (): N {
     // Smallest element is at the index 1 in the heap array
     const smallest = this.heap[1]
 

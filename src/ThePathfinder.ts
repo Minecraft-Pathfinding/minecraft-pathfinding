@@ -1,38 +1,46 @@
-import { Bot } from "mineflayer";
-import { AStar } from "./mineflayer-specific/algs";
-import { goals } from "./mineflayer-specific/goals";
-import { Vec3 } from "vec3";
-import { Move } from "./mineflayer-specific/move";
-import { Path, Algorithm } from "./abstract";
-import { BlockInfo, CacheSyncWorld } from "./mineflayer-specific/world/cacheWorld";
-import { CancelError } from "./mineflayer-specific/movements/exceptions";
+import { Bot } from 'mineflayer'
+import { AStar as AAStar } from './abstract/algorithms/astar'
+import { AStar } from './mineflayer-specific/algs'
+import * as goals from './mineflayer-specific/goals'
+import { Vec3 } from 'vec3'
+import { Move } from './mineflayer-specific/move'
+import { Path, Algorithm } from './abstract'
+import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
+import { AbortError, CancelError } from './mineflayer-specific/movements/exceptions'
 import {
   BuildableMoveExecutor,
   BuildableMoveProvider,
   MovementHandler,
   MovementOptions,
-  MovementProvider,
   MovementSetup,
   ExecutorMap,
   ParkourForward,
   ParkourForwardExecutor,
-} from "./mineflayer-specific/movements";
-import { MovementExecutor } from "./mineflayer-specific/movements";
-import { Diagonal, Forward, ForwardDropDown, ForwardJump, IdleMovement, StraightDown, StraightUp } from "./mineflayer-specific/movements";
-import {
+  MovementExecutor,
+  Diagonal,
+  Forward,
+  ForwardDropDown,
+  ForwardJump,
+  IdleMovement,
+  StraightDown,
+  StraightUp,
   ForwardDropDownExecutor,
   ForwardExecutor,
   ForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
-} from "./mineflayer-specific/movements";
-import { DEFAULT_MOVEMENT_OPTS } from "./mineflayer-specific/movements";
-import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from "./mineflayer-specific/post/optimizers";
-import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
+  DEFAULT_MOVEMENT_OPTS
+} from './mineflayer-specific/movements'
+import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
+import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
+import { ContinuousPathProducer } from './mineflayer-specific/pathProducers'
 
-const EMPTY_VEC = new Vec3(0, 0, 0);
+const EMPTY_VEC = new Vec3(0, 0, 0)
 
-const test = [
+/**
+ * These are the default movement types and their respective executors.
+ */
+const DEFAULT_PROVIDER_EXECUTORS = [
   [Forward, ForwardExecutor],
   [ForwardJump, ForwardJumpExecutor],
   [ForwardDropDown, ForwardDropDownExecutor],
@@ -40,205 +48,229 @@ const test = [
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
   [ParkourForward, ParkourForwardExecutor]
-] as [BuildableMoveProvider, BuildableMoveExecutor][];
+] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
-// commented out for now.
-const test1 = [
+/**
+ * Due to locality caching of blocks being implemented,
+ * We want the most complicated movements to be called first,
+ * as they load more blocks.
+ *
+ * Human logic keeps simple at front, complicated at back,
+ * So for simplicity I reverse the array.
+ */
+DEFAULT_PROVIDER_EXECUTORS.reverse()
+
+/**
+ * This is the default optimization setup.
+ *
+ * Optimizers are used to optimize the path produced by the A* algorithm.
+ *
+ * They can reveal patterns at calculation time otherwise not noticeable at execution time.
+ */
+const DEFAULT_OPTIMIZERS = [
   [Forward, StraightAheadOpt],
   [Diagonal, StraightAheadOpt],
   [ForwardDropDown, DropDownOpt],
-  [ForwardJump, ForwardJumpUpOpt],
-] as [BuildableMoveProvider, BuildableOptimizer][];
+  [ForwardJump, ForwardJumpUpOpt]
+] as Array<[BuildableMoveProvider, BuildableOptimizer]>
 
-// const test1 = new Map<BuildableMoveProvider, BuildableOptimizer>([
-const DEFAULT_SETUP = new Map(test);
+const DEFAULT_SETUP = new Map(DEFAULT_PROVIDER_EXECUTORS)
 
-const DEFAULT_OPTIMIZATION = new Map(test1);
+const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
+
+// Temp typing.
+type PathInfo = Path<Move, AAStar<Move>>
+type PathGenerator = AsyncGenerator<
+{
+  result: PathInfo
+  astarContext: AAStar<Move>
+},
+void,
+unknown
+>
 
 /**
- * Eventually, I want this entirely off-thread.
+ * Eventually, I want all pathfinder logic entirely off thread.
+ *
+ * This means that the pathfinder will be able to calculate paths while the bot is doing other things.
+ *
+ * However, this is not the case right now, as prismarine-world needs a rewrite
+ * and eventually, this pathfinder code will too.
  *
  * That will be a while, but remember to code this with that in mind.
  */
 export class ThePathfinder {
-  astar: AStar | null;
-  world: CacheSyncWorld;
-  movements: ExecutorMap;
-  optimizers: OptimizationMap;
-  defaultSettings: MovementOptions;
+  astar: AStar | null
+  world: CacheSyncWorld
+  movements: ExecutorMap
+  optimizers: OptimizationMap
+  defaultSettings: MovementOptions
 
-  private _executing = false;
-  private shouldExecute = false;
+  public executing = false
+  private currentMove?: Move
+  public currentExecutor?: MovementExecutor
 
-  public get executing(): boolean {
-    return this._executing;
-  }
-
-  public set executing(value: boolean) {
-    this.shouldExecute = value;
-    this._executing = value;
-  }
-
-  constructor(
+  constructor (
     private readonly bot: Bot,
     movements?: MovementSetup,
     optimizers?: OptimizationSetup,
     settings: MovementOptions = DEFAULT_MOVEMENT_OPTS
   ) {
-    this.world = new CacheSyncWorld(bot, this.bot.world);
+    this.world = new CacheSyncWorld(bot, this.bot.world)
 
-    const test = new Map<BuildableMoveProvider, MovementExecutor>();
-    for (const [providerType, executorType] of movements ?? DEFAULT_SETUP) {
-      test.set(providerType, new executorType(bot, this.world, settings));
+    // set up executors, map them to providers.
+    const moves = new Map<BuildableMoveProvider, MovementExecutor>()
+    for (const [providerType, ExecutorType] of movements ?? DEFAULT_SETUP) {
+      moves.set(providerType, new ExecutorType(bot, this.world, settings))
     }
 
-    const test1 = new Map<BuildableMoveProvider, MovementOptimizer>();
-    for (const [providerType, executorType] of optimizers ?? DEFAULT_OPTIMIZATION) {
-      test1.set(providerType, new executorType(bot, this.world));
+    // set up optimizers, map them to providers.
+    const opts = new Map<BuildableMoveProvider, MovementOptimizer>()
+    for (const [providerType, ExecutorType] of optimizers ?? DEFAULT_OPTIMIZATION) {
+      opts.set(providerType, new ExecutorType(bot, this.world))
     }
-    this.movements = test;
-    this.optimizers = test1;
-    this.defaultSettings = settings;
-    this.astar = null;
+    this.movements = moves
+    this.optimizers = opts
+    this.defaultSettings = settings
+    this.astar = null
   }
 
-  async cancel() {
-    this.shouldExecute = false;
+  async cancel (timeout = 1000): Promise<void> {
+    if (this.currentExecutor == null) return
+    if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
+
+    await this.currentExecutor.abort(this.currentMove, timeout)
   }
 
-  getCacheSize() {
-    return this.world.getCacheSize();
+  getCacheSize (): string {
+    return this.world.getCacheSize()
   }
 
-  setCacheEnabled(enabled: boolean) {
-    this.world.setEnabled(enabled);
+  setCacheEnabled (enabled: boolean): void {
+    this.world.setEnabled(enabled)
   }
 
-  isCacheEnabled() {
-    return this.world.enabled;
+  isCacheEnabled (): boolean {
+    return this.world.enabled
   }
 
-  dropMovment(provider: BuildableMoveProvider) {
-    this.movements.delete(provider);
+  dropMovment (provider: BuildableMoveProvider): void {
+    this.movements.delete(provider)
+
     // will keep in optimizers as that has no effect.
     // this.optimizers.delete(provider);
   }
 
-  setExecutor(provider: BuildableMoveProvider, executor: BuildableMoveExecutor | MovementExecutor) {
-    if (executor instanceof MovementExecutor) {
-      this.movements.set(provider, executor);
+  setExecutor (provider: BuildableMoveProvider, Executor: BuildableMoveExecutor | MovementExecutor): void {
+    if (Executor instanceof MovementExecutor) {
+      this.movements.set(provider, Executor)
     } else {
-      this.movements.set(provider, new executor(this.bot, this.world, this.defaultSettings));
+      this.movements.set(provider, new Executor(this.bot, this.world, this.defaultSettings))
     }
   }
 
-  setOptimizer(provider: BuildableMoveProvider, optimizer: BuildableOptimizer | MovementOptimizer) {
-    if (optimizer instanceof MovementOptimizer) {
-      this.optimizers.set(provider, optimizer);
+  setOptimizer (provider: BuildableMoveProvider, Optimizer: BuildableOptimizer | MovementOptimizer): void {
+    if (Optimizer instanceof MovementOptimizer) {
+      this.optimizers.set(provider, Optimizer)
     } else {
-      this.optimizers.set(provider, new optimizer(this.bot, this.world));
+      this.optimizers.set(provider, new Optimizer(this.bot, this.world))
     }
   }
 
-  setDefaultOptions(settings: Partial<MovementOptions>) {
-    this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings);
-    for (const [_, executor] of this.movements) {
-      executor.settings = this.defaultSettings;
+  setDefaultOptions (settings: Partial<MovementOptions>): void {
+    this.defaultSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+    for (const [, executor] of this.movements) {
+      executor.settings = this.defaultSettings
     }
   }
 
-  getPathTo(goal: goals.Goal, settings = this.defaultSettings) {
-    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings);
+  getPathTo (goal: goals.Goal, settings = this.defaultSettings): PathGenerator {
+    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings)
   }
 
-  getScaffoldCount() {
-    return this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0);
+  getScaffoldCount (): number {
+    return this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0)
   }
 
-  async *getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultSettings) {
-    let { x, y, z } = startPos;
-    x = Math.floor(x);
-    y = Math.ceil(y);
-    z = Math.floor(z);
-
-    const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, settings);
-    moveHandler.loadGoal(goal);
-
-    const start = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount());
-    const astarContext = new AStar(start, moveHandler, goal, -1, 45, -1, 0);
-
+  async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultSettings): PathGenerator {
+    const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
-    this.bot.pathingUtil.refresh();
+    this.bot.pathingUtil.refresh()
 
-    let result = astarContext.compute();
-    let ticked = false;
+    const foo = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+    // const foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements);
 
-    yield { result, astarContext };
+    let { result, astarContext } = foo.advance()
 
-    const listener = () => {
-      ticked = true;
-    };
-    this.bot.on("physicsTick", listener);
+    yield { result, astarContext }
 
-    while (result.status === "partial") {
-      result = astarContext.compute();
-      if (result.status === "success") {
-        yield { result, astarContext };
-        break;
+    let ticked = false
+    const listener = (): void => {
+      ticked = true
+    }
+    this.bot.on('physicsTick', listener)
+
+    while (result.status === 'partial') {
+      const { result: result2, astarContext } = foo.advance()
+      result = result2
+      if (result.status === 'success') {
+        yield { result, astarContext }
+        break
       }
-      yield { result, astarContext };
+      yield { result, astarContext }
 
       // allow bot to function even while calculating.
       if (!ticked) {
-        await this.bot.waitForTicks(1);
-        ticked = false;
+        await this.bot.waitForTicks(1)
+        ticked = false
       }
     }
-    this.bot.off("physicsTick", listener);
+    this.bot.off('physicsTick', listener)
   }
 
-  async getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal) {
+  async getPathFromToRaw (startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<PathInfo | null> {
     for await (const res of this.getPathFromTo(startPos, startVel, goal)) {
-      if (res.result.status !== "success") {
-        if (res.result.status === "noPath" || res.result.status === "timeout") return null;
+      if (res.result.status !== 'success') {
+        if (res.result.status === 'noPath' || res.result.status === 'timeout') return null
       } else {
-        return res.result;
+        return res.result
       }
     }
-    return null;
+    return null
   }
 
-  async goto(goal: goals.Goal) {
-    if (this.executing) throw new Error("Already executing!");
-    this.executing = true;
+  async goto (goal: goals.Goal): Promise<void> {
+    if (this.executing) throw new Error('Already executing!')
+    this.executing = true
 
     for await (const res of this.getPathTo(goal)) {
-      if (res.result.status !== "success") {
-        if (res.result.status === "noPath" || res.result.status === "timeout") break;
+      if (res.result.status !== 'success') {
+        if (res.result.status === 'noPath' || res.result.status === 'timeout') break
       } else {
-        await this.perform(res.result, goal);
+        const newPath = await this.postProcess(res.result)
+        await this.perform(newPath, goal)
       }
     }
-    console.log("clear states goddamnit");
-    this.cleanupAll();
+    console.log('clear states goddamnit')
+    await this.cleanupAll()
   }
 
-  private async postProcess(pathInfo: Path<Move, Algorithm<Move>>) {
+  private async postProcess (pathInfo: Path<Move, Algorithm<Move>>): Promise<Path<Move, Algorithm<Move>>> {
     // aggressive optimization.
     // Identify all nodes that are able to be straight-lined to each other.
     // Do so by comparing movement types && their respective y values.
 
-    const optimizer = new Optimizer(this.bot, this.world, this.optimizers);
+    const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
-    optimizer.loadPath(pathInfo.path);
+    optimizer.loadPath(pathInfo.path)
 
-    const res = await optimizer.compute();
+    const res = await optimizer.compute()
 
-    const ret = { ...pathInfo };
+    const ret = { ...pathInfo }
 
-    ret["path"] = res;
-    return ret;
+    ret.path = res
+    return ret
   }
 
   /**
@@ -248,133 +280,144 @@ export class ThePathfinder {
    * @param goal
    * @param entry
    */
-  async perform(path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
-    if (entry > 0) throw new Error("Too many failures, exiting performing.");
-    if (!this.shouldExecute) {
-      this.cleanupAll();
-      return;
-    }
+  async perform (path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+    if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
-    let currentIndex = 0;
-    const movementHandler = path.context.movementProvider as MovementHandler;
-    const movements = movementHandler.getMovements();
+    let currentIndex = 0
+    const movementHandler = path.context.movementProvider as MovementHandler
+    const movements = movementHandler.getMovements()
 
-    const newPath = await this.postProcess(path);
+    // eslint-disable-next-line no-labels
+    outer: while (currentIndex < path.path.length) {
+      const move = path.path[currentIndex]
+      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
+      if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
 
-    outer: while (currentIndex < newPath.path.length) {
-      if (!this.shouldExecute) {
-        this.cleanupAll();
-        return;
-      }
+      this.currentMove = move
+      this.currentExecutor = executor
 
-      const move = newPath.path[currentIndex];
-      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)!;
-      if (!executor) throw new Error("No executor for movement type " + move.moveType.constructor.name);
-
-      let tickCount = 0;
+      let tickCount = 0
 
       // TODO: could move this to physicsTick to be performant, but meh who cares.
 
-      await this.cleanupBot();
-      console.log(
-        `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
-      );
-
-      executor.loadMove(move);
+      await this.cleanupBot()
+      // console.log(
+      //   `Performing ${move.moveType.constructor.name} from ${move.entryPos} to ${move.exitPos} (${move.toPlace.length} ${move.toBreak.length}) at pos: ${this.bot.entity.position}`
+      // )
+      executor.loadMove(move)
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
-        console.log("skipping");
-        currentIndex++;
-        continue;
+        console.log('skipping')
+        currentIndex++
+        continue
       }
 
       try {
-        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
-          await this.bot.waitForTicks(1);
+        while (!(await executor._align(move, tickCount++, goal)) && tickCount < 999) {
+          await this.bot.waitForTicks(1)
         }
 
-        tickCount = 0;
+        tickCount = 0
 
-        await executor.performInit(move, currentIndex, newPath.path);
+        await executor._performInit(move, currentIndex, path.path)
 
-        let adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
-        while (!adding && tickCount < 999) {
-          if (!this.shouldExecute) {
-            this.cleanupAll();
-            return;
-          }
-          await this.bot.waitForTicks(1);
-          adding = await executor.performPerTick(move, tickCount++, currentIndex, newPath.path);
+        let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
+
+        while (!(adding as boolean) && tickCount < 999) {
+          await this.bot.waitForTicks(1)
+          adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
         }
 
-        currentIndex += adding as number;
+        currentIndex += adding as number
       } catch (err) {
-        if (err instanceof CancelError) {
-          console.log('CANCEL ERROR', this.bot.entity.position, this.bot.entity.velocity, goal, move.entryPos, move.exitPos, move.moveType.constructor.name, currentIndex, newPath.path.length, tickCount, err);
-          console.log(newPath.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]));
-          await this.recovery(move, newPath, goal, entry);
-          break outer;
-        } else throw err;
+        if (err instanceof AbortError) {
+          this.currentExecutor.reset()
+
+          // eslint-disable-next-line no-labels
+          break outer
+        } else if (err instanceof CancelError) {
+          console.log(
+            'CANCEL ERROR',
+            this.bot.entity.position,
+            this.bot.entity.velocity,
+            goal,
+            move.entryPos,
+            move.exitPos,
+            move.moveType.constructor.name,
+            currentIndex,
+            path.path.length,
+            tickCount,
+            err
+          )
+          console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
+          await this.recovery(move, path, goal, entry)
+
+          // eslint-disable-next-line no-labels
+          break outer
+        } else throw err
       }
     }
 
-    console.log("done!");
-    await this.cleanupBot();
+    console.log('done!')
+    await this.cleanupBot()
   }
 
   // TODO: implement recovery for any movement and goal.
-  async recovery(move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0) {
-    await this.cleanupBot();
+  async recovery (move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+    await this.cleanupBot()
 
-    console.log("recovery", entry, goal);
-    const ind = path.path.indexOf(move);
+    console.log('recovery', entry, goal)
+    const ind = path.path.indexOf(move)
     if (ind === -1) {
-      console.log("ind === -1");
-      return; // done
+      console.log('ind === -1')
+      return // done
     }
 
-    let newGoal;
+    let newGoal
 
-    const pos = this.bot.entity.position;
-    let bad = false;
-    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0];
+    const pos = this.bot.entity.position
+    let bad = false
+    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0]
     if (path.path.indexOf(nextMove) === ind) {
-      nextMove = path.path[ind + 1];
+      nextMove = path.path[ind + 1]
     } else if (path.path.indexOf(nextMove) < ind) {
-      bad = true;
+      bad = true
     }
 
-    const no = !nextMove || entry > 0 || bad;
+    const no = entry > 0 || bad
     if (no) {
-      newGoal = goal;
+      newGoal = goal
     } else {
-      newGoal = goals.GoalBlock.fromVec(nextMove.toVec());
+      newGoal = goals.GoalBlock.fromVec(nextMove.toVec())
     }
 
-    const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal);
+    const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
     if (path1 === null) {
-      console.log("path1 === null");
-      return; // done
+      console.log('path1 === null')
+      // done
     } else if (no) {
-      await this.perform(path1, goal, entry + 1);
+      await this.perform(path1, goal, entry + 1)
     } else {
-      await this.perform(path1, newGoal, entry + 1);
-      path.path.splice(0, ind);
-      await this.perform(path, goal, 0);
-      console.log(path.path.length, "yayyy");
+      await this.perform(path1, newGoal, entry + 1)
+      path.path.splice(0, ind)
+      await this.perform(path, goal, 0)
+      console.log(path.path.length, 'yayyy')
     }
   }
 
-  async cleanupBot() {
-    this.bot.clearControlStates();
+  async cleanupBot (): Promise<void> {
+    this.bot.clearControlStates()
     // await this.bot.waitForTicks(1);
   }
 
-  cleanupAll() {
-    console.log("clearing A*");
-    this.cleanupBot();
-    this.bot.chat(this.world.getCacheSize());
-    this.world.clearCache();
-    this.executing = false;
+  async cleanupAll (): Promise<void> {
+    console.log('clearing A*')
+    await this.cleanupBot()
+    this.bot.chat(this.world.getCacheSize())
+    this.world.clearCache()
+    this.executing = false
+
+    delete this.currentMove
+    delete this.currentExecutor
   }
 }

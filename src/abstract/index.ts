@@ -7,7 +7,7 @@ export interface Goal<Data> {
 
 export interface Algorithm<Data extends PathData = PathData> {
   movementProvider: MovementProvider<Data>
-  compute: (start: PathNode<Data>) => Path<Data, Algorithm<Data>> | null
+  compute: () => Path<Data, Algorithm<Data>> | null
   makeResult: (status: string, node: PathNode<Data>) => Path<Data, Algorithm<Data>>
 }
 
@@ -20,7 +20,6 @@ export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
   path: Data[]
   context: Alg
 }
-
 
 export interface MovementProvider<Data> {
   sanitize: () => boolean

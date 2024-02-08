@@ -8,8 +8,11 @@ import { Vec3 } from 'vec3';
 import { default as loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } from "@nxg-org/mineflayer-physics-util";
 
 const bot = createBot({ username: "testing1", auth: "offline", 
-host: "Ic3TankD2HO.aternos.me", 
-port: 44656 
+// host: "Ic3TankD2HO.aternos.me", 
+// port: 44656 
+
+host: "us1.node.minecraft.sneakyhub.com",
+port: 25607
 });
 const pathfinder = createPlugin();
 
