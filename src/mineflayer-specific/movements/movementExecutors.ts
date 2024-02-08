@@ -1,5 +1,5 @@
 import { Vec3 } from 'vec3'
-import { goals } from '../goals'
+import * as goals from '../goals'
 import { Move } from '../move'
 import { Movement } from './movement'
 import { CancelError } from './exceptions'
@@ -132,7 +132,7 @@ export class ForwardExecutor extends MovementExecutor {
     const faceForward = await this.facingCorrectDir()
 
     if (faceForward) {
-      this.alignToPath(thisMove)
+      await this.alignToPath(thisMove)
       // void this.lookAt(thisMove.entryPos);
       // this.bot.setControlState("forward", true);
       // if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
@@ -140,7 +140,7 @@ export class ForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
       // void this.lookAt(offset);
-      this.alignToPath(thisMove, { lookAt: offset, sprint: true })
+      await this.alignToPath(thisMove, { lookAt: offset, sprint: true })
       this.bot.setControlState('forward', false)
       this.bot.setControlState('sprint', false)
       this.bot.setControlState('back', true)
@@ -202,10 +202,10 @@ export class ForwardExecutor extends MovementExecutor {
       }
 
       if (counter === 0) return --currentIndex
+      if (++currentIndex >= path.length) return --currentIndex
 
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
     return --currentIndex
   }
@@ -240,7 +240,7 @@ export class ForwardExecutor extends MovementExecutor {
       if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8
 
       // handle potential collisions here.
-      if (nextPos.exitPos.xzDistanceTo(nextPos.entryPos) && nextPos.exitPos.y > thisMove.entryPos.y) {
+      if (nextPos.exitPos.y > thisMove.entryPos.y) {
         offset = 0.8
       }
     }
@@ -285,6 +285,7 @@ export class ForwardExecutor extends MovementExecutor {
     const faceForward = await this.facingCorrectDir()
 
     if (faceForward) {
+      // eslint-disable-next-line no-constant-condition
       if (false) {
         this.bot.setControlState('back', false)
         this.bot.setControlState('sprint', true)

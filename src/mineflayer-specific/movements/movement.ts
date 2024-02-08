@@ -2,11 +2,10 @@ import { BaseSimulator, EPhysicsCtx, EntityPhysics } from '@nxg-org/mineflayer-p
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
-import { goals } from '../goals'
 import { World } from '../world/worldInterface'
 import { BlockInfo } from '../world/cacheWorld'
 import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './interactionUtils'
-import { Vec3Properties } from '../../types'
+import { Block, Vec3Properties } from '../../types'
 
 export interface MovementOptions {
   allowJumpSprint: boolean
@@ -127,23 +126,23 @@ export abstract class Movement {
     this.settings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
   }
 
-  loadMove (move: Move) {
+  loadMove (move: Move): void {
     this.currentMove = move
   }
 
-  toBreakLen () {
+  toBreakLen (): number {
     return this.currentMove.toBreak.filter((b) => !b.allowExit).length
   }
 
-  toPlaceLen () {
+  toPlaceLen (): number {
     return this.currentMove.toPlace.filter((b) => !b.allowExit).length
   }
 
-  getBlock (pos: Vec3Properties, dx: number, dy: number, dz: number) {
+  getBlock (pos: Vec3Properties, dx: number, dy: number, dz: number): Block | null {
     return this.world.getBlock(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz))
   }
 
-  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number) {
+  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
     let move: Move | undefined = this.currentMove
 
@@ -192,7 +191,7 @@ export abstract class Movement {
    * @param {import('prismarine-block').Block} block
    * @returns
    */
-  safeToBreak (block: BlockInfo) {
+  safeToBreak (block: BlockInfo): boolean {
     if (!this.settings.canDig) {
       return false
     }
@@ -225,7 +224,7 @@ export abstract class Movement {
    * @param {[]} toBreak
    * @returns {number}
    */
-  safeOrBreak (block: BlockInfo, toBreak: BreakHandler[]) {
+  safeOrBreak (block: BlockInfo, toBreak: BreakHandler[]): number {
     // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
 
@@ -253,7 +252,7 @@ export abstract class Movement {
     return cost
   }
 
-  breakCost (block: BlockInfo) {
+  breakCost (block: BlockInfo): number {
     if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
@@ -267,7 +266,7 @@ export abstract class Movement {
     return laborCost
   }
 
-  safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid') {
+  safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {
     if (!this.settings.canPlace) return 100
     if (this.currentMove.remainingBlocks <= 0) return 100
     if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
@@ -285,7 +284,7 @@ export abstract class Movement {
   /**
    * TODO: calculate more accurate place costs.
    */
-  placeCost (block: BlockInfo) {
+  placeCost (block: BlockInfo): number {
     return this.settings.placeCost
   }
 }

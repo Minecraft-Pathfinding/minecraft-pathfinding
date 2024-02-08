@@ -1,6 +1,6 @@
 import { Bot } from 'mineflayer'
 import { Move } from '../move'
-import { goals } from '../goals'
+import * as goals from '../goals'
 import { World } from '../world/worldInterface'
 import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from './movement'
 

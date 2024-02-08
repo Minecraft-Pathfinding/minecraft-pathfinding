@@ -1,7 +1,7 @@
 import { Bot } from 'mineflayer'
 import { AStar as AAStar } from './abstract/algorithms/astar'
 import { AStar } from './mineflayer-specific/algs'
-import { goals } from './mineflayer-specific/goals'
+import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
 import { Path, Algorithm } from './abstract'
@@ -287,6 +287,7 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
+    // eslint-disable-next-line no-labels
     outer: while (currentIndex < path.path.length) {
       const move = path.path[currentIndex]
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
@@ -330,8 +331,9 @@ export class ThePathfinder {
         currentIndex += adding as number
       } catch (err) {
         if (err instanceof AbortError) {
-          console.trace('aborted')
           this.currentExecutor.reset()
+
+          // eslint-disable-next-line no-labels
           break outer
         } else if (err instanceof CancelError) {
           console.log(
@@ -349,6 +351,8 @@ export class ThePathfinder {
           )
           console.log(path.path.flatMap((m, idx) => [m.moveType.constructor.name, idx, m.entryPos, m.exitPos]))
           await this.recovery(move, path, goal, entry)
+
+          // eslint-disable-next-line no-labels
           break outer
         } else throw err
       }

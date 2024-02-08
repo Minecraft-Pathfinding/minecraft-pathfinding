@@ -114,7 +114,7 @@ export abstract class InteractHandler {
 
       if (this.task.canceled) return
       // this.task.cancel(err);
-      throw new CancelError(`Failed to perform ${this.constructor.name}: ${err.message}`)
+      throw new CancelError(`Failed to perform ${this.constructor.name}`, err)
     })
 
     this._internalLock = false
@@ -519,7 +519,7 @@ export class BreakHandler extends InteractHandler {
   static reach = 4
   private _breakTask?: Promise<void>
 
-  static fromVec (vec: Vec3, type: InteractType, offhand = false) {
+  static fromVec (vec: Vec3, type: InteractType, offhand = false): BreakHandler {
     return new BreakHandler(vec.x, vec.y, vec.z, type, offhand)
   }
 
@@ -527,7 +527,7 @@ export class BreakHandler extends InteractHandler {
     return BlockInfo.AIR1
   }
 
-  getBlock (world: World) {
+  getBlock (world: World): Block | null {
     return world.getBlock(this.vec)
   }
 
@@ -548,7 +548,7 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  async performInfo (bot: Bot, ticks = 15) {
+  async performInfo (bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {
     const bb = AABB.fromBlock(this.vec)
 
     return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach + 5
@@ -573,8 +573,8 @@ export class BreakHandler extends InteractHandler {
         if (item === null) {
           if (this.getCurrentItem(bot) !== null) await bot.unequip(this.offhand ? 'off-hand' : 'hand')
         } else if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item)
-        const block = await bot.world.getBlock(this.vec)
-        if (!block) throw new Error('Invalid block')
+        const block = await bot.world.getBlock(this.vec) as Block | null
+        if (block == null) throw new Error('Invalid block')
         await bot.lookAt(this.vec, this.settings.forceLook)
 
         this._breakTask = bot.dig(block, 'ignore', 'raycast')
@@ -586,19 +586,20 @@ export class BreakHandler extends InteractHandler {
 
       case 'replaceable': {
         throw new Error('Not implemented')
-        break // not necessary.
+        // break // not necessary.
       }
 
       default: {
         throw new Error('Not implemented')
-        break // not necessary.
+        // break // not necessary.
       }
     }
 
     if (opts.returnToPos !== undefined) {
       await bot.lookAt(opts.returnToPos, this.settings.forceLook)
-    } else if (opts.returnToStart) {
-      await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook)
+    } else {
+      const look = opts.returnToStart ?? false
+      if (look) await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook)
     }
 
     delete this._breakTask

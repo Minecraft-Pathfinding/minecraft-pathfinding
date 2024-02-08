@@ -306,6 +306,7 @@ export class ParkourJumpHelper {
 
     let scale = 1.25
 
+    // eslint-disable-next-line no-labels
     outer: while (scale >= 0.6) {
       const wanted = dir2.scaled(scale).plus(start)
 
@@ -323,6 +324,8 @@ export class ParkourJumpHelper {
             if (bl.physical && bl.getBBs().some((b) => b.collides(testBB))) {
               console.log('scale', scale, 'failed')
               scale -= 0.03
+
+              // eslint-disable-next-line no-labels
               continue outer
             }
           }

@@ -1,5 +1,5 @@
 import { Vec3 } from 'vec3'
-import { goals } from '../goals'
+import * as goals from '../goals'
 import { Move } from '../move'
 import { Movement } from './movement'
 import { BreakHandler, PlaceHandler } from './interactionUtils'

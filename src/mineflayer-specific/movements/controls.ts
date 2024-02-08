@@ -1,33 +1,32 @@
 import { EntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
-import { getViewDir } from '../../utils'
 
-const ZERO = (0 * Math.PI) / 12
+// const ZERO = (0 * Math.PI) / 12
 const PI_OVER_TWELVE = (1 * Math.PI) / 12
-const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
-const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
-const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
+// const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
+// const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
+// const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
 const FIVE_PI_OVER_TWELVE = (5 * Math.PI) / 12
-const SIX_PI_OVER_TWELVE = (6 * Math.PI) / 12
+// const SIX_PI_OVER_TWELVE = (6 * Math.PI) / 12
 const SEVEN_PI_OVER_TWELVE = (7 * Math.PI) / 12
-const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
-const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
-const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
+// const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
+// const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
+// const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
 const ELEVEN_PI_OVER_TWELVE = (11 * Math.PI) / 12
-const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
+// const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
 const THIRTEEN_PI_OVER_TWELVE = (13 * Math.PI) / 12
-const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
-const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
-const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
+// const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
+// const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
+// const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
 const SEVENTEEN_PI_OVER_TWELVE = (17 * Math.PI) / 12
-const EIGHTEEN_PI_OVER_TWELVE = (18 * Math.PI) / 12
+// const EIGHTEEN_PI_OVER_TWELVE = (18 * Math.PI) / 12
 const NINETEEN_PI_OVER_TWELVE = (19 * Math.PI) / 12
-const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
-const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
-const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
+// const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
+// const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
+// const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
 const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
-const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
+// const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
 const TWO_PI = 2 * Math.PI
 
 // TODO: move to utils
@@ -46,7 +45,7 @@ export function wrapRadians (radians: number): number {
 // currentPoint: Vec3
 function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, nextPoint: Vec3, onGround: boolean): number {
   const xzVel = velocity
-  const dir1 = getViewDir({ yaw, pitch })
+  // const dir1 = getViewDir({ yaw, pitch })
 
   const amt = xzVel.norm()
 

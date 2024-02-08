@@ -1,23 +1,20 @@
 {
-    "compilerOptions": {
-      "module": "CommonJS",
-      // "moduleResolution": "",
-      "noImplicitAny": true,
-      "removeComments": true,
-      "preserveConstEnums": true,
-      "sourceMap": true,
-      "strict": true,
-      "outDir": "dist",
-      "sourceRoot": "src",
-      "skipLibCheck": true,
-      "target": "ES2015",
-      "declaration": true,
-      "resolveJsonModule": true,
-  "esModuleInterop": true,
-    }, "include": [
-      "src/**/*"
-    ], "exclude": [
-      "node_modules",
-      "**/*.spec.ts"
-    ]
+  "compilerOptions": {
+    "module": "CommonJS",
+    // "moduleResolution": "",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "strict": true,
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "target": "ES2015",
+    "declaration": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "examples"],
+  "compileOnSave": true,
 }
