@@ -3,6 +3,7 @@ import { Goal as AGoal } from '../abstract'
 import { Move } from './move'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
+import { Bot } from 'mineflayer'
 
 /**
  * The abstract goal definition used by the pathfinder.
@@ -10,6 +11,7 @@ import { AABB } from '@nxg-org/mineflayer-util-plugin'
 export abstract class Goal implements AGoal<Move> {
   abstract isEnd (node: Move): boolean
   abstract heuristic (node: Move): number
+  async onFinish (bot: Bot): Promise<void> {}
 }
 
 /**
