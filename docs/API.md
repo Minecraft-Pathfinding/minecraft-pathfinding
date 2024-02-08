@@ -60,6 +60,22 @@ GoalBlock.fromVec(new Vec3(0, 0, 0))
 
 These are the currently available settings.
 
+| Property | Type | Description | Default |
+| --- | --- | --- | --- |
+| `forceLook` | `boolean` | Whether or not the pathfinder uses `force` in `bot.lookAt`. | `true` |
+| `jumpCost` | `number` | Heuristic cost for jumping. | `0.5` |
+| `placeCost` | `number` | Heuristic cost for placing. | `2` |
+| `canOpenDoors` | `boolean` | Not used yet. | `true` |
+| `canDig` | `boolean` | Whether or not the bot can dig. | `true` |
+| `dontCreateFlow` | `boolean` | Care about liquid flowing when breaking blocks (keep this on). | `true` |
+| `dontMineUnderFallingBlock` | `boolean` | Don't mine a block that could cause gravity-affected blocks to fall (keep this on). | `true` |
+| `allow1by1towers` | `boolean` | Allow 1 by 1 towers. Keep it on, no issue with it not being on. | `true` |
+| `maxDropDown` | `number` | Max continuous dropdown. | `3` |
+| `infiniteLiquidDropdownDistance` | `boolean` | Dropdown distance is infinite if it finds a liquid at the bottom. | `true` |
+| `allowSprinting` | `boolean` | Allow sprinting. | `true` |
+| `careAboutLookAlignment` | `boolean` | With this off, moves can be started without having the proper look vector established. With `forceLook` on, this means nothing. With `forceLook` off, movements may become unreliable in exchange for faster execution while still being compliant with anticheats. | `true` |
+
+
 ```ts
 export interface MovementOptions {
   forceLook: boolean
@@ -76,51 +92,3 @@ export interface MovementOptions {
   careAboutLookAlignment: boolean
 }
 ```
-
-▸ **`forceLook: boolean`**
-
-Whether or not the pathfinder uses `force` in `bot.lookAt`.
-
-▸ **`jumpCost: number`**
-
-Heuristic cost for jumping.
-
-▸ **`placeCost: number`**
-
-Heuristic cost for placing.
-
-▸ **`canOpenDoors: boolean`**
-
-Not used yet.
-
-▸ **`canDig: boolean`**
-
-Whether or not the bot can dig.
-
-▸ **`dontCreateFlow: boolean`**
-
-Care about liquid flowing when breaking blocks (keep this on).
-
-▸ **`dontMineUnderFallingBlock: boolean`**
-
-Ouch, sand! (keep this on).
-
-▸ **`allow1by1towers: boolean`**
-
-Figure it out. Keep it on, no issue with it not being on.
-
-▸ **`maxDropDown: number`**
-
-Default is 4. Max continuous drop-down
-
-▸ **`infiniteLiquidDropdownDistance: boolean`**
-
-It's in the name.
-
-▸ **`allowSprinting: boolean`**
-
-Yes.
-
-▸ **`careAboutLookAlignment: boolean`**
-
-With this off, moves can be started without having the proper look vector established. With forceLook on, this means nothing. With forceLook off, movements may become unreliable in exchange for faster execution while still being compliant with anticheats.
