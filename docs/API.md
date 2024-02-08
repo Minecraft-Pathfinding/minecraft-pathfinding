@@ -1,87 +1,126 @@
 <h3>Table of contents</h3>
 
-- [Goal](#goal)
+- [Pathfinder](#pathfinder)
+- [Goals](#goals)
   - [GoalBlock](#goalblock)
 - [Settings](#settings)
 
-<h2 align="center">Goal</h2>
+<h1 align="center">Pathfinder</h1>
 
-Base class of a Goal
+Base class of the Pathfinder in `bot.pathfinder` after the plugin has loaded.
 
-<h3>GoalBlock</h3>
+<h3>Methods</h3>
 
-This goal will have the bot stand on top of the block chosen.
+▸ **getPathTo(`vec: Vec3`): `PathGenerator`**
 
-Code example:
-```ts
-const {Vec3} = require('vec3')
-const {goals} = require('@nxg-org/mineflayer-pathfinder')
+Return an async generator that generates partial paths until a successful path is found, or no path is found.
 
-const {GoalBlock} = goals;
+▸ **getPathFromTo(`startVec: Vec3, endVec: Vec3`): `PathGenerator`**
 
+Return an async generator that generates partial paths until a successful path is found, or no path is found.
 
-// ...
+▸ **goto(`goal: Goal`): `Promise<void>`**
 
-const goal = GoalBlock.fromVec(new Vec3(0, 0, 0))
-```
+Moves the bot to the goal.
 
-
-### Pathfinder Usage
-There is currently:
-- bot.pathfinder.getPathTo(\<vec>)
-- bot.pathfinder.getPathFromTo(\<startVec>, \<endVec>)
-
-Both of these provide an async generator that generates partial paths until a successful path is found, or no path is found.
-
-To move around, use:
-- bot.pathfinder.goto(\<goal>)
-
-This returns a Promise\<void>, so you can wait until it reaches its destination.
-
-Code example:
+<h3>Example</h3>
 
 ```ts
-const {createPlugin, goals} = require('@nxg-org/mineflayer-pathfinder')
-
-const {GoalBlock} = goals;
-const pathfinder = createPlugin();
-
-
-bot.loadPlugin(pathfinder)
-
-// ...
-
 await bot.pathfinder.goto(GoalBlock.fromVec(0,0,0))
 ```
 
-## Settings
-There are already a lot of settings, but there will be *plenty* more.
+
+<h1 align="center">Goals</h1>
+
+<h2>GoalBlock</h2>
+
+This goal will have the bot stand on top of the block chosen.
+
+<h3>Constructor</h3>
+
+| Parameter | Type |
+| --- | --- |
+| x | number |
+| y | number |
+| z | number |
+
+<h3>Methods</h3>
+
+▸ **fromVec(`vec: Vec3`): `GoalBlock`**
+
+▸ **fromBlock(`block: Block | { position: Vec3 }`): `GoalBlock`**
+
+<h3>Example</h3>
+
+```ts
+GoalBlock.fromVec(new Vec3(0, 0, 0))
+```
+
+<h1 align="center">Settings</h1>
+
+These are the currently available settings.
 
 ```ts
 export interface MovementOptions {
-  forceLook: boolean;
-  jumpCost: number;
-  placeCost: number;
-  canOpenDoors: boolean;
-  canDig: boolean;
-  dontCreateFlow: boolean;
-  dontMineUnderFallingBlock: boolean;
-  allow1by1towers:boolean
-  maxDropDown:number;
-  infiniteLiquidDropdownDistance:boolean;
-  allowSprinting: boolean;
-  careAboutLookAlignment: boolean;
+  forceLook: boolean
+  jumpCost: number
+  placeCost: number
+  canOpenDoors: boolean
+  canDig: boolean
+  dontCreateFlow: boolean
+  dontMineUnderFallingBlock: boolean
+  allow1by1towers: boolean
+  maxDropDown: number
+  infiniteLiquidDropdownDistance: boolean
+  allowSprinting: boolean
+  careAboutLookAlignment: boolean
 }
 ```
-- forceLook: whether or not the pathfinder uses `force` in `bot.lookAt`
-- jumpCost: heuristic cost for jumping
-- placeCost: heuristic cost for placing
-- canOpenDoors: not used yet.
-- canDig: whether or not the bot can dig.
-- dontCreateFlow: care about liquid flowing when breaking blocks (keep this on).
-- dontMineUnderFallingBlock: ouch, sand! (keep this on).
-- allow1by1towers: figure it out. Keep it on, no issue with it not being on.
-- maxDropDown: DEFAULT IS 4. max continous drop-down. 
-- infiniteLiquidDropdownDistance: it's in the name.
-- allowSprinting: yes.
-- careAboutLookAlignment: With this off, moves can be started without having the proper look vector established. With forceLook on, this means nothing. With forceLook off, movements may become unreliable in exchange for faster execution while still being compliant with anticheats.
+
+▸ **`forceLook: boolean`**
+
+Whether or not the pathfinder uses `force` in `bot.lookAt`.
+
+▸ **`jumpCost: number`**
+
+Heuristic cost for jumping.
+
+▸ **`placeCost: number`**
+
+Heuristic cost for placing.
+
+▸ **`canOpenDoors: boolean`**
+
+Not used yet.
+
+▸ **`canDig: boolean`**
+
+Whether or not the bot can dig.
+
+▸ **`dontCreateFlow: boolean`**
+
+Care about liquid flowing when breaking blocks (keep this on).
+
+▸ **`dontMineUnderFallingBlock: boolean`**
+
+Ouch, sand! (keep this on).
+
+▸ **`allow1by1towers: boolean`**
+
+Figure it out. Keep it on, no issue with it not being on.
+
+▸ **`maxDropDown: number`**
+
+Default is 4. Max continuous drop-down
+
+▸ **`infiniteLiquidDropdownDistance: boolean`**
+
+It's in the name.
+
+▸ **`allowSprinting: boolean`**
+
+Yes.
+
+▸ **`careAboutLookAlignment: boolean`**
+
+With this off, moves can be started without having the proper look vector established. With forceLook on, this means nothing. With forceLook off, movements may become unreliable in exchange for faster execution while still being compliant with anticheats.
