@@ -204,9 +204,8 @@ export class ThePathfinder {
   }
 
   getScaffoldCount (): number {
-    const amt = this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0);
-    if (this.bot.game.gameMode === "creative") 
-      return amt > 0 ? Infinity : 0
+    const amt = this.bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0)
+    if (this.bot.game.gameMode === 'creative') { return amt > 0 ? Infinity : 0 }
     return amt
   }
 
