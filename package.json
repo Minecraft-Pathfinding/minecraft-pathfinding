@@ -5,6 +5,7 @@
     "lru-cache": "^10.1.0"
   },
   "scripts": {
+    "install": "npm run build",
     "build": "tsc",
     "pub": "npm run lint && npm run build && npm publish --access public",
     "lint": "npx ts-standard -y --fix"
