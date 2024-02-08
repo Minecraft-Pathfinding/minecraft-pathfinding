@@ -1,6 +1,6 @@
-import { Algorithm, Path } from '.'
-import { goals } from '../mineflayer-specific/goals'
-import { Move } from '../mineflayer-specific/move'
+import { Algorithm, Path } from '../abstract'
+import * as goals from './goals'
+import { Move } from './move'
 
 export interface Performer {
   status: 'idle' | 'performing'

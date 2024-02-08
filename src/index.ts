@@ -8,7 +8,7 @@ import utilPlugin from '@nxg-org/mineflayer-util-plugin'
 import { Block, PlaceBlockOptions } from './types'
 import { PathingUtil } from './PathingUtil'
 
-export { goals } from './mineflayer-specific/goals'
+export * as goals from './mineflayer-specific/goals'
 
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {

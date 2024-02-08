@@ -9,8 +9,9 @@ const { default: loader, EntityState } = require('@nxg-org/mineflayer-physics-ut
 const bot = createBot({
   username: 'testing1',
   auth: 'offline',
-  host: 'localhost'
-
+  host: 'it-mil-1.halex.gg',
+  port: 25046
+  
   // host: "node2.endelon-hosting.de", port: 31997
   // host: 'Ic3TankD2HO.aternos.me',
   // port: 44656

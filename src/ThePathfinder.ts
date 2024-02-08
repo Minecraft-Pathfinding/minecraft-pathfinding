@@ -334,16 +334,13 @@ export class ThePathfinder {
 
         currentIndex += adding as number
       } catch (err) {
-
         // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
           this.currentExecutor.reset()
 
           // eslint-disable-next-line no-labels
           break outer
-
         } else if (err instanceof CancelError) {
-
           // allow recovery if movement intentionall canceled.
           await this.recovery(move, path, goal, entry)
 

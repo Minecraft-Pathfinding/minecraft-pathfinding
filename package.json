@@ -6,8 +6,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "pub": "npm run build && npm publish --access public",
-    "lint": "npm run ts-standard"
+    "pub": "npm run lint && npm run build && npm publish --access public",
+    "lint": "npx ts-standard -y --fix"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
   "version": "0.0.12",
