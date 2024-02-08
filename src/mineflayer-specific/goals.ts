@@ -119,11 +119,12 @@ export class GoalLookAt extends Goal {
   }
 
   static fromBlock (world: World, block: { position: Vec3 }, distance = 4, height = 1.62): GoalLookAt {
-    // offset to center bottom of block to allow easy building of bounding box.
+    // offset to center of block to allow easy building of bounding box.
     return new GoalLookAt(world, block.position.x, block.position.y, block.position.z, 1, 1, distance, height)
   }
 
   static fromEntity (world: World, entity: { position: Vec3, height: number }, width: number, distance = 4, height = 1.62): GoalLookAt {
+    // offset to center of entity to allow easy building of bounding box.
     return new GoalLookAt(world, entity.position.x, entity.position.y, entity.position.z, width, height, distance, height)
   }
 
