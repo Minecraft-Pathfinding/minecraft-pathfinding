@@ -1,10 +1,14 @@
 <h3>Table of contents</h3>
 
-- [Goals](#goals)
+- [Goal](#goal)
+  - [GoalBlock](#goalblock)
 - [Settings](#settings)
 
-## Goals
-There is currently only one goal: `goals.GoalBlock`. You can easily make a goal via: `GoalBlock.fromVec(<vec3>)`
+<h2 align="center">Goal</h2>
+
+Base class of a Goal
+
+<h3>GoalBlock</h3>
 
 This goal will have the bot stand on top of the block chosen.
 
