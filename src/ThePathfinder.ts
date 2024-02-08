@@ -396,7 +396,7 @@ export class ThePathfinder {
 
   async cleanupAll (goal: goals.Goal): Promise<void> {
     await this.cleanupBot()
-    await goal.onFinish(this.bot);
+    await goal.onFinish(this.bot)
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.executing = false
