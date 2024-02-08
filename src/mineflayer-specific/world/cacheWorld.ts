@@ -6,6 +6,7 @@ import { LRUCache } from 'lru-cache'
 import interactables from './interactable.json'
 import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
+import { RayType } from '../movements/interactionUtils'
 
 export class BlockInfo {
   static initialized = false
@@ -245,11 +246,11 @@ export class CacheSyncWorld implements WorldType {
   // posCache: Record<string, Block>;
   blocks: LRUCache<number, Block>
   blockInfos: LRUCache<string, BlockInfo>
-  world: WorldType
+  world: Bot['world']
   cacheCalls = 0
   enabled = true
 
-  constructor (bot: Bot, referenceWorld: any) {
+  constructor (bot: Bot, referenceWorld: Bot['world']) {
     // this.posCache = {};
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
@@ -266,9 +267,13 @@ export class CacheSyncWorld implements WorldType {
     })
   }
 
+  raycast (from: Vec3, direction: Vec3, range: number, matcher?: ((block: Block) => boolean) | undefined): RayType | null {
+    return this.world.raycast(from, direction, range, matcher) as unknown as RayType | null
+  }
+
   getBlock (pos: Vec3): Block | null {
     if (!this.enabled) {
-      return this.world.getBlock(pos)
+      return this.world.getBlock(pos) as unknown as Block
     }
     this.cacheCalls++
     pos = pos.floored()
@@ -277,7 +282,7 @@ export class CacheSyncWorld implements WorldType {
     // guaranteed behavior.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (this.posCache.has(key)) return this.posCache.get(key)!
-    const block = this.world.getBlock(pos)
+    const block = this.world.getBlock(pos) as unknown as Block
     if (block !== null) this.posCache.set(key, block)
     return block
   }
@@ -287,7 +292,7 @@ export class CacheSyncWorld implements WorldType {
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
-      const block = this.world.getBlock(pos)
+      const block = this.world.getBlock(pos) as unknown as Block
       if (block == null) return BlockInfo.DEFAULT
       return BlockInfo.fromBlock(block)
     }
@@ -296,7 +301,7 @@ export class CacheSyncWorld implements WorldType {
     const key = `${pos.x}:${pos.y}:${pos.z}`
 
     if (!this.blockInfos.has(key)) {
-      const block = this.world.getBlock(pos)
+      const block = this.world.getBlock(pos) as unknown as Block
       if (block === null) return BlockInfo.DEFAULT
       const blockInfo = BlockInfo.fromBlock(block)
       this.blockInfos.set(key, blockInfo)
@@ -312,7 +317,7 @@ export class CacheSyncWorld implements WorldType {
 
   getBlockStateId (pos: Vec3): number | undefined {
     if (!this.enabled) {
-      return this.world.getBlockStateId(pos)
+      return this.world.getBlockStateId(pos) as unknown as number
     }
     this.cacheCalls++
     pos = pos.floored()
@@ -323,7 +328,7 @@ export class CacheSyncWorld implements WorldType {
     // if (state1 !== undefined) this.posCache[key] = CacheSyncWorld.Block.fromStateId(state1, 0)
     // return state1
     if (this.posCache.has(key)) return this.posCache1.get(key)
-    const state = this.world.getBlockStateId(pos)
+    const state = this.world.getBlockStateId(pos) as unknown as number
     if (state !== undefined) this.posCache1.set(key, state)
     return state
   }
