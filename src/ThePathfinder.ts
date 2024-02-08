@@ -35,11 +35,11 @@ import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from "./mineflayer-sp
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from "./mineflayer-specific/post";
 import { ContinuousPathProducer, PartialPathProducer } from "./mineflayer-specific/pathProducers";
 
-export interface PathfinderOpts {
+export interface PathfinderOptions {
   partialPathProducer: boolean;
 }
 
-const DEFAULT_PATHFINDER_OPTS: PathfinderOpts = {
+const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
   partialPathProducer: false,
 };
 
@@ -114,7 +114,7 @@ export class ThePathfinder {
   optimizers: OptimizationMap;
   defaultMoveSettings: MovementOptions;
 
-  pathfinderSettings: PathfinderOpts;
+  pathfinderSettings: PathfinderOptions;
 
   public executing = false;
   private currentMove?: Move;
@@ -125,7 +125,7 @@ export class ThePathfinder {
     movements?: MovementSetup,
     optimizers?: OptimizationSetup,
     moveSettings: MovementOptions = DEFAULT_MOVEMENT_OPTS,
-    pathfinderSettings: PathfinderOpts = DEFAULT_PATHFINDER_OPTS
+    pathfinderSettings: PathfinderOptions = DEFAULT_PATHFINDER_OPTS
   ) {
     this.world = new CacheSyncWorld(bot, this.bot.world);
 
@@ -196,7 +196,7 @@ export class ThePathfinder {
     }
   }
 
-  setPathfinderOptions(settings: Partial<PathfinderOpts>): void {
+  setPathfinderOptions(settings: Partial<PathfinderOptions>): void {
     this.pathfinderSettings = Object.assign({}, DEFAULT_PATHFINDER_OPTS, settings);
   }
 
