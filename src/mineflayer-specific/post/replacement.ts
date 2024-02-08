@@ -36,7 +36,7 @@ export class Replacer {
   }
 
   loadPath (path: Move[]): void {
-    console.log('original path length', path.length)
+    // console.log('original path length', path.length)
     this.pathCopy = path
     this.currentIndex = 0
   }
@@ -64,7 +64,7 @@ export class Replacer {
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
       const opt = this.repMap.get(move.moveType.constructor as BuildableMoveProvider)
-      console.log(opt?.constructor.name, this.currentIndex)
+      // console.log(opt?.constructor.name, this.currentIndex)
       if (opt == null) {
         this.currentIndex++
         continue
@@ -85,12 +85,12 @@ export class Replacer {
 
       ret.set(this.currentIndex, path)
 
-      console.log('found replacement for:', opt?.constructor.name, this.currentIndex, ': here using', path.path.length, 'moves')
+      // console.log('found replacement for:', opt?.constructor.name, this.currentIndex, ': here using', path.path.length, 'moves')
 
       this.currentIndex++
     }
 
-    console.log('optimized path length', this.pathCopy.length)
+    // console.log('optimized path length', this.pathCopy.length)
     return this.makeResult(ret)
   }
 }

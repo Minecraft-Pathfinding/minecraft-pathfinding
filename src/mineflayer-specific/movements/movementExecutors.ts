@@ -347,12 +347,12 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
       const bl = this.getBlockInfo(thisMove.entryPos.floored(), 0, -1, 0)
       const bigBBs = bl.getBBs().map((b) => b.extend(0, 10, 0))
-      console.log(
-        bigBBs,
-        this.bot.entity.onGround,
-        bb,
-        bigBBs.some((b) => b.contains(bb))
-      )
+      // console.log(
+      //   bigBBs,
+      //   this.bot.entity.onGround,
+      //   bb,
+      //   bigBBs.some((b) => b.contains(bb))
+      // )
       return bigBBs.some((b) => b.contains(bb)) && this.bot.entity.onGround
       // if (this.bot.entity.position.xzDistanceTo(thisMove.entryPos) < 0.2) return true;
     } else if (this.bot.entity.onGround) {
@@ -686,7 +686,7 @@ export class StraightUpExecutor extends MovementExecutor {
       this.bot.setControlState('sneak', true)
     }
 
-    console.log(this.bot.getControlState('sneak'), this.bot.getControlState('sprint'), this.bot.getControlState('forward'))
+    // console.log(this.bot.getControlState('sneak'), this.bot.getControlState('sprint'), this.bot.getControlState('forward'))
     return false
   }
 
@@ -701,7 +701,7 @@ export class StraightUpExecutor extends MovementExecutor {
     for (const place of thisMove.toPlace) {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5))
       this.bot.setControlState('jump', true)
-      console.log('sup')
+      // console.log('sup')
       void this.performInteraction(place)
     }
   }
@@ -762,7 +762,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const test0 = this.shitterTwo.simForwardMove(target)
     const test1 = this.shitterTwo.simJumpFromEdge(bbs, target)
 
-    console.log('align', test0, test1, test2, this.bot.entity.onGround)
+    // console.log('align', test0, test1, test2, this.bot.entity.onGround)
 
     // if (!this.bot.entity.onGround) return false;
     if (this.bot.entity.onGround) {
@@ -815,7 +815,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     if (this.backUpTarget != null && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
-      console.log('here1', this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir))
+      // console.log('here1', this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir))
       this.bot.clearControlStates()
       await this.lookAtPathPos(target)
 
@@ -830,7 +830,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.reachedBackup = false
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, target)
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
-      console.log('here2', this.backUpTarget, this.bot.entity.position, state.pos, state.age)
+      // console.log('here2', this.backUpTarget, this.bot.entity.position, state.pos, state.age)
 
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', dist > 0)
@@ -839,7 +839,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       await this.lookAtPathPos(this.backUpTarget)
     } else if (!this.reachedBackup && this.backUpTarget != null) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
-      console.log('here3', this.backUpTarget, this.bot.entity.position, bb)
+      // console.log('here3', this.backUpTarget, this.bot.entity.position, bb)
 
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', dist > 0 || this.reachedBackup)
@@ -854,7 +854,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       //   // throw new CancelError('ParkourForward: Not making this jump.')
       // } else {
       this.bot.clearControlStates()
-      console.log('here4', this.backUpTarget, this.bot.entity.position, state.pos, bb, xzvdir.dot(dir))
+      // console.log('here4', this.backUpTarget, this.bot.entity.position, state.pos, bb, xzvdir.dot(dir))
 
       await this.lookAtPathPos(target)
       this.bot.setControlState('forward', true)
@@ -864,7 +864,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       // }
     }
 
-    console.log('done')
+    // console.log('done')
 
     return false
   }
@@ -912,7 +912,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     //   return false;
     // }
 
-    console.log('per tick', test, test1)
+    // console.log('per tick', test, test1)
 
     if (test) {
       this.bot.setControlState('sprint', true)

@@ -79,7 +79,7 @@ export class Optimizer {
   }
 
   loadPath (path: Move[]): void {
-    console.log('original path length', path.length)
+    // console.log('original path length', path.length)
     this.pathCopy = path
     this.currentIndex = 0
   }
@@ -106,7 +106,7 @@ export class Optimizer {
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
       const opt = this.optMap.get(move.moveType.constructor as BuildableMoveProvider)
-      console.log(opt?.constructor.name, this.currentIndex)
+      // console.log(opt?.constructor.name, this.currentIndex)
       if (opt == null) {
         this.currentIndex++
         continue
@@ -114,7 +114,7 @@ export class Optimizer {
       const newEnd = await opt.identEndOpt(this.currentIndex, this.pathCopy)
       // if (opt.mergeToEntry) newEnd--;
 
-      console.log('found opt for:', opt?.constructor.name, this.currentIndex, ': here, newEnd', newEnd)
+      // console.log('found opt for:', opt?.constructor.name, this.currentIndex, ': here, newEnd', newEnd)
       if (newEnd !== this.currentIndex) {
         this.mergeMoves(this.currentIndex, newEnd, opt)
       }
@@ -123,7 +123,7 @@ export class Optimizer {
       this.currentIndex++
     }
 
-    console.log('optimized path length', this.pathCopy.length)
+    // console.log('optimized path length', this.pathCopy.length)
     return this.pathCopy
   }
 

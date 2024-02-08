@@ -9,13 +9,13 @@ const { default: loader, EntityState } = require('@nxg-org/mineflayer-physics-ut
 const bot = createBot({
   username: 'testing1',
   auth: 'offline',
-  host: 'it-mil-1.halex.gg',
-  port: 25046
+  // host: 'it-mil-1.halex.gg',
+  // port: 25046
   
   // host: "node2.endelon-hosting.de", port: 31997
   // host: 'Ic3TankD2HO.aternos.me',
   // port: 44656
-  // host: "us1.node.minecraft.sneakyhub.com", port: 25607
+  host: "us1.node.minecraft.sneakyhub.com", port: 25607
 })
 const pathfinder = createPlugin()
 
@@ -330,7 +330,7 @@ function rayTraceEntitySight (options) {
     const x = -Math.sin(yaw) * Math.cos(pitch)
     const y = Math.sin(pitch)
     const z = -Math.cos(yaw) * Math.cos(pitch)
-    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), Infinity)
+    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), 512)
     if (rayBlock) {
       return rayBlock
     }

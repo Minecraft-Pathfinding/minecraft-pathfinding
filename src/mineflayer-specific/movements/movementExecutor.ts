@@ -284,9 +284,7 @@ export abstract class MovementExecutor extends Movement {
     const block = breakTarget.getBlock(this.bot.pathfinder.world)
     if (block == null) throw new CancelError('MovementExecutor: no block to break')
     const item = breakTarget.getItem(this.bot, BlockInfo, block)
-
     await breakTarget._perform(this.bot, item, opts)
-    console.log('finished dig')
     this._cI = undefined
   }
 
@@ -454,17 +452,17 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    console.log(
-      this.bot.getControlState('forward'),
-      this.bot.getControlState('back'),
-      ' | ',
-      this.bot.getControlState('left'),
-      this.bot.getControlState('right'),
-      ' | ',
-      this.bot.getControlState('sprint'),
-      this.bot.getControlState('jump'),
-      this.bot.getControlState('sneak')
-    )
+    // console.log(
+    //   this.bot.getControlState('forward'),
+    //   this.bot.getControlState('back'),
+    //   ' | ',
+    //   this.bot.getControlState('left'),
+    //   this.bot.getControlState('right'),
+    //   ' | ',
+    //   this.bot.getControlState('sprint'),
+    //   this.bot.getControlState('jump'),
+    //   this.bot.getControlState('sneak')
+    // )
     await task
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

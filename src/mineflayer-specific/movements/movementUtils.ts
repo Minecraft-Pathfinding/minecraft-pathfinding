@@ -66,7 +66,7 @@ export class JumpCalculator {
     // if vel was up and we collided, we moved too far forward, so only sprint after jumping.
     const sprintAfterJump = this.ctx.state.vel.y > 0
 
-    console.log(this.ctx.state.pos, this.ctx.state.vel, goal, sprintAfterJump)
+    // console.log(this.ctx.state.pos, this.ctx.state.vel, goal, sprintAfterJump)
     while (firstTick < 12) {
       while (secondTick < 12) {
         const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump)
@@ -216,7 +216,6 @@ export class ParkourJumpHelper {
     const bb = AABBUtils.getPlayerAABB({ position: pos, width, height: 0.1 }) // whatever
     const blocks = new Set(verts.map((v) => this.world.getBlockInfo(v.offset(0, -1, 0))))
 
-    console.log(blocks)
     const ret = []
     for (const block of blocks) {
       for (const bb0 of block.getBBs()) {
@@ -226,7 +225,6 @@ export class ParkourJumpHelper {
       }
     }
 
-    console.log(ret)
     return ret
   }
 
@@ -297,7 +295,7 @@ export class ParkourJumpHelper {
     intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start))
     const intersect = intersects[0] as Vec3 | undefined
     if (intersect == null) {
-      console.log(bbs, this.bot.entity.position, start, dir, goalVert)
+      // console.log(bbs, this.bot.entity.position, start, dir, goalVert)
       throw Error('no intersect')
     }
     // if (!intersect) return null;
@@ -322,7 +320,7 @@ export class ParkourJumpHelper {
             // console.log(cursor)
             const bl = this.world.getBlockInfo(cursor)
             if (bl.physical && bl.getBBs().some((b) => b.collides(testBB))) {
-              console.log('scale', scale, 'failed')
+              // console.log('scale', scale, 'failed')
               scale -= 0.03
 
               // eslint-disable-next-line no-labels
@@ -332,7 +330,7 @@ export class ParkourJumpHelper {
         }
       }
 
-      console.log('scale', scale, 'success', wanted, intersect)
+      // console.log('scale', scale, 'success', wanted, intersect)
       // if (this.world.getBlockInfo(wanted).physical) {
       return wanted
       // }
@@ -348,7 +346,6 @@ export class ParkourJumpHelper {
 
     // if (this.world.getBlockInfo(wanted).physical) return intersect
 
-    console.log('defaulted')
     return intersect
 
     // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));

@@ -65,7 +65,7 @@ export class BlockInfo {
     BlockInfo._replaceableBlock = BlockInfo.PBlock.fromString('minecraft:air', 0) // also replaceable
     BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0)
 
-    console.log(BlockInfo._waterBlock)
+    // console.log(BlockInfo._waterBlock)
     BlockInfo.WATER1 = BlockInfo.fromBlock(BlockInfo._waterBlock)
     BlockInfo.SOLID1 = BlockInfo.fromBlock(BlockInfo._solidBlock)
     BlockInfo.AIR1 = BlockInfo.fromBlock(BlockInfo._airBlock)

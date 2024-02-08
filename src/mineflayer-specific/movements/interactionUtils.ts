@@ -449,7 +449,7 @@ export class PlaceHandler extends InteractHandler {
         start = performance.now()
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
         if (predictBlock) {
-          console.log('predicting block')
+          // console.log('predicting block')
           await bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
           // bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
@@ -524,7 +524,7 @@ export class BreakHandler extends InteractHandler {
   }
 
   toBlockInfo (): BlockInfo {
-    return BlockInfo.AIR1
+    return BlockInfo.AIR(this.vec)
   }
 
   getBlock (world: World): Block | null {

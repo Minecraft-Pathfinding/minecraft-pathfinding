@@ -52,7 +52,7 @@ export class ContinuousPathProducer implements PathProducer<Move> {
         (global as any).gc(true)
       }
 
-      console.log('Garbage collection took', performance.now() - starttime, 'ms')
+      // console.log('Garbage collection took', performance.now() - starttime, 'ms')
     } else {
       // console.log('Garbage collection unavailable.  Pass --expose-gc '
       //   + 'when launching node to enable forced garbage collection.');
