@@ -874,7 +874,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.reachedBackup = false
     await this.alignToPath(thisMove)
     // await this.lookAtPathPos(thisMove.exitPos);
-    this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`)
+    // this.bot.chat(`/particle flame ${thisMove.exitPos.x} ${thisMove.exitPos.y} ${thisMove.exitPos.z} 0 0.5 0 0 10 force`)
 
     // this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos);
 
