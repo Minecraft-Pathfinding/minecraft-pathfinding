@@ -44,7 +44,7 @@ export class ContinuousPathProducer implements PathProducer<Move> {
     const result = this.astarContext.compute()
 
     if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
-      const starttime = performance.now()
+      // const starttime = performance.now()
 
       if (this.lastGc % (this.gcInterval * 10) === 0) {
         // global.gc();

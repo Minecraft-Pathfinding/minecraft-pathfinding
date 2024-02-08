@@ -847,7 +847,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
       await this.lookAtPathPos(this.backUpTarget)
     } else {
-      const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world)
+      // const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world)
       // if (state.pos.y < this.bot.entity.position.y) {
       //   console.log("HI", state.pos, this.bot.entity.position)
       //   this.bot.setControlState('sneak', true)
