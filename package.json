@@ -15,8 +15,8 @@
   "version": "0.0.14",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
-  "repository": "https://github.com/GenerelSchwerz/minecraft-pathfinding.git",
-  "author": "GenerelSchwerz <xXSG.KingXx@gmail.com>",
+  "repository": "https://github.com/Minecraft-Pathfinding/minecraft-pathfinding.git",
+  "author": "GenerelSchwerz <rla32850@uga.edu>",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
