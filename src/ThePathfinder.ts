@@ -221,6 +221,7 @@ export class ThePathfinder {
       yield { result, astarContext }
 
       // allow bot to function even while calculating.
+      // Note: if we already ticked, there is no point in waiting. Our packets are already desynced.
       if (!ticked) {
         await this.bot.waitForTicks(1)
         ticked = false
@@ -259,10 +260,6 @@ export class ThePathfinder {
   }
 
   private async postProcess (pathInfo: Path<Move, Algorithm<Move>>): Promise<Path<Move, Algorithm<Move>>> {
-    // aggressive optimization.
-    // Identify all nodes that are able to be straight-lined to each other.
-    // Do so by comparing movement types && their respective y values.
-
     const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
     optimizer.loadPath(pathInfo.path)
