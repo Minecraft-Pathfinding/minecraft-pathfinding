@@ -68,8 +68,8 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
     const dz = dir.z
 
     // const dir1 = nextPoint.minus(bot.entity.position)
-    const dx1 = dir1.x
-    const dz1 = dir1.z
+    // const dx1 = dir1.x
+    // const dz1 = dir1.z
 
     const wantedYaw = wrapRadians(Math.atan2(-dx, -dz))
     // const moveYaw = wrapRadians(Math.atan2(-dx1, -dz1))
@@ -96,8 +96,8 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
   const dz = dir.z
 
   // const dir1 = bot.entity.velocity;
-  const dx1 = dir1.x
-  const dz1 = dir1.z
+  // const dx1 = dir1.x
+  // const dz1 = dir1.z
 
   const wantedYaw = wrapRadians(Math.atan2(-dx, -dz))
 
@@ -154,7 +154,7 @@ export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
  * @returns
  */
 // currentPoint,
-export function botStrafeMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3) {
+export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
@@ -224,7 +224,7 @@ export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true)
  * @returns
  */
 // currentPoint,
-export function botSmartMovement (bot: Bot, currentPoint: Vec3, nextPoint: Vec3, sprint: boolean): void {
+export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): void {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))

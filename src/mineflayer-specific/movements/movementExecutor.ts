@@ -419,7 +419,7 @@ export abstract class MovementExecutor extends Movement {
     endMove?: Move,
     opts?: { handleBack?: boolean, target?: Vec3, sprint?: boolean }
   ): Promise<void>
-  protected async alignToPath (startMove: Move, endMove?: any, opts?: any) {
+  protected async alignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
       endMove = startMove
       opts = {}
@@ -430,12 +430,12 @@ export abstract class MovementExecutor extends Movement {
       endMove = startMove
     }
 
-    const handleBack = opts.handleBack ?? false
+    // const handleBack = opts.handleBack ?? false
     const target = opts.target ?? endMove.exitPos
-    const offset = endMove.exitPos.minus(this.bot.entity.position)
-    const dir = endMove.exitPos.minus(startMove.entryPos)
+    // const offset = endMove.exitPos.minus(this.bot.entity.position)
+    // const dir = endMove.exitPos.minus(startMove.entryPos)
     const sprint = opts.sprint ?? true
-    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9
+    // const similarDirection = offset.normalize().dot(dir.normalize()) > 0.9
 
     // if (similarDirection) {
     //   this.bot.setControlState('left', false);

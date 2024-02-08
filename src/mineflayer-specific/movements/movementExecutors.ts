@@ -4,17 +4,16 @@ import { Move } from '../move'
 import { Movement } from './movement'
 import { CancelError } from './exceptions'
 import { BlockInfo } from '../world/cacheWorld'
-import { BreakHandler, RayType } from './interactionUtils'
+import { RayType } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
-import * as controls from './controls'
 import { MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, stateLookAt } from './movementUtils'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 
 export class IdleMovementExecutor extends Movement {
   provideMovements (start: Move, storage: Move[]): void {}
-  performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {}
-  performPerTick = async (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {}
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     return true
   }
 }
@@ -29,44 +28,44 @@ export class ForwardExecutor extends MovementExecutor {
   /**
    * TOOD: not yet working.
    */
-  private async facingCorrectDir () {
+  private async facingCorrectDir (): Promise<boolean> {
     return this.currentMove?.toPlace.length === 0
-    const wanted = await this.interactPossible(15)
+    // const wanted = await this.interactPossible(15);
 
-    if (wanted != null) {
-      const test = await wanted!.performInfo(this.bot, 15)
+    // if (wanted != null) {
+    //   const test = await wanted!.performInfo(this.bot, 15);
 
-      // cannot do interact while facing initial direction
-      if (test.raycasts.length > 0) {
-        // sort by dot product
-        const works = test.raycasts
-        const stateEyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
-        const lookDir = this.bot.util.getViewDir()
-        works.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir))
+    //   // cannot do interact while facing initial direction
+    //   if (test.raycasts.length > 0) {
+    //     // sort by dot product
+    //     const works = test.raycasts;
+    //     const stateEyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0);
+    //     const lookDir = this.bot.util.getViewDir();
+    //     works.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir));
 
-        const wanted = works[0].intersect
-        const xzLookDir = lookDir.offset(0, -lookDir.y, 0).normalize()
+    //     const wanted = works[0].intersect;
+    //     const xzLookDir = lookDir.offset(0, -lookDir.y, 0).normalize();
 
-        // check if wanted is currently seeable given current vector
+    //     // check if wanted is currently seeable given current vector
 
-        const wantDir = wanted.minus(this.bot.entity.position).normalize()
-        const xzWantDir = wantDir.offset(0, -wantDir.y, 0).normalize()
+    //     const wantDir = wanted.minus(this.bot.entity.position).normalize();
+    //     const xzWantDir = wantDir.offset(0, -wantDir.y, 0).normalize();
 
-        console.log(
-          xzWantDir,
-          xzLookDir,
-          xzWantDir.dot(xzLookDir),
-          wanted,
-          this.bot.entity.position,
-          this.bot.entity.position.distanceTo(wanted) < 5
-        )
-        return xzWantDir.dot(xzLookDir) > 0.9
-      } else {
-        return false
-      }
-    }
+    //     console.log(
+    //       xzWantDir,
+    //       xzLookDir,
+    //       xzWantDir.dot(xzLookDir),
+    //       wanted,
+    //       this.bot.entity.position,
+    //       this.bot.entity.position.distanceTo(wanted) < 5
+    //     );
+    //     return xzWantDir.dot(xzLookDir) > 0.9;
+    //   } else {
+    //     return false;
+    //   }
+    // }
 
-    return this.toBreakLen() === 0 && this.toPlaceLen() === 0
+    // return this.toBreakLen() === 0 && this.toPlaceLen() === 0;
   }
 
   async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
@@ -92,7 +91,7 @@ export class ForwardExecutor extends MovementExecutor {
 
     const off0 = thisMove.exitPos.minus(this.bot.entity.position)
     const off1 = thisMove.exitPos.minus(target)
-    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
+    // const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
 
     // console.log(off0.dot(off1), off0, off1)
 
@@ -124,7 +123,7 @@ export class ForwardExecutor extends MovementExecutor {
     return false
   }
 
-  async performInit (thisMove: Move, currentIndex: number, path: Move[]) {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
     this.bot.clearControlStates()
@@ -150,7 +149,7 @@ export class ForwardExecutor extends MovementExecutor {
     // console.log("done move prehandle!");
   }
 
-  private async identMove (thisMove: Move, currentIndex: number, path: Move[]) {
+  private async identMove (thisMove: Move, currentIndex: number, path: Move[]): Promise<number> {
     let lastMove = thisMove
     let nextMove = path[++currentIndex]
 
@@ -177,8 +176,12 @@ export class ForwardExecutor extends MovementExecutor {
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 1
-        const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize().scale(0.5), dist * 2)) as unknown as RayType
-        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist
+        const raycast0 = (await this.bot.world.raycast(
+          vert,
+          test.minus(vert).normalize().scale(0.5),
+          dist * 2
+        )) as unknown as RayType | null
+        const valid0 = (raycast0 == null) || raycast0.position.distanceTo(pos0) > dist
         if (!valid0) {
           return --currentIndex
         }
@@ -192,9 +195,9 @@ export class ForwardExecutor extends MovementExecutor {
         const dist = lastMove.exitPos.distanceTo(this.bot.entity.position) + 1
         const raycast0 = (await this.bot.world.raycast(vert, test.minus(vert).normalize().scale(0.5), dist * 2, (block) =>
           BlockInfo.replaceables.has(block.type)
-        )) as unknown as RayType
+        )) as unknown as RayType | null
 
-        const valid0 = !raycast0 || raycast0.position.distanceTo(pos0) > dist
+        const valid0 = (raycast0 == null) || raycast0.position.distanceTo(pos0) > dist
         if (!valid0) counter--
       }
 
@@ -208,7 +211,7 @@ export class ForwardExecutor extends MovementExecutor {
   }
 
   // TODO: clean this up.
-  private canJump (thisMove: Move, currentIndex: number, path: Move[]) {
+  private canJump (thisMove: Move, currentIndex: number, path: Move[]): boolean {
     if (!this.settings.allowJumpSprint) return false
     if (!this.bot.entity.onGround) return false
     if (this.toBreakLen() > 0 || this.toPlaceLen() > 0) return false
@@ -231,9 +234,9 @@ export class ForwardExecutor extends MovementExecutor {
 
     if (ctx.state.pos.y > thisMove.entryPos.y) return false
 
-    const nextPos = path[currentIndex + 1]
+    const nextPos = path[++currentIndex]
     let offset = 0.3
-    if (nextPos) {
+    if (currentIndex < path.length) {
       if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8
 
       // handle potential collisions here.
@@ -250,13 +253,13 @@ export class ForwardExecutor extends MovementExecutor {
     return ctx.state.onGround
   }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
-    if ((this.cI != null) && !this.cI.allowExternalInfluence(this.bot, 1)) {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+    if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
       this.bot.clearControlStates()
       this.bot.setControlState('sneak', true)
       return false
     } else if (this.cI == null) {
-      const start = performance.now()
+      // const start = performance.now()
       const test = await this.interactPossible(15)
       if (test != null) {
         void this.performInteraction(test)
@@ -274,7 +277,7 @@ export class ForwardExecutor extends MovementExecutor {
       // console.log(this.bot.entity.position, this.bot.entity.velocity);
       throw new CancelError('ForwardMove: not on ground')
     }
-    if ((this.bot.entity as any).isCollidedHorizontally) {
+    if ((this.bot.entity as any).isCollidedHorizontally as boolean) {
       // if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.02)
       // throw new CancelError("ForwardMove: collided horizontally");
     }
@@ -291,12 +294,12 @@ export class ForwardExecutor extends MovementExecutor {
         const nextMove = path[this.currentIndex]
         if (currentIndex !== this.currentIndex && nextMove !== undefined) {
           // this.lookAt(nextMove.exitPos, true);
-          this.alignToPath(thisMove, nextMove)
+          void this.alignToPath(thisMove, nextMove)
           if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex
           // if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2) return this.currentIndex - currentIndex;
         } else {
           // this.lookAt(thisMove.exitPos, true);
-          this.alignToPath(thisMove)
+          void this.alignToPath(thisMove)
           return this.isComplete(thisMove)
           // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
         }
@@ -304,13 +307,13 @@ export class ForwardExecutor extends MovementExecutor {
         const jump = this.canJump(thisMove, currentIndex, path)
         // console.log("should jump", jump);
         this.bot.setControlState('jump', jump)
-        this.alignToPath(thisMove)
+        void this.alignToPath(thisMove)
         return this.isComplete(thisMove)
         // return this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2;
       }
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
-      this.alignToPath(thisMove, { lookAt: offset })
+      void this.alignToPath(thisMove, { lookAt: offset })
       return this.isComplete(thisMove)
     }
 
@@ -374,7 +377,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
   }
 
   // TODO: re-optimize.
-  private async performTwoPlace (thisMove: Move) {
+  private async performTwoPlace (thisMove: Move): Promise<void> {
     this.bot.setControlState('sprint', false)
     let info = await thisMove.toPlace[0].performInfo(this.bot, 0)
     if (info.raycasts.length === 0) {
@@ -412,7 +415,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
     await this.lookAt(thisMove.exitPos)
   }
 
-  async performInit (thisMove: Move, currentIndex: number, path: Move[]) {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.flag = false
     this.bot.clearControlStates()
 
@@ -446,11 +449,11 @@ export class ForwardJumpExecutor extends MovementExecutor {
         if (test !== null) await this.performInteraction(place, { info: test })
       }
     }
-  };
+  }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     // console.log(tickCount, this.jumpInfo, this.bot.entity.position, this.bot.entity.velocity, this.bot.blockAt(this.bot.entity.position))
-    if ((this.cI != null) && !(await this.cI.allowExternalInfluence(this.bot))) {
+    if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
       this.bot.clearControlStates()
       return false
     } else if (this.cI == null) {
@@ -461,7 +464,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       }
     }
 
-    this.lookAtPathPos(thisMove.exitPos)
+    void this.lookAtPathPos(thisMove.exitPos)
     this.bot.setControlState('forward', true)
     // this.bot.setControlState("sprint", true);
 
@@ -493,7 +496,9 @@ export class ForwardJumpExecutor extends MovementExecutor {
       this.bot.setControlState('sprint', true)
 
       // very lazy way of doing this.
-      if (this.bot.entity.position.y - thisMove.exitPos.y < -0.25) { throw new CancelError('ForwardJumpMove: too low (2) ' + this.bot.entity.position.y, thisMove.exitPos.y) }
+      if (this.bot.entity.position.y - thisMove.exitPos.y < -0.25) {
+        throw new CancelError(`ForwardJumpMove: too low (2) ${this.bot.entity.position.y} ${thisMove.exitPos.y}`)
+      }
     }
 
     return this.isComplete(thisMove, thisMove)
@@ -503,16 +508,16 @@ export class ForwardJumpExecutor extends MovementExecutor {
 export class ForwardDropDownExecutor extends MovementExecutor {
   private currentIndex!: number
 
-  async performInit (thisMove: Move, currentIndex: number, path: Move[]) {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.currentIndex = currentIndex
-    this.alignToPath(thisMove, { sprint: true })
+    await this.alignToPath(thisMove, { sprint: true })
 
     // console.log(thisMove.exitPos, thisMove.x, thisMove.y, thisMove.z);
     // this.bot.setControlState("forward", true);
     // this.bot.setControlState("sprint", true);
   }
 
-  private identMove (thisMove: Move, currentIndex: number, path: Move[]) {
+  private identMove (thisMove: Move, currentIndex: number, path: Move[]): number {
     let lastMove = thisMove
     let nextMove = path[++currentIndex]
 
@@ -525,9 +530,9 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       lastMove.entryPos.y > nextMove.exitPos.y &&
       nextMove.moveType.toPlaceLen() === 0
     ) {
+      if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
-      nextMove = path[++currentIndex]
-      if (!nextMove) return --currentIndex
+      nextMove = path[currentIndex]
     }
 
     if (lastMove.entryPos.y === nextMove.exitPos.y) currentIndex++
@@ -535,8 +540,8 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     return --currentIndex
   }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) {
-    if ((this.cI != null) && !this.cI.allowExternalInfluence(this.bot, 0)) {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+    if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot, 0))) {
       this.bot.clearControlStates()
       return false
     } else if (this.cI == null) {
@@ -553,6 +558,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     // if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
     // else this.bot.setControlState("sprint", true);
 
+    // eslint-disable-next-line no-constant-condition
     if (false) {
       const idx = this.identMove(thisMove, currentIndex, path)
       this.currentIndex = Math.max(idx, this.currentIndex)
@@ -563,22 +569,22 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       // off0.dot(off1) > 0.85 &&
       if (currentIndex !== this.currentIndex && nextMove !== undefined) {
         // TODO: perform fall damage check to ensure this is allowed.
-        this.alignToPath(thisMove, nextMove)
+        void this.alignToPath(thisMove, nextMove)
         // console.log("hi", this.bot.entity.position, nextMove.exitPos, this.bot.entity.position.xzDistanceTo(nextMove.exitPos), this.bot.entity.position.y, nextMove.exitPos.y)
         // if (this.bot.entity.position.xzDistanceTo(nextMove.exitPos) < 0.2 && this.bot.entity.position.y === nextMove.exitPos.y)
         if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex
 
         // }
       } else {
-        this.alignToPath(thisMove, thisMove)
+        void this.alignToPath(thisMove, thisMove)
         // console.log(this.bot.entity.position, thisMove.exitPos, thisMove.entryPos, thisMove.exitPos.xzDistanceTo(this.bot.entity.position), thisMove.entryPos.xzDistanceTo(this.bot.entity.position))
         // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
         if (this.isComplete(thisMove, thisMove)) return true
       }
     } else {
-      const nextMove = path[currentIndex + 1]
-      if (nextMove) this.alignToPath(thisMove, { lookAt: nextMove.entryPos, sprint: true })
-      else this.alignToPath(thisMove, { sprint: true })
+      const nextMove = path[++currentIndex]
+      if (currentIndex < path.length) void this.alignToPath(thisMove, { lookAt: nextMove.entryPos, sprint: true })
+      else void this.alignToPath(thisMove, { sprint: true })
 
       if (this.isComplete(thisMove)) return true
       // if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && this.bot.entity.position.y === thisMove.exitPos.y) return true;
@@ -587,12 +593,12 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     return false
   }
 
-  getLandingBlock (node: Move, dir: Vec3) {
+  getLandingBlock (node: Move, dir: Vec3): BlockInfo | null {
     let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z)
-    while (blockLand.position && blockLand.position.y > (this.bot.game as any).minY) {
+    while (blockLand.position.y > (this.bot.game as any).minY) {
       if (blockLand.liquid && blockLand.safe) return blockLand
       if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlock(blockLand.position, 0, 1, 0)
+        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlockInfo(blockLand.position, 0, 1, 0)
         return null
       }
       if (!blockLand.safe) return null
@@ -610,7 +616,8 @@ export class StraightDownExecutor extends MovementExecutor {
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
       return true
     }
-    this.lookAt(thisMove.exitPos)
+
+    void this.lookAt(thisMove.exitPos)
 
     // provided that velocity is not pointing towards goal OR distance to goal is greater than 0.5 (not near center of block)
     // adjust as quickly as possible to goal.
@@ -618,10 +625,9 @@ export class StraightDownExecutor extends MovementExecutor {
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', true)
       this.bot.setControlState('sneak', false)
-    }
 
-    // if velocity is already heading towards the goal, slow down.
-    else {
+      // if velocity is already heading towards the goal, slow down.
+    } else {
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', false)
       this.bot.setControlState('sneak', true)
@@ -646,11 +652,11 @@ export class StraightUpExecutor extends MovementExecutor {
     return this.bot.entity.position.y >= thisMove.exitPos.y
   }
 
-  async align (thisMove: Move) {
+  async align (thisMove: Move): Promise<boolean> {
     const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5)
     this.bot.clearControlStates()
 
-    this.lookAt(target)
+    void this.lookAt(target)
 
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
     const bb1bl = this.getBlockInfo(target, 0, -1, 0)
@@ -671,10 +677,9 @@ export class StraightUpExecutor extends MovementExecutor {
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', true)
       this.bot.setControlState('sneak', false)
-    }
 
-    // if velocity is already heading towards the goal, slow down.
-    else {
+      // if velocity is already heading towards the goal, slow down.
+    } else {
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', false)
       this.bot.setControlState('sneak', true)
@@ -696,14 +701,14 @@ export class StraightUpExecutor extends MovementExecutor {
       await this.lookAt(place.vec.offset(0.5, 0, 0.5))
       this.bot.setControlState('jump', true)
       console.log('sup')
-      this.performInteraction(place)
+      void this.performInteraction(place)
     }
   }
 
   performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     if (this.bot.entity.position.y < thisMove.entryPos.y) throw new CancelError('StraightUp: too low')
     // this.bot.setControlState('sneak', false)
-    this.align(thisMove)
+    void this.align(thisMove)
 
     // console.log(this.bot.entity.position.y, thisMove.exitPos.y, this.bot.entity.position.y < thisMove.exitPos.y)
     this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.exitPos.y)
@@ -724,12 +729,12 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return super.isComplete(startMove, endMove, 0)
   }
 
-  async align (thisMove: Move, tickCount: number, goal: goals.Goal) {
+  async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     this.executing = false
 
     const target = thisMove.exitPos.offset(0, -1, 0)
 
-    const targetEyeVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
+    // const targetEyeVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
     const test2 = this.shitterTwo.simFallOffEdge(target)
 
     if (test2) {
@@ -740,7 +745,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.setControlState('jump', false)
       // this.reachedBackup = true;
       // this.bot.setControlState("sneak", false);
-      this.lookAtPathPos(target)
+      void this.lookAtPathPos(target)
       return true
     }
 
@@ -766,7 +771,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
         this.bot.setControlState('jump', true)
         this.bot.setControlState('sneak', false)
         this.bot.setControlState('jump', false)
-        this.lookAt(target)
+        void this.lookAt(target)
         this.executing = true
         return true
       }
@@ -775,7 +780,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
         this.bot.setControlState('forward', true)
         // this.reachedBackup = true;
         // this.bot.setControlState("sneak", false);
-        this.lookAt(target)
+        void this.lookAt(target)
         return false
       }
     }
@@ -786,7 +791,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize()
     const dir = target.minus(this.bot.entity.position).normalize()
 
-    const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+    // const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
     const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
     //
     // assume moving forward.
@@ -806,7 +811,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     const goingToFall = state.pos.y < this.bot.entity.position.y
 
-    if ((this.backUpTarget != null) && bb.containsVec(this.backUpTarget)) {
+    if (this.backUpTarget != null && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       console.log('here1', this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir))
@@ -817,7 +822,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.setControlState('sprint', dist > 0)
       this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.2 && true)
     } else if (
-      ((this.reachedBackup && (this.backUpTarget != null) && this.bot.entity.position.xzDistanceTo(this.backUpTarget) > 0.3) || (this.backUpTarget == null)) &&
+      ((this.reachedBackup && this.backUpTarget != null && this.bot.entity.position.xzDistanceTo(this.backUpTarget) > 0.3) ||
+        this.backUpTarget == null) &&
       goingToFall
     ) {
       this.reachedBackup = false
@@ -830,7 +836,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.setControlState('sneak', dist < 0 && xzvdir.dot(dir) < 0.5)
 
       await this.lookAtPathPos(this.backUpTarget)
-    } else if (!this.reachedBackup && (this.backUpTarget != null)) {
+    } else if (!this.reachedBackup && this.backUpTarget != null) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       console.log('here3', this.backUpTarget, this.bot.entity.position, bb)
 
@@ -881,19 +887,19 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     if (this.executing) {
       this.bot.setControlState('jump', false)
-      this.alignToPath(thisMove)
+      void this.alignToPath(thisMove)
       return this.isComplete(thisMove)
     }
 
     const target = thisMove.exitPos.offset(0, -1, 0)
-    const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
+    // const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
 
     const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6)
     if (bbs.length === 0) {
       bbs.push(AABB.fromBlockPos(thisMove.entryPos))
     }
 
-    this.alignToPath(thisMove)
+    void this.alignToPath(thisMove)
     // this.lookAtPathPos(thisMove.exitPos)
 
     // console.log('CALLED TEST IN PER TICK', this.bot.entity.position, this.shitterTwo.getUnderlyingBBs(this.bot.entity.position,0.6))

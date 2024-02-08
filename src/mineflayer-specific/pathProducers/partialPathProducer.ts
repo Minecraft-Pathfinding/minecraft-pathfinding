@@ -5,7 +5,6 @@ import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
 import { AStar } from '../../abstract/algorithms/astar'
-import { PathData } from '../../abstract/node'
 import { Path } from '../../abstract'
 
 export class PartialPathProducer implements PathProducer<Move> {
@@ -38,7 +37,7 @@ export class PartialPathProducer implements PathProducer<Move> {
     }
     const astarContext = new AStar<Move>(start, moveHandler, this.goal, -1, 45, -1, 0)
 
-    const result = astarContext.compute()!
+    const result = astarContext.compute()
     this.latestMove = result.path[result.path.length - 1]
     this.lastPath = [...this.lastPath, ...result.path]
     return {
@@ -50,7 +49,7 @@ export class PartialPathProducer implements PathProducer<Move> {
     }
   }
 
-  private mergePathspath (path1: Move[], path2: Move[]) {
-    const last: Move = path1[0]
-  }
+  // private mergePathspath (path1: Move[], path2: Move[]) {
+  //   const last: Move = path1[0]
+  // }
 }

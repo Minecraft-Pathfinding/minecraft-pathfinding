@@ -1,40 +1,36 @@
-import { EntityPhysics, IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
-import { EntityState, PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
-import { AABB, AABBUtils, MathUtils } from '@nxg-org/mineflayer-util-plugin'
-import { stat } from 'fs/promises'
-import { Bot } from 'mineflayer'
-import { Block } from 'prismarine-block'
-import { promisify } from 'util'
+import { EntityPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
+import { EntityState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
 import { BaseSimulator, Controller, EPhysicsCtx, OnGoalReachFunction, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
-import { smartMovement, strafeMovement, wrapDegrees, wrapRadians } from '../controls'
+import { smartMovement, strafeMovement, wrapRadians } from '../controls'
 
-const ZERO = (0 * Math.PI) / 12
+// const ZERO = (0 * Math.PI) / 12
 const PI_OVER_TWELVE = (1 * Math.PI) / 12
-const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
-const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
-const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
+// const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
+// const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
+// const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
 const FIVE_PI_OVER_TWELVE = (5 * Math.PI) / 12
-const SIX_PI_OVER_TWELVE = (6 * Math.PI) / 12
+// const SIX_PI_OVER_TWELVE = (6 * Math.PI) / 12
 const SEVEN_PI_OVER_TWELVE = (7 * Math.PI) / 12
-const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
-const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
-const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
+// const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
+// const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
+// const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
 const ELEVEN_PI_OVER_TWELVE = (11 * Math.PI) / 12
-const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
+// const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
 const THIRTEEN_PI_OVER_TWELVE = (13 * Math.PI) / 12
-const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
-const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
-const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
+// const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
+// const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
+// const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
 const SEVENTEEN_PI_OVER_TWELVE = (17 * Math.PI) / 12
-const EIGHTEEN_PI_OVER_TWELVE = (18 * Math.PI) / 12
+// const EIGHTEEN_PI_OVER_TWELVE = (18 * Math.PI) / 12
 const NINETEEN_PI_OVER_TWELVE = (19 * Math.PI) / 12
-const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
-const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
-const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
+// const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
+// const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
+// const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
 const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
-const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
+// const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
 
 /**
  * To be used once per movement.
@@ -53,7 +49,7 @@ export class JumpSim extends BaseSimulator {
     return new JumpSim(this.physics, this.world)
   }
 
-  async simulateUntilNextTick (ctx: EPhysicsCtx) {
+  simulateUntilNextTick (ctx: EPhysicsCtx): EntityState {
     return this.simulateUntil(
       () => false,
       () => {},
@@ -64,7 +60,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateUntilOnGround (ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false) {
+  simulateUntilOnGround (ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false): EntityState {
     const state = this.simulateUntil(
       JumpSim.buildAnyGoal(goal, (state, ticks) => ticks > 0 && state.onGround),
       () => {},
@@ -81,7 +77,7 @@ export class JumpSim extends BaseSimulator {
     return state
   }
 
-  simulateSmartAim (goal: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20) {
+  simulateSmartAim (goal: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): EntityState {
     return this.simulateUntil(
       JumpSim.getReached(goal),
       JumpSim.getCleanupPosition(goal),
@@ -100,7 +96,7 @@ export class JumpSim extends BaseSimulator {
   /**
    * Assume we know the correct back-up position.
    */
-  simulateBackUpBeforeJump (ctx: EPhysicsCtx, goal: Vec3, sprint: boolean, strafe = true, ticks = 20) {
+  simulateBackUpBeforeJump (ctx: EPhysicsCtx, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): EntityState {
     const aim = strafe ? JumpSim.getControllerStrafeAim(goal) : JumpSim.getControllerStraightAim(goal)
     return this.simulateUntil(
       (state) => state.pos.xzDistanceTo(goal) < 0.1,
@@ -115,7 +111,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: Vec3, sprint: boolean, ticks = 20) {
+  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: Vec3, sprint: boolean, ticks = 20): EntityState {
     let jump = false
     let changed = false
     const goalBlockTop = goalBlock.floored().translate(0.5, 0, 0.5)
@@ -184,6 +180,8 @@ export class JumpSim extends BaseSimulator {
   static getControllerStrafeAim (nextPoint: Vec3): Controller {
     return (state, ticks) => strafeMovement(state, nextPoint)
 
+    // commented out for testing.
+    // eslint-disable-next-line no-unreachable
     return (state, ticks) => {
       const offset = state.pos.plus(state.onGround ? state.vel : state.vel.scaled(1))
       const dx = nextPoint.x - offset.x
@@ -219,6 +217,8 @@ export class JumpSim extends BaseSimulator {
   static getControllerSmartMovement (goal: Vec3, sprint: boolean): Controller {
     return (state, ticks) => smartMovement(state, goal, sprint)
 
+    // commented out for testing.
+    // eslint-disable-next-line no-unreachable
     return (state, ticks) => {
       const offset = state.pos.plus(state.onGround ? state.vel : state.vel.scaled(1))
       const dx = goal.x - offset.x

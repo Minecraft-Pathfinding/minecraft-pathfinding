@@ -7,7 +7,7 @@ import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from './movement'
 import { MovementProvider as AMovementProvider } from '../../abstract'
 import { ExecutorMap } from '.'
 import { Vec3 } from 'vec3'
-import { Block, Vec3Properties } from '../../types'
+import { Vec3Properties } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
 
 /**
@@ -38,7 +38,7 @@ export abstract class MovementProvider extends Movement {
 
   private localData: Array<BlockInfo | null> = []
 
-  loadLocalData (orgPos: Vec3, boundaries: [x: number, y: number, z: number], arr: Array<BlockInfo | null>, clear: Set<number>) {
+  loadLocalData (orgPos: Vec3, boundaries: [x: number, y: number, z: number], arr: Array<BlockInfo | null>, clear: Set<number>): void {
     this.orgPos = orgPos
     this.localData = arr
     this.boundaries = boundaries
@@ -118,7 +118,7 @@ export abstract class MovementProvider extends Movement {
     // this.localData[wantedDx][wantedDy][wantedDz] = ret;
     this.localData[idx] = ret
 
-    const packed = wantedDx << 16 + wantedDy << 8 + wantedDz
+    const packed = (wantedDx << (16 + wantedDy)) << (8 + wantedDz)
 
     this.toClear.add(packed)
     return ret
@@ -142,7 +142,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     return new MovementHandler(
       bot,
       world,
-      [...recMovement.keys()].map((m) => new m(bot, world, opts)),
+      [...recMovement.keys()].map((M) => new M(bot, world, opts)),
       recMovement
     ).initLocalData()
   }
@@ -152,10 +152,11 @@ export class MovementHandler implements AMovementProvider<Move> {
   }
 
   sanitize (): boolean {
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     return !!this.goal
   }
 
-  loadGoal (goal: goals.Goal) {
+  loadGoal (goal: goals.Goal): void {
     this.goal = goal
   }
 
@@ -164,7 +165,7 @@ export class MovementHandler implements AMovementProvider<Move> {
   private readonly toClear: Set<number> = new Set()
   private localData: Array<BlockInfo | null> = []
 
-  initLocalData () {
+  initLocalData (): this {
     // this.resetLocalData();
     this.localData = new Array(this.maxBound).fill(null, 0, this.maxBound)
 
@@ -175,7 +176,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     return this
   }
 
-  resetLocalData () {
+  resetLocalData (): void {
     // for (const key of this.toClear) {
     //   this.localData[key] = null;
     // }
@@ -204,7 +205,7 @@ export class MovementHandler implements AMovementProvider<Move> {
   private swapArray = new Array(this.maxBound).fill(null)
   private readonly swapSet = new Set<number>()
 
-  shiftLocalData (orgPos: Vec3, newPos: Vec3) {
+  shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
     const diff = orgPos.minus(newPos) // newPos.minus(orgPos);
 
     // this.swapArray.fill(null);
@@ -327,51 +328,51 @@ export class MovementHandler implements AMovementProvider<Move> {
 
     // for differences less than 1 block, we only supply best movement to said block.
 
-    if (moves.length === 0) return moves
+    // if (moves.length === 0) return moves
 
-    const visited = new Set()
-    for (const move of moves) {
-      visited.add(move.hash)
-    }
+    // const visited = new Set()
+    // for (const move of moves) {
+    //   visited.add(move.hash)
+    // }
 
-    // console.log(visited)
+    // // console.log(visited)
 
-    const ret = []
-    for (const visit of visited) {
-      const tmp = moves.filter((m) => m.hash === visit)
-      const wantedCost = stableSort1(tmp, (a, b) => a.cost - b.cost)[0].cost
-      const wanted = tmp.filter((m) => m.cost === wantedCost).sort((a, b) => this.goal.heuristic(a) - this.goal.heuristic(b))[0]!
-      ret.push(wanted)
-    }
+    // const ret = []
+    // for (const visit of visited) {
+    //   const tmp = moves.filter((m) => m.hash === visit)
+    //   const wantedCost = stableSort1(tmp, (a, b) => a.cost - b.cost)[0].cost
+    //   const wanted = tmp.filter((m) => m.cost === wantedCost).sort((a, b) => this.goal.heuristic(a) - this.goal.heuristic(b))[0]
+    //   ret.push(wanted)
+    // }
 
     // for (const move of moves) {
     //   (move as any).cost = Math.round(move.cost);
     // }
 
-    return ret
+    // return ret
   }
 }
 
-type Comparator<T> = (a: T, b: T) => number
+// type Comparator<T> = (a: T, b: T) => number
 
-const defaultCmp: Comparator<any> = (a, b) => {
-  if (a < b) return -1
-  if (a > b) return 1
-  return 0
-}
+// const defaultCmp: Comparator<any> = (a, b) => {
+//   if (a < b) return -1
+//   if (a > b) return 1
+//   return 0
+// }
 
-function stableSort1<T> (arr: T[], cmp: Comparator<T> = defaultCmp): T[] {
-  const stabilized = arr.map((el, index) => [el, index] as [T, number])
-  const stableCmp: Comparator<[T, number]> = (a, b) => {
-    const order = cmp(a[0], b[0])
-    if (order != 0) return order
-    return a[1] - b[1]
-  }
+// function stableSort1<T> (arr: T[], cmp: Comparator<T> = defaultCmp): T[] {
+//   const stabilized = arr.map((el, index) => [el, index] as [T, number])
+//   const stableCmp: Comparator<[T, number]> = (a, b) => {
+//     const order = cmp(a[0], b[0])
+//     if (order !== 0) return order
+//     return a[1] - b[1]
+//   }
 
-  stabilized.sort(stableCmp)
-  for (let i = 0; i < arr.length; i++) {
-    arr[i] = stabilized[i][0]
-  }
+//   stabilized.sort(stableCmp)
+//   for (let i = 0; i < arr.length; i++) {
+//     arr[i] = stabilized[i][0]
+//   }
 
-  return arr
-}
+//   return arr
+// }

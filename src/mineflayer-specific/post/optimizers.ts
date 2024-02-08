@@ -75,9 +75,9 @@ export class StraightAheadOpt extends MovementOptimizer {
           test.minus(vert).normalize(),
           dist,
           (block) => BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || block.shapes.length === 0
-        )) as unknown as RayType
+        )) as unknown as RayType | null
 
-        const valid0 = !raycast0 || raycast0.shapes.length > 0 || raycast0.position.distanceTo(orgPos) > dist
+        const valid0 = (raycast0 == null) || raycast0.shapes.length > 0 || raycast0.position.distanceTo(orgPos) > dist
 
         // console.log('\n\nAIR CHECK')
         // console.log('offset', offset)

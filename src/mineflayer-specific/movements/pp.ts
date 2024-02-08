@@ -1,23 +1,23 @@
 // @ts-nocheck
 
+// eslint-disable-
+
 import { Vec3 } from 'vec3'
 import { SimMovement } from '../movements'
-import * as controls from './controls'
-import { BaseSimulator, EPhysicsCtx, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, Controller, EPhysicsCtx, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { goals } from '../goals'
 import { Move } from '../move'
 import { emptyVec } from '@nxg-org/mineflayer-physics-util/dist/physics/settings'
-import { CancelError } from './exceptions'
 
-function setState (simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3) {
+function setState (simCtx: EPhysicsCtx, pos: Vec3, vel: Vec3): void {
   simCtx.state.age = 0
   simCtx.state.pos.set(pos.x, pos.y, pos.z)
   simCtx.state.vel.set(vel.x, vel.y, vel.z)
 }
 
 export class ForwardJumpMovement extends SimMovement {
-  controlAim (nextPoint: Vec3) {
+  controlAim (nextPoint: Vec3): Controller {
     // const zero = controls.getControllerSmartMovement(nextPoint, true);
     // const one = controls.getControllerStrafeAim(nextPoint);
     let aimed = false
@@ -46,7 +46,7 @@ export class ForwardJumpMovement extends SimMovement {
     }
   }
 
-  botAim (bot: Bot, nextMove: Vec3, goal: goals.Goal) {
+  botAim (bot: Bot, nextMove: Vec3, goal: goals.Goal): () => void {
     // const zero = controls.getBotSmartMovement(bot, nextMove, true);
     // const one = controls.getBotStrafeAim(bot, nextMove);
     let aimed = false
@@ -58,7 +58,7 @@ export class ForwardJumpMovement extends SimMovement {
         aimed = true
       }
 
-      if ((bot.entity as any).isCollidedHorizontally) {
+      if ((bot.entity as any).isCollidedHorizontally as boolean) {
         bot.setControlState('jump', true)
         bot.setControlState('forward', false)
         bot.setControlState('back', true)
@@ -78,7 +78,7 @@ export class ForwardJumpMovement extends SimMovement {
   // right should be positiive,
   // left should be negative.
 
-  getReached (goal: goals.Goal, nextPos: Vec3, start: Move) {
+  getReached (goal: goals.Goal, nextPos: Vec3, start: Move): SimulationGoal {
     const vecGoal = goal.toVec()
     return (state: EntityState, age: number) => {
       if (!state.isCollidedVertically) return false
@@ -86,7 +86,7 @@ export class ForwardJumpMovement extends SimMovement {
     }
   }
 
-  botReach (bot: Bot, move: Move, goal: goals.Goal) {
+  botReach (bot: Bot, move: Move, goal: goals.Goal): () => boolean {
     const vecGoal = goal.toVec()
     return () => {
       if (!bot.entity.onGround) return false
@@ -125,14 +125,15 @@ export class ForwardJumpMovement extends SimMovement {
       //   return;
       // }
 
-      if (reach(state, state.age)) {
+      const good: boolean = reach(state, state.age)
+      if (good) {
         // console.log("GI",state.pos, state.isCollidedVertically, cost)
         storage.push(Move.fromPreviousState(cost, state, start, this))
       }
     }
   }
 
-  align = (thisMove: Move, tickCount: number, goal: goals.Goal) => {
+  align (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     return this.bot.entity.onGround
   }
 

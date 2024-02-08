@@ -1,0 +1,3 @@
+{
+    "ignorePatterns": ["./src/mineflayer-specific/movements/pp.ts"]
+}

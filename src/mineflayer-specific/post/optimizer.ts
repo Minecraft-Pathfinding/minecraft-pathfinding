@@ -89,7 +89,7 @@ export class Optimizer {
     return !!this.pathCopy
   }
 
-  private mergeMoves (startIndex: number, endIndex: number, optimizer: MovementOptimizer) {
+  private mergeMoves (startIndex: number, endIndex: number, optimizer: MovementOptimizer): void {
     const newMove = optimizer.mergeMoves(startIndex, endIndex, this.pathCopy)
 
     // console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))

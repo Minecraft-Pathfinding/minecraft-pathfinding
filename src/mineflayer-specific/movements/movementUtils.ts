@@ -1,7 +1,6 @@
 import {
   BaseSimulator,
   ControlStateHandler,
-  Controller,
   EPhysicsCtx,
   EntityPhysics,
   EntityState,
@@ -10,17 +9,14 @@ import {
 import { Bot } from 'mineflayer'
 import { World } from '../world/worldInterface'
 import v, { Vec3 } from 'vec3'
-import { Move } from '../move'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
-import { RayType } from './interactionUtils'
-import { BlockInfo } from '../world/cacheWorld'
 import { JumpSim } from './simulators/jumpSim'
 import { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
 
 interface JumpInfo { jumpTick: number, sprintTick: number }
 
-export function stateLookAt (state: EntityState, point: Vec3) {
+export function stateLookAt (state: EntityState, point: Vec3): void {
   const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0))
   const yaw = Math.atan2(-delta.x, -delta.z)
   const groundDistance = Math.sqrt(delta.x * delta.x + delta.z * delta.z)
@@ -29,12 +25,15 @@ export function stateLookAt (state: EntityState, point: Vec3) {
   state.pitch = pitch
 }
 
-export function isBlockTypeInChunks (info: Block | number, ...chunks: PCChunk[]) {
+export function isBlockTypeInChunks (info: Block | number, ...chunks: PCChunk[]): boolean {
   info = info instanceof Number ? info : (info as Block).stateId ?? -1
 
   for (const chunk of chunks) {
     for (const section of chunk.sections) {
       // console.log(section)
+
+      // typing here is incorrect for PCChunk. Palette may be undefined.
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       if (section.palette) for (const id of section.palette) if (info === id) return true
     }
   }
@@ -84,7 +83,7 @@ export class JumpCalculator {
     return null
   }
 
-  protected resetState () {
+  protected resetState (): EntityState {
     this.ctx = EPhysicsCtx.FROM_BOT(this.engine.ctx, this.bot)
     this.ctx.state.age = 0
     this.ctx.state.control = ControlStateHandler.DEFAULT()
@@ -93,7 +92,7 @@ export class JumpCalculator {
     return this.ctx.state
   }
 
-  protected checkImmediateSprintJump (goal: Vec3) {
+  protected checkImmediateSprintJump (goal: Vec3): boolean {
     const state = this.resetState()
     stateLookAt(state, goal)
     this.simJump(state)
@@ -103,7 +102,7 @@ export class JumpCalculator {
     return false
   }
 
-  protected checkSprintJump (goal: Vec3, firstTicks = 0, secondTicks = 0, sprintAfterJump = false) {
+  protected checkSprintJump (goal: Vec3, firstTicks = 0, secondTicks = 0, sprintAfterJump = false): boolean {
     const state = this.resetState()
     stateLookAt(state, goal)
     this.simJumpAdvanced(state, {
@@ -118,7 +117,7 @@ export class JumpCalculator {
     return false
   }
 
-  protected simJump (state: EntityState, maxTicks = 20) {
+  protected simJump (state: EntityState, maxTicks = 20): EntityState {
     state.control.set('forward', true)
     state.control.set('jump', true)
     state.control.set('sprint', true)
@@ -141,17 +140,20 @@ export class JumpCalculator {
       sprintAfterJump?: boolean
       maxTicks?: number
     } = {}
-  ) {
-    let { firstTicks, secondTicks, sprintAfterJump, maxTicks } = opts
-    firstTicks = firstTicks ?? 0
-    secondTicks = secondTicks ?? 0
-    sprintAfterJump = sprintAfterJump ?? false
-    maxTicks = maxTicks ?? 20
+  ): EntityState {
+    // goddamnit ts-standard.
+    const { firstTicks, secondTicks, sprintAfterJump, maxTicks } = opts
+    const ft = firstTicks ?? 0
+    const st = secondTicks ?? 0
+    const sj = sprintAfterJump ?? false
+    const mt = maxTicks ?? 20
 
     // console.log("in sim:", firstTicks, secondTicks, sprintAfterJump, maxTicks, state.control)
     this.engine.simulateUntil(
       (state, ticks) => {
-        const boundary = sprintAfterJump ? firstTicks! + secondTicks! : firstTicks!
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const boundary = sj ? ft + st : ft
+
         // console.log(firstTicks, secondTicks, 'checking goal', ticks, state.control.get('jump'), state.onGround, state.isCollidedVertically, state.isCollidedHorizontally, state.pos)
         return (state.control.get('jump') && state.onGround && ticks > boundary) || state.isCollidedHorizontally
       },
@@ -160,14 +162,19 @@ export class JumpCalculator {
         state.control.set('forward', false)
         state.control.set('jump', false)
         state.control.set('sprint', false)
-        if (ticks >= firstTicks!) {
-          if (sprintAfterJump) state.control.set('jump', true)
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (ticks >= ft) {
+          if (sj) state.control.set('jump', true)
           else {
             state.control.set('sprint', true)
             state.control.set('forward', true)
           }
-          if (ticks >= firstTicks! + secondTicks!) {
-            if (sprintAfterJump) {
+
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          if (ticks >= ft + st) {
+            // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+            if (sj) {
               state.control.set('sprint', true)
               state.control.set('forward', true)
             } else {
@@ -179,7 +186,7 @@ export class JumpCalculator {
       },
       this.ctx,
       this.world,
-      maxTicks
+      mt
     )
 
     return state
@@ -197,7 +204,7 @@ export class ParkourJumpHelper {
     this.world = world
   }
 
-  public getUnderlyingBBs (pos: Vec3, width: number, colliding = true) {
+  public getUnderlyingBBs (pos: Vec3, width: number, colliding = true): AABB[] {
     const verts = [
       pos.offset(-width / 2, 0, -width / 2),
       pos.offset(-width / 2, 0, width / 2),
@@ -223,7 +230,7 @@ export class ParkourJumpHelper {
     return ret
   }
 
-  public findGoalVertex (goal: AABB) {
+  public findGoalVertex (goal: AABB): Vec3 {
     // get top vertex that is closest to target.
 
     const pos = this.bot.entity.position
@@ -266,12 +273,12 @@ export class ParkourJumpHelper {
     return minVert
   }
 
-  findBackupVertex (bbs: AABB[], goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position) {
+  findBackupVertex (bbs: AABB[], goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 {
     const dir = goalVert.minus(this.bot.entity.position)
     dir.translate(0, -dir.y, 0)
     dir.normalize()
 
-    const test = this.bot.entity.position.floored().offset(0, -1, 0)
+    // const test = this.bot.entity.position.floored().offset(0, -1, 0)
 
     const start = this.bot.entity.position.clone()
     start.y = Math.floor(start.y)
@@ -288,8 +295,8 @@ export class ParkourJumpHelper {
     }
 
     intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start))
-    const intersect = intersects[0]
-    if (!intersect) {
+    const intersect = intersects[0] as Vec3 | undefined
+    if (intersect == null) {
       console.log(bbs, this.bot.entity.position, start, dir, goalVert)
       throw Error('no intersect')
     }
@@ -342,15 +349,13 @@ export class ParkourJumpHelper {
     return intersect
 
     // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));
-
-    return dir
   }
 
-  public simJumpFromEdge (srcBBs: AABB[], goal: Vec3) {
+  public simJumpFromEdge (srcBBs: AABB[], goal: Vec3): boolean {
     // const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6);
     // console.log(bbs)
 
-    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
+    // const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
 
     const goalCenter = goal.floored().offset(0.5, 0, 0.5)
 
@@ -363,8 +368,8 @@ export class ParkourJumpHelper {
     return reached(state, 0)
   }
 
-  public simFallOffEdge (goal: Vec3) {
-    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
+  public simFallOffEdge (goal: Vec3): boolean {
+    // const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
 
     // console.log('sim jump goals', goal, goalVert)
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
@@ -377,7 +382,7 @@ export class ParkourJumpHelper {
     ctx.state.control.set('jump', false)
     ctx.state.control.set('sprint', true)
 
-    const orgPos = this.bot.entity.position.clone()
+    // const orgPos = this.bot.entity.position.clone()
 
     const reached0 = JumpSim.getReached(goal)
     const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks)
@@ -396,12 +401,12 @@ export class ParkourJumpHelper {
     return reached0(state, 0)
   }
 
-  public simForwardMove (goal: Vec3, jump = true, ...constraints: SimulationGoal[]) {
-    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
+  public simForwardMove (goal: Vec3, jump = true, ...constraints: SimulationGoal[]): boolean {
+    // const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
 
     // console.log('sim jump goals', goal, goalVert)
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
-    const goalCenter = goal.floored().offset(0.5, 0, 0.5)
+    // const goalCenter = goal.floored().offset(0.5, 0, 0.5)
 
     ctx.state.control = ControlStateHandler.DEFAULT()
     stateLookAt(ctx.state, goal)
@@ -409,14 +414,14 @@ export class ParkourJumpHelper {
     ctx.state.control.set('jump', jump)
     ctx.state.control.set('sprint', true)
 
-    const orgPos = this.bot.entity.position.clone()
+    // const orgPos = this.bot.entity.position.clone()
 
     let reached = JumpSim.getReached(goal) as SimulationGoal
     if (constraints.length > 0) {
       const old = reached
       reached = (state, ticks) => {
         for (const constraint of constraints) {
-          if (!constraint(state, ticks)) return false
+          if (!(constraint(state, ticks) as boolean)) return false
         }
         return old(state, ticks)
       }
@@ -436,14 +441,14 @@ export class ParkourJumpHelper {
     //   state.control
     // );
 
-    const testwtf = reached(state, 0)
+    const testwtf = reached(state, 0) as boolean
 
     // console.log('sim jump TEST', testwtf)
 
     return testwtf
   }
 
-  public simBackupJump (goal: Vec3) {
+  public simBackupJump (goal: Vec3): boolean {
     const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6)
 
     const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
@@ -454,7 +459,7 @@ export class ParkourJumpHelper {
 
     const lazyFix = this.findBackupVertex(bbs, goal)
 
-    if (lazyFix) this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40)
+    this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40)
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goal, true, 40)
 
     return reached(state, 0)

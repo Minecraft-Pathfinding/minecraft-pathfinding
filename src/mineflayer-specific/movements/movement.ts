@@ -5,9 +5,7 @@ import { Move } from '../move'
 import { goals } from '../goals'
 import { World } from '../world/worldInterface'
 import { BlockInfo } from '../world/cacheWorld'
-import * as nbt from 'prismarine-nbt'
-import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
-import { BreakHandler, InteractHandler, InteractOpts, InteractType, PlaceHandler } from './interactionUtils'
+import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './interactionUtils'
 import { Vec3Properties } from '../../types'
 
 export interface MovementOptions {

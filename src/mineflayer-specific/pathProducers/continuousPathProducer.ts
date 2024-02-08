@@ -5,6 +5,13 @@ import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
 import { AStar } from '../../abstract/algorithms/astar'
+import { Path } from '../../abstract'
+
+// temp typing
+interface AdvanceRes {
+  result: Path<Move, AStar<Move>>
+  astarContext: AStar<Move>
+}
 
 export class ContinuousPathProducer implements PathProducer<Move> {
   private readonly start: Move
@@ -26,7 +33,7 @@ export class ContinuousPathProducer implements PathProducer<Move> {
     this.movements = movements
   }
 
-  advance () {
+  advance (): AdvanceRes {
     if (this.astarContext == null) {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
@@ -34,7 +41,7 @@ export class ContinuousPathProducer implements PathProducer<Move> {
       this.astarContext = new AStar(this.start, moveHandler, this.goal, -1, 45, -1, 0)
     }
 
-    const result = this.astarContext.compute()!
+    const result = this.astarContext.compute()
 
     if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
       const starttime = performance.now()

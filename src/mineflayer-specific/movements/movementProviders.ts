@@ -1,20 +1,17 @@
-import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { goals } from '../goals'
 import { Move } from '../move'
-import { World } from '../world/worldInterface'
-import { Movement, MovementOptions } from './movement'
+import { Movement } from './movement'
 import { BreakHandler, PlaceHandler } from './interactionUtils'
 import { emptyVec } from '@nxg-org/mineflayer-physics-util/dist/physics/settings'
 import { MovementProvider } from './movementProvider'
-import { isBlockTypeInChunks } from './movementUtils'
 import { BlockInfo } from '../world/cacheWorld'
-import type { PCChunk } from 'prismarine-chunk'
+
 export class IdleMovement extends MovementProvider {
   movementDirs: Vec3[] = []
   provideMovements (start: Move, storage: Move[]): void {}
-  performInit = async (thisMove: Move, currentIndex: number, path: Move[]) => {}
-  performPerTick = async (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]) => {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {}
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     return true
   }
 }
@@ -22,17 +19,13 @@ export class IdleMovement extends MovementProvider {
 export class Forward extends MovementProvider {
   movementDirs = Movement.cardinalDirs
 
-  constructor (bot: Bot, world: World, settings: Partial<MovementOptions>) {
-    super(bot, world, settings)
-  }
-
   provideMovements (start: Move, storage: Move[], goal: goals.Goal): void {
     for (const dir of this.movementDirs) {
       this.getMoveForward(start, dir, storage)
     }
   }
 
-  getMoveForward (start: Move, dir: Vec3, neighbors: Move[]) {
+  getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
     const pos = start.toVec()
 
     let cost = 1 // move cost
@@ -84,7 +77,7 @@ export class ForwardJump extends MovementProvider {
    * @param neighbors
    * @returns
    */
-  getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]) {
+  getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]): void {
     // const pos = node.exitRounded(1)
     const pos = node.toVec()
     const blockA = this.getBlockInfo(pos, 0, 2, 0)
@@ -148,7 +141,7 @@ export class ForwardJump extends MovementProvider {
 }
 
 abstract class DropDownProvider extends MovementProvider {
-  getLandingBlock (node: Move, dir: Vec3 = emptyVec) {
+  getLandingBlock (node: Move, dir: Vec3 = emptyVec): BlockInfo | null {
     // const chunk = this.bot.world.getColumn(node.x >> 4, node.z >> 4) as unknown as PCChunk;
 
     // TODO: optimize this.
@@ -165,7 +158,7 @@ abstract class DropDownProvider extends MovementProvider {
 
     let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z)
 
-    while (blockLand.position && blockLand.position.y >= min) {
+    while (blockLand.position.y >= min) {
       if (blockLand.liquid && blockLand.safe) return blockLand
       if (blockLand.physical) {
         if (node.y - blockLand.position.y <= this.settings.maxDropDown) { return this.getBlockInfo(blockLand.position, 0, 1, 0) }
@@ -189,7 +182,7 @@ export class ForwardDropDown extends DropDownProvider {
     }
   }
 
-  getMoveDropDown (node: Move, dir: Vec3, neighbors: Move[]) {
+  getMoveDropDown (node: Move, dir: Vec3, neighbors: Move[]): void {
     const blockC = this.getBlockInfo(node, dir.x, 0, dir.z)
     if (blockC.liquid) return // dont go underwater
 
@@ -232,7 +225,7 @@ export class Diagonal extends MovementProvider {
     }
   }
 
-  getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal) {
+  getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
     let cost = Diagonal.diagonalCost
 
     if (this.getBlockInfo(node.entryPos.floored(), 0, 0, 0).liquid) cost += this.settings.liquidCost
@@ -243,7 +236,7 @@ export class Diagonal extends MovementProvider {
 
     const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
     if (block00.height - block0.height > 0.6) return // Too high to walk up
-    const needSideClearance = block00.height - block0.height < 0
+    // const needSideClearance = block00.height - block0.height < 0
     const block1 = this.getBlockInfo(node, dir.x, 1, dir.z)
     const blockN1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (!blockN1.physical) {
@@ -284,7 +277,7 @@ export class StraightDown extends DropDownProvider {
     return this.getMoveDown(start, storage)
   }
 
-  getMoveDown (node: Move, neighbors: Move[]) {
+  getMoveDown (node: Move, neighbors: Move[]): void {
     if (this.getBlockInfo(node, 0, 0, 0).liquid) return // dont go underwater
 
     const block0 = this.getBlockInfo(node, 0, -1, 0)
@@ -311,7 +304,7 @@ export class StraightUp extends MovementProvider {
     return this.getMoveUp(start, storage)
   }
 
-  getMoveUp (node: Move, neighbors: Move[]) {
+  getMoveUp (node: Move, neighbors: Move[]): void {
     let cost = this.settings.jumpCost // move cost
 
     const block1 = this.getBlockInfo(node, 0, 0, 0)
@@ -357,7 +350,7 @@ export class ParkourForward extends MovementProvider {
   }
 
   // Jump up, down or forward over a 1 block gap
-  getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[]) {
+  getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[]): void {
     const block0 = this.getBlockInfo(node, 0, -1, 0)
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (

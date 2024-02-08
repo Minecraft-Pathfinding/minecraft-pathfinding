@@ -481,7 +481,7 @@ export class PlaceHandler extends InteractHandler {
 
     if (opts.returnToPos !== undefined) {
       await bot.lookAt(opts.returnToPos, this.settings.forceLook)
-    } else if (opts.returnToStart) {
+    } else if (opts.returnToStart != null && opts.returnToStart) {
       await bot.look(curInfo.yaw, curInfo.pitch, this.settings.forceLook)
     }
 
