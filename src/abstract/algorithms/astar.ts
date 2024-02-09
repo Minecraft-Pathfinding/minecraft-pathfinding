@@ -1,5 +1,6 @@
 import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { BinaryHeapOpenSet as Heap } from '../heap'
+// import {MinHeap as Heap} from 'heap-typed'
 import { PathData, PathNode } from '../node'
 
 function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
@@ -21,7 +22,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   movementProvider: MovementProvider<Data>
 
   closedDataSet: Set<string>
-  openHeap: Heap<Data, PathNode<Data>>
+  openHeap: Heap<Data, PathNode<Data>> // Heap<<PathNode<Data>>
   openDataMap: Map<string, PathNode<Data>>
 
   bestNode: PathNode<Data>
@@ -37,7 +38,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     this.differential = differential
 
     this.closedDataSet = new Set()
-    this.openHeap = new Heap()
+    this.openHeap = new Heap()// new Heap(undefined, {comparator: (a, b)=> a.f - b.f})
     this.openDataMap = new Map()
 
     const startNode = new PathNode<Data>().set(0, goal.heuristic(start), start)
@@ -45,6 +46,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     // dumb type check, thanks ts-standard.
     if (startNode.data == null) throw new Error('Start node data is null!')
 
+    // this.openHeap.add(startNode)
     this.openHeap.push(startNode)
     this.openDataMap.set(startNode.data.hash, startNode)
     this.bestNode = startNode
@@ -108,6 +110,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       if (this.timeout >= 0 && time - this.startTime > this.timeout) { // total compute time
         return this.makeResult('timeout', this.bestNode)
       }
+      // const node = this.openHeap.poll()!
       const node = this.openHeap.pop()
 
       // again, cannot afford another if-statement.
@@ -123,7 +126,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       this.addToClosedDataSet(node)
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const neighbors = this.movementProvider.getNeighbors(node.data!)
+      const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
       for (const neighborData of neighbors) {
         if (this.closedDataSet.has(neighborData.hash)) {
           continue // skip closed neighbors
@@ -153,8 +156,11 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
         // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
         if (neighborNode.h < this.bestNode.h) this.bestNode = neighborNode
         if (update) {
+          // this.openHeap.
+          // // this.openHeap.
           this.openHeap.update(neighborNode)
         } else {
+          // this.openHeap.add(neighborNode)
           this.openHeap.push(neighborNode)
         }
       }

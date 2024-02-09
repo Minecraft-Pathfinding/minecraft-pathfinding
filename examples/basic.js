@@ -75,7 +75,7 @@ async function cmdHandler(username, msg) {
     case "cancel":
     case "stop": {
       bot.whisper(username, "Canceling path");
-      bot.pathfinder.cancel();
+      await bot.pathfinder.cancel();
       bot.clearControlStates();
       break;
     }

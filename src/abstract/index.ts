@@ -1,3 +1,4 @@
+import { BinaryHeapOpenSet } from './heap'
 import { PathData, PathNode } from './node'
 
 export interface Goal<Data> {
@@ -21,9 +22,9 @@ export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
   context: Alg
 }
 
-export interface MovementProvider<Data> {
+export interface MovementProvider<Data extends PathData> {
   sanitize: () => boolean
-  getNeighbors: (org: Data) => Data[]
+  getNeighbors: (org: Data, set: Set<string>) => Data[]
 }
 
 export { PathNode } from './node'

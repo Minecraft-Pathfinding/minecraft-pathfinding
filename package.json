@@ -2,6 +2,7 @@
   "dependencies": {
     "@nxg-org/mineflayer-physics-util": "1.5.6",
     "@nxg-org/mineflayer-util-plugin": "^1.8.3",
+    "heap-typed": "^1.52.0",
     "lru-cache": "^10.1.0"
   },
   "scripts": {

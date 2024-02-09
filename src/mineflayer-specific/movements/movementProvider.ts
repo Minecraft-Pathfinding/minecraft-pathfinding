@@ -9,6 +9,8 @@ import { ExecutorMap } from '.'
 import { Vec3 } from 'vec3'
 import { Vec3Properties } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
+import { BinaryHeapOpenSet } from '../../abstract/heap'
+import { PathNode } from '../node'
 
 /**
  * Movement provider.
@@ -25,8 +27,8 @@ export abstract class MovementProvider extends Movement {
 
   abstract movementDirs: Vec3[]
 
-  private boundaries!: [x: number, y: number, z: number]
-  private halfway!: [x: number, y: number, z: number]
+  private boundaries!: [x: number, z: number, y: number]
+  private halfway!: [x: number, z: number, y: number]
 
   /**
    * Simulation-time calculation.
@@ -34,11 +36,12 @@ export abstract class MovementProvider extends Movement {
    * Decide whether or not movement is possible.
    * If possible, append to provided storage.
    */
-  abstract provideMovements (start: Move, storage: Move[], goal: goals.Goal): void
+  abstract provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void
+
 
   private localData: Array<BlockInfo | null> = []
 
-  loadLocalData (orgPos: Vec3, boundaries: [x: number, y: number, z: number], arr: Array<BlockInfo | null>, clear: Set<number>): void {
+  loadLocalData (orgPos: Vec3, boundaries: [x: number, z: number, y: number], arr: Array<BlockInfo | null>, clear: Set<number>): void {
     this.orgPos = orgPos
     this.localData = arr
     this.boundaries = boundaries
@@ -47,12 +50,13 @@ export abstract class MovementProvider extends Movement {
     // console.log(this.halfway)
   }
 
-  _getBlockInfo (pos: Vec3Properties, dx: number, dz: number, dy: number): BlockInfo {
-    pos = {
-      x: Math.floor(pos.x),
-      y: Math.floor(pos.y),
-      z: Math.floor(pos.z)
-    }
+  getBlockInfo (pos: Vec3Properties, dx: number, dz: number, dy: number): BlockInfo {
+    return super.getBlockInfo(pos, dx, dy, dz)
+    // pos = {
+    //   x: Math.floor(pos.x),
+    //   y: Math.floor(pos.y),
+    //   z: Math.floor(pos.z)
+    // }
 
     const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
 
@@ -72,55 +76,57 @@ export abstract class MovementProvider extends Movement {
     //   return super.getBlockInfo(pos, dx, dy, dz);
     // }
 
+    // const packed = (wantedDx << 16) + (wantedDz << 8) + wantedDy
+
     if (
       wantedDx < 0 ||
       wantedDx >= this.boundaries[0] ||
-      wantedDy < 0 ||
-      wantedDy >= this.boundaries[2] ||
       wantedDz < 0 ||
-      wantedDz >= this.boundaries[1]
+      wantedDz >= this.boundaries[1] ||
+      wantedDy < 0 ||
+      wantedDy >= this.boundaries[2]
     ) {
       // console.log('hey', idx, this.localData[idx])
       return super.getBlockInfo(pos, dx, dy, dz)
       // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
     }
 
-    const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[1] + wantedDy
+    const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
 
     // const data = this.localData[wantedDx][wantedDy][wantedDz];
     const data = this.localData[idx]
 
-    if (data !== null) {
-      // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos);
-      // if (!data.position.equals(target) && data.position.x !== 0 && data.position.y !== 0 && data.position.z !== 0) {
-      //   console.log(
-      //     "crap",
-      //     data.position,
-      //     target,
-      //     wantedDx,
-      //     wantedDy,
-      //     wantedDz,
-      //     this.halfway,
-      //     this.orgPos,
-      //     pos,
-      //     dx,
-      //     dy,
-      //     dz,
-      //     this.boundaries,
-      //     this.localData[idx]
-      //   );
-      // }
-      return data
-    }
+    // if (data !== null) {
+    //   // this.toClear.add(packed)
+    //   const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
+    //   if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
+    //     console.log(
+    //       'crap',
+    //       pos,
+    //       dx,
+    //       dy,
+    //       dz,
+    //       data.position,
+    //       '\n\n',
+    //       this.orgPos,
+    //       wantedDx,
+    //       wantedDy,
+    //       wantedDz,
+    //       target,
+    //       this.halfway,
+    //       this.boundaries,
+
+    //       this.localData[idx]
+    //     )
+    //     throw new Error('dang')
+    //   }
+
+    //   return data
+    // }
 
     const ret = super.getBlockInfo(pos, dx, dy, dz)
 
-    // this.localData[wantedDx][wantedDy][wantedDz] = ret;
-    this.localData[idx] = ret
-
-    const packed = (wantedDx << (16 + wantedDy)) << (8 + wantedDz)
-
-    this.toClear.add(packed)
+    // this.localData[idx]  = ret
     return ret
   }
 }
@@ -160,8 +166,10 @@ export class MovementHandler implements AMovementProvider<Move> {
     this.goal = goal
   }
 
-  private readonly boundaries: [x: number, y: number, z: number] = [5, 5, 5]
-  private readonly maxBound = this.boundaries[0] * this.boundaries[2] * this.boundaries[1]
+  private readonly boundaries: [x: number, z: number, y: number] = [7, 7, 7]
+  private readonly halfway: [x: number, z: number, y: number] = [Math.floor(this.boundaries[0] / 2), Math.floor(this.boundaries[1] / 2), Math.floor(this.boundaries[2] / 2)]
+
+  private readonly maxBound = this.boundaries[0] * this.boundaries[1] * this.boundaries[2]
   private readonly toClear: Set<number> = new Set()
   private localData: Array<BlockInfo | null> = []
 
@@ -177,139 +185,57 @@ export class MovementHandler implements AMovementProvider<Move> {
   }
 
   resetLocalData (): void {
-    // for (const key of this.toClear) {
-    //   this.localData[key] = null;
-    // }
-    // this.toClear.clear();
-
     for (let i = 0; i < this.maxBound; i++) {
       this.localData[i] = null
     }
-    // this.localData.fill(null, 0, this.maxBound);
-
-    // for (let i = 0; i < this.boundaries[0]; i++) {
-    //   for (let j = 0; j < this.boundaries[2]; j++) {
-    //     for (let k = 0; k < this.boundaries[1]; k++) {
-    //       this.localData[i][j][k] = null;
-    //     }
-    //   }
-    // }
-
-    // this.localData = new Array(this.boundaries[0])
-    //   .fill(null)
-    //   .map(() => new Array(this.boundaries[2]).fill(null).map(() => new Array(this.boundaries[1]).fill(null)));
   }
 
   // Do not reassign localData, must do shift in place.
 
-  private swapArray = new Array(this.maxBound).fill(null)
-  private readonly swapSet = new Set<number>()
+  private readonly swapArray = new Array(this.maxBound).fill(null)
+  private readonly swapSet = new Array(this.maxBound)
 
   shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
-    const diff = orgPos.minus(newPos) // newPos.minus(orgPos);
+    const diff = newPos.minus(orgPos)
 
-    // this.swapArray.fill(null);
-    // for (let i = 0; i < this.maxBound; i++) {
-    //   this.swapArray[i] = null;
-    // }
+    let swapIdx = 0
+    for (let idx = 0; idx < this.maxBound; idx++) {
+      if (this.localData[idx] === null) continue
 
-    this.swapSet.clear()
+      // convert i into 3D indexes, boundaries are this.boundaries
+      const x = Math.floor(idx / (this.boundaries[2] * this.boundaries[1]))
+      const rest = idx % (this.boundaries[2] * this.boundaries[1])
+      const z = Math.floor(rest / this.boundaries[2])
+      const y = rest % this.boundaries[2]
 
-    for (const ind of this.toClear) {
-      // this.swapArray[ind] = null;
+      const newX = x - diff.x
+      const newY = y - diff.y
+      const newZ = z - diff.z
 
-      // unpack ind
-      const z = ind & 0xff
-      const rest = ind >> 8
-      const y = rest & 0xff
-      const x = rest >> 8
+      if (newX >= 0 && newX < this.boundaries[0] && newY >= 0 && newY < this.boundaries[2] && newZ >= 0 && newZ < this.boundaries[1]) {
+        const newIdx = newX * this.boundaries[2] * this.boundaries[1] + newZ * this.boundaries[2] + newY
 
-      // const z = Math.floor(ind / (this.boundaries[0] * this.boundaries[1]));
-      // const rest = ind % (this.boundaries[0] * this.boundaries[1]);
-      // const y = Math.floor(rest / this.boundaries[0]);
-      // const x = rest % this.boundaries[0];
-      // const y = Math.floor((ind % (this.boundaries[0] * this.boundaries[1])) / this.boundaries[0]);
-      // const x = (ind % (this.boundaries[0] * this.boundaries[1])) % this.boundaries[0];
-      // lengthX * lengthY)) % lengthX
-      const newX = x + diff.x
-      const newY = y + diff.y
-      const newZ = z + diff.z
-
-      if (newX >= 0 && newX < this.boundaries[0] && newY >= 0 && newY < this.boundaries[1] && newZ >= 0 && newZ < this.boundaries[2]) {
-        // const idx = x * this.boundaries[2] * this.boundaries[1] + z * this.boundaries[1] + y;
-        const newIdx = newX * this.boundaries[2] * this.boundaries[1] + newZ * this.boundaries[1] + newY
-
-        this.swapArray[newIdx] = this.localData[ind]
-        this.localData[ind] = null
-        this.swapSet.add(newIdx)
+        this.swapArray[newIdx] = this.localData[idx]
+        
+        this.swapSet[swapIdx++] = newIdx
       }
+
+      this.localData[idx] = null
     }
 
-    // for (const idx of this.swapSet) {
-    //   this.localData[idx] = this.swapArray[idx];
-    // }
-
-    // convert 1D index to 3D index
-
-    // for (let x = 0; x < this.boundaries[0]; x++) {
-    //   for (let z = 0; z < this.boundaries[1]; z++) {
-    //     for (let y = 0; y < this.boundaries[2]; y++) {
-
-    //       const newX = x + diff.x;
-    //       const newY = y + diff.y;
-    //       const newZ = z + diff.z;
-
-    //       if (newX >= 0 && newX < this.boundaries[0] && newY >= 0 && newY < this.boundaries[1] && newZ >= 0 && newZ < this.boundaries[2]) {
-    //         const idx = x * this.boundaries[2] * this.boundaries[1] + z * this.boundaries[1] + y;
-    //         const newIdx = newX * this.boundaries[2] * this.boundaries[1] + newZ * this.boundaries[1] + newY;
-
-    //         this.swapArray[newIdx] = this.localData[idx];
-    //       }
-    //     }
-    //   }
-    // }
-
-    // generate 3D array for debugging
-
-    // const test = new Array(this.boundaries[0]).fill(null).map(() => new Array(this.boundaries[2]).fill(null).map(() => new Array(this.boundaries[1]).fill(null)));
-
-    // const test1 = new Array(this.boundaries[0]).fill(null).map(() => new Array(this.boundaries[2]).fill(null).map(() => new Array(this.boundaries[1]).fill(null)));
-    // for (let x = 0; x < this.boundaries[0]; x++) {
-    //   for (let z = 0; z < this.boundaries[2]; z++) {
-    //     for (let y = 0; y < this.boundaries[1]; y++) {
-    //       const idx = x * this.boundaries[2] * this.boundaries[1] + z * this.boundaries[1] + y;
-    //       test[x][z][y] = `${x},${y},${z} -> ${this.localData[idx]}`
-    //       // test[idx] = newLocalData[idx];
-
-    //     }}}
-
-    //     for (let x = 0; x < this.boundaries[0]; x++) {
-    //       for (let z = 0; z < this.boundaries[2]; z++) {
-    //         for (let y = 0; y < this.boundaries[1]; y++) {
-    //           const idx = x * this.boundaries[2] * this.boundaries[1] + z * this.boundaries[1] + y;
-    //           test1[x][z][y] = `${x},${y},${z} -> ${newLocalData[idx]}`
-    //           // test[idx] = newLocalData[idx];
-
-    //         }}}
-
-    //         console.log('shift', diff)
-    //   console.log('org')
-    // console.log(test)
-    // console.log('new')
-    // console.log(test1)
-
-    for (let i = 0; i < this.maxBound; i++) {
-      // if (this.swapArray[i] !== null)
-      this.localData[i] = this.swapArray[i]
+    for (let i = 0; i < swapIdx; i++) {
+      const idx = this.swapSet[i]
+      this.localData[idx] = this.swapArray[idx]
     }
   }
 
   private lastPos?: Vec3
-  getNeighbors (currentMove: Move): Move[] {
+  getNeighbors (currentMove: Move, closed: Set<string>): Move[] {
     const moves: Move[] = []
 
+    // console.log('hi')
     const pos = currentMove.exitPos.floored()
-    this.shiftLocalData(this.lastPos ?? pos, pos)
+    // this.shiftLocalData(this.lastPos ?? pos, pos)
     this.lastPos = pos
 
     // const arr = new Array(this.maxBound).fill(null);
@@ -317,10 +243,10 @@ export class MovementHandler implements AMovementProvider<Move> {
     for (const newMove of this.recognizedMovements) {
       newMove.loadMove(currentMove)
       newMove.loadLocalData(pos, this.boundaries, this.localData, this.toClear)
-      newMove.provideMovements(currentMove, moves, this.goal)
+      newMove.provideMovements(currentMove, moves, this.goal, closed)
     }
 
-    // this.resetLocalData(); // same speed, but less memory efficient.
+    this.resetLocalData(); // same speed, but less memory efficient.
 
     // console.log(moves.length, moves.map(m=>m.moveType.constructor.name))
 

@@ -512,6 +512,11 @@ cross-spawn@^7.0.2:
     shebang-command "^2.0.0"
     which "^2.0.1"
 
+data-structure-typed@^1.52.0:
+  version "1.52.0"
+  resolved "https://registry.yarnpkg.com/data-structure-typed/-/data-structure-typed-1.52.0.tgz#7240904ea919d86010709016ce154b02aa1f6329"
+  integrity sha512-jJhARI44PxwvSIHaTl0FyzrlmJodInT+RiVCSZ1l9WqzENQNrupnzCukmmp7OW1/TQE2d17mQvbdrno/ohFn9Q==
+
 debug@^3.2.7:
   version "3.2.7"
   resolved "https://registry.yarnpkg.com/debug/-/debug-3.2.7.tgz#72580b7e9145fb39b6676f9c5e5fb100b934179a"
@@ -1198,6 +1203,13 @@ hasown@^2.0.0:
   integrity sha512-vUptKVTpIJhcczKBbgnS+RtcuYMB8+oNzPK2/Hp3hanz8JmpATdmmgLgSaadVREkDm+e2giHwY3ZRkyjSIDDFA==
   dependencies:
     function-bind "^1.1.2"
+
+heap-typed@^1.52.0:
+  version "1.52.0"
+  resolved "https://registry.yarnpkg.com/heap-typed/-/heap-typed-1.52.0.tgz#bea85ea3e86376325ef4b0c8ba224fcc050d2554"
+  integrity sha512-xpTyOopbGTTCWjsu7O3z923v+JgAZdGNRCEziDUZlimvJ5yOaRW1K0l5uBNGS5R5zSJ23cEs3YeTFWRw9ZTlpQ==
+  dependencies:
+    data-structure-typed "^1.52.0"
 
 ieee754@^1.2.1:
   version "1.2.1"
