@@ -56,6 +56,89 @@ This goal will have the bot stand on top of the block chosen.
 GoalBlock.fromVec(new Vec3(0, 0, 0))
 ```
 
+
+<h2>GoalNear</h2>
+
+This goal will have the bot approach the coordinates chosen, and finish when within a given radius.
+
+<h3>Constructor</h3>
+
+| Parameter | Type |
+| --- | --- |
+| x | number |
+| y | number |
+| z | number |
+| distance | number |
+
+<h3>Methods</h3>
+
+▸ **fromVec(`vec: Vec3`): `GoalNear`**
+
+▸ **fromEntity(`entity: Entity | { position: Vec3 }`, `distance: number`): `GoalNear`**
+
+▸ **fromBlock(`block: Block | { position: Vec3 }`): `GoalNear`**
+
+<h3>Example</h3>
+
+```ts
+GoalNear.fromVec(new Vec3(0, 0, 0), 4)
+GoalNear.fromEntity(bot.entities[...], 4)
+GoalNear.fromBlock(bot.blockAt(new Vec3(0,0,0)), 4)
+```
+
+<h2>GoalNearXZ</h2>
+
+This goal will have the bot approach the coordinates chosen, and finish when within a given radius on the XZ plane.
+
+<h3>Constructor</h3>
+
+| Parameter | Type |
+| --- | --- |
+| x | number |
+| z | number |
+| distance | number |
+
+<h3>Methods</h3>
+
+▸ **fromVec(`vec: Vec3`): `GoalNearXZ`**
+
+<h3>Example</h3>
+
+```ts
+GoalNearXZ.fromVec(new Vec3(0, 0, 0), 4)
+```
+
+<h2>GoalLookAt</h2>
+
+This goal will have the bot approach the coordinates chosen, finish when within a given radius, and finally look at the coordinates chosen.
+
+<h3>Constructor</h3>
+
+| Parameter | Type |
+| --- | --- |
+| world | World |
+| x | number |
+| y | number |
+| z | number |
+| width | number |
+| height | number |
+| distance | number |
+| eyeHeight | number |
+
+<h3>Methods</h3>
+
+▸ **fromEntity(`world: World`, `entity: Entity | { position: Vec3 }`, `width: number`, `distance?: number`, `height?: number`): `GoalLookAt`**
+
+▸ **fromBlock(`world: World`, `block: Block | { position: Vec3 }`, `distance?: number`, `height?: number`): `GoalLookAt`**
+
+<h3>Example</h3>
+
+```ts
+// setup for targeting a player (width is 0.6 blocks)
+GoalLookAt.fromEntity(bot.world, bot.entities[...], 0.6)
+GoalLookAt.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
+```
+
 <h1 align="center">Settings</h1>
 
 These are the currently available settings.
