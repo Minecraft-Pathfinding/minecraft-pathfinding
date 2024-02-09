@@ -139,6 +139,32 @@ GoalLookAt.fromEntity(bot.world, bot.entities[...], 0.6)
 GoalLookAt.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 ```
 
+
+<h2>GoalMineBlock</h2>
+
+This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally break the block.
+
+<h3>Constructor</h3>
+
+| Parameter | Type |
+| --- | --- |
+| world | World |
+| block | Block |
+| distance | number |
+| eyeHeight | number |
+
+<h3>Methods</h3>
+
+
+▸ **fromBlock(`world: World`, `block: Block`, `distance?: number`, `height?: number`): `GoalLookAt`**
+
+<h3>Example</h3>
+
+```ts
+GoalMineBlock.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
+```
+
+
 <h1 align="center">Settings</h1>
 
 These are the currently available settings.
