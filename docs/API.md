@@ -3,6 +3,10 @@
 - [Pathfinder](#pathfinder)
 - [Goals](#goals)
   - [GoalBlock](#goalblock)
+  - [GoalNear](#goalnear)
+  - [GoalNearXZ](#goalnearxz)
+  - [GoalLookAt](#goallookat)
+  - [GoalMineBlock](#goalmineblock)
 - [Settings](#settings)
 
 <h1 align="center">Pathfinder</h1>
