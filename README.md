@@ -28,7 +28,8 @@ Examples will be added as the project undergoes more development.
 
 **Many** things.
 
-- [ ] Proper breaking of blocks (Cost + Execution)
+- [X] Proper breaking of blocks (Cost + Execution)
+- [ ] Water movement
 - [ ] Parkour
 - [ ] Proper jump sprinting
 - [ ] Offloading the world thread
