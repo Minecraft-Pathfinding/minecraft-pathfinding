@@ -5,7 +5,6 @@ import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { Bot } from 'mineflayer'
 import { Block } from '../types'
-import { BreakHandler } from './movements/interactionUtils'
 
 /**
  * The abstract goal definition used by the pathfinder.
