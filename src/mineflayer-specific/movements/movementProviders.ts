@@ -62,7 +62,6 @@ export class Forward extends MovementProvider {
   }
 }
 
-
 export class Diagonal extends MovementProvider {
   movementDirs = Movement.diagonalDirs
 
@@ -120,7 +119,6 @@ export class Diagonal extends MovementProvider {
     neighbors.push(Move.fromPrevious(cost, node.asVec().plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
-
 
 export class ForwardJump extends MovementProvider {
   movementDirs = Movement.cardinalDirs

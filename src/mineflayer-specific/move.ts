@@ -10,7 +10,7 @@ export class Move implements PathData {
 
   targetPos: Vec3
 
-  private _cachedVec: Vec3 
+  private readonly _cachedVec: Vec3
   // remainingBlocks: number = 0 // TODO: implement this
 
   constructor (
@@ -115,14 +115,11 @@ export class Move implements PathData {
     )
   }
 
-
-
   public clone (): Move {
     return { ...this } // lazy.
   }
 
   public asVec (): Vec3 {
-
     return this._cachedVec
     // return new Vec3(this.x, this.y, this.z)
   }
