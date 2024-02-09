@@ -23,7 +23,7 @@ export class StraightAheadOpt extends MovementOptimizer {
     const uW = 0.4
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width: hW, height: 1.8 })
-    const verts = bb.expand(0, -0.1, 0).toVertices()
+    const verts = bb.expand(0, -1, 0).toVertices()
 
     const verts1 = [
       orgPos.offset(-uW / 2, -0.6, -uW / 2),
@@ -33,18 +33,23 @@ export class StraightAheadOpt extends MovementOptimizer {
     ]
 
     while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) {
+        console.log('hi')
+        return --currentIndex
+      }
+
       if (nextMove === undefined) return --currentIndex
       for (const vert of verts) {
         const offset = vert.minus(orgPos)
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
-        const raycast0 = (await this.bot.world.raycast(
+        const raycast0 = this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
           dist,
           (block) => !BlockInfo.replaceables.has(block.type) && !BlockInfo.liquids.has(block.type) && block.shapes.length > 0
-        )) as unknown as RayType | null
+        ) as unknown as RayType | null
         const valid0 = (raycast0 == null) || raycast0.position.distanceTo(orgPos) > dist
 
         // console.log('\n\nBLOCK CHECK')

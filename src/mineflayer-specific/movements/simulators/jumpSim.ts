@@ -5,6 +5,7 @@ import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
 import { BaseSimulator, Controller, EPhysicsCtx, OnGoalReachFunction, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { smartMovement, strafeMovement, wrapRadians } from '../controls'
+import { BlockInfo } from '../../world/cacheWorld'
 
 // const ZERO = (0 * Math.PI) / 12
 const PI_OVER_TWELVE = (1 * Math.PI) / 12
@@ -77,12 +78,12 @@ export class JumpSim extends BaseSimulator {
     return state
   }
 
-  simulateSmartAim (goal: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): EntityState {
+  simulateSmartAim (goal: AABB[], goalVec: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): EntityState {
     return this.simulateUntil(
-      JumpSim.getReached(goal),
-      JumpSim.getCleanupPosition(goal),
+      JumpSim.getReachedAABB(goal),
+      JumpSim.getCleanupPosition(goalVec),
       JumpSim.buildFullController(
-        JumpSim.getControllerStraightAim(goal),
+        JumpSim.getControllerStraightAim(goalVec),
         // JumpSim.getControllerStrafeAim(goal),
         // JumpSim.getControllerSmartMovement(goal, sprint),
         JumpSim.getControllerJumpSprint(jump, sprint, jumpAfter)
@@ -111,12 +112,12 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: Vec3, sprint: boolean, ticks = 20): EntityState {
+  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): EntityState {
     let jump = false
     let changed = false
-    const goalBlockTop = goalBlock.floored().translate(0.5, 0, 0.5)
+    const goalBlockTop = goalCorner.floored().translate(0.5, 1, 0.5)
     return this.simulateUntil(
-      JumpSim.getReached(goalBlock),
+      JumpSim.getReachedAABB(goalBlock),
       JumpSim.getCleanupPosition(goalCorner),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goalCorner),
@@ -145,19 +146,13 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  static getReachedOld (...path: Vec3[]): SimulationGoal {
+  static getReachedAABB (bbs: AABB[]): SimulationGoal {
+    if (bbs.length === 0) throw new Error('JumpSim: No AABBs for goal provided')
+    const maxY = bbs.reduce((max, a) => Math.max(max, a.maxY), -Infinity)
     return (state) => {
-      const delta = path[0].minus(state.pos)
-      return Math.abs(delta.x) <= 0.35 && Math.abs(delta.z) <= 0.35 && Math.abs(delta.y) < 1 && (state.onGround || state.isInWater)
-    }
-  }
-
-  static getReached (...path: Vec3[]): (state: EntityState, age: number) => boolean {
-    const pathGoal = AABB.fromBlockPos(path[0])
-    // console.trace(pathGoal, path[0]);
-    return (state) => {
-      // console.log(state.getAABB(), state.pos, pathGoal, state.getAABB().collides(pathGoal))
-      return state.pos.y >= pathGoal.maxY && AABBUtils.getPlayerAABB({ position: state.pos, width: 0.5999, height: 1.8 }).collides(pathGoal)
+      const bb = AABBUtils.getPlayerAABB({ position: state.pos, width: 0.5999, height: 1.8 })
+      // if (state.pos.y >= maxY-0.3) console.log('hm?',state.age, state.pos, bbs)
+      return state.pos.y >= maxY && bbs.some((a) => a.collides(bb))
     }
   }
 

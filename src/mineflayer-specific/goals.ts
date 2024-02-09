@@ -20,11 +20,14 @@ export abstract class Goal implements AGoal<Move> {
  */
 export class GoalBlock extends Goal {
   constructor (public x: number, public y: number, public z: number) {
+    x = Math.floor(x)
+    y = Math.floor(y)
+    z = Math.floor(z)
     super()
   }
 
   static fromVec (vec: Vec3): GoalBlock {
-    return new GoalBlock(Math.floor(vec.x), Math.floor(vec.y), Math.floor(vec.z))
+    return new GoalBlock(vec.x, vec.y, vec.z)
   }
 
   static fromBlock (block: { position: Vec3 }): GoalBlock {

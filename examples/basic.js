@@ -41,7 +41,7 @@ function getGoal(world, x, y, z) {
 
 bot.on("inject_allowed", () => {});
 
-bot.once("spawn", () => {
+bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
@@ -52,6 +52,7 @@ bot.once("spawn", () => {
     output: process.stdout
   
   })
+ 
   
   rlline.on('line', (line) => {
     if (line === "exit") {
@@ -61,6 +62,8 @@ bot.once("spawn", () => {
   
     bot.chat(line)
   })
+
+
 });
 
 

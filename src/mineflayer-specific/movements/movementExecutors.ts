@@ -7,7 +7,7 @@ import { BlockInfo } from '../world/cacheWorld'
 import { RayType } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { MovementExecutor } from './movementExecutor'
-import { JumpCalculator, ParkourJumpHelper, stateLookAt } from './movementUtils'
+import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 
 export class IdleMovementExecutor extends Movement {
@@ -117,7 +117,7 @@ export class ForwardExecutor extends MovementExecutor {
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
     if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
       if (similarDirection) return true
-      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAt(target)
+      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAtYaw(target)
     }
 
     return false
@@ -141,9 +141,9 @@ export class ForwardExecutor extends MovementExecutor {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
       // void this.lookAt(offset);
       await this.alignToPath(thisMove, { lookAt: offset, sprint: true })
-      this.bot.setControlState('forward', false)
-      this.bot.setControlState('sprint', false)
-      this.bot.setControlState('back', true)
+      // this.bot.setControlState('forward', false)
+      // this.bot.setControlState('sprint', false)
+      // this.bot.setControlState('back', true)
     }
 
     // console.log("done move prehandle!");
@@ -181,7 +181,7 @@ export class ForwardExecutor extends MovementExecutor {
           test.minus(vert).normalize().scale(0.5),
           dist * 2
         )) as unknown as RayType | null
-        const valid0 = (raycast0 == null) || raycast0.position.distanceTo(pos0) > dist
+        const valid0 = raycast0 == null || raycast0.position.distanceTo(pos0) > dist
         if (!valid0) {
           return --currentIndex
         }
@@ -197,7 +197,7 @@ export class ForwardExecutor extends MovementExecutor {
           BlockInfo.replaceables.has(block.type)
         )) as unknown as RayType | null
 
-        const valid0 = (raycast0 == null) || raycast0.position.distanceTo(pos0) > dist
+        const valid0 = raycast0 == null || raycast0.position.distanceTo(pos0) > dist
         if (!valid0) counter--
       }
 
@@ -726,13 +726,14 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private noJump = false
   private executing = false
 
+  private stepAmt = 2
+
   protected isComplete (startMove: Move, endMove?: Move, ticks?: number): boolean {
     return super.isComplete(startMove, endMove, 0)
   }
 
   async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     this.executing = false
-    this.bot.clearControlStates()
     const target = thisMove.exitPos.offset(0, -1, 0)
 
     // const targetEyeVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
@@ -752,7 +753,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     // return true;
 
-    const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6)
+    const bbs = getUnderlyingBBs(this.world, this.bot.entity.position, 0.6)
 
     if (bbs.length === 0) {
       bbs.push(AABB.fromBlockPos(thisMove.entryPos.offset(0, -1, 0)))
@@ -803,14 +804,10 @@ export class ParkourForwardExecutor extends MovementExecutor {
       ctx.state.control.set('sprint', true)
     }
 
-    // this is currently failing occasionally when blocks are placed but are not updated properly.
-    this.bot.physicsUtil.engine.simulate(ctx, this.bot.world)
-    this.bot.physicsUtil.engine.simulate(ctx, this.bot.world)
-    // this.bot.physicsUtil.engine.simulate(ctx, this.world);
+    const goingToFall = leavingBlockLevel(this.bot, this.world, this.stepAmt)
+    this.bot.clearControlStates()
 
-    const state = ctx.state
-
-    const goingToFall = state.pos.y < this.bot.entity.position.y
+    console.log(goingToFall, this.bot.entity.position)
 
     if (this.backUpTarget != null && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true
@@ -820,31 +817,36 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', dist > 0)
-      this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.2 && true)
-    } else if (
-      ((this.reachedBackup && this.backUpTarget != null && this.bot.entity.position.xzDistanceTo(this.backUpTarget) > 0.3) ||
-        this.backUpTarget == null) &&
-      goingToFall
-    ) {
+      // this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.2 && true)
+    } else if (goingToFall && this.backUpTarget == null) {
+      this.stepAmt = 3
       this.reachedBackup = false
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, target)
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
-      // console.log('here2', this.backUpTarget, this.bot.entity.position, state.pos, state.age)
-
-      this.bot.setControlState('forward', true)
-      this.bot.setControlState('sprint', dist > 0)
-      this.bot.setControlState('sneak', dist < 0 && xzvdir.dot(dir) < 0.5)
+      console.log('here2', this.backUpTarget, this.bot.entity.position)
 
       await this.lookAtPathPos(this.backUpTarget)
+      this.bot.setControlState('forward', true)
+      this.bot.setControlState('sprint', true)
+      // this.bot.setControlState('sneak', dist < 0)
+    } else if (goingToFall && this.backUpTarget != null) {
+      await this.lookAtPathPos(this.backUpTarget)
+      this.bot.clearControlStates()
+      this.bot.setControlState('forward', true)
+      this.bot.setControlState('sneak', true)
+      await this.bot.waitForTicks(1)
+      this.stepAmt = 2
+      delete this.backUpTarget
+      this.reachedBackup = false
+      throw new CancelError('ParkourExecutor: will not make this jump!')
     } else if (!this.reachedBackup && this.backUpTarget != null) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       // console.log('here3', this.backUpTarget, this.bot.entity.position, bb)
 
+      void this.lookAtPathPos(this.backUpTarget)
       this.bot.setControlState('forward', true)
-      this.bot.setControlState('sprint', dist > 0 || this.reachedBackup)
-      this.bot.setControlState('sneak', dist < 0 && false)
-
-      await this.lookAtPathPos(this.backUpTarget)
+      this.bot.setControlState('sprint', dist > 0)
+      // this.bot.setControlState('sneak', dist < 0 && false)
     } else {
       // const state = this.bot.physicsUtil.engine.simulate(EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot), this.world)
       // if (state.pos.y < this.bot.entity.position.y) {
@@ -855,10 +857,10 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.clearControlStates()
       // console.log('here4', this.backUpTarget, this.bot.entity.position, state.pos, bb, xzvdir.dot(dir))
 
-      await this.lookAtPathPos(target)
+      void this.lookAtPathPos(target)
       this.bot.setControlState('forward', true)
-      this.bot.setControlState('sprint', xzvdir.dot(dir) > 0.3)
-      this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && false)
+      this.bot.setControlState('sprint', true)
+      // this.bot.setControlState('sneak', xzvdir.dot(dir) < 0.3 && false)
 
       // }
     }
@@ -894,7 +896,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const target = thisMove.exitPos.offset(0, -1, 0)
     // const targetVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
 
-    const bbs = this.shitterTwo.getUnderlyingBBs(this.bot.entity.position, 0.6)
+    const bbs = getUnderlyingBBs(this.world, this.bot.entity.position, 0.6)
     if (bbs.length === 0) {
       bbs.push(AABB.fromBlockPos(thisMove.entryPos))
     }

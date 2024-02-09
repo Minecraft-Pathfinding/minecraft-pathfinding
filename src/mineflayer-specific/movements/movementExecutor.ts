@@ -155,6 +155,7 @@ export abstract class MovementExecutor extends Movement {
    * and bounding box check (touching OR slightly above block).
    */
   protected isComplete (startMove: Move, endMove: Move = startMove, ticks = 1): boolean {
+    console.log('isComplete:', this.toBreakLen(), this.toPlaceLen())
     if (this.toBreakLen() > 0) return false
     if (this.toPlaceLen() > 0) return false
 
@@ -205,7 +206,7 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
-      // console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
+      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
@@ -360,9 +361,14 @@ export abstract class MovementExecutor extends Movement {
     // const vec3XZ = vec3.offset(0, -vec3.y, 0)
 
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
+    const inter = bl.intersect.minus(eyePos)
+    inter.translate(0, -inter.y, 0)
+
+    const pos1 = vec3.minus(eyePos)
+    pos1.translate(0, -pos1.y, 0)
     // console.log(blPosXZ, vec3XZ, vec3XZ.minus(eyePos).normalize().dot(blPosXZ.minus(eyePos).normalize()), 1 - limit);
 
-    return bl.intersect.minus(eyePos).normalize().dot(vec3.minus(eyePos).normalize()) > 1 - limit
+    return inter.normalize().dot(pos1.normalize()) > 1 - limit
 
     // console.log(
     //   limit,
@@ -452,17 +458,19 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    // console.log(
-    //   this.bot.getControlState('forward'),
-    //   this.bot.getControlState('back'),
-    //   ' | ',
-    //   this.bot.getControlState('left'),
-    //   this.bot.getControlState('right'),
-    //   ' | ',
-    //   this.bot.getControlState('sprint'),
-    //   this.bot.getControlState('jump'),
-    //   this.bot.getControlState('sneak')
-    // )
+    console.log(
+      this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
+      ' | ',
+      this.bot.getControlState('forward'),
+      this.bot.getControlState('back'),
+      ' | ',
+      this.bot.getControlState('left'),
+      this.bot.getControlState('right'),
+      ' | ',
+      this.bot.getControlState('sprint'),
+      this.bot.getControlState('jump'),
+      this.bot.getControlState('sneak')
+    )
     await task
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

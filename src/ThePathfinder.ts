@@ -347,6 +347,9 @@ export class ThePathfinder {
         continue
       }
 
+      console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
+      console.log('toPlace', move.toPlace, 'toBreak', move.toBreak, 'entryPos', move.entryPos, 'asVec', move.asVec(), 'exitPos', move.exitPos)
+
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
         while (!(await executor._align(move, tickCount++, goal)) && tickCount < 999) {
@@ -397,15 +400,13 @@ export class ThePathfinder {
 
     const pos = this.bot.entity.position
     let bad = false
-    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0]
-    if (path.path.indexOf(nextMove) === ind) {
+    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
+    if ((nextMove == null) || path.path.indexOf(nextMove) < ind) { bad = true } else if (path.path.indexOf(nextMove) === ind) {
       nextMove = path.path[ind + 1]
-    } else if (path.path.indexOf(nextMove) < ind) {
-      bad = true
     }
 
     const no = entry > 0 || bad
-    if (no) {
+    if (no || nextMove == null) {
       newGoal = goal
     } else {
       newGoal = goals.GoalBlock.fromVec(nextMove.asVec())
@@ -420,7 +421,7 @@ export class ThePathfinder {
     } else {
       // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
-      path.path.splice(0, ind)
+      path.path.splice(0, ind+1)
       await this.perform(path, goal, 0)
     }
   }

@@ -4,15 +4,15 @@ const { createPlugin, goals } = require("../dist");
 const { GoalBlock, GoalLookAt } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
-const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-util");
+const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
 
 
 
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  host: 'it-mil-1.halex.gg',
-  port: 25046
+  host: 'fr-msr-1.halex.gg',
+  port: 25497
 
   // host: "node2.endelon-hosting.de", port: 31997
   // host: 'Ic3TankD2HO.aternos.me',
@@ -41,7 +41,7 @@ function getGoal(world, x, y, z) {
 
 bot.on("inject_allowed", () => {});
 
-bot.once("spawn", () => {
+bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
   // bot.physics.yawSpeed = 3;
@@ -61,13 +61,15 @@ bot.once("spawn", () => {
   // (bot.physics).jumpTicks = 0;
 
   // bot.jumpTicks = 0;
+
+  const val = new EntityPhysics(bot.registry)
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
     // bot.jumpTicks = 0
     // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
     // ctx.state.jumpTicks = 0; // allow immediate jumping
     // // ctx.state.control.set('sneak', true)
-    // return val.simulate(ctx, bot.world)
+    // return val.simulate(ctx, bot.world).applyToBot(bot);
     return oldSim(...args);
   };
 
@@ -86,6 +88,9 @@ bot.once("spawn", () => {
   
     bot.chat(line)
   })
+
+  await bot.waitForChunksToLoad();
+  bot.chat('rocky1928')
 });
 
 /** @type { Vec3 | null } */
@@ -250,7 +255,7 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player.");
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      const goal = getGoal(bot.world, author.position.x, author.position.y, author.position.z);
+      const goal = getGoal(bot.world, author.position.x, author.position.y-1, author.position.z);
       const res1 = bot.pathfinder.getPathTo(goal);
       let test1;
       const test2 = [];
@@ -350,7 +355,8 @@ async function cmdHandler(username, msg) {
       lastStart = author.position.clone();
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      const goal = getGoal(bot.world, author.position.x, author.position.y, author.position.z);
+      const goal = getGoal(bot.world, author.position.x, author.position.y-1, author.position.z);
+      console.log(goal)
       await bot.pathfinder.goto(goal);
       const endTime = performance.now();
       bot.whisper(

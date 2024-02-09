@@ -109,8 +109,8 @@ export abstract class Movement {
   static readonly diagonalDirs = diagonalVec3s
   static readonly jumpDirs = jumpVec3s
 
-  protected readonly bot: Bot
-  protected readonly world: World
+  public readonly bot: Bot
+  public readonly world: World
   public settings: MovementOptions
 
   protected currentMove!: Move
@@ -245,6 +245,7 @@ export abstract class Movement {
 
     if (cost >= 100) return cost
 
+  
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
     toBreak.push(BreakHandler.fromVec(block.position, 'solid'))
@@ -269,13 +270,13 @@ export abstract class Movement {
   safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {
     if (!this.settings.canPlace) return 100
     if (this.currentMove.remainingBlocks <= 0) return 100
+  
     if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
     if (block.physical) return 0 // block is already physical at location.
 
     const cost = this.placeCost(block)
 
     if (cost >= 100) return cost
-
     toPlace.push(PlaceHandler.fromVec(block.position, type))
 
     return cost
@@ -292,7 +293,7 @@ export abstract class Movement {
 export abstract class SimMovement extends Movement {
   stateCtx: EPhysicsCtx
   sim: BaseSimulator
-  constructor (protected readonly bot: Bot, world: World, settings: Partial<MovementOptions>) {
+  constructor (bot: Bot, world: World, settings: Partial<MovementOptions>) {
     super(bot, world, settings)
     this.sim = new BaseSimulator(new EntityPhysics(bot.registry))
     this.stateCtx = EPhysicsCtx.FROM_BOT(this.sim.ctx, bot)

@@ -130,6 +130,13 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
 export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
+  if (ctx.pos.distanceTo(nextPoint) < 0.3 || true) {
+    // console.log('stopping since near goal')
+    ctx.control.set('left', false)
+    ctx.control.set('right', false)
+    return
+  }
+
   // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
 
   if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
@@ -155,6 +162,13 @@ export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
 // currentPoint,
 export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
+
+  if (bot.entity.position.distanceTo(nextPoint) < 0.3 || true) {
+    console.log('stopping since near goal')
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+    return
+  }
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
@@ -188,6 +202,13 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
 export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true): void {
   // console.log('hey!')
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
+
+  if (ctx.pos.distanceTo(nextPoint) < 0.1) {
+    // console.log('stopping since near goal')
+    ctx.control.set('forward', false)
+    ctx.control.set('back', false)
+    return
+  }
 
   // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
 
@@ -225,6 +246,13 @@ export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true)
 // currentPoint,
 export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): void {
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
+
+  if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
+    console.log('stopping since near goal')
+    bot.setControlState('forward', false)
+    bot.setControlState('back', false)
+    return
+  }
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
