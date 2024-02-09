@@ -19,7 +19,7 @@ export class StraightAheadOpt extends MovementOptimizer {
     const orgY = thisMove.entryPos.y
 
     const orgPos = thisMove.entryPos.floored().translate(0.5, 0, 0.5) // ensure middle of block.
-    const hW = 0.8 // ensure safety (larger than actual bot aabb)
+    const hW = 0.6 // ensure safety (larger than actual bot aabb)
     const uW = 0.4
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width: hW, height: 1.8 })

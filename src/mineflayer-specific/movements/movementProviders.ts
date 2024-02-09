@@ -21,8 +21,8 @@ export class Forward extends MovementProvider {
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir);
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
+      const off = start.entryPos.plus(dir).floor();
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
       this.getMoveForward(start, dir, storage);
     }
   }
@@ -67,8 +67,8 @@ export class ForwardJump extends MovementProvider {
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir);
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
+      const off = start.entryPos.plus(dir).floor();
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
       this.getMoveJumpUp(start, dir, storage);
     }
   }
@@ -140,7 +140,7 @@ export class ForwardJump extends MovementProvider {
     if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return;
     // if (toPlace.length === 2) return;
     // set exitPos to center of block we want.
-    neighbors.push(Move.fromPrevious(cost, blockB.position, node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 
@@ -184,8 +184,8 @@ export class ForwardDropDown extends DropDownProvider {
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir);
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
+      const off = start.entryPos.plus(dir).floor();
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
       this.getMoveDropDown(start, dir, storage);
     }
   }
@@ -218,7 +218,7 @@ export class ForwardDropDown extends DropDownProvider {
     if ((cost += this.safeOrBreak(blockD, toBreak)) > 100) return;
 
     // cost += this.getNumEntitiesAt(blockLand.position, 0, 0, 0) * this.entityCost // add cost for entities
-    neighbors.push(Move.fromPrevious(cost, blockLand.position, node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 
@@ -229,8 +229,8 @@ export class Diagonal extends MovementProvider {
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir);
-      // // if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
+      const off = start.entryPos.plus(dir).floor();
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue;
       this.getMoveDiagonal(start, dir, storage, goal);
     }
   }
@@ -276,7 +276,7 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak);
     if (cost > 100) return;
 
-    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir), node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 
@@ -284,8 +284,8 @@ export class StraightDown extends DropDownProvider {
   movementDirs = [new Vec3(0, -1, 0)];
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    const off = start.entryPos.plus(this.movementDirs[0]);
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) return;
+    const off = start.entryPos.plus(this.movementDirs[0]).floor();
+    if (closed.has(`${off.x},${off.y},${off.z}`)) return;
     return this.getMoveDown(start, storage);
   }
 
@@ -305,7 +305,7 @@ export class StraightDown extends DropDownProvider {
 
     // cost += this.getNumEntitiesAt(blockLand.position, 0, 0, 0) * this.entityCost // add cost for entities
 
-    neighbors.push(Move.fromPrevious(cost, blockLand.position, node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak));
   }
 }
 
@@ -313,8 +313,8 @@ export class StraightUp extends MovementProvider {
   movementDirs = [new Vec3(0,1,0)];
 
   provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    const off = start.entryPos.plus(this.movementDirs[0])
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) return
+    const off = start.entryPos.plus(this.movementDirs[0]).floor()
+    if (closed.has(`${off.x},${off.y},${off.z}`)) return
     return this.getMoveUp(start, storage);
   }
 
@@ -350,7 +350,7 @@ export class StraightUp extends MovementProvider {
       if ((cost += this.safeOrPlace(block1, toPlace, "solid")) > 100) return;
     }
 
-    neighbors.push(Move.fromPrevious(cost, nodePos.offset(0, 1, 0), node, this, toPlace, toBreak));
+    neighbors.push(Move.fromPrevious(cost, nodePos.offset(0.5, 1, 0.5), node, this, toPlace, toBreak));
   }
 }
 
@@ -409,32 +409,32 @@ export class ParkourForward extends MovementProvider {
         // cost += this.exclusionStep(blockB)
         // Forward
 
-        const off = node.entryPos.offset(dx, 0, dz);
-        // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        const off = node.entryPos.offset(dx, 0, dz).floor();
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
-        neighbors.push(Move.fromPrevious(cost, blockC.position, node, this));
+        neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this));
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break;
       } else if (ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
         // Up
         if (d === 5) continue;
 
-        const off = node.entryPos.offset(dx, 1, dz);
-        // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        const off = node.entryPos.offset(dx, 1, dz).floor();
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         // cost += this.exclusionStep(blockA)
         if (blockC.height - block0.height > 1.2) break; // Too high to jump
         // cost += this.getNumEntitiesAt(blockB.position, 0, 0, 0) * this.entityCost
-        neighbors.push(Move.fromPrevious(cost, blockB.position, node, this));
+        neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this));
         // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
         break;
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
 
-        const off = node.entryPos.offset(dx, -1, dz);
-        // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        const off = node.entryPos.offset(dx, -1, dz).floor();
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
 
         // Down
@@ -442,7 +442,7 @@ export class ParkourForward extends MovementProvider {
         if (blockE.physical) {
           // cost += this.exclusionStep(blockD)
           // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
-          neighbors.push(Move.fromPrevious(cost, blockD.position, node, this));
+          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this));
           // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
         }
         floorCleared = floorCleared && !blockE.physical;

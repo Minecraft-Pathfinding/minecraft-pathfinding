@@ -50,8 +50,9 @@ export abstract class MovementProvider extends Movement {
     // console.log(this.halfway)
   }
 
-  getBlockInfo (pos: Vec3Properties, dx: number, dz: number, dy: number): BlockInfo {
-    return super.getBlockInfo(pos, dx, dy, dz)
+  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
+   
+    
     // pos = {
     //   x: Math.floor(pos.x),
     //   y: Math.floor(pos.y),
@@ -96,37 +97,37 @@ export abstract class MovementProvider extends Movement {
     // const data = this.localData[wantedDx][wantedDy][wantedDz];
     const data = this.localData[idx]
 
-    // if (data !== null) {
-    //   // this.toClear.add(packed)
-    //   const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
-    //   if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
-    //     console.log(
-    //       'crap',
-    //       pos,
-    //       dx,
-    //       dy,
-    //       dz,
-    //       data.position,
-    //       '\n\n',
-    //       this.orgPos,
-    //       wantedDx,
-    //       wantedDy,
-    //       wantedDz,
-    //       target,
-    //       this.halfway,
-    //       this.boundaries,
+    if (data !== null) {
+      // this.toClear.add(packed)
+      // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
+      // if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
+      //   console.log(
+      //     'crap',
+      //     pos,
+      //     dx,
+      //     dy,
+      //     dz,
+      //     data.position,
+      //     '\n\n',
+      //     this.orgPos,
+      //     wantedDx,
+      //     wantedDy,
+      //     wantedDz,
+      //     target,
+      //     this.halfway,
+      //     this.boundaries,
 
-    //       this.localData[idx]
-    //     )
-    //     throw new Error('dang')
-    //   }
+      //     this.localData[idx]
+      //   )
+      //   throw new Error('dang')
+      // }
 
-    //   return data
-    // }
+      return data
+    }
 
     const ret = super.getBlockInfo(pos, dx, dy, dz)
 
-    // this.localData[idx]  = ret
+    this.localData[idx]  = ret
     return ret
   }
 }
