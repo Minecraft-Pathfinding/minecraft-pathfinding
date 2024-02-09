@@ -1,4 +1,3 @@
-import { BinaryHeapOpenSet } from './heap'
 import { PathData, PathNode } from './node'
 
 export interface Goal<Data> {

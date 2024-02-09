@@ -9,8 +9,6 @@ import { ExecutorMap } from '.'
 import { Vec3 } from 'vec3'
 import { Vec3Properties } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
-import { BinaryHeapOpenSet } from '../../abstract/heap'
-import { PathNode } from '../node'
 
 /**
  * Movement provider.
@@ -38,7 +36,6 @@ export abstract class MovementProvider extends Movement {
    */
   abstract provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void
 
-
   private localData: Array<BlockInfo | null> = []
 
   loadLocalData (orgPos: Vec3, boundaries: [x: number, z: number, y: number], arr: Array<BlockInfo | null>, clear: Set<number>): void {
@@ -51,8 +48,6 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-   
-    
     // pos = {
     //   x: Math.floor(pos.x),
     //   y: Math.floor(pos.y),
@@ -127,7 +122,7 @@ export abstract class MovementProvider extends Movement {
 
     const ret = super.getBlockInfo(pos, dx, dy, dz)
 
-    this.localData[idx]  = ret
+    this.localData[idx] = ret
     return ret
   }
 }
@@ -217,7 +212,7 @@ export class MovementHandler implements AMovementProvider<Move> {
         const newIdx = newX * this.boundaries[2] * this.boundaries[1] + newZ * this.boundaries[2] + newY
 
         this.swapArray[newIdx] = this.localData[idx]
-        
+
         this.swapSet[swapIdx++] = newIdx
       }
 
@@ -247,7 +242,7 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal, closed)
     }
 
-    this.resetLocalData(); // same speed, but less memory efficient.
+    this.resetLocalData() // same speed, but less memory efficient.
 
     // console.log(moves.length, moves.map(m=>m.moveType.constructor.name))
 
