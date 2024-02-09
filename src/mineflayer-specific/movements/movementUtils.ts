@@ -69,7 +69,7 @@ export function getUnderlyingBBs (world: World, pos: Vec3, width: number, collid
   return ret
 }
 
-type FallReason = 'coyote' | 'yChange' | 'none'
+// type FallReason = 'coyote' | 'yChange' | 'none'
 
 export function leavingBlockLevel (bot: Bot, world: World, ticks = 1): boolean {
   const bbs = getUnderlyingBBs(world, bot.entity.position, 0.6)
@@ -89,7 +89,7 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1): boolean {
   const bad = ctx.state.pos.y < bot.entity.position.y
 
   if (bot.entity.position.y > 63.5) { console.log('state pos:', ctx.state.pos, bbs, bbs1, minY, minY1) }
-  if ((minY == Infinity || minY1 == Infinity) && bad) {
+  if ((minY === Infinity || minY1 === Infinity) && bad) {
     return true
   }
   return minY1 < minY

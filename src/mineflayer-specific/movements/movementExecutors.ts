@@ -790,8 +790,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
     // return true;
 
     const bb = AABBUtils.getPlayerAABB({ position: this.bot.entity.position, width: 0.3, height: 1.8 }).extend(0, -0.252, 0)
-    const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize()
-    const dir = target.minus(this.bot.entity.position).normalize()
+    // const xzvdir = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).normalize()
+    // const dir = target.minus(this.bot.entity.position).normalize()
 
     // const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
     const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
@@ -822,7 +822,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.stepAmt = 3
       this.reachedBackup = false
       this.backUpTarget = this.shitterTwo.findBackupVertex(bbs, target)
-      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
+      // const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       console.log('here2', this.backUpTarget, this.bot.entity.position)
 
       await this.lookAtPathPos(this.backUpTarget)

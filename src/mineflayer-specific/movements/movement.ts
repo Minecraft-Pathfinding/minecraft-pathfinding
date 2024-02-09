@@ -245,7 +245,6 @@ export abstract class Movement {
 
     if (cost >= 100) return cost
 
-  
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
     toBreak.push(BreakHandler.fromVec(block.position, 'solid'))
@@ -270,7 +269,7 @@ export abstract class Movement {
   safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {
     if (!this.settings.canPlace) return 100
     if (this.currentMove.remainingBlocks <= 0) return 100
-  
+
     if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
     if (block.physical) return 0 // block is already physical at location.
 

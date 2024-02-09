@@ -3,7 +3,7 @@ import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
 // const ZERO = (0 * Math.PI) / 12
-const PI_OVER_TWELVE = (1 * Math.PI) / 12
+// const PI_OVER_TWELVE = (1 * Math.PI) / 12
 // const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
 // const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
 // const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
@@ -13,9 +13,9 @@ const SEVEN_PI_OVER_TWELVE = (7 * Math.PI) / 12
 // const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
 // const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
 // const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
-const ELEVEN_PI_OVER_TWELVE = (11 * Math.PI) / 12
+// const ELEVEN_PI_OVER_TWELVE = (11 * Math.PI) / 12
 // const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
-const THIRTEEN_PI_OVER_TWELVE = (13 * Math.PI) / 12
+// const THIRTEEN_PI_OVER_TWELVE = (13 * Math.PI) / 12
 // const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
 // const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
 // const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
@@ -25,7 +25,7 @@ const NINETEEN_PI_OVER_TWELVE = (19 * Math.PI) / 12
 // const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
 // const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
 // const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
-const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
+// const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
 // const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
 const TWO_PI = 2 * Math.PI
 
@@ -128,30 +128,31 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
  */
 // currentPoint: Vec3
 export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
-  const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
+  // const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
-  if (ctx.pos.distanceTo(nextPoint) < 0.3 || true) {
-    // console.log('stopping since near goal')
-    ctx.control.set('left', false)
-    ctx.control.set('right', false)
-    return
-  }
+  // ctx.pos.distanceTo(nextPoint) < 0.3
+  // if (true) {
+  // console.log('stopping since near goal')
+  ctx.control.set('left', false)
+  ctx.control.set('right', false)
+
+  // }
 
   // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
 
-  if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-    // console.log('going left')
-    ctx.control.set('left', false) // are these reversed? tf
-    ctx.control.set('right', true)
-  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-    // console.log('going right')
-    ctx.control.set('left', true)
-    ctx.control.set('right', false)
-  } else {
-    // console.log('going neither strafe')
-    ctx.control.set('left', false)
-    ctx.control.set('right', false)
-  }
+  // if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
+  //   // console.log('going left')
+  //   ctx.control.set('left', false) // are these reversed? tf
+  //   ctx.control.set('right', true)
+  // } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
+  //   // console.log('going right')
+  //   ctx.control.set('left', true)
+  //   ctx.control.set('right', false)
+  // } else {
+  //   // console.log('going neither strafe')
+  //   ctx.control.set('left', false)
+  //   ctx.control.set('right', false)
+  // }
 }
 
 /**
@@ -161,14 +162,15 @@ export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
  */
 // currentPoint,
 export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
-  const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
+  // const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
-  if (bot.entity.position.distanceTo(nextPoint) < 0.3 || true) {
-    console.log('stopping since near goal')
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-    return
-  }
+  // bot.entity.position.distanceTo(nextPoint) < 0.3 ||
+  // if (true) {
+  console.log('stopping since near goal')
+  bot.setControlState('left', false)
+  bot.setControlState('right', false)
+
+  // }
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
@@ -176,19 +178,19 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
 
   // console.log('strafe diff', diff, diff / Math.PI * 12)
 
-  if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-    // console.log('going left')
-    bot.setControlState('left', false) // are these reversed? tf
-    bot.setControlState('right', true)
-  } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-    // console.log('going right')
-    bot.setControlState('left', true)
-    bot.setControlState('right', false)
-  } else {
-    // console.log('going neither strafe')
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-  }
+  // if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
+  //   // console.log('going left')
+  //   bot.setControlState('left', false) // are these reversed? tf
+  //   bot.setControlState('right', true)
+  // } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
+  //   // console.log('going right')
+  //   bot.setControlState('left', true)
+  //   bot.setControlState('right', false)
+  // } else {
+  //   // console.log('going neither strafe')
+  //   bot.setControlState('left', false)
+  //   bot.setControlState('right', false)
+  // }
 }
 
 /**

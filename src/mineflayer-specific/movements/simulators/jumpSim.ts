@@ -5,7 +5,6 @@ import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
 import { BaseSimulator, Controller, EPhysicsCtx, OnGoalReachFunction, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { smartMovement, strafeMovement, wrapRadians } from '../controls'
-import { BlockInfo } from '../../world/cacheWorld'
 
 // const ZERO = (0 * Math.PI) / 12
 const PI_OVER_TWELVE = (1 * Math.PI) / 12

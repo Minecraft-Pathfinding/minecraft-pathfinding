@@ -421,7 +421,7 @@ export class ThePathfinder {
     } else {
       // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
-      path.path.splice(0, ind+1)
+      path.path.splice(0, ind + 1)
       await this.perform(path, goal, 0)
     }
   }
