@@ -9,6 +9,8 @@ export class Move implements PathData {
   hash: string
 
   targetPos: Vec3
+
+  private _cachedVec: Vec3 
   // remainingBlocks: number = 0 // TODO: implement this
 
   constructor (
@@ -32,6 +34,8 @@ export class Move implements PathData {
     this.z = Math.floor(z)
     this.hash = `${this.x},${this.y},${this.z}` // this.x + ',' + this.y + ',' + this.z
     this.targetPos = this.exitPos
+
+    this._cachedVec = new Vec3(this.x, this.y, this.z)
     // this.x = x;
     // this.y = y;
     // this.z = z;
@@ -111,12 +115,16 @@ export class Move implements PathData {
     )
   }
 
+
+
   public clone (): Move {
     return { ...this } // lazy.
   }
 
-  public toVec (): Vec3 {
-    return new Vec3(this.x, this.y, this.z)
+  public asVec (): Vec3 {
+
+    return this._cachedVec
+    // return new Vec3(this.x, this.y, this.z)
   }
 
   public toVecCenter (): Vec3 {

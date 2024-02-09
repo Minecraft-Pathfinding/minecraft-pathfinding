@@ -408,7 +408,7 @@ export class ThePathfinder {
     if (no) {
       newGoal = goal
     } else {
-      newGoal = goals.GoalBlock.fromVec(nextMove.toVec())
+      newGoal = goals.GoalBlock.fromVec(nextMove.asVec())
     }
 
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)

@@ -21,14 +21,14 @@ export class Forward extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).floor()
+      const off = start.asVec().plus(dir).floor()
       if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveForward(start, dir, storage)
     }
   }
 
   getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
-    const pos = start.toVec()
+    const pos = start.asVec()
 
     let cost = 1 // move cost
 
@@ -58,16 +58,76 @@ export class Forward extends MovementProvider {
     if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return
 
     // set exitPos to center of wanted block
-    neighbors.push(Move.fromPrevious(cost, pos.add(dir).translate(0.5, 0, 0.5), start, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, pos.plus(dir).translate(0.5, 0, 0.5), start, this, toPlace, toBreak))
   }
 }
+
+
+export class Diagonal extends MovementProvider {
+  movementDirs = Movement.diagonalDirs
+
+  static diagonalCost = Math.SQRT2 // sqrt(2)
+
+  provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
+    for (const dir of this.movementDirs) {
+      const off = start.asVec().plus(dir).floor()
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      this.getMoveDiagonal(start, dir, storage, goal)
+    }
+  }
+
+  getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
+    let cost = Diagonal.diagonalCost
+
+    if (this.getBlockInfo(node.entryPos.floored(), 0, 0, 0).liquid) cost += this.settings.liquidCost
+
+    const toBreak: BreakHandler[] = []
+    const toPlace: PlaceHandler[] = []
+    const block00 = this.getBlockInfo(node, 0, 0, 0)
+
+    const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
+    if (block00.height - block0.height > 0.6) return // Too high to walk up
+    // const needSideClearance = block00.height - block0.height < 0
+    const block1 = this.getBlockInfo(node, dir.x, 1, dir.z)
+    const blockN1 = this.getBlockInfo(node, dir.x, -1, dir.z)
+    if (!blockN1.physical) {
+      const blockCheck0 = this.getBlockInfo(node, 0, -1, dir.z)
+      const blockCheck1 = this.getBlockInfo(node, dir.x, -1, 0)
+
+      // first sol.
+      if (!blockCheck0.physical && !blockCheck1.physical) {
+        if (node.remainingBlocks <= 0) return // not enough blocks to place
+
+        const wanted = blockCheck0
+        if (!wanted.replaceable) {
+          if ((cost += this.safeOrBreak(wanted, toBreak)) > 100) return
+        }
+        if ((cost += this.safeOrPlace(wanted, toPlace, 'solid')) > 100) return
+      }
+
+      if ((cost += this.safeOrPlace(blockN1, toPlace, 'solid')) > 100) return
+    }
+
+    // expect these to all be relatively easy.
+    cost += this.safeOrBreak(block0, toBreak)
+    cost += this.safeOrBreak(block1, toBreak)
+    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 0, 0), toBreak)
+    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 0, dir.z), toBreak)
+    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak)
+    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
+    if (cost > 100) return
+
+    neighbors.push(Move.fromPrevious(cost, node.asVec().plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
+  }
+}
+
 
 export class ForwardJump extends MovementProvider {
   movementDirs = Movement.cardinalDirs
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).floor()
+      const off = start.entryPos.plus(dir).translate(0, 1, 0).floor()
       if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
@@ -83,7 +143,7 @@ export class ForwardJump extends MovementProvider {
    */
   getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]): void {
     // const pos = node.exitRounded(1)
-    const pos = node.toVec()
+    const pos = node.asVec()
     const blockA = this.getBlockInfo(pos, 0, 2, 0)
     const blockH = this.getBlockInfo(pos, dir.x, 2, dir.z)
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
@@ -222,64 +282,6 @@ export class ForwardDropDown extends DropDownProvider {
   }
 }
 
-export class Diagonal extends MovementProvider {
-  movementDirs = Movement.diagonalDirs
-
-  static diagonalCost = Math.SQRT2 // sqrt(2)
-
-  provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).floor()
-      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
-      this.getMoveDiagonal(start, dir, storage, goal)
-    }
-  }
-
-  getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
-    let cost = Diagonal.diagonalCost
-
-    if (this.getBlockInfo(node.entryPos.floored(), 0, 0, 0).liquid) cost += this.settings.liquidCost
-
-    const toBreak: BreakHandler[] = []
-    const toPlace: PlaceHandler[] = []
-    const block00 = this.getBlockInfo(node, 0, 0, 0)
-
-    const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
-    if (block00.height - block0.height > 0.6) return // Too high to walk up
-    // const needSideClearance = block00.height - block0.height < 0
-    const block1 = this.getBlockInfo(node, dir.x, 1, dir.z)
-    const blockN1 = this.getBlockInfo(node, dir.x, -1, dir.z)
-    if (!blockN1.physical) {
-      const blockCheck0 = this.getBlockInfo(node, 0, -1, dir.z)
-      const blockCheck1 = this.getBlockInfo(node, dir.x, -1, 0)
-
-      // first sol.
-      if (!blockCheck0.physical && !blockCheck1.physical) {
-        if (node.remainingBlocks <= 0) return // not enough blocks to place
-
-        const wanted = blockCheck0
-        if (!wanted.replaceable) {
-          if ((cost += this.safeOrBreak(wanted, toBreak)) > 100) return
-        }
-        if ((cost += this.safeOrPlace(wanted, toPlace, 'solid')) > 100) return
-      }
-
-      if ((cost += this.safeOrPlace(blockN1, toPlace, 'solid')) > 100) return
-    }
-
-    // expect these to all be relatively easy.
-    cost += this.safeOrBreak(block0, toBreak)
-    cost += this.safeOrBreak(block1, toBreak)
-    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 0, 0), toBreak)
-    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 0, dir.z), toBreak)
-    cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak)
-    cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
-    if (cost > 100) return
-
-    neighbors.push(Move.fromPrevious(cost, node.toVec().add(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
-  }
-}
-
 export class StraightDown extends DropDownProvider {
   movementDirs = [new Vec3(0, -1, 0)]
 
@@ -332,7 +334,7 @@ export class StraightUp extends MovementProvider {
 
     if ((cost += this.safeOrBreak(block2, toBreak)) > 100) return
 
-    const nodePos = node.toVec()
+    const nodePos = node.asVec()
 
     if (!block1.climbable) {
       if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return // not enough blocks to place

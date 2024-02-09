@@ -732,7 +732,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     this.executing = false
-
+    this.bot.clearControlStates()
     const target = thisMove.exitPos.offset(0, -1, 0)
 
     // const targetEyeVec = this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
@@ -816,7 +816,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.reachedBackup = true
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       // console.log('here1', this.backUpTarget, this.bot.entity.position, dist, xzvdir.dot(dir))
-      this.bot.clearControlStates()
       await this.lookAtPathPos(target)
 
       this.bot.setControlState('forward', true)
@@ -885,7 +884,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   // TODO: Fix this. Good thing I've done this before. >:)
   performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     // if (!this.bot.entity.onGround && !this.executing) return false;
-
+    this.bot.clearControlStates()
     if (this.executing) {
       this.bot.setControlState('jump', false)
       void this.alignToPath(thisMove)

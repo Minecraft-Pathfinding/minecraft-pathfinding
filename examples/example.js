@@ -405,7 +405,7 @@ function rayTraceEntitySight(options) {
     const x = -Math.sin(yaw) * Math.cos(pitch);
     const y = Math.sin(pitch);
     const z = -Math.cos(yaw) * Math.cos(pitch);
-    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), 512);
+    const rayBlock = bot.world.raycast(position.offset(0, height, 0), new Vec3(x, y, z), 4098);
     if (rayBlock) {
       return rayBlock;
     }
