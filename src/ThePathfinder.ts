@@ -188,6 +188,7 @@ export class ThePathfinder {
 
   /**
    * Gen here, I don't like this code. this is temporary.
+   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L237
    */
   isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
     if (pos == null || path == null) return false
@@ -237,6 +238,10 @@ export class ThePathfinder {
     return false
   }
 
+  /**
+   * Gen here, this code is alright.
+   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L285
+   */
   closestPointOnLineSegment (point: Vec3, segmentStart: Vec3, segmentEnd: Vec3): Vec3 {
     const segmentLength = segmentEnd.minus(segmentStart).norm()
 
