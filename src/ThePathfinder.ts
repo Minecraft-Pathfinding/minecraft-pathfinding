@@ -34,6 +34,7 @@ import {
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
+import { Block } from './types'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -97,6 +98,10 @@ void,
 unknown
 >
 
+interface PerformOpts {
+  errorOnRetry?: boolean
+}
+
 /**
  * Eventually, I want all pathfinder logic entirely off thread.
  *
@@ -117,8 +122,13 @@ export class ThePathfinder {
 
   public executing = false
   public cancelCalculation = false
+
+  private currentGoal?: goals.Goal
+  private currentPath?: Move[]
   private currentMove?: Move
-  public currentExecutor?: MovementExecutor
+  private currentExecutor?: MovementExecutor
+
+  private allowRetry = false
 
   constructor (
     private readonly bot: Bot,
@@ -147,13 +157,101 @@ export class ThePathfinder {
     this.astar = null
   }
 
-  async cancel (timeout = 1000): Promise<void> {
-    this.cancelCalculation = true
+  async cancel (allowRetry = false, timeout = 1000): Promise<void> {
+    // we were not attempting to move in the first place.
+    if (this.currentGoal == null) return
 
     if (this.currentExecutor == null) return
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
+    this.cancelCalculation = true
+    this.allowRetry = allowRetry
+
     await this.currentExecutor.abort(this.currentMove, timeout)
+
+    // calling cleanupAll is not necessary as the end of goto already calls it.
+  }
+
+  async reset (cancelTimeout = 1000): Promise<void> {
+    await this.cancel(true, cancelTimeout)
+  }
+
+  setupListeners (): void {
+    // this can be done once.
+    this.bot.on('blockUpdate', async (oldblock, newBlock: Block | null) => {
+      if ((oldblock == null) || (newBlock == null)) return
+      if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
+        void this.reset().catch(console.error)
+      }
+    })
+  }
+
+  /**
+   * Gen here, I don't like this code. this is temporary.
+   */
+  isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
+    if (pos == null || path == null) return false
+
+    let prevNode: Vec3 | null = null
+
+    for (const move of path) {
+      const node = move.asVec()
+      let comparisonPoint: Vec3 | null = null
+
+      if (
+        prevNode === null ||
+        (Math.abs(prevNode.x - node.x) <= 2 && Math.abs(prevNode.y - node.y) <= 2 && Math.abs(prevNode.z - node.z) <= 2)
+      ) {
+        // Unoptimized path, or close enough to last point
+        // to just check against the current point
+        comparisonPoint = node
+      } else {
+        // Optimized path - the points are far enough apart
+        //   that we need to check the space between them too
+
+        // First, a quick check - if point it outside the path
+        // segment's AABB, then it isn't near.
+        const minBound = prevNode.min(node)
+        const maxBound = prevNode.max(node)
+        if (
+          pos.x - 0.5 < minBound.x - 1 ||
+          pos.x - 0.5 > maxBound.x + 1 ||
+          pos.y - 0.5 < minBound.y - 2 ||
+          pos.y - 0.5 > maxBound.y + 2 ||
+          pos.z - 0.5 < minBound.z - 1 ||
+          pos.z - 0.5 > maxBound.z + 1
+        ) {
+          continue
+        }
+
+        comparisonPoint = this.closestPointOnLineSegment(pos, prevNode, node)
+      }
+      const dx = Math.abs(comparisonPoint.x - pos.x - 0.5)
+      const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
+      const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
+      if (dx <= 1 && dy <= 2 && dz <= 1) return true
+
+      prevNode = node
+    }
+
+    return false
+  }
+
+  closestPointOnLineSegment (point: Vec3, segmentStart: Vec3, segmentEnd: Vec3): Vec3 {
+    const segmentLength = segmentEnd.minus(segmentStart).norm()
+
+    if (segmentLength === 0) {
+      return segmentStart
+    }
+
+    // t is like an interpolation from segmentStart to segmentEnd
+    //  for the closest point on the line
+    let t = point.minus(segmentStart).dot(segmentEnd.minus(segmentStart)) / segmentLength
+
+    // bound t to be on the segment
+    t = Math.max(0, Math.min(1, t))
+
+    return segmentStart.plus(segmentEnd.minus(segmentStart).scaled(t))
   }
 
   getCacheSize (): string {
@@ -239,6 +337,7 @@ export class ThePathfinder {
     const listener = (): void => {
       ticked = true
     }
+
     this.bot.on('physicsTick', listener)
 
     while (result.status === 'partial') {
@@ -277,21 +376,28 @@ export class ThePathfinder {
     return null
   }
 
-  async goto (goal: goals.Goal): Promise<void> {
-    // if (this.executing) throw new Error('Already executing!')
-    if (this.executing) {
+  /**
+   * @param {goals.Goal | null} goal
+   */
+  async goto (goal: goals.Goal, performOpts: PerformOpts): Promise<void> {
+    if (this.executing || goal == null) {
       await this.cancel()
     }
     this.executing = true
+    this.currentGoal = goal
 
-    for await (const res of this.getPathTo(goal)) {
-      if (res.result.status !== 'success') {
-        if (res.result.status === 'noPath' || res.result.status === 'timeout') break
-      } else {
-        const newPath = await this.postProcess(res.result)
-        await this.perform(newPath, goal)
+    while (this.allowRetry) {
+      for await (const res of this.getPathTo(goal)) {
+        if (res.result.status !== 'success') {
+          if (res.result.status === 'noPath' || res.result.status === 'timeout') break
+        } else {
+          const newPath = await this.postProcess(res.result)
+          await this.perform(newPath, goal)
+          break
+        }
       }
     }
+
     await this.cleanupAll(goal)
   }
 
@@ -328,6 +434,7 @@ export class ThePathfinder {
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
 
+      this.currentPath = path.path
       this.currentMove = move
       this.currentExecutor = executor
 
@@ -348,7 +455,18 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log('toPlace', move.toPlace, 'toBreak', move.toBreak, 'entryPos', move.entryPos, 'asVec', move.asVec(), 'exitPos', move.exitPos)
+      console.log(
+        'toPlace',
+        move.toPlace,
+        'toBreak',
+        move.toBreak,
+        'entryPos',
+        move.entryPos,
+        'asVec',
+        move.asVec(),
+        'exitPos',
+        move.exitPos
+      )
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -401,7 +519,9 @@ export class ThePathfinder {
     const pos = this.bot.entity.position
     let bad = false
     let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
-    if ((nextMove == null) || path.path.indexOf(nextMove) < ind) { bad = true } else if (path.path.indexOf(nextMove) === ind) {
+    if (nextMove == null || path.path.indexOf(nextMove) < ind) {
+      bad = true
+    } else if (path.path.indexOf(nextMove) === ind) {
       nextMove = path.path[ind + 1]
     }
 
@@ -437,7 +557,10 @@ export class ThePathfinder {
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.executing = false
+    this.allowRetry = false
 
+    delete this.currentGoal
+    delete this.currentPath
     delete this.currentMove
     delete this.currentExecutor
   }
