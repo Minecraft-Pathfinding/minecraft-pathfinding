@@ -34,7 +34,7 @@ import {
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
-import { Block } from './types'
+import { Block, ResetReason } from './types'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -97,6 +97,8 @@ type PathGenerator = AsyncGenerator<
 void,
 unknown
 >
+
+
 
 interface PerformOpts {
   errorOnRetry?: boolean
@@ -172,7 +174,7 @@ export class ThePathfinder {
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
-  async reset (cancelTimeout = 1000): Promise<void> {
+  async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
     await this.cancel(true, cancelTimeout)
   }
 
@@ -181,8 +183,12 @@ export class ThePathfinder {
     this.bot.on('blockUpdate', async (oldblock, newBlock: Block | null) => {
       if ((oldblock == null) || (newBlock == null)) return
       if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
-        void this.reset().catch(console.error)
+        void this.reset('blockUpdate').catch(console.error)
       }
+    })
+
+    this.bot.on('chunkColumnLoad', (chunk) => {
+      
     })
   }
 
