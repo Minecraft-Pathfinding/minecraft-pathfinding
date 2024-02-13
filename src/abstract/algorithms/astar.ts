@@ -90,6 +90,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       calcTime: performance.now() - this.startTime,
       visitedNodes: this.closedDataSet.size,
       generatedNodes: this.closedDataSet.size + this.openHeap.size(),
+      movementProvider: this.movementProvider,
       path: reconstructPath(node),
       context: this
     }

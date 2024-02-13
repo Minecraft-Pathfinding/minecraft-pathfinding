@@ -17,6 +17,7 @@ export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
   calcTime: number
   visitedNodes: number
   generatedNodes: number
+  movementProvider: MovementProvider<Data>
   path: Data[]
   context: Alg
 }

@@ -1,10 +1,9 @@
 import { Bot } from 'mineflayer'
 import { AStar as AAStar } from './abstract/algorithms/astar'
-import { AStar } from './mineflayer-specific/algs'
+import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
-import { Path, Algorithm } from './abstract'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
 import { AbortError, CancelError } from './mineflayer-specific/movements/exceptions'
 import {
@@ -88,7 +87,7 @@ const DEFAULT_SETUP = new Map(DEFAULT_PROVIDER_EXECUTORS)
 const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
 
 // Temp typing.
-type PathInfo = Path<Move, AAStar<Move>>
+type PathInfo = Path
 type PathGenerator = AsyncGenerator<
 {
   result: PathInfo
@@ -97,8 +96,6 @@ type PathGenerator = AsyncGenerator<
 void,
 unknown
 >
-
-
 
 interface PerformOpts {
   errorOnRetry?: boolean
@@ -131,6 +128,11 @@ export class ThePathfinder {
   private currentExecutor?: MovementExecutor
 
   private allowRetry = false
+  private currentProducer?: PathProducer
+
+  public get currentAStar (): AStar | undefined {
+    return this.currentProducer?.getAstarContext()
+  }
 
   constructor (
     private readonly bot: Bot,
@@ -161,13 +163,13 @@ export class ThePathfinder {
 
   async cancel (allowRetry = false, timeout = 1000): Promise<void> {
     // we were not attempting to move in the first place.
-    if (this.currentGoal == null) return
-
-    if (this.currentExecutor == null) return
-    if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
+    if (this.currentGoal == null) return console.log('no goal!')
 
     this.cancelCalculation = true
     this.allowRetry = allowRetry
+
+    if (this.currentExecutor == null) return console.log('no executor')
+    if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
     await this.currentExecutor.abort(this.currentMove, timeout)
 
@@ -175,20 +177,32 @@ export class ThePathfinder {
   }
 
   async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
+    this.bot.chat('reset for: ' + reason)
     await this.cancel(true, cancelTimeout)
   }
 
   setupListeners (): void {
     // this can be done once.
-    this.bot.on('blockUpdate', async (oldblock, newBlock: Block | null) => {
-      if ((oldblock == null) || (newBlock == null)) return
+    this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
+      if (oldblock == null || newBlock == null) return
       if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
-        void this.reset('blockUpdate').catch(console.error)
+        void this.reset('blockUpdate')
       }
     })
 
     this.bot.on('chunkColumnLoad', (chunk) => {
-      
+      const astarContext = this.currentAStar
+      if (astarContext == null) return
+      const cx = chunk.x >> 4
+      const cz = chunk.z >> 4
+      if (
+        astarContext.visitedChunks.has(`${cx - 1},${cz}`) ||
+        astarContext.visitedChunks.has(`${cx},${cz - 1}`) ||
+        astarContext.visitedChunks.has(`${cx + 1},${cz}`) ||
+        astarContext.visitedChunks.has(`${cx},${cz + 1}`)
+      ) {
+        void this.reset('chunkLoad')
+      }
     })
   }
 
@@ -332,15 +346,13 @@ export class ThePathfinder {
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh()
 
-    let foo
-
     if (this.pathfinderSettings.partialPathProducer) {
-      foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
     } else {
-      foo = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
     }
 
-    let { result, astarContext } = foo.advance()
+    let { result, astarContext } = this.currentProducer.advance()
 
     yield { result, astarContext }
 
@@ -357,7 +369,7 @@ export class ThePathfinder {
         return
       }
 
-      const { result: result2, astarContext } = foo.advance()
+      const { result: result2, astarContext } = this.currentProducer.advance()
       result = result2
 
       if (result.status === 'success') {
@@ -397,7 +409,7 @@ export class ThePathfinder {
     this.executing = true
     this.currentGoal = goal
 
-    while (this.allowRetry) {
+    do {
       for await (const res of this.getPathTo(goal)) {
         if (res.result.status !== 'success') {
           if (res.result.status === 'noPath' || res.result.status === 'timeout') break
@@ -407,12 +419,12 @@ export class ThePathfinder {
           break
         }
       }
-    }
+    } while (this.allowRetry)
 
     await this.cleanupAll(goal)
   }
 
-  private async postProcess (pathInfo: Path<Move, Algorithm<Move>>): Promise<Path<Move, Algorithm<Move>>> {
+  private async postProcess (pathInfo: Path): Promise<Path> {
     const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
     optimizer.loadPath(pathInfo.path)
@@ -432,7 +444,7 @@ export class ThePathfinder {
    * @param goal
    * @param entry
    */
-  async perform (path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+  async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
     let currentIndex = 0
@@ -517,7 +529,7 @@ export class ThePathfinder {
   }
 
   // TODO: implement recovery for any movement and goal.
-  async recovery (move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     await this.cleanupBot()
 
     const ind = path.path.indexOf(move)

@@ -217,6 +217,8 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
+      if (lastMove.toPlace.length > 1) return --currentIndex
+
       if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex
       if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove

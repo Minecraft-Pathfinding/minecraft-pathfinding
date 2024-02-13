@@ -11,12 +11,12 @@ const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@n
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  host: 'fr-msr-1.halex.gg',
-  port: 25497
+  // host: 'fr-msr-1.halex.gg',
+  // port: 25497
 
   // host: "node2.endelon-hosting.de", port: 31997
-  // host: 'Ic3TankD2HO.aternos.me',
-  // port: 44656
+  host: 'Ic3TankD2HO.aternos.me',
+  port: 44656
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
@@ -24,11 +24,11 @@ const pathfinder = createPlugin();
 
 
 const validTypes = ["block" , "lookat"]
-let type = "block"
+let mode = "block"
 function getGoal(world, x, y, z) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
-  switch (type) {
+  switch (mode) {
     case "block":
       return new GoalBlock(x, y+1, z);
     case "lookat":
@@ -108,12 +108,12 @@ async function cmdHandler(username, msg) {
   switch (cmd) {
     case "mode": {
       if (args.length === 0) {
-        bot.whisper(username, `mode is ${type}`);
+        bot.whisper(username, `mode is ${mode}`);
         break;
       }
       if (!validTypes.includes(args[0])) return bot.whisper(username, `Invalid mode ${args[0]}`);
-      type = args[0];
-      bot.whisper(username, `mode is now ${type}`);
+      mode = args[0];
+      bot.whisper(username, `mode is now ${mode}`);
       break;
     }
     case "hi": {
@@ -132,7 +132,8 @@ async function cmdHandler(username, msg) {
       const [key, value] = args;
 
       if (key === "list") {
-        bot.whisper(username, "Pathfinder settings: " + keys.join(", "));
+        bot.whisper(username, "Movement settings: " + keys.join(", "));
+        bot.whisper(username, "Pathfinder settings: " + keys1.join(", "));
         bot.whisper(username, "Physics settings: " + keys2.join(", "));
         break;
       }
@@ -233,7 +234,7 @@ async function cmdHandler(username, msg) {
       if (isNaN(x) || isNaN(y) || isNaN(z)) return bot.whisper(username, "goto <x> <y> <z> failed | invalid args");
       
       const block = bot.blockAt(new Vec3(x, y, z));
-      if (block === null) return bot.whisper(username, "goto <x> <y> <z> failed | invalid block");
+      if (block === null && mode !== 'block') return bot.whisper(username, "goto <x> <y> <z> failed | invalid block");
     
       bot.whisper(username, `going to ${args[0]} ${args[1]} ${args[2]}`);
 

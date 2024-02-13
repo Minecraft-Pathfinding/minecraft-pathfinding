@@ -5,9 +5,7 @@ export interface Vec3Properties {
   z: number
 }
 
-
 export type ResetReason = 'blockUpdate' | 'chunkLoad'
-
 
 export type BlockType = ReturnType<typeof import('prismarine-block')>
 export type Block = import('prismarine-block').Block

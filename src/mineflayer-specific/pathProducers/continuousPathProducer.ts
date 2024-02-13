@@ -1,26 +1,19 @@
 import { Bot } from 'mineflayer'
-import { PathProducer } from '../../abstract/pathProducer'
+import { PathProducer, AStar } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
-import { AStar } from '../../abstract/algorithms/astar'
-import { Path } from '../../abstract'
+import { AdvanceRes } from '.'
 
-// temp typing
-interface AdvanceRes {
-  result: Path<Move, AStar<Move>>
-  astarContext: AStar<Move>
-}
-
-export class ContinuousPathProducer implements PathProducer<Move> {
+export class ContinuousPathProducer implements PathProducer {
   private readonly start: Move
   private readonly goal: goals.Goal
   private readonly settings: MovementOptions
   private readonly bot: Bot
   private readonly world: World
   private readonly movements: ExecutorMap
-  private astarContext: AStar<Move> | undefined
+  private astarContext: AStar | undefined
 
   private readonly gcInterval: number = 10
   private lastGc: number = 0
@@ -31,6 +24,10 @@ export class ContinuousPathProducer implements PathProducer<Move> {
     this.bot = bot
     this.world = world
     this.movements = movements
+  }
+
+  getAstarContext (): AStar | undefined {
+    return this.astarContext
   }
 
   advance (): AdvanceRes {
