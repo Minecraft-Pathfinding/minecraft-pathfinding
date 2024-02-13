@@ -6,6 +6,7 @@ import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
 import { AStar } from '../../abstract/algorithms/astar'
 import { Path } from '../../abstract'
+import { AStarNeighbor } from '../../abstract/algorithms/astarNeighbor'
 
 // temp typing
 interface AdvanceRes {
@@ -38,10 +39,10 @@ export class ContinuousPathProducer implements PathProducer<Move> {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
 
-      this.astarContext = new AStar(this.start, moveHandler, this.goal, 30000, 45, -1, 0)
+      this.astarContext = new AStarNeighbor(this.start, moveHandler, this.goal, 30000, 45, -1, 0) as any
     }
 
-    const result = this.astarContext.compute()
+    const result = this.astarContext!.compute()
 
     if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
       // const starttime = performance.now()
@@ -58,6 +59,6 @@ export class ContinuousPathProducer implements PathProducer<Move> {
       //   + 'when launching node to enable forced garbage collection.');
     }
 
-    return { result, astarContext: this.astarContext }
+    return { result, astarContext: this.astarContext  as any}
   }
 }

@@ -88,7 +88,7 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1): boolean {
 
   const bad = ctx.state.pos.y < bot.entity.position.y
 
-  if (bot.entity.position.y > 63.5) { console.log('state pos:', ctx.state.pos, bbs, bbs1, minY, minY1) }
+  // if (bot.entity.position.y > 63.5) { console.log('state pos:', ctx.state.pos, bbs, bbs1, minY, minY1) }
   if ((minY === Infinity || minY1 === Infinity) && bad) {
     return true
   }
@@ -426,7 +426,14 @@ export class ParkourJumpHelper {
     // const orgPos = this.bot.entity.position.clone()
 
     const reached0 = JumpSim.getReachedAABB(goalBBs)
-    const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks)
+
+    let lastXZVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
+    const reached: SimulationGoal = (state, ticks) => {
+      const xzVel = state.vel.offset(0, -state.vel.y, 0)
+      const good = lastXZVel.norm() - xzVel.norm() < 0.01
+      lastXZVel = xzVel
+      return good && state.onGround && reached0(state, ticks)
+    }
     const state = this.sim.simulateUntil(
       reached,
       () => {},
@@ -437,9 +444,8 @@ export class ParkourJumpHelper {
       this.world,
       45
     )
-
     // console.log(reached(state, 0), reached0(state, 0), reached0(state, 1), state.age, orgPos, state.pos, goal, state.onGround, state.isCollidedHorizontally, state.control);
-    return reached0(state, 0) as boolean
+    return reached(state, ctx.state.age) as boolean
   }
 
   public simForwardMove (goal: Vec3, jump = true, ...constraints: SimulationGoal[]): boolean {
