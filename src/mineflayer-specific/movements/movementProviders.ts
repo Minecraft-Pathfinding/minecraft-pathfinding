@@ -7,6 +7,9 @@ import { emptyVec } from '@nxg-org/mineflayer-physics-util/dist/physics/settings
 import { MovementProvider } from './movementProvider'
 import { BlockInfo } from '../world/cacheWorld'
 
+// technically, the offsets are slow. Yeah, I know.
+// However, removing those breaks the code. So I won't fix that for the time being. -Gen
+
 export class IdleMovement extends MovementProvider {
   movementDirs: Vec3[] = []
   provideMovements (start: Move, storage: Move[]): void {}
