@@ -3,7 +3,6 @@ export interface PathData {
   cost: number
 }
 
-
 export class PathNode<Data extends PathData> {
   data: Data | null = null
   parent: PathNode<Data> | null = null
@@ -41,10 +40,9 @@ export class CPathNode<Data extends PathData> implements PathNode<Data> {
   parent: PathNode<Data> | null
   g: number
   h: number
-  f: number;
- 
+  f: number
 
-  update(g: number, h: number, data: Data | null, parent: PathNode<Data> | null): this {
+  update (g: number, h: number, data: Data | null, parent: PathNode<Data> | null): this {
     this.g = g
     this.h = h
     this.f = g + h
@@ -52,5 +50,4 @@ export class CPathNode<Data extends PathData> implements PathNode<Data> {
     this.parent = parent
     return this
   }
-
 }

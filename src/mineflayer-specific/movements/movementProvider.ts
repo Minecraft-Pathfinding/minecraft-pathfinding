@@ -133,7 +133,6 @@ export class MovementHandler implements AMovementProvider<Move> {
   goal!: goals.Goal
   world: World
 
-
   constructor (bot: Bot, world: World, recMovement: MovementProvider[], movementMap: ExecutorMap) {
     this.world = world
     this.recognizedMovements = recMovement
@@ -163,13 +162,12 @@ export class MovementHandler implements AMovementProvider<Move> {
     this.goal = goal
   }
 
-  private readonly boundaries: [x: number, z: number, y: number] = [7,7,7]
+  private readonly boundaries: [x: number, z: number, y: number] = [7, 7, 7]
   private readonly halfway: [x: number, z: number, y: number] = [Math.floor(this.boundaries[0] / 2), Math.floor(this.boundaries[1] / 2), Math.floor(this.boundaries[2] / 2)]
 
   private readonly maxBound = this.boundaries[0] * this.boundaries[1] * this.boundaries[2]
   private readonly toClear: Set<number> = new Set()
   private readonly localData: Array<BlockInfo | null> = new Array(this.maxBound).fill(null, 0, this.maxBound)
-
 
   resetLocalData (): void {
     for (let i = 0; i < this.maxBound; i++) {
@@ -182,8 +180,8 @@ export class MovementHandler implements AMovementProvider<Move> {
   private readonly swapArray = new Array(this.maxBound).fill(null)
   private readonly swapSet = new Array(this.maxBound)
 
-  public count = 0;
-  public totCount = 0;
+  public count = 0
+  public totCount = 0
   shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
     const diff = newPos.minus(orgPos)
 
@@ -216,8 +214,8 @@ export class MovementHandler implements AMovementProvider<Move> {
       const idx = this.swapSet[i]
       this.localData[idx] = this.swapArray[idx]
     }
-    if (swapIdx > 0) this.count++;
-    this.totCount++;
+    if (swapIdx > 0) this.count++
+    this.totCount++
   }
 
   private lastPos?: Vec3

@@ -25,7 +25,7 @@ export class Forward extends MovementProvider {
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.cachedVec.plus(dir).floor()
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveForward(start, dir, storage)
     }
   }
@@ -73,7 +73,7 @@ export class Diagonal extends MovementProvider {
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.cachedVec.plus(dir).floor()
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveDiagonal(start, dir, storage, goal)
     }
   }
@@ -129,7 +129,7 @@ export class ForwardJump extends MovementProvider {
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.entryPos.plus(dir).floor()
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      if (closed.has(`${off.x},${off.y + 1},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
   }
@@ -265,7 +265,7 @@ export class ForwardDropDown extends DropDownProvider {
 
     const blockLand = this.getLandingBlock(node, dir)
     if (blockLand == null) return
-  // if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
+    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return // Don't drop down into water
 
@@ -289,7 +289,7 @@ export class StraightDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     const off = start.entryPos.plus(this.movementDirs[0]).floor()
-  // if (closed.has(`${off.x},${off.y},${off.z}`)) return
+    if (closed.has(`${off.x},${off.y},${off.z}`)) return
     return this.getMoveDown(start, storage)
   }
 
@@ -317,8 +317,8 @@ export class StraightUp extends MovementProvider {
   movementDirs = [new Vec3(0, 1, 0)]
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    const off = start.entryPos.plus(this.movementDirs[0]).floor()
-  // if (closed.has(`${off.x},${off.y},${off.z}`)) return
+    const off = start.entryPos.floor()
+    if (closed.has(`${off.x},${off.y + 1},${off.z}`)) return
     return this.getMoveUp(start, storage)
   }
 
@@ -411,7 +411,7 @@ export class ParkourForward extends MovementProvider {
         // Forward
 
         const off = blockC.position
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
@@ -421,7 +421,7 @@ export class ParkourForward extends MovementProvider {
         if (d === 5) continue
 
         const off = blockB.position
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         // cost += this.exclusionStep(blockA)
@@ -433,7 +433,7 @@ export class ParkourForward extends MovementProvider {
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
         const off = blockD.position
-      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)

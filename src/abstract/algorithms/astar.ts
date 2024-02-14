@@ -123,8 +123,6 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
-
-
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
       for (const neighborData of neighbors) {
@@ -145,21 +143,20 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
           // properties will be set later
           this.openDataMap.set(neighborData.hash, neighbor)
           this.openHeap.push(neighbor)
-          
         } else if (gFromThisNode - pastNeighborNode.g < this.differential) {
-            pastNeighborNode.update(gFromThisNode, heuristic, neighborData, node)
-            this.openHeap.update(pastNeighborNode)
-            if (pastNeighborNode.h < this.bestNode.h) this.bestNode = pastNeighborNode
+          pastNeighborNode.update(gFromThisNode, heuristic, neighborData, node)
+          this.openHeap.update(pastNeighborNode)
+          if (pastNeighborNode.h < this.bestNode.h) this.bestNode = pastNeighborNode
         }
 
-          // allow specific implementations to access visited and closed data.
+        // allow specific implementations to access visited and closed data.
         this.addToClosedDataSet(node)
-        
+
         // found a new or better route.
         // update this neighbor with this node as its new parent
-        
+
         // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
-        
+
         // if (update) {
         //   // this.openHeap.
         //   // // this.openHeap.

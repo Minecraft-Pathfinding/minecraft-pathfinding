@@ -341,7 +341,7 @@ export class ThePathfinder {
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.cancelCalculation = false
-    this.currentGoal = goal;
+    this.currentGoal = goal
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
@@ -374,8 +374,6 @@ export class ThePathfinder {
       result = result2
 
       if (result.status === 'success') {
-        const ctx = (this.currentProducer.getAstarContext()!.movementProvider as any);
-        console.log(`Percentage swap: ${(ctx.count / ctx.totCount )* 100}`)
         yield { result, astarContext }
         break
       }
