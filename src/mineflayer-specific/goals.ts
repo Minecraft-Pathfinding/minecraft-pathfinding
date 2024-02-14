@@ -3,8 +3,10 @@ import { Goal as AGoal } from '../abstract'
 import { Move } from './move'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
-import { Bot } from 'mineflayer'
 import { Block } from '../types'
+import { PlaceHandler } from './movements/interactionUtils'
+import type { Item } from 'prismarine-item'
+import { Movement } from './movements'
 
 /**
  * The abstract goal definition used by the pathfinder.
@@ -12,7 +14,7 @@ import { Block } from '../types'
 export abstract class Goal implements AGoal<Move> {
   abstract isEnd (node: Move): boolean
   abstract heuristic (node: Move): number
-  async onFinish (bot: Bot): Promise<void> {}
+  async onFinish (node: Movement): Promise<void> {}
 }
 
 /**
@@ -173,7 +175,8 @@ export class GoalLookAt extends Goal {
     return this.bb.containsVec(intsec)
   }
 
-  override async onFinish (bot: Bot): Promise<void> {
+  override async onFinish (node: Movement): Promise<void> {
+    const bot = node.bot
     await bot.lookAt(new Vec3(this.x, this.y, this.z))
     await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
   }
@@ -191,7 +194,8 @@ export class GoalMineBlock extends GoalLookAt {
     return new GoalMineBlock(world, block, distance, height)
   }
 
-  override async onFinish (bot: Bot): Promise<void> {
+  override async onFinish (node: Movement): Promise<void> {
+    const bot = node.bot
     await bot.lookAt(new Vec3(this.x, this.y, this.z))
     await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
 
@@ -203,5 +207,40 @@ export class GoalMineBlock extends GoalLookAt {
     bot.updateHeldItem()
 
     await bot.dig(this.block, 'ignore', 'raycast') // already looking, comply with anticheat.
+  }
+}
+
+export class GoalPlaceBlock extends GoalLookAt {
+  private readonly handler: PlaceHandler
+  constructor (world: World, private readonly bPos: Vec3, item: Item, distance: number, height: number) {
+    if (bPos === null) throw new Error('GoalMineBlock: Block provided cannot be null.')
+
+    // could technically check if block is solid, but let's let users fuck up first.
+    super(world, bPos.x, bPos.y, bPos.z, 1, 1, distance, height)
+
+    const type = PlaceHandler.identTypeFromItem(item)
+    this.handler = PlaceHandler.fromVec(bPos, type)
+  }
+
+  static fromInfo (world: World, bPos: Vec3, item: Item, distance = 4, height = 1.62): GoalPlaceBlock {
+    return new GoalPlaceBlock(world, bPos, item, distance, height)
+  }
+
+  override async onFinish (node: Movement): Promise<void> {
+    const bot = node.bot
+    this.handler.loadMove(node)
+
+    await bot.lookAt(new Vec3(this.x, this.y, this.z))
+    await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
+
+    // could technically use BreakHandler, but won't bother for now.
+
+    if (this.handler.done) throw new Error('GoalPlaceBlock: Handler was already executed!')
+    const item = this.handler.getItem(bot)
+    if (item != null) await bot.equip(item, 'hand')
+    else await bot.unequip('hand')
+    bot.updateHeldItem()
+
+    await this.handler.perform(bot, item)
   }
 }

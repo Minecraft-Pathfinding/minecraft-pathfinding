@@ -1,11 +1,10 @@
 "use strict";
 const { createBot } = require("mineflayer");
 const { createPlugin, goals } = require("../dist");
-const { GoalBlock, GoalLookAt } = goals;
+const { GoalBlock, GoalLookAt, GoalPlaceBlock } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
-
 
 
 const bot = createBot({
@@ -23,7 +22,7 @@ const bot = createBot({
 const pathfinder = createPlugin();
 
 
-const validTypes = ["block" , "lookat"]
+const validTypes = ["block" , "lookat", "place"]
 let mode = "block"
 
 function getGoal(world,x,y,z) {
@@ -35,11 +34,15 @@ function getGoal(world,x,y,z) {
 function _getGoal(world, x, y, z) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
+  let item;
   switch (mode) {
     case "block":
       return new GoalBlock(x, y+1, z);
     case "lookat":
       return GoalLookAt.fromBlock(world, block);
+    case "place":
+      item = bot.inventory.items().find(item => item.name === 'dirt');
+      return GoalPlaceBlock.fromInfo(world, block.position.offset(0, 1, 0), item);
   }
 
   return new GoalBlock(x, y+1, z);

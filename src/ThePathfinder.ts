@@ -408,7 +408,7 @@ export class ThePathfinder {
       }
     } while (this.allowRetry)
 
-    await this.cleanupAll(goal)
+    await this.cleanupAll(goal, this.currentExecutor)
   }
 
   private async postProcess (pathInfo: Path): Promise<Path> {
@@ -574,9 +574,9 @@ export class ThePathfinder {
     // await this.bot.waitForTicks(1);
   }
 
-  async cleanupAll (goal: goals.Goal): Promise<void> {
+  async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     await this.cleanupBot()
-    await goal.onFinish(this.bot)
+    if (lastMove != null) await goal.onFinish(lastMove)
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.executing = false

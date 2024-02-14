@@ -3,7 +3,6 @@ import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import * as goals from '../goals'
 import { World } from '../world/worldInterface'
-import { BlockInfo } from '../world/cacheWorld'
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
@@ -296,7 +295,7 @@ export abstract class MovementExecutor extends Movement {
   }
 
   protected async performPlace (place: PlaceHandler, opts: InteractOpts = {}): Promise<void> {
-    const item = place.getItem(this.bot, BlockInfo)
+    const item = place.getItem(this.bot)
     if (item == null) throw new CancelError('MovementExecutor: no item to place')
     await place._perform(this.bot, item, opts)
     this._cI = undefined
@@ -305,7 +304,7 @@ export abstract class MovementExecutor extends Movement {
   protected async performBreak (breakTarget: BreakHandler, opts: InteractOpts = {}): Promise<void> {
     const block = breakTarget.getBlock(this.bot.pathfinder.world)
     if (block == null) throw new CancelError('MovementExecutor: no block to break')
-    const item = breakTarget.getItem(this.bot, BlockInfo, block)
+    const item = breakTarget.getItem(this.bot, block)
     await breakTarget._perform(this.bot, item, opts)
     this._cI = undefined
   }

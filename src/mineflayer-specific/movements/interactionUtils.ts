@@ -86,7 +86,7 @@ export abstract class InteractHandler {
     (this as any).move = move
   }
 
-  abstract getItem (bot: Bot, blockInfo: typeof BlockInfo, block?: Block): Item | null
+  abstract getItem (bot: Bot, block?: Block): Item | null
   abstract perform (bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>
   abstract performInfo (bot: Bot, ticks?: number): Promise<InteractionPerformInfo>
   abstract toBlockInfo (): BlockInfo
@@ -176,6 +176,11 @@ export class PlaceHandler extends InteractHandler {
     return new PlaceHandler(vec.x, vec.y, vec.z, type, offhand)
   }
 
+  static identTypeFromItem (item: Item): InteractType {
+    if (item.name.includes('water')) return 'water'
+    return 'solid'
+  }
+
   toBlockInfo (): BlockInfo {
     switch (this.type) {
       case 'solid':
@@ -194,13 +199,13 @@ export class PlaceHandler extends InteractHandler {
    * @param bot
    * @param blockInfo
    */
-  getItem (bot: Bot, blockInfo: typeof BlockInfo): Item | null {
+  getItem (bot: Bot): Item | null {
     switch (this.type) {
       case 'water': {
         return bot.inventory.items().find((item) => item.name === 'water_bucket') ?? null
       }
       case 'solid': {
-        return bot.inventory.items().find((item) => blockInfo.scaffoldingBlockItems.has(item.type)) ?? null
+        return bot.inventory.items().find((item) => BlockInfo.scaffoldingBlockItems.has(item.type)) ?? null
       }
       case 'replaceable': {
         throw new Error('Not implemented')
@@ -346,7 +351,7 @@ export class PlaceHandler extends InteractHandler {
    * @param item
    * @param opts
    */
-  async perform (bot: Bot, item: Item, opts: InteractOpts = {}): Promise<void> {
+  async perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
 
     if (item === null) throw new Error('Invalid item')
@@ -532,7 +537,7 @@ export class BreakHandler extends InteractHandler {
     return world.getBlock(this.vec)
   }
 
-  getItem (bot: Bot, blockInfo: typeof BlockInfo, block: Block): Item | null {
+  getItem (bot: Bot, block: Block): Item | null {
     switch (this.type) {
       case 'water': {
         return bot.inventory.items().find((item) => item.name === 'bucket') ?? null // empty bucket
