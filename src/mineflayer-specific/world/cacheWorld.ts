@@ -255,7 +255,7 @@ export class CacheSyncWorld implements WorldType {
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
     this.blocks = new LRUCache({ size: 10000, max: 2000 })
-    this.blockInfos = new LRUCache({ max: 1000000, ttl: 5000 })
+    this.blockInfos = new LRUCache({ max: 100000, ttl: 1000 })
     this.world = referenceWorld
 
     referenceWorld.on('blockUpdate', (oldBlock: Block, newBlock: Block) => {
@@ -288,8 +288,8 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlockInfo (pos: Vec3): BlockInfo {
-    // this.cacheCalls++
-    // return BlockInfo.fromBlock(this.world.getBlock(pos))
+    this.cacheCalls++
+    return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
       const block = this.world.getBlock(pos) as unknown as Block

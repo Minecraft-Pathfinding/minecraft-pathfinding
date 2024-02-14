@@ -47,7 +47,7 @@ export abstract class MovementProvider extends Movement {
     // console.log(this.halfway)
   }
 
-  _getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
+  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     // pos = {
     //   x: Math.floor(pos.x),
     //   y: Math.floor(pos.y),
@@ -56,36 +56,36 @@ export abstract class MovementProvider extends Movement {
 
     const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
 
-    // if (wantedDx < 0 || wantedDx >= this.boundaries[0]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
+    if (wantedDx < 0 || wantedDx >= this.boundaries[0]) {
+      return super.getBlockInfo(pos, dx, dy, dz);
+    }
 
     const wantedDz = pos.z - this.orgPos.z + dz + this.halfway[1]
 
-    // if (wantedDz < 0 || wantedDz >= this.boundaries[2]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
+    if (wantedDz < 0 || wantedDz >= this.boundaries[2]) {
+      return super.getBlockInfo(pos, dx, dy, dz);
+    }
 
     const wantedDy = pos.y - this.orgPos.y + dy + this.halfway[2]
 
-    // if (wantedDy < 0 || wantedDy >= this.boundaries[2]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
+    if (wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+      return super.getBlockInfo(pos, dx, dy, dz);
+    }
 
     // const packed = (wantedDx << 16) + (wantedDz << 8) + wantedDy
 
-    if (
-      wantedDx < 0 ||
-      wantedDx >= this.boundaries[0] ||
-      wantedDz < 0 ||
-      wantedDz >= this.boundaries[1] ||
-      wantedDy < 0 ||
-      wantedDy >= this.boundaries[2]
-    ) {
-      // console.log('hey', idx, this.localData[idx])
-      return super.getBlockInfo(pos, dx, dy, dz)
-      // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
-    }
+    // if (
+    //   wantedDx < 0 ||
+    //   wantedDx >= this.boundaries[0] ||
+    //   wantedDz < 0 ||
+    //   wantedDz >= this.boundaries[1] ||
+    //   wantedDy < 0 ||
+    //   wantedDy >= this.boundaries[2]
+    // ) {
+    //   // console.log('hey', idx, this.localData[idx])
+    //   return super.getBlockInfo(pos, dx, dy, dz)
+    //   // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
+    // }
 
     const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
 

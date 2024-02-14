@@ -1,7 +1,7 @@
 import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
-import { PathData, PathNode } from '../node'
+import { CPathNode, PathData, PathNode } from '../node'
 
 function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
   const path: Data[] = []
@@ -123,8 +123,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
-      // allow specific implementations to access visited and closed data.
-      this.addToClosedDataSet(node)
+ 
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
@@ -134,37 +133,33 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
         }
         const gFromThisNode = node.g + neighborData.cost
         let neighborNode = this.openDataMap.get(neighborData.hash)
-        let update = false
 
         const heuristic = this.heuristic(neighborData)
         if (this.maxCost > 0 && gFromThisNode + heuristic > this.maxCost) continue
 
         if (neighborNode === undefined) {
+
           // add neighbor to the open set
-          neighborNode = new PathNode()
+          neighborNode = new CPathNode(gFromThisNode, heuristic, neighborData, node)
           // properties will be set later
           this.openDataMap.set(neighborData.hash, neighborNode)
+          this.openHeap.push(neighborNode)
         } else {
           if (neighborNode.g - gFromThisNode <= this.differential) {
             // skip this one because another route is faster
             continue
           }
-          update = true
+          this.openHeap.update(neighborNode)
+          // update = true
         }
         // found a new or better route.
         // update this neighbor with this node as its new parent
-        neighborNode.set(gFromThisNode, heuristic, neighborData, node)
-        // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
+        // neighborNode.set(gFromThisNode, heuristic, neighborData, node)
         if (neighborNode.h < this.bestNode.h) this.bestNode = neighborNode
-        if (update) {
-          // this.openHeap.
-          // // this.openHeap.
-          this.openHeap.update(neighborNode)
-        } else {
-          // this.openHeap.add(neighborNode)
-          this.openHeap.push(neighborNode)
-        }
       }
+
+           // allow specific implementations to access visited and closed data.
+           this.addToClosedDataSet(node)
     }
     // all the neighbors of every accessible node have been exhausted
     return this.makeResult('noPath', this.bestNode)

@@ -341,6 +341,7 @@ export class ThePathfinder {
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.cancelCalculation = false
+    this.currentGoal = goal;
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
@@ -407,7 +408,6 @@ export class ThePathfinder {
       await this.cancel()
     }
     this.executing = true
-    this.currentGoal = goal
 
     do {
       for await (const res of this.getPathTo(goal)) {

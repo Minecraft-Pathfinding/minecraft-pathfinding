@@ -124,11 +124,11 @@ export class Diagonal extends MovementProvider {
 }
 
 export class ForwardJump extends MovementProvider {
-  movementDirs = Movement.cardinalDirs
+  movementDirs = Movement.cardinalDirs.map(dir=>dir.offset(0, 1, 0))
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).translate(0, 1, 0).floor()
+      const off = start.entryPos.plus(dir).floor()
       if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
@@ -245,13 +245,13 @@ export class ForwardDropDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).floor()
-      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
-      this.getMoveDropDown(start, dir, storage)
+      // const off = start.entryPos.plus(dir).floor()
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      this.getMoveDropDown(start, dir, storage, closed)
     }
   }
 
-  getMoveDropDown (node: Move, dir: Vec3, neighbors: Move[]): void {
+  getMoveDropDown (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
     const blockC = this.getBlockInfo(node, dir.x, 0, dir.z)
     if (blockC.liquid) return // dont go underwater
 
@@ -265,6 +265,7 @@ export class ForwardDropDown extends DropDownProvider {
 
     const blockLand = this.getLandingBlock(node, dir)
     if (blockLand == null) return
+    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return // Don't drop down into water
 
@@ -411,7 +412,7 @@ export class ParkourForward extends MovementProvider {
         // cost += this.exclusionStep(blockB)
         // Forward
 
-        const off = node.entryPos.offset(dx, 0, dz).floor()
+        const off = blockC.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
@@ -421,7 +422,7 @@ export class ParkourForward extends MovementProvider {
         // Up
         if (d === 5) continue
 
-        const off = node.entryPos.offset(dx, 1, dz).floor()
+        const off = blockB.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
@@ -433,7 +434,7 @@ export class ParkourForward extends MovementProvider {
         break
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
-        const off = node.entryPos.offset(dx, -1, dz).floor()
+        const off = blockD.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
