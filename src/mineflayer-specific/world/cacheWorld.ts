@@ -351,9 +351,7 @@ export class CacheSyncWorld implements WorldType {
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
-      const block = this.world.getBlock(pos) as unknown as Block
-      if (block == null) return BlockInfo.DEFAULT
-      return BlockInfo.fromBlock(block)
+      return BlockInfo.fromBlock(this.world.getBlock(pos))
     }
     this.cacheCalls++
     pos = pos.floored()
