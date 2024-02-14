@@ -421,7 +421,7 @@ export abstract class MovementExecutor extends Movement {
   protected async alignToPath (
     startMove: Move,
     endMove?: Move,
-    opts?: { handleBack?: boolean, target?: Vec3, sprint?: boolean }
+    opts?: { handleBack?: boolean, lookAt?: Vec3, sprint?: boolean }
   ): Promise<void>
   protected async alignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
@@ -435,7 +435,7 @@ export abstract class MovementExecutor extends Movement {
     }
 
     // const handleBack = opts.handleBack ?? false
-    const target = opts.target ?? endMove.exitPos
+    const target = opts.lookAt ?? endMove.exitPos
     // const offset = endMove.exitPos.minus(this.bot.entity.position)
     // const dir = endMove.exitPos.minus(startMove.entryPos)
     const sprint = opts.sprint ?? true
