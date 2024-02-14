@@ -438,7 +438,7 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
-    this.allowRetry = false;
+    this.allowRetry = false
 
     // eslint-disable-next-line no-labels
     outer: while (currentIndex < path.path.length) {

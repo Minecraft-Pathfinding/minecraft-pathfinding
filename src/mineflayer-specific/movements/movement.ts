@@ -134,7 +134,7 @@ export abstract class Movement {
     return this.currentMove.toBreak.filter((b) => !b.allowExit)
   }
 
-  toBreakLen(): number {
+  toBreakLen (): number {
     return this.currentMove.toBreak.filter((b) => !b.allowExit).length
   }
 
@@ -142,7 +142,7 @@ export abstract class Movement {
     return this.currentMove.toPlace.filter((b) => !b.allowExit)
   }
 
-  toPlaceLen(): number {
+  toPlaceLen (): number {
     return this.currentMove.toPlace.filter((b) => !b.allowExit).length
   }
 

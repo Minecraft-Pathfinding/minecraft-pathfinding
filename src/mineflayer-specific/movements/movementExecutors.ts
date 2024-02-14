@@ -29,11 +29,9 @@ export class ForwardExecutor extends MovementExecutor {
    * TOOD: not yet working.
    */
   private async faceForward (): Promise<boolean> {
-
-
-    const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0);
-    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec));
-    const near = placementVecs.some(p=>p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
+    const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
+    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec))
+    const near = placementVecs.some(p => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
 
     return this.currentMove?.toPlace.length === 0 && !near
     // const wanted = await this.interactPossible(15);

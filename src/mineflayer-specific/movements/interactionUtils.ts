@@ -494,7 +494,7 @@ export class PlaceHandler extends InteractHandler {
   async abort (bot: Bot): Promise<void> {
     if (!this.task.done) {
       this.task.finish()
-      this.task.canceled = true;
+      this.task.canceled = true
     }
 
     if (this._placeTask != null) {
@@ -609,7 +609,7 @@ export class BreakHandler extends InteractHandler {
   async abort (bot: Bot): Promise<void> {
     if (!this.task.done) {
       this.task.finish()
-      this.task.canceled = true;
+      this.task.canceled = true
     }
 
     if (this._breakTask != null) {
