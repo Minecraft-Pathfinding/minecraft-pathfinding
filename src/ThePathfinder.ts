@@ -188,7 +188,7 @@ export class ThePathfinder {
       if (oldblock == null || newBlock == null) return
 
       if (this.isPositionNearPath(oldblock.position, this.currentPath) && oldblock.type !== newBlock.type) {
-        console.log('hi', oldblock.type,newBlock.type)
+        console.log('hi', oldblock.type, newBlock.type)
         void this.reset('blockUpdate')
       }
     })
@@ -221,7 +221,6 @@ export class ThePathfinder {
       let comparisonPoint: Vec3 | null = null
 
       comparisonPoint = this.closestPointOnLineSegment(pos, move.entryPos, move.exitPos)
-   
 
       const dx = Math.abs(comparisonPoint.x - pos.x - 0.5)
       const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
