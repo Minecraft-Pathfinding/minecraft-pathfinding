@@ -10,7 +10,7 @@ export class Move implements PathData {
 
   targetPos: Vec3
 
-  private readonly _cachedVec: Vec3
+  public readonly cachedVec: Vec3
   // remainingBlocks: number = 0 // TODO: implement this
 
   constructor (
@@ -35,7 +35,8 @@ export class Move implements PathData {
     this.hash = `${this.x},${this.y},${this.z}` // this.x + ',' + this.y + ',' + this.z
     this.targetPos = this.exitPos
 
-    this._cachedVec = new Vec3(this.x, this.y, this.z)
+    this.cachedVec = new Vec3(this.x, this.y, this.z)
+    Object.freeze(this.cachedVec)
     // this.x = x;
     // this.y = y;
     // this.z = z;
@@ -119,8 +120,12 @@ export class Move implements PathData {
     return { ...this } // lazy.
   }
 
-  public asVec (): Vec3 {
+  public get vec (): Vec3 {
+<<<<<<< Updated upstream
+    return this.cachedVec
+=======
     return this._cachedVec
+>>>>>>> Stashed changes
     // return new Vec3(this.x, this.y, this.z)
   }
 

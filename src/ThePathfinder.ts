@@ -216,7 +216,7 @@ export class ThePathfinder {
     let prevNode: Vec3 | null = null
 
     for (const move of path) {
-      const node = move.asVec()
+      const node = move.vec
       let comparisonPoint: Vec3 | null = null
 
       if (
@@ -486,7 +486,7 @@ export class ThePathfinder {
         'entryPos',
         move.entryPos,
         'asVec',
-        move.asVec(),
+        move.vec,
         'exitPos',
         move.exitPos
       )
@@ -552,7 +552,7 @@ export class ThePathfinder {
     if (no || nextMove == null) {
       newGoal = goal
     } else {
-      newGoal = goals.GoalBlock.fromVec(nextMove.asVec())
+      newGoal = goals.GoalBlock.fromVec(nextMove.vec)
     }
 
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)

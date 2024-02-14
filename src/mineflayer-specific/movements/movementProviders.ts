@@ -24,14 +24,14 @@ export class Forward extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.asVec().plus(dir).floor()
-      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      const off = start.vec.plus(dir).floor()
+    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveForward(start, dir, storage)
     }
   }
 
   getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
-    const pos = start.asVec()
+    const pos = start.vec
 
     let cost = 1 // move cost
 
@@ -72,8 +72,8 @@ export class Diagonal extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.asVec().plus(dir).floor()
-      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      const off = start.vec.plus(dir).floor()
+    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveDiagonal(start, dir, storage, goal)
     }
   }
@@ -81,7 +81,7 @@ export class Diagonal extends MovementProvider {
   getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
     let cost = Diagonal.diagonalCost
 
-    if (this.getBlockInfo(node.entryPos.floored(), 0, 0, 0).liquid) cost += this.settings.liquidCost
+    if (this.getBlockInfo(node.vec, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
@@ -119,17 +119,17 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
     if (cost > 100) return
 
-    neighbors.push(Move.fromPrevious(cost, node.asVec().plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, node.vec.plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
 
 export class ForwardJump extends MovementProvider {
-  movementDirs = Movement.cardinalDirs.map(dir=>dir.offset(0, 1, 0))
+  movementDirs = Movement.cardinalDirs
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.entryPos.plus(dir).floor()
-      if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+    // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
   }
@@ -144,7 +144,7 @@ export class ForwardJump extends MovementProvider {
    */
   getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]): void {
     // const pos = node.exitRounded(1)
-    const pos = node.asVec()
+    const pos = node.vec
     const blockA = this.getBlockInfo(pos, 0, 2, 0)
     const blockH = this.getBlockInfo(pos, dir.x, 2, dir.z)
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
@@ -245,7 +245,7 @@ export class ForwardDropDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      // const off = start.entryPos.plus(dir).floor()
+      // const off = start.vec.plus(dir).floor()
       // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveDropDown(start, dir, storage, closed)
     }
@@ -265,7 +265,7 @@ export class ForwardDropDown extends DropDownProvider {
 
     const blockLand = this.getLandingBlock(node, dir)
     if (blockLand == null) return
-    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
+  // if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return // Don't drop down into water
 
@@ -289,7 +289,7 @@ export class StraightDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     const off = start.entryPos.plus(this.movementDirs[0]).floor()
-    if (closed.has(`${off.x},${off.y},${off.z}`)) return
+  // if (closed.has(`${off.x},${off.y},${off.z}`)) return
     return this.getMoveDown(start, storage)
   }
 
@@ -318,7 +318,7 @@ export class StraightUp extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     const off = start.entryPos.plus(this.movementDirs[0]).floor()
-    if (closed.has(`${off.x},${off.y},${off.z}`)) return
+  // if (closed.has(`${off.x},${off.y},${off.z}`)) return
     return this.getMoveUp(start, storage)
   }
 
@@ -336,8 +336,6 @@ export class StraightUp extends MovementProvider {
 
     if ((cost += this.safeOrBreak(block2, toBreak)) > 100) return
 
-    const nodePos = node.asVec()
-
     if (!block1.climbable) {
       if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return // not enough blocks to place
 
@@ -354,7 +352,7 @@ export class StraightUp extends MovementProvider {
       if ((cost += this.safeOrPlace(block1, toPlace, 'solid')) > 100) return
     }
 
-    neighbors.push(Move.fromPrevious(cost, nodePos.offset(0.5, 1, 0.5), node, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, block1.position.offset(0.5, 1, 0.5), node, this, toPlace, toBreak))
   }
 }
 
@@ -413,7 +411,7 @@ export class ParkourForward extends MovementProvider {
         // Forward
 
         const off = blockC.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
@@ -423,7 +421,7 @@ export class ParkourForward extends MovementProvider {
         if (d === 5) continue
 
         const off = blockB.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         // cost += this.exclusionStep(blockA)
@@ -435,7 +433,7 @@ export class ParkourForward extends MovementProvider {
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
         const off = blockD.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)
