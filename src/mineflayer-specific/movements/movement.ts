@@ -130,11 +130,19 @@ export abstract class Movement {
     this.currentMove = move
   }
 
-  toBreakLen (): number {
+  toBreak (): BreakHandler[] {
+    return this.currentMove.toBreak.filter((b) => !b.allowExit)
+  }
+
+  toBreakLen(): number {
     return this.currentMove.toBreak.filter((b) => !b.allowExit).length
   }
 
-  toPlaceLen (): number {
+  toPlace (): PlaceHandler[] {
+    return this.currentMove.toPlace.filter((b) => !b.allowExit)
+  }
+
+  toPlaceLen(): number {
     return this.currentMove.toPlace.filter((b) => !b.allowExit).length
   }
 

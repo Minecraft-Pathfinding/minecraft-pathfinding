@@ -28,6 +28,7 @@ let mode = "block"
 
 function getGoal(world,x,y,z) {
   const ret = _getGoal(world,x,y,z)
+  bot.chat(`Going to: ${ret.x} ${ret.y} ${ret.z}`)
   console.log(ret)
   return ret;
 }

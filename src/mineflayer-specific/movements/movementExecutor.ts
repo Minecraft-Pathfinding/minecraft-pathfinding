@@ -73,10 +73,17 @@ export abstract class MovementExecutor extends Movement {
    * TODO: Implement.
    */
   public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
+
+    if (this.cancelled) return
+
+ 
+
     const timeout = settings.timeout ?? 1000
     const resetting = settings.resetting ?? false
 
-    if (this.cancelled) return
+    this.cancelled = true
+    
+    this.resetting = resetting
 
     for (const breakTarget of move.toBreak) {
       await breakTarget._abort(this.bot)
@@ -101,8 +108,6 @@ export abstract class MovementExecutor extends Movement {
       }, timeout)
     })
 
-    this.cancelled = true
-    this.resetting = resetting
   }
 
   public _performInit (thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {

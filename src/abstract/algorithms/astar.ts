@@ -69,12 +69,12 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   makeResult (status: string, node: PathNode<Data>): Path<Data, AStar<Data>> {
     console.log(
       status,
+      this.goal,
       performance.now() - this.startTime,
       node.g,
       this.closedDataSet.size,
       this.closedDataSet.size + this.openHeap.size(),
       reconstructPath(node).length,
-
       `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`,
       // reconstructPath(node)
 

@@ -4,7 +4,7 @@ import { Move } from '../move'
 import { Movement } from './movement'
 import { CancelError } from '../exceptions'
 import { BlockInfo } from '../world/cacheWorld'
-import { RayType } from './interactionUtils'
+import { PlaceHandler, RayType } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
@@ -28,8 +28,14 @@ export class ForwardExecutor extends MovementExecutor {
   /**
    * TOOD: not yet working.
    */
-  private async facingCorrectDir (): Promise<boolean> {
-    return this.currentMove?.toPlace.length === 0
+  private async faceForward (): Promise<boolean> {
+
+
+    const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0);
+    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec));
+    const near = placementVecs.some(p=>p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
+
+    return this.currentMove?.toPlace.length === 0 && !near
     // const wanted = await this.interactPossible(15);
 
     // if (wanted != null) {
@@ -69,7 +75,7 @@ export class ForwardExecutor extends MovementExecutor {
   }
 
   async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    const faceForward = await this.facingCorrectDir()
+    const faceForward = await this.faceForward()
 
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
     if (faceForward) {
@@ -129,7 +135,7 @@ export class ForwardExecutor extends MovementExecutor {
     this.bot.clearControlStates()
     this.currentIndex = 0
 
-    const faceForward = await this.facingCorrectDir()
+    const faceForward = await this.faceForward()
 
     if (faceForward) {
       await this.alignToPath(thisMove)
@@ -283,7 +289,7 @@ export class ForwardExecutor extends MovementExecutor {
       // throw new CancelError("ForwardMove: collided horizontally");
     }
 
-    const faceForward = await this.facingCorrectDir()
+    const faceForward = await this.faceForward()
 
     if (faceForward) {
       // eslint-disable-next-line no-constant-condition

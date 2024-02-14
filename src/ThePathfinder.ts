@@ -123,7 +123,7 @@ export class ThePathfinder {
   public cancelCalculation = false
 
   private currentGoal?: goals.Goal
-  private currentPath?: Move[]
+  private currentExecutingPath?: Move[]
   private currentMove?: Move
   private currentExecutor?: MovementExecutor
 
@@ -164,9 +164,6 @@ export class ThePathfinder {
   }
 
   async cancel (allowRetry = false, timeout = 1000): Promise<void> {
-    // we were not attempting to move in the first place.
-    if (this.currentGoal == null) return console.log('no goal!')
-
     this.cancelCalculation = true
 
     if (this.currentExecutor == null) return console.log('no executor')
@@ -187,7 +184,8 @@ export class ThePathfinder {
     this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
       if (oldblock == null || newBlock == null) return
 
-      if (this.isPositionNearPath(oldblock.position, this.currentPath) && oldblock.type !== newBlock.type) {
+      // console.log('checking', oldblock.position, newBlock.type)
+      if (this.isPositionNearPath(oldblock.position, this.currentExecutingPath) && oldblock.type !== newBlock.type) {
         console.log('hi', oldblock.type, newBlock.type)
         void this.reset('blockUpdate')
       }
@@ -213,8 +211,8 @@ export class ThePathfinder {
    * Gen here, I don't like this code. this is temporary.
    * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L237
    */
-  isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
-    console.log('pos:', pos, 'path:', path?.length)
+  isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentExecutingPath): boolean {
+    // console.log('pos:', pos, 'path:', path?.length)
     if (pos == null || path == null) return false
 
     for (const move of path) {
@@ -226,7 +224,7 @@ export class ThePathfinder {
       const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
-      console.log(comparisonPoint, dx, dy, dz, pos)
+      // console.log(comparisonPoint, dx, dy, dz, pos)
       if (dx <= 1 && dy <= 2 && dz <= 1) return true
     }
 
@@ -244,12 +242,18 @@ export class ThePathfinder {
       return segmentStart
     }
 
-    // t is like an interpolation from segmentStart to segmentEnd
-    //  for the closest point on the line
-    let t = point.minus(segmentStart).dot(segmentEnd.minus(segmentStart)) / segmentLength
+    // given the start and end segment of a line that is of arbitrary length,
+    // identify the closest point on the line to the given point.
 
-    // bound t to be on the segment
-    t = Math.max(0, Math.min(1, t))
+    const t = point.minus(segmentStart).dot(segmentEnd.minus(segmentStart)) / segmentLength ** 2
+
+    if (t < 0) {
+      return segmentStart
+    }
+
+    if (t > 1) {
+      return segmentEnd
+    }
 
     return segmentStart.plus(segmentEnd.minus(segmentStart).scaled(t))
   }
@@ -397,7 +401,7 @@ export class ThePathfinder {
           }
 
           if (!this.allowRetry) {
-            console.log('finished!')
+            console.log('finished!', this.bot.entity.position, goal)
             break
           }
         }
@@ -434,13 +438,15 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
+    this.allowRetry = false;
+
     // eslint-disable-next-line no-labels
     outer: while (currentIndex < path.path.length) {
       const move = path.path[currentIndex]
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
 
-      this.currentPath = path.path
+      this.currentExecutingPath = path.path
       this.currentMove = move
       this.currentExecutor = executor
 
@@ -461,18 +467,18 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log(
-        'toPlace',
-        move.toPlace.map((p) => p.vec),
-        'toBreak',
-        move.toBreak.map((b) => b.vec),
-        'entryPos',
-        move.entryPos,
-        'asVec',
-        move.vec,
-        'exitPos',
-        move.exitPos
-      )
+      // console.log(
+      //   'toPlace',
+      //   move.toPlace.map((p) => p.vec),
+      //   'toBreak',
+      //   move.toBreak.map((b) => b.vec),
+      //   'entryPos',
+      //   move.entryPos,
+      //   'asVec',
+      //   move.vec,
+      //   'exitPos',
+      //   move.exitPos
+      // )
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -577,7 +583,7 @@ export class ThePathfinder {
     this.allowRetry = false
 
     delete this.currentGoal
-    delete this.currentPath
+    delete this.currentExecutingPath
     delete this.currentMove
     delete this.currentExecutor
   }
