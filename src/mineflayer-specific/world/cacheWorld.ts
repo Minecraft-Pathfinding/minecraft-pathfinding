@@ -239,6 +239,41 @@ export class BlockInfo {
   }
 }
 
+// class Fuck {
+//   // private arr: BlockInfo[];
+//   private keyMap: { [key: string]: BlockInfo } = {}
+//   private _size: number = 0
+
+//   public get size () {
+//     return this._size
+//   }
+
+//   constructor (public readonly maxSize: number) {
+//     // this.arr = new Array<BlockInfo>(size);
+//   }
+
+//   get (key: string) {
+//     return this.keyMap[key]
+//   }
+
+//   has (key: string) {
+//     return !!this.keyMap[key]
+//   }
+
+//   set (key: string, block: BlockInfo) {
+//     if (this.keyMap[key] == null) {
+//       if (++this._size > this.maxSize) this.clear()
+//       this.keyMap[key] = block
+//     } else this.keyMap[key] = block
+//   }
+
+//   clear () {
+//     console.log('resetting')
+//     this.keyMap = {}
+//     this._size = 0
+//   }
+// }
+
 export class CacheSyncWorld implements WorldType {
   posCache: LRUCache<string, Block>
   posCache1: LRUCache<string, number>
@@ -255,7 +290,9 @@ export class CacheSyncWorld implements WorldType {
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
     this.blocks = new LRUCache({ size: 10000, max: 2000 })
-    this.blockInfos = new LRUCache({ max: 1000000, ttl: 5000 })
+
+    this.blockInfos = this.makeLRUCache(100000)
+
     this.world = referenceWorld
 
     referenceWorld.on('blockUpdate', (oldBlock: Block, newBlock: Block) => {
@@ -263,6 +300,28 @@ export class CacheSyncWorld implements WorldType {
       const pos = newBlock.position
       if (this.blockInfos.has(`${pos.x}:${pos.y}:${pos.z}`)) {
         this.blockInfos.set(`${pos.x}:${pos.y}:${pos.z}`, BlockInfo.fromBlock(newBlock))
+      }
+    })
+  }
+
+  private makeLRUCache (size: number): LRUCache<string, BlockInfo, unknown> {
+    // return new Fuck(size);
+
+    let count = 0
+    return new LRUCache<string, BlockInfo, unknown>({
+      max: size,
+      ttl: 1000,
+      updateAgeOnHas: false,
+      updateAgeOnGet: true,
+      dispose: (key, value, reason) => {
+        if (reason === 'set') {
+          console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
+          this.blockInfos.clear()
+        } else if (reason === 'evict') {
+          console.log('resetting', this.blockInfos.size)
+          this.blockInfos.clear()
+          this.blockInfos = this.makeLRUCache(size)
+        }
       }
     })
   }

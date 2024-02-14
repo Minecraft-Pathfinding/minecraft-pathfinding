@@ -1,10 +1,9 @@
 import { Bot } from 'mineflayer'
 import { AStar as AAStar } from './abstract/algorithms/astar'
-import { AStar } from './mineflayer-specific/algs'
+import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
-import { Path, Algorithm } from './abstract'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
 import { AbortError, CancelError } from './mineflayer-specific/movements/exceptions'
 import {
@@ -34,6 +33,7 @@ import {
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
+import { Block, ResetReason } from './types'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -87,7 +87,7 @@ const DEFAULT_SETUP = new Map(DEFAULT_PROVIDER_EXECUTORS)
 const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
 
 // Temp typing.
-type PathInfo = Path<Move, AAStar<Move>>
+type PathInfo = Path
 type PathGenerator = AsyncGenerator<
 {
   result: PathInfo
@@ -96,6 +96,10 @@ type PathGenerator = AsyncGenerator<
 void,
 unknown
 >
+
+interface PerformOpts {
+  errorOnRetry?: boolean
+}
 
 /**
  * Eventually, I want all pathfinder logic entirely off thread.
@@ -117,8 +121,18 @@ export class ThePathfinder {
 
   public executing = false
   public cancelCalculation = false
+
+  private currentGoal?: goals.Goal
+  private currentPath?: Move[]
   private currentMove?: Move
-  public currentExecutor?: MovementExecutor
+  private currentExecutor?: MovementExecutor
+
+  private allowRetry = false
+  private currentProducer?: PathProducer
+
+  public get currentAStar (): AStar | undefined {
+    return this.currentProducer?.getAstarContext()
+  }
 
   constructor (
     private readonly bot: Bot,
@@ -147,13 +161,122 @@ export class ThePathfinder {
     this.astar = null
   }
 
-  async cancel (timeout = 1000): Promise<void> {
-    this.cancelCalculation = true
+  async cancel (allowRetry = false, timeout = 1000): Promise<void> {
+    // we were not attempting to move in the first place.
+    if (this.currentGoal == null) return console.log('no goal!')
 
-    if (this.currentExecutor == null) return
+    this.cancelCalculation = true
+    this.allowRetry = allowRetry
+
+    if (this.currentExecutor == null) return console.log('no executor')
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
     await this.currentExecutor.abort(this.currentMove, timeout)
+
+    // calling cleanupAll is not necessary as the end of goto already calls it.
+  }
+
+  async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
+    this.bot.chat('reset for: ' + reason)
+    await this.cancel(true, cancelTimeout)
+  }
+
+  setupListeners (): void {
+    // this can be done once.
+    this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
+      if (oldblock == null || newBlock == null) return
+      if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
+        void this.reset('blockUpdate')
+      }
+    })
+
+    this.bot.on('chunkColumnLoad', (chunk) => {
+      const astarContext = this.currentAStar
+      if (astarContext == null) return
+      const cx = chunk.x >> 4
+      const cz = chunk.z >> 4
+      if (
+        astarContext.visitedChunks.has(`${cx - 1},${cz}`) ||
+        astarContext.visitedChunks.has(`${cx},${cz - 1}`) ||
+        astarContext.visitedChunks.has(`${cx + 1},${cz}`) ||
+        astarContext.visitedChunks.has(`${cx},${cz + 1}`)
+      ) {
+        void this.reset('chunkLoad')
+      }
+    })
+  }
+
+  /**
+   * Gen here, I don't like this code. this is temporary.
+   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L237
+   */
+  isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
+    if (pos == null || path == null) return false
+
+    let prevNode: Vec3 | null = null
+
+    for (const move of path) {
+      const node = move.vec
+      let comparisonPoint: Vec3 | null = null
+
+      if (
+        prevNode === null ||
+        (Math.abs(prevNode.x - node.x) <= 2 && Math.abs(prevNode.y - node.y) <= 2 && Math.abs(prevNode.z - node.z) <= 2)
+      ) {
+        // Unoptimized path, or close enough to last point
+        // to just check against the current point
+        comparisonPoint = node
+      } else {
+        // Optimized path - the points are far enough apart
+        //   that we need to check the space between them too
+
+        // First, a quick check - if point it outside the path
+        // segment's AABB, then it isn't near.
+        const minBound = prevNode.min(node)
+        const maxBound = prevNode.max(node)
+        if (
+          pos.x - 0.5 < minBound.x - 1 ||
+          pos.x - 0.5 > maxBound.x + 1 ||
+          pos.y - 0.5 < minBound.y - 2 ||
+          pos.y - 0.5 > maxBound.y + 2 ||
+          pos.z - 0.5 < minBound.z - 1 ||
+          pos.z - 0.5 > maxBound.z + 1
+        ) {
+          continue
+        }
+
+        comparisonPoint = this.closestPointOnLineSegment(pos, prevNode, node)
+      }
+      const dx = Math.abs(comparisonPoint.x - pos.x - 0.5)
+      const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
+      const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
+      if (dx <= 1 && dy <= 2 && dz <= 1) return true
+
+      prevNode = node
+    }
+
+    return false
+  }
+
+  /**
+   * Gen here, this code is alright.
+   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L285
+   */
+  closestPointOnLineSegment (point: Vec3, segmentStart: Vec3, segmentEnd: Vec3): Vec3 {
+    const segmentLength = segmentEnd.minus(segmentStart).norm()
+
+    if (segmentLength === 0) {
+      return segmentStart
+    }
+
+    // t is like an interpolation from segmentStart to segmentEnd
+    //  for the closest point on the line
+    let t = point.minus(segmentStart).dot(segmentEnd.minus(segmentStart)) / segmentLength
+
+    // bound t to be on the segment
+    t = Math.max(0, Math.min(1, t))
+
+    return segmentStart.plus(segmentEnd.minus(segmentStart).scaled(t))
   }
 
   getCacheSize (): string {
@@ -218,20 +341,19 @@ export class ThePathfinder {
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.cancelCalculation = false
+    this.currentGoal = goal
     const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh()
 
-    let foo
-
     if (this.pathfinderSettings.partialPathProducer) {
-      foo = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
     } else {
-      foo = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
     }
 
-    let { result, astarContext } = foo.advance()
+    let { result, astarContext } = this.currentProducer.advance()
 
     yield { result, astarContext }
 
@@ -239,6 +361,7 @@ export class ThePathfinder {
     const listener = (): void => {
       ticked = true
     }
+
     this.bot.on('physicsTick', listener)
 
     while (result.status === 'partial') {
@@ -247,7 +370,7 @@ export class ThePathfinder {
         return
       }
 
-      const { result: result2, astarContext } = foo.advance()
+      const { result: result2, astarContext } = this.currentProducer.advance()
       result = result2
 
       if (result.status === 'success') {
@@ -277,25 +400,31 @@ export class ThePathfinder {
     return null
   }
 
-  async goto (goal: goals.Goal): Promise<void> {
-    // if (this.executing) throw new Error('Already executing!')
-    if (this.executing) {
+  /**
+   * @param {goals.Goal | null} goal
+   */
+  async goto (goal: goals.Goal, performOpts: PerformOpts): Promise<void> {
+    if (this.executing || goal == null) {
       await this.cancel()
     }
     this.executing = true
 
-    for await (const res of this.getPathTo(goal)) {
-      if (res.result.status !== 'success') {
-        if (res.result.status === 'noPath' || res.result.status === 'timeout') break
-      } else {
-        const newPath = await this.postProcess(res.result)
-        await this.perform(newPath, goal)
+    do {
+      for await (const res of this.getPathTo(goal)) {
+        if (res.result.status !== 'success') {
+          if (res.result.status === 'noPath' || res.result.status === 'timeout') break
+        } else {
+          const newPath = await this.postProcess(res.result)
+          await this.perform(newPath, goal)
+          break
+        }
       }
-    }
+    } while (this.allowRetry)
+
     await this.cleanupAll(goal)
   }
 
-  private async postProcess (pathInfo: Path<Move, Algorithm<Move>>): Promise<Path<Move, Algorithm<Move>>> {
+  private async postProcess (pathInfo: Path): Promise<Path> {
     const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
     optimizer.loadPath(pathInfo.path)
@@ -315,7 +444,7 @@ export class ThePathfinder {
    * @param goal
    * @param entry
    */
-  async perform (path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+  async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
     let currentIndex = 0
@@ -328,6 +457,7 @@ export class ThePathfinder {
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
 
+      this.currentPath = path.path
       this.currentMove = move
       this.currentExecutor = executor
 
@@ -348,7 +478,18 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log('toPlace', move.toPlace.map(p => p.vec), 'toBreak', move.toBreak.map(b => b.vec), 'entryPos', move.entryPos, 'asVec', move.asVec(), 'exitPos', move.exitPos)
+      console.log(
+        'toPlace',
+        move.toPlace,
+        'toBreak',
+        move.toBreak,
+        'entryPos',
+        move.entryPos,
+        'asVec',
+        move.vec,
+        'exitPos',
+        move.exitPos
+      )
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -388,7 +529,7 @@ export class ThePathfinder {
   }
 
   // TODO: implement recovery for any movement and goal.
-  async recovery (move: Move, path: Path<Move, Algorithm<Move>>, goal: goals.Goal, entry = 0): Promise<void> {
+  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     await this.cleanupBot()
 
     const ind = path.path.indexOf(move)
@@ -401,7 +542,9 @@ export class ThePathfinder {
     const pos = this.bot.entity.position
     let bad = false
     let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
-    if ((nextMove == null) || path.path.indexOf(nextMove) < ind) { bad = true } else if (path.path.indexOf(nextMove) === ind) {
+    if (nextMove == null || path.path.indexOf(nextMove) < ind) {
+      bad = true
+    } else if (path.path.indexOf(nextMove) === ind) {
       nextMove = path.path[ind + 1]
     }
 
@@ -409,7 +552,7 @@ export class ThePathfinder {
     if (no || nextMove == null) {
       newGoal = goal
     } else {
-      newGoal = goals.GoalBlock.fromVec(nextMove.asVec())
+      newGoal = goals.GoalBlock.fromVec(nextMove.vec)
     }
 
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
@@ -437,7 +580,10 @@ export class ThePathfinder {
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.executing = false
+    this.allowRetry = false
 
+    delete this.currentGoal
+    delete this.currentPath
     delete this.currentMove
     delete this.currentExecutor
   }

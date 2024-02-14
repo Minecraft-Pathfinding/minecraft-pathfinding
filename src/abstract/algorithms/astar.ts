@@ -1,7 +1,7 @@
 import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
-import { PathData, PathNode } from '../node'
+import { CPathNode, PathData, PathNode } from '../node'
 
 function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
   const path: Data[] = []
@@ -41,7 +41,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     this.openHeap = new Heap()// new Heap(undefined, {comparator: (a, b)=> a.f - b.f})
     this.openDataMap = new Map()
 
-    const startNode = new PathNode<Data>().set(0, goal.heuristic(start), start)
+    const startNode = new PathNode<Data>().update(0, goal.heuristic(start), start)
 
     // dumb type check, thanks ts-standard.
     if (startNode.data == null) throw new Error('Start node data is null!')
@@ -90,6 +90,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       calcTime: performance.now() - this.startTime,
       visitedNodes: this.closedDataSet.size,
       generatedNodes: this.closedDataSet.size + this.openHeap.size(),
+      movementProvider: this.movementProvider,
       path: reconstructPath(node),
       context: this
     }
@@ -122,9 +123,6 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
-      // allow specific implementations to access visited and closed data.
-      this.addToClosedDataSet(node)
-
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
       for (const neighborData of neighbors) {
@@ -132,37 +130,41 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
           continue // skip closed neighbors
         }
         const gFromThisNode = node.g + neighborData.cost
-        let neighborNode = this.openDataMap.get(neighborData.hash)
-        let update = false
+        const pastNeighborNode = this.openDataMap.get(neighborData.hash)
 
         const heuristic = this.heuristic(neighborData)
         if (this.maxCost > 0 && gFromThisNode + heuristic > this.maxCost) continue
 
-        if (neighborNode === undefined) {
+        if (pastNeighborNode === undefined) {
           // add neighbor to the open set
-          neighborNode = new PathNode()
+          const neighbor = new CPathNode(gFromThisNode, heuristic, neighborData, node)
+
+          if (neighbor.h < this.bestNode.h) this.bestNode = neighbor
           // properties will be set later
-          this.openDataMap.set(neighborData.hash, neighborNode)
-        } else {
-          if (neighborNode.g - gFromThisNode <= this.differential) {
-            // skip this one because another route is faster
-            continue
-          }
-          update = true
+          this.openDataMap.set(neighborData.hash, neighbor)
+          this.openHeap.push(neighbor)
+        } else if (gFromThisNode - pastNeighborNode.g < this.differential) {
+          pastNeighborNode.update(gFromThisNode, heuristic, neighborData, node)
+          this.openHeap.update(pastNeighborNode)
+          if (pastNeighborNode.h < this.bestNode.h) this.bestNode = pastNeighborNode
         }
+
+        // allow specific implementations to access visited and closed data.
+        this.addToClosedDataSet(node)
+
         // found a new or better route.
         // update this neighbor with this node as its new parent
-        neighborNode.set(gFromThisNode, heuristic, neighborData, node)
+
         // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
-        if (neighborNode.h < this.bestNode.h) this.bestNode = neighborNode
-        if (update) {
-          // this.openHeap.
-          // // this.openHeap.
-          this.openHeap.update(neighborNode)
-        } else {
-          // this.openHeap.add(neighborNode)
-          this.openHeap.push(neighborNode)
-        }
+
+        // if (update) {
+        //   // this.openHeap.
+        //   // // this.openHeap.
+        //   this.openHeap.update(neighborNode)
+        // } else {
+        //   // this.openHeap.add(neighborNode)
+        //   this.openHeap.push(neighborNode)
+        // }
       }
     }
     // all the neighbors of every accessible node have been exhausted

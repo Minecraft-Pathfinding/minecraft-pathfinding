@@ -53,7 +53,8 @@ export class SimpleJumpSprintReplacement extends Movement implements MovementRep
       generatedNodes: 0,
       path: [],
       status: 'noPath',
-      visitedNodes: 0
+      visitedNodes: 0,
+      movementProvider: this.movementProvider
     }
   }
 }

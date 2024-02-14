@@ -1,7 +1,7 @@
 import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
-import { PathData, PathNode } from '../node'
+import { CPathNode, PathData, PathNode } from '../node'
 
 function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
   const path: Data[] = []
@@ -28,7 +28,15 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
   bestNode: PathNode<Data>
   maxCost: number
 
-  constructor (start: Data, movements: MovementProvider<Data>, goal: Goal<Data>, timeout: number, tickTimeout = 45, searchRadius = -1, differential = 0) {
+  constructor (
+    start: Data,
+    movements: MovementProvider<Data>,
+    goal: Goal<Data>,
+    timeout: number,
+    tickTimeout = 45,
+    searchRadius = -1,
+    differential = 0
+  ) {
     this.startTime = performance.now()
 
     this.movementProvider = movements
@@ -38,10 +46,10 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
     this.differential = differential
 
     this.closedDataSet = new Set()
-    this.openHeap = new Heap()// new Heap(undefined, {comparator: (a, b)=> a.f - b.f})
+    this.openHeap = new Heap() // new Heap(undefined, {comparator: (a, b)=> a.f - b.f})
     this.openDataMap = new Map()
 
-    const startNode = new PathNode<Data>().set(0, goal.heuristic(start), start)
+    const startNode = new PathNode<Data>().update(0, goal.heuristic(start), start)
 
     // dumb type check, thanks ts-standard.
     if (startNode.data == null) throw new Error('Start node data is null!')
@@ -79,7 +87,8 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
       // reconstructPath(node)
 
       // used heap memory
-      Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 10) / 10, 'MB'
+      Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 10) / 10,
+      'MB'
     )
 
     this.lastAmt = this.closedDataSet.size
@@ -90,11 +99,13 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
       calcTime: performance.now() - this.startTime,
       visitedNodes: this.closedDataSet.size,
       generatedNodes: this.closedDataSet.size + this.openHeap.size(),
+      movementProvider: this.movementProvider,
       path: reconstructPath(node),
       context: this
     }
   }
 
+  private readonly callAmt = 0
   compute (): Path<Data, AStarNeighbor<Data>> {
     const computeStartTime = performance.now()
 
@@ -104,10 +115,12 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
 
     while (!this.openHeap.isEmpty()) {
       const time = performance.now()
-      if (time - computeStartTime > this.tickTimeout) { // compute time per tick
+      if (time - computeStartTime > this.tickTimeout) {
+        // compute time per tick
         return this.makeResult('partial', this.bestNode)
       }
-      if (this.timeout >= 0 && time - this.startTime > this.timeout) { // total compute time
+      if (this.timeout >= 0 && time - this.startTime > this.timeout) {
+        // total compute time
         return this.makeResult('timeout', this.bestNode)
       }
       // const node = this.openHeap.poll()!
@@ -122,35 +135,37 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
-      // allow specific implementations to access visited and closed data.
-      this.addToClosedDataSet(node)
+      this.test(node, 1)
+      //   this.test(this.bestNode, 1)
 
-
-      // deviation from standard A*, expand recursively due to locality speedups.
-
-      let toHandle = new Map<string, PathNode<Data>>();
-      this.test(node, toHandle)
-      for (let i = 0; i < 0; i++) {
-        if (toHandle.size === 0) break;
-        // let newToHandle = new Map<string, PathNode<Data>>();
-        for (const node of toHandle) {
-          this.test(node[1], toHandle)
-        }
-        // toHandle = newToHandle;
-      }
- 
-
+    //   if (this.callAmt++ % 50 === 0) {
+    //     this.test(this.bestNode, 3)
+    //   }
     }
     // all the neighbors of every accessible node have been exhausted
     return this.makeResult('noPath', this.bestNode)
   }
 
+  private test (node: PathNode<Data>, maxDepth: number, depth = 0, seen = new Set()): void {
+    if (depth > maxDepth) return
 
-  private test(node: PathNode<Data>, ret: Map<string, PathNode<Data>>): void {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    if (this.closedDataSet.has(node.data!.hash)) {
+      return
+    }
 
-    if (ret.has(node.data!.hash)) return
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    if (seen.has(node.data!.hash)) {
+      // console.log('seen!')
+      return
+    }
 
-  
+    // if (node.f < this.bestNode.f - 50) return;
+
+    let oldBestCost = this.bestNode.f - node.f
+
+    // allow specific implementations to access visited and closed data.
+    this.addToClosedDataSet(node)
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
@@ -158,44 +173,49 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
       if (this.closedDataSet.has(neighborData.hash)) {
         continue // skip closed neighbors
       }
-     
+
+      //   if (seen.has(neighborData.hash)) {
+      //     // console.log('seen!')
+      //     continue;
+      //   }
+
+      //   seen.add(neighborData.hash)
+
+      //   console.log('called with:', node.data?.hash, neighborData.hash, seen.size, depth)
+
       const gFromThisNode = node.g + neighborData.cost
-      let neighborNode = this.openDataMap.get(neighborData.hash)
-      let update = false
+      const pastNeighbor = this.openDataMap.get(neighborData.hash)
 
       const heuristic = this.heuristic(neighborData)
       if (this.maxCost > 0 && gFromThisNode + heuristic > this.maxCost) continue
 
-      if (neighborNode === undefined) {
+      if (pastNeighbor === undefined) {
         // add neighbor to the open set
-        neighborNode = new PathNode()
-        // properties will be set later
-        this.openDataMap.set(neighborData.hash, neighborNode)
-      } else {
-        if (neighborNode.g - gFromThisNode <= this.differential) {
-          // skip this one because another route is faster
-          continue
+        const neighbor = new CPathNode(gFromThisNode, heuristic, neighborData, node)
+        if (neighbor.h < this.bestNode.h) this.bestNode = neighbor
+        if (neighbor.f - node.f < oldBestCost) {
+          oldBestCost = neighbor.f - node.f
+          // bestLocal = neighbor;
+          // oldBestCost = pastNeighborNode.f;
+          this.test(neighbor, maxDepth, depth + 1, seen)
         }
-        update = true
-      }
-      // found a new or better route.
-      // update this neighbor with this node as its new parent
-      neighborNode.set(gFromThisNode, heuristic, neighborData, node)
-      // console.log(neighborNode.data!.x, neighborNode.data!.y, neighborNode.data!.z, neighborNode.g, neighborNode.h)
-      if (neighborNode.h < this.bestNode.h) this.bestNode = neighborNode
-      if (update) {
-        // this.openHeap.
-        // // this.openHeap.
-        this.openHeap.update(neighborNode)
-        ret.set(neighborNode.data!.hash, neighborNode);
-      } else {
-        // this.openHeap.add(neighborNode)
-        this.openHeap.push(neighborNode)
-        // ret.push(neighborNode);
-        // return null;
-      }
+
+        this.openDataMap.set(neighborData.hash, neighbor)
+        this.openHeap.push(neighbor)
+      } else if (gFromThisNode - pastNeighbor.g < this.differential) {
+        pastNeighbor.update(gFromThisNode, heuristic, neighborData, node)
+        this.openHeap.update(pastNeighbor)
+        if (pastNeighbor.h < this.bestNode.h) this.bestNode = pastNeighbor
+        if (pastNeighbor.f - node.f < oldBestCost) {
+          oldBestCost = pastNeighbor.f - node.f
+          this.test(pastNeighbor, maxDepth, depth + 1, seen)
+          // bestLocal = pastNeighborNode;
+        }
+      } else continue
     }
 
-    // return ret;
+    // if (bestLocal && depth < maxDepth) {
+    //     this.test(bestLocal, maxDepth, depth + 1);
+    // }
   }
 }

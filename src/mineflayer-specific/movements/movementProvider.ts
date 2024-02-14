@@ -48,11 +48,11 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-    // pos = {
-    //   x: Math.floor(pos.x),
-    //   y: Math.floor(pos.y),
-    //   z: Math.floor(pos.z)
-    // }
+    pos = {
+      x: Math.floor(pos.x),
+      y: Math.floor(pos.y),
+      z: Math.floor(pos.z)
+    }
 
     const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
 
@@ -146,7 +146,7 @@ export class MovementHandler implements AMovementProvider<Move> {
       world,
       [...recMovement.keys()].map((M) => new M(bot, world, opts)),
       recMovement
-    ).initLocalData()
+    )
   }
 
   getMovements (): ExecutorMap {
@@ -167,18 +167,7 @@ export class MovementHandler implements AMovementProvider<Move> {
 
   private readonly maxBound = this.boundaries[0] * this.boundaries[1] * this.boundaries[2]
   private readonly toClear: Set<number> = new Set()
-  private localData: Array<BlockInfo | null> = []
-
-  initLocalData (): this {
-    // this.resetLocalData();
-    this.localData = new Array(this.maxBound).fill(null, 0, this.maxBound)
-
-    // this.localData = new Array(this.boundaries[0])
-    //   .fill(null)
-    //   .map(() => new Array(this.boundaries[2]).fill(null).map(() => new Array(this.boundaries[1]).fill(null)));
-
-    return this
-  }
+  private readonly localData: Array<BlockInfo | null> = new Array(this.maxBound).fill(null, 0, this.maxBound)
 
   resetLocalData (): void {
     for (let i = 0; i < this.maxBound; i++) {
@@ -191,6 +180,8 @@ export class MovementHandler implements AMovementProvider<Move> {
   private readonly swapArray = new Array(this.maxBound).fill(null)
   private readonly swapSet = new Array(this.maxBound)
 
+  public count = 0
+  public totCount = 0
   shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
     const diff = newPos.minus(orgPos)
 
@@ -223,6 +214,8 @@ export class MovementHandler implements AMovementProvider<Move> {
       const idx = this.swapSet[i]
       this.localData[idx] = this.swapArray[idx]
     }
+    if (swapIdx > 0) this.count++
+    this.totCount++
   }
 
   private lastPos?: Vec3
@@ -231,7 +224,7 @@ export class MovementHandler implements AMovementProvider<Move> {
 
     // console.log('hi')
     const pos = currentMove.exitPos.floored()
-    // this.shiftLocalData(this.lastPos ?? pos, pos)
+    this.shiftLocalData(this.lastPos ?? pos, pos)
     this.lastPos = pos
 
     // const arr = new Array(this.maxBound).fill(null);
@@ -242,7 +235,7 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal, closed)
     }
 
-    this.resetLocalData() // same speed, but less memory efficient.
+    // this.resetLocalData() // same speed, but less memory efficient.
 
     // console.log(moves.length, moves.map(m=>m.moveType.constructor.name))
 

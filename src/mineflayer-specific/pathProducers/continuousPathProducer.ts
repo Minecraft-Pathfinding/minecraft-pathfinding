@@ -1,27 +1,20 @@
 import { Bot } from 'mineflayer'
-import { PathProducer } from '../../abstract/pathProducer'
+import { PathProducer, AStar } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
-import { AStar } from '../../abstract/algorithms/astar'
-import { Path } from '../../abstract'
 import { AStarNeighbor } from '../../abstract/algorithms/astarNeighbor'
+import { AdvanceRes } from '.'
 
-// temp typing
-interface AdvanceRes {
-  result: Path<Move, AStar<Move>>
-  astarContext: AStar<Move>
-}
-
-export class ContinuousPathProducer implements PathProducer<Move> {
+export class ContinuousPathProducer implements PathProducer {
   private readonly start: Move
   private readonly goal: goals.Goal
   private readonly settings: MovementOptions
   private readonly bot: Bot
   private readonly world: World
   private readonly movements: ExecutorMap
-  private astarContext: AStar<Move> | undefined
+  private astarContext: AStar | undefined
 
   private readonly gcInterval: number = 10
   private lastGc: number = 0
@@ -34,12 +27,16 @@ export class ContinuousPathProducer implements PathProducer<Move> {
     this.movements = movements
   }
 
+  getAstarContext (): AStar | undefined {
+    return this.astarContext
+  }
+
   advance (): AdvanceRes {
     if (this.astarContext == null) {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
 
-      this.astarContext = new AStarNeighbor(this.start, moveHandler, this.goal, 30000, 45, -1, 0) as any
+      this.astarContext = new AStarNeighbor(this.start, moveHandler, this.goal, 30000, 40, -1, 0) as any;
     }
 
     const result = this.astarContext!.compute()
@@ -59,6 +56,6 @@ export class ContinuousPathProducer implements PathProducer<Move> {
       //   + 'when launching node to enable forced garbage collection.');
     }
 
-    return { result, astarContext: this.astarContext  as any}
+    return { result, astarContext: this.astarContext as any }
   }
 }
