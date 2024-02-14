@@ -122,6 +122,9 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.openDataMap.delete(node.data!.hash)
 
+      // allow specific implementations to access visited and closed data.
+      this.addToClosedDataSet(node)
+
 
       // deviation from standard A*, expand recursively due to locality speedups.
 
@@ -136,8 +139,6 @@ export class AStarNeighbor<Data extends PathData = PathData> implements Algorith
         // toHandle = newToHandle;
       }
  
-           // allow specific implementations to access visited and closed data.
-  this.addToClosedDataSet(node)
 
     }
     // all the neighbors of every accessible node have been exhausted
