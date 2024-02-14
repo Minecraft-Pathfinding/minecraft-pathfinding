@@ -450,7 +450,7 @@ export class PlaceHandler extends InteractHandler {
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
         if (predictBlock) {
           // console.log('predicting block')
-          await bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
+          bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
           // bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 

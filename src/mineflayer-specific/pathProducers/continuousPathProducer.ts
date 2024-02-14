@@ -4,7 +4,7 @@ import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
-import { AStarNeighbor } from '../../abstract/algorithms/astarNeighbor'
+// import { AStarNeighbor } from '../../abstract/algorithms/astarNeighbor'
 import { AdvanceRes } from '.'
 
 export class ContinuousPathProducer implements PathProducer {
@@ -36,10 +36,10 @@ export class ContinuousPathProducer implements PathProducer {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
 
-      this.astarContext = new AStarNeighbor(this.start, moveHandler, this.goal, 30000, 40, -1, 0) as any;
+      this.astarContext = new AStar(this.start, moveHandler, this.goal, 30000, 40, -1, 0)
     }
 
-    const result = this.astarContext!.compute()
+    const result = this.astarContext.compute()
 
     if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
       // const starttime = performance.now()

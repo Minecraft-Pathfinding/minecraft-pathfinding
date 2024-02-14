@@ -138,7 +138,8 @@ export class Move implements PathData {
     )
   }
 
-   toString(): String {
+  toString (): String {
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `Move { ${this.moveType.constructor.name} | ${this.x}, ${this.y}, ${this.z} | ${this.entryPos} | ${this.exitPos} }`
   }
 }

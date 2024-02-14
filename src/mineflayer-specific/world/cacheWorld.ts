@@ -347,8 +347,8 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlockInfo (pos: Vec3): BlockInfo {
-    this.cacheCalls++
-    return BlockInfo.fromBlock(this.world.getBlock(pos))
+    // this.cacheCalls++
+    // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
       const block = this.world.getBlock(pos) as unknown as Block

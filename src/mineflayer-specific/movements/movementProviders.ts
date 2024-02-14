@@ -129,7 +129,7 @@ export class ForwardJump extends MovementProvider {
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.cachedVec.plus(dir).floor()
-      if (closed.has(`${off.x},${off.y+1},${off.z}`)) continue
+      if (closed.has(`${off.x},${off.y + 1},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
   }
@@ -290,7 +290,7 @@ export class StraightDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     const off = start.cachedVec.floored()
-    if (closed.has(`${off.x},${off.y-1},${off.z}`)) return
+    if (closed.has(`${off.x},${off.y - 1},${off.z}`)) return
     return this.getMoveDown(start, storage, closed)
   }
 
@@ -320,16 +320,11 @@ export class StraightUp extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     const off = start.cachedVec.floored()
-    if (closed.has(`${off.x},${off.y+1},${off.z}`)) return
+    if (closed.has(`${off.x},${off.y + 1},${off.z}`)) return
     return this.getMoveUp(start, storage, closed)
   }
 
   getMoveUp (node: Move, neighbors: Move[], closed: Set<string>): void {
-    const nodePos = node.cachedVec
-    // const retVal = nodePos.offset(0.5, 1, 0.5)
-    // const off = retVal.floored()
-    // if (closed.has(`${off.x},${off.y},${off.z}`)) return
-
     let cost = this.settings.jumpCost // move cost
 
     const block1 = this.getBlockInfo(node, 0, 0, 0)
@@ -417,7 +412,7 @@ export class ParkourForward extends MovementProvider {
         // cost += this.exclusionStep(blockB)
         // Forward
 
-        const off = node.entryPos.offset(dx, 0, dz).floor()
+        const off = blockC.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
@@ -427,7 +422,7 @@ export class ParkourForward extends MovementProvider {
         // Up
         if (d === 5) continue
 
-        const off = node.entryPos.offset(dx, 1, dz).floor()
+        const off = blockB.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
@@ -439,7 +434,7 @@ export class ParkourForward extends MovementProvider {
         break
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
-        const off = node.entryPos.offset(dx, -1, dz).floor()
+        const off = blockD.position;
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
