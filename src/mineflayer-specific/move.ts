@@ -121,11 +121,7 @@ export class Move implements PathData {
   }
 
   public get vec (): Vec3 {
-<<<<<<< Updated upstream
     return this.cachedVec
-=======
-    return this._cachedVec
->>>>>>> Stashed changes
     // return new Vec3(this.x, this.y, this.z)
   }
 

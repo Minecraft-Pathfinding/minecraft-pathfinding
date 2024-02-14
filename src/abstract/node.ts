@@ -14,7 +14,7 @@ export class PathNode<Data extends PathData> {
     return this.g + this.h
   }
 
-  set (
+  update (
     g: number,
     h: number,
     data: Data | null = null,
@@ -44,8 +44,13 @@ export class CPathNode<Data extends PathData> implements PathNode<Data> {
   f: number;
  
 
-  set(g: number, h: number, data?: Data | null, parent?: PathNode<Data> | null): this {
-    throw new Error("Method not implemented.")
+  update(g: number, h: number, data: Data | null, parent: PathNode<Data> | null): this {
+    this.g = g
+    this.h = h
+    this.f = g + h
+    this.data = data
+    this.parent = parent
+    return this
   }
 
 }

@@ -280,21 +280,25 @@ async function cmdHandler(username, msg) {
       const startTime = performance.now();
 
       let rayBlock;
+      let info = new Vec3(0, 0, 0);
       if (args.length === 3) {
-        rayBlock = bot.blockAt(new Vec3(Number(args[0]), Number(args[1]), Number(args[2])));
+        info = new Vec3(parseInt(args[0]), parseInt(args[1]), parseInt(args[2]));
+        rayBlock = bot.blockAt(info);
       } else if (args.length === 0) {
         if (!author) return bot.whisper(username, "failed to find player.");
 
         rayBlock = await rayTraceEntitySight({ entity: author });
+        if (!rayBlock) return bot.whisper(username, "No block in sight");
+        info = rayBlock.position;
+
       } else {
         bot.whisper(username, "pathtothere <x> <y> <z> | pathtothere");
         return;
       }
 
-      if (!rayBlock) return bot.whisper(username, "No block in sight");
-
-      bot.whisper(username, `pathing to ${rayBlock.position.x} ${rayBlock.position.y} ${rayBlock.position.z}`);
-      const goal = getGoal(bot.world, rayBlock.position.x, rayBlock.position.y, rayBlock.position.z);
+     
+      bot.whisper(username, `pathing to ${info.x} ${info.y} ${info.z}`);
+      const goal = getGoal(bot.world, info.x, info.y, info.z);
       const res1 = bot.pathfinder.getPathTo(goal);
       let test1;
       const test2 = [];

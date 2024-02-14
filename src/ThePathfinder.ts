@@ -374,6 +374,8 @@ export class ThePathfinder {
       result = result2
 
       if (result.status === 'success') {
+        const ctx = (this.currentProducer.getAstarContext()!.movementProvider as any);
+        console.log(`Percentage swap: ${(ctx.count / ctx.totCount )* 100}`)
         yield { result, astarContext }
         break
       }

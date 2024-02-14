@@ -24,14 +24,14 @@ export class Forward extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.vec.plus(dir).floor()
+      const off = start.cachedVec.plus(dir).floor()
     // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveForward(start, dir, storage)
     }
   }
 
   getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
-    const pos = start.vec
+    const pos = start.cachedVec
 
     let cost = 1 // move cost
 
@@ -72,7 +72,7 @@ export class Diagonal extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.vec.plus(dir).floor()
+      const off = start.cachedVec.plus(dir).floor()
     // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveDiagonal(start, dir, storage, goal)
     }
@@ -81,7 +81,7 @@ export class Diagonal extends MovementProvider {
   getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
     let cost = Diagonal.diagonalCost
 
-    if (this.getBlockInfo(node.vec, 0, 0, 0).liquid) cost += this.settings.liquidCost
+    if (this.getBlockInfo(node.cachedVec, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
@@ -119,7 +119,7 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
     if (cost > 100) return
 
-    neighbors.push(Move.fromPrevious(cost, node.vec.plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, node.cachedVec.plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
 
@@ -144,7 +144,7 @@ export class ForwardJump extends MovementProvider {
    */
   getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]): void {
     // const pos = node.exitRounded(1)
-    const pos = node.vec
+    const pos = node.cachedVec
     const blockA = this.getBlockInfo(pos, 0, 2, 0)
     const blockH = this.getBlockInfo(pos, dir.x, 2, dir.z)
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
@@ -245,7 +245,7 @@ export class ForwardDropDown extends DropDownProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      // const off = start.vec.plus(dir).floor()
+      // const off = start.cachedVec.plus(dir).floor()
       // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
       this.getMoveDropDown(start, dir, storage, closed)
     }
