@@ -7,7 +7,7 @@ import { EPhysicsCtx, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
 import { World } from '../world/worldInterface'
 import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
-import { CancelError } from './exceptions'
+import { CancelError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
 import { Block } from '../../types'
@@ -493,7 +493,7 @@ export class PlaceHandler extends InteractHandler {
 
   async abort (bot: Bot): Promise<void> {
     if (!this.task.done) {
-      this.task.cancel(new Error('Aborted'))
+      this.task.cancel(null as any)
     }
 
     if (this._placeTask != null) {
@@ -607,7 +607,7 @@ export class BreakHandler extends InteractHandler {
 
   async abort (bot: Bot): Promise<void> {
     if (!this.task.done) {
-      this.task.cancel(new Error('Aborted'))
+      this.task.cancel(null as any)
     }
 
     if (this._breakTask != null) {

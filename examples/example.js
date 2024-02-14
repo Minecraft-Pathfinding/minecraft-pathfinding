@@ -59,6 +59,8 @@ bot.once("spawn", async () => {
     this.applyToBot(bot);
   };
 
+  bot.on('resetPath', (reason)=>console.log('reset path!', reason))
+
   // EntityPhysics.prototype.simulate = function (ctx, world) {
   //   bot.physics.simulatePlayer(ctx.state, world);
   // }

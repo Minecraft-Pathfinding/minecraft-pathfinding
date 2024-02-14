@@ -11,3 +11,10 @@ export class AbortError extends Error {
     super('Movement aborted: ' + args.join(' '))
   }
 }
+
+export class ResetError extends Error {
+  constructor (...args: any[]) {
+    console.log('ResetError', args)
+    super('Movement timed out: ' + args.join(' '))
+  }
+}

@@ -5,7 +5,7 @@ import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
-import { AbortError, CancelError } from './mineflayer-specific/movements/exceptions'
+import { AbortError, CancelError, ResetError } from './mineflayer-specific/exceptions'
 import {
   BuildableMoveExecutor,
   BuildableMoveProvider,
@@ -159,6 +159,8 @@ export class ThePathfinder {
     this.defaultMoveSettings = moveSettings
     this.pathfinderSettings = pathfinderSettings
     this.astar = null
+
+    this.setupListeners()
   }
 
   async cancel (allowRetry = false, timeout = 1000): Promise<void> {
@@ -166,12 +168,11 @@ export class ThePathfinder {
     if (this.currentGoal == null) return console.log('no goal!')
 
     this.cancelCalculation = true
-    this.allowRetry = allowRetry
 
     if (this.currentExecutor == null) return console.log('no executor')
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
-    await this.currentExecutor.abort(this.currentMove, timeout)
+    if (allowRetry) await this.currentExecutor.abort(this.currentMove, { timeout, resetting: allowRetry })
 
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
@@ -185,7 +186,9 @@ export class ThePathfinder {
     // this can be done once.
     this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
       if (oldblock == null || newBlock == null) return
-      if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
+
+      if (this.isPositionNearPath(oldblock.position, this.currentPath) && oldblock.type !== newBlock.type) {
+        console.log('hi', oldblock.type,newBlock.type)
         void this.reset('blockUpdate')
       }
     })
@@ -211,48 +214,21 @@ export class ThePathfinder {
    * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L237
    */
   isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
+    console.log('pos:', pos, 'path:', path?.length)
     if (pos == null || path == null) return false
 
-    let prevNode: Vec3 | null = null
-
     for (const move of path) {
-      const node = move.vec
       let comparisonPoint: Vec3 | null = null
 
-      if (
-        prevNode === null ||
-        (Math.abs(prevNode.x - node.x) <= 2 && Math.abs(prevNode.y - node.y) <= 2 && Math.abs(prevNode.z - node.z) <= 2)
-      ) {
-        // Unoptimized path, or close enough to last point
-        // to just check against the current point
-        comparisonPoint = node
-      } else {
-        // Optimized path - the points are far enough apart
-        //   that we need to check the space between them too
+      comparisonPoint = this.closestPointOnLineSegment(pos, move.entryPos, move.exitPos)
+   
 
-        // First, a quick check - if point it outside the path
-        // segment's AABB, then it isn't near.
-        const minBound = prevNode.min(node)
-        const maxBound = prevNode.max(node)
-        if (
-          pos.x - 0.5 < minBound.x - 1 ||
-          pos.x - 0.5 > maxBound.x + 1 ||
-          pos.y - 0.5 < minBound.y - 2 ||
-          pos.y - 0.5 > maxBound.y + 2 ||
-          pos.z - 0.5 < minBound.z - 1 ||
-          pos.z - 0.5 > maxBound.z + 1
-        ) {
-          continue
-        }
-
-        comparisonPoint = this.closestPointOnLineSegment(pos, prevNode, node)
-      }
       const dx = Math.abs(comparisonPoint.x - pos.x - 0.5)
       const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
-      if (dx <= 1 && dy <= 2 && dz <= 1) return true
 
-      prevNode = node
+      console.log(comparisonPoint, dx, dy, dz, pos)
+      if (dx <= 1 && dy <= 2 && dz <= 1) return true
     }
 
     return false
@@ -417,9 +393,14 @@ export class ThePathfinder {
           const newPath = await this.postProcess(res.result)
           await this.perform(newPath, goal)
 
-          if (performOpts.errorOnRetry != null && this.allowRetry) { throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.') }
+          if (performOpts.errorOnRetry != null && this.allowRetry) {
+            throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
+          }
 
-          if (!this.allowRetry) break
+          if (!this.allowRetry) {
+            console.log('finished!')
+            break
+          }
         }
       }
     } while (this.allowRetry)
@@ -481,7 +462,18 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log('toPlace', move.toPlace.map(p => p.vec), 'toBreak', move.toBreak.map(b => b.vec), 'entryPos', move.entryPos, 'asVec', move.vec, 'exitPos', move.exitPos)
+      console.log(
+        'toPlace',
+        move.toPlace.map((p) => p.vec),
+        'toBreak',
+        move.toBreak.map((b) => b.vec),
+        'entryPos',
+        move.entryPos,
+        'asVec',
+        move.vec,
+        'exitPos',
+        move.exitPos
+      )
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -506,6 +498,12 @@ export class ThePathfinder {
         // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
           this.currentExecutor.reset()
+
+          // eslint-disable-next-line no-labels
+          break outer
+        } else if (err instanceof ResetError) {
+          this.currentExecutor.reset()
+          this.allowRetry = true
 
           // eslint-disable-next-line no-labels
           break outer

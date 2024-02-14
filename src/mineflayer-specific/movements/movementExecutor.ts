@@ -5,11 +5,17 @@ import * as goals from '../goals'
 import { World } from '../world/worldInterface'
 import { BlockInfo } from '../world/cacheWorld'
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
-import { AbortError, CancelError } from './exceptions'
+import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
+
+// temp typing
+interface AbortOpts {
+  resetting?: boolean
+  timeout?: number
+}
 
 export abstract class MovementExecutor extends Movement {
   /**
@@ -46,6 +52,11 @@ export abstract class MovementExecutor extends Movement {
    */
   public cancelled = false
 
+  /**
+   * Whether or not this movement is asking for a reset.
+   */
+  public resetting = false
+
   public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings)
     this.engine = new EntityPhysics(bot.registry)
@@ -55,12 +66,16 @@ export abstract class MovementExecutor extends Movement {
 
   public reset (): void {
     this.cancelled = false
+    this.resetting = false
   }
 
   /**
    * TODO: Implement.
    */
-  public async abort (move: Move = this.currentMove, timeout = 1000): Promise<void> {
+  public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
+    const timeout = settings.timeout ?? 1000
+    const resetting = settings.resetting ?? false
+
     if (this.cancelled) return
 
     for (const breakTarget of move.toBreak) {
@@ -87,19 +102,23 @@ export abstract class MovementExecutor extends Movement {
     })
 
     this.cancelled = true
+    this.resetting = resetting
   }
 
   public _performInit (thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {
+    if (this.resetting) throw new ResetError('Movement is resetting.')
     if (this.cancelled) throw new AbortError('Movement aborted.')
     return this.performInit(thisMove, currentIndex, path)
   }
 
   public async _performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+    if (this.resetting) throw new ResetError('Movement is resetting.')
     if (this.cancelled) throw new AbortError('Movement aborted.')
     return await this.performPerTick(thisMove, tickCount, currentIndex, path)
   }
 
   public async _align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+    if (this.resetting) throw new ResetError('Movement is resetting.')
     if (this.cancelled) throw new AbortError('Movement aborted.')
     return await this.align(thisMove, tickCount, goal)
   }
