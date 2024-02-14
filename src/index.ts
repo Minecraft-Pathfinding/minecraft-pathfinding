@@ -5,7 +5,7 @@ import { Vec3 } from 'vec3'
 
 import utilPlugin from '@nxg-org/mineflayer-util-plugin'
 
-import { Block, PlaceBlockOptions } from './types'
+import { Block, PlaceBlockOptions, ResetReason } from './types'
 import { PathingUtil } from './PathingUtil'
 
 export * as goals from './mineflayer-specific/goals'
@@ -25,5 +25,11 @@ declare module 'mineflayer' {
     pathingUtil: PathingUtil
 
     _placeBlockWithOptions: (referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions) => Promise<void>
+  }
+
+  interface BotEvents {
+    resetPath: (reason: ResetReason) => void
+    enteredRecovery: () => void
+    exitedRecovery: () => void
   }
 }

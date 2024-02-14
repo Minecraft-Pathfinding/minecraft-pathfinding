@@ -177,7 +177,7 @@ export class ThePathfinder {
   }
 
   async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
-    this.bot.chat('reset for: ' + reason)
+    this.bot.emit('resetPath', reason)
     await this.cancel(true, cancelTimeout)
   }
 
@@ -416,7 +416,10 @@ export class ThePathfinder {
         } else {
           const newPath = await this.postProcess(res.result)
           await this.perform(newPath, goal)
-          break
+
+          if (performOpts.errorOnRetry != null && this.allowRetry) { throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.') }
+
+          if (!this.allowRetry) break
         }
       }
     } while (this.allowRetry)
@@ -478,18 +481,7 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log(
-        'toPlace',
-        move.toPlace,
-        'toBreak',
-        move.toBreak,
-        'entryPos',
-        move.entryPos,
-        'asVec',
-        move.vec,
-        'exitPos',
-        move.exitPos
-      )
+      console.log('toPlace', move.toPlace, 'toBreak', move.toBreak, 'entryPos', move.entryPos, 'asVec', move.vec, 'exitPos', move.exitPos)
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -530,6 +522,7 @@ export class ThePathfinder {
 
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    this.bot.emit('enteredRecovery')
     await this.cleanupBot()
 
     const ind = path.path.indexOf(move)
@@ -558,13 +551,17 @@ export class ThePathfinder {
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
     if (path1 === null) {
       // done
+      this.bot.emit('exitedRecovery')
     } else if (no) {
       // execution of past recoveries failed or not easily saveable, so full recovery needed.
+      this.bot.emit('exitedRecovery')
       await this.perform(path1, goal, entry + 1)
     } else {
       // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
       path.path.splice(0, ind + 1)
+
+      this.bot.emit('exitedRecovery')
       await this.perform(path, goal, 0)
     }
   }

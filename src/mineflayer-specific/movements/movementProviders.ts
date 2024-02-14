@@ -434,7 +434,7 @@ export class ParkourForward extends MovementProvider {
         break
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
-        const off = blockD.position;
+        const off = blockD.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
