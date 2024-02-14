@@ -25,7 +25,13 @@ const pathfinder = createPlugin();
 
 const validTypes = ["block" , "lookat"]
 let mode = "block"
-function getGoal(world, x, y, z) {
+
+function getGoal(world,x,y,z) {
+  const ret = _getGoal(world,x,y,z)
+  console.log(ret)
+  return ret;
+}
+function _getGoal(world, x, y, z) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
   switch (mode) {

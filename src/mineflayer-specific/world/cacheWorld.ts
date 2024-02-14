@@ -283,7 +283,7 @@ export class CacheSyncWorld implements WorldType {
   // blocks: LRUCache<number, Block>;
   // posCache: Record<string, Block>;
   blocks: LRUCache<number, Block>
-  blockInfos: any//LRUCache<string, BlockInfo>
+  blockInfos: LRUCache<string, BlockInfo>
   world: Bot['world']
   cacheCalls = 0
   enabled = false
@@ -316,7 +316,7 @@ export class CacheSyncWorld implements WorldType {
 
   private makeLRUCache(size: number) {
     
-    return new Fuck(size);
+    // return new Fuck(size);
 
     let count = 0;
     return new LRUCache<string, BlockInfo, unknown>({ max: size, ttl: 1000, updateAgeOnHas: false, updateAgeOnGet: true, dispose: (key, value, reason) => {
