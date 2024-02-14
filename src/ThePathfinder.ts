@@ -403,7 +403,7 @@ export class ThePathfinder {
   /**
    * @param {goals.Goal | null} goal
    */
-  async goto (goal: goals.Goal, performOpts: PerformOpts): Promise<void> {
+  async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     if (this.executing || goal == null) {
       await this.cancel()
     }
@@ -481,7 +481,7 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log('toPlace', move.toPlace, 'toBreak', move.toBreak, 'entryPos', move.entryPos, 'asVec', move.vec, 'exitPos', move.exitPos)
+      console.log('toPlace', move.toPlace.map(p => p.vec), 'toBreak', move.toBreak.map(b => b.vec), 'entryPos', move.entryPos, 'asVec', move.vec, 'exitPos', move.exitPos)
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
@@ -522,7 +522,7 @@ export class ThePathfinder {
 
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    this.bot.emit('enteredRecovery')
+    this.bot.emit('enteredRecovery', entry)
     await this.cleanupBot()
 
     const ind = path.path.indexOf(move)
@@ -551,17 +551,17 @@ export class ThePathfinder {
     const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
     if (path1 === null) {
       // done
-      this.bot.emit('exitedRecovery')
+      this.bot.emit('exitedRecovery', entry)
     } else if (no) {
       // execution of past recoveries failed or not easily saveable, so full recovery needed.
-      this.bot.emit('exitedRecovery')
+      this.bot.emit('exitedRecovery', entry)
       await this.perform(path1, goal, entry + 1)
     } else {
       // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
       path.path.splice(0, ind + 1)
 
-      this.bot.emit('exitedRecovery')
+      this.bot.emit('exitedRecovery', entry)
       await this.perform(path, goal, 0)
     }
   }

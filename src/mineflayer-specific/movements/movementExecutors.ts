@@ -461,14 +461,14 @@ export class ForwardJumpExecutor extends MovementExecutor {
   }
 
   async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
-    console.log(
-      'per tick!',
-      this.bot.getControlState('forward'),
-      this.bot.getControlState('back'),
-      this.bot.getControlState('jump'),
-      this.bot.entity.position,
-      thisMove.exitPos
-    )
+    // console.log(
+    //   'per tick!',
+    //   this.bot.getControlState('forward'),
+    //   this.bot.getControlState('back'),
+    //   this.bot.getControlState('jump'),
+    //   this.bot.entity.position,
+    //   thisMove.exitPos
+    // )
     // console.log(tickCount, this.jumpInfo, this.bot.entity.position, this.bot.entity.velocity, this.bot.blockAt(this.bot.entity.position))
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
       this.bot.clearControlStates()

@@ -1,10 +1,9 @@
 import { Bot } from 'mineflayer'
-import { PathProducer, AStar } from '../../mineflayer-specific/algs'
+import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
-// import { AStarNeighbor } from '../../abstract/algorithms/astarNeighbor'
 import { AdvanceRes } from '.'
 
 export class ContinuousPathProducer implements PathProducer {
@@ -36,7 +35,7 @@ export class ContinuousPathProducer implements PathProducer {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
 
-      this.astarContext = new AStar(this.start, moveHandler, this.goal, 30000, 40, -1, 0)
+      this.astarContext = new AStarNeighbor(this.start, moveHandler, this.goal, 30000, 40, -1, 0)
     }
 
     const result = this.astarContext.compute()

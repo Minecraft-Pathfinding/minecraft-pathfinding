@@ -166,7 +166,7 @@ export abstract class MovementExecutor extends Movement {
     const offset = endMove.exitPos.minus(this.bot.entity.position)
     const dir = endMove.exitPos.minus(startMove.entryPos)
 
-    console.log(offset, dir)
+    // console.log(offset, dir)
     offset.translate(0, -offset.y, 0) // xz only
     dir.translate(0, -dir.y, 0) // xz only
 
@@ -459,19 +459,19 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    console.log(
-      this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
-      ' | ',
-      this.bot.getControlState('forward'),
-      this.bot.getControlState('back'),
-      ' | ',
-      this.bot.getControlState('left'),
-      this.bot.getControlState('right'),
-      ' | ',
-      this.bot.getControlState('sprint'),
-      this.bot.getControlState('jump'),
-      this.bot.getControlState('sneak')
-    )
+    // console.log(
+    //   this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
+    //   ' | ',
+    //   this.bot.getControlState('forward'),
+    //   this.bot.getControlState('back'),
+    //   ' | ',
+    //   this.bot.getControlState('left'),
+    //   this.bot.getControlState('right'),
+    //   ' | ',
+    //   this.bot.getControlState('sprint'),
+    //   this.bot.getControlState('jump'),
+    //   this.bot.getControlState('sneak')
+    // )
     await task
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

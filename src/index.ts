@@ -29,7 +29,7 @@ declare module 'mineflayer' {
 
   interface BotEvents {
     resetPath: (reason: ResetReason) => void
-    enteredRecovery: () => void
-    exitedRecovery: () => void
+    enteredRecovery: (errorCount: number) => void
+    exitedRecovery: (errorCount: number) => void
   }
 }

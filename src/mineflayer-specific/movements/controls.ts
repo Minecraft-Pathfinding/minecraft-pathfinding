@@ -166,7 +166,7 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
 
   // bot.entity.position.distanceTo(nextPoint) < 0.3 ||
   // if (true) {
-  console.log('stopping since near goal')
+  // console.log('stopping since near goal')
   bot.setControlState('left', false)
   bot.setControlState('right', false)
 
@@ -250,7 +250,7 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
   if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
-    console.log('stopping since near goal')
+    // console.log('stopping since near goal')
     bot.setControlState('forward', false)
     bot.setControlState('back', false)
     return
