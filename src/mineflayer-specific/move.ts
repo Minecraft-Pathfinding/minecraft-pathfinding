@@ -137,4 +137,8 @@ export class Move implements PathData {
       Math.round(this.exitPos.z * mult) / mult
     )
   }
+
+   toString(): String {
+    return `Move { ${this.moveType.constructor.name} | ${this.x}, ${this.y}, ${this.z} | ${this.entryPos} | ${this.exitPos} }`
+  }
 }

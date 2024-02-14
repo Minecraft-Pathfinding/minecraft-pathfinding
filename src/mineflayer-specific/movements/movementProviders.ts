@@ -60,7 +60,7 @@ export class Forward extends MovementProvider {
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return
 
-    // set exitPos to center of wanted block
+    // set cachedVec to center of wanted block
     neighbors.push(Move.fromPrevious(cost, pos.plus(dir).translate(0.5, 0, 0.5), start, this, toPlace, toBreak))
   }
 }
@@ -128,8 +128,8 @@ export class ForwardJump extends MovementProvider {
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
-      const off = start.entryPos.plus(dir).floor()
-      if (closed.has(`${off.x},${off.y + 1},${off.z}`)) continue
+      const off = start.cachedVec.plus(dir).floor()
+      if (closed.has(`${off.x},${off.y+1},${off.z}`)) continue
       this.getMoveJumpUp(start, dir, storage)
     }
   }
@@ -200,7 +200,7 @@ export class ForwardJump extends MovementProvider {
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return
     // if (toPlace.length === 2) return;
-    // set exitPos to center of block we want.
+    // set cachedVec to center of block we want.
     neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
@@ -288,8 +288,8 @@ export class StraightDown extends DropDownProvider {
   movementDirs = [new Vec3(0, -1, 0)]
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    const off = start.entryPos.plus(this.movementDirs[0]).floor()
-    if (closed.has(`${off.x},${off.y},${off.z}`)) return
+    const off = start.cachedVec.floored()
+    if (closed.has(`${off.x},${off.y-1},${off.z}`)) return
     return this.getMoveDown(start, storage)
   }
 
@@ -317,8 +317,8 @@ export class StraightUp extends MovementProvider {
   movementDirs = [new Vec3(0, 1, 0)]
 
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
-    const off = start.entryPos.floor()
-    if (closed.has(`${off.x},${off.y + 1},${off.z}`)) return
+    const off = start.cachedVec.floored()
+    if (closed.has(`${off.x},${off.y+1},${off.z}`)) return
     return this.getMoveUp(start, storage)
   }
 
@@ -411,7 +411,7 @@ export class ParkourForward extends MovementProvider {
         // Forward
 
         const off = blockC.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
@@ -421,7 +421,7 @@ export class ParkourForward extends MovementProvider {
         if (d === 5) continue
 
         const off = blockB.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         // cost += this.exclusionStep(blockA)
@@ -433,7 +433,7 @@ export class ParkourForward extends MovementProvider {
         // }
       } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
         const off = blockD.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+      // if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)
