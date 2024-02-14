@@ -72,7 +72,7 @@ export abstract class MovementExecutor extends Movement {
    * TODO: Implement.
    */
   public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
-    if (this.cancelled) return
+    if (this.cancelled || this.resetting) return
 
     const timeout = settings.timeout ?? 1000
     const resetting = settings.resetting ?? false

@@ -14,8 +14,8 @@ const bot = createBot({
   // port: 25497
 
   // host: "node2.endelon-hosting.de", port: 31997
-  host: 'Ic3TankD2HO.aternos.me',
-  port: 44656
+  host: 'node2.meowbot.de',
+  port: 5000
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
