@@ -139,6 +139,7 @@ export class ForwardExecutor extends MovementExecutor {
       // else this.bot.setControlState("sprint", true);
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+      console.log('here!', thisMove.exitPos, this.bot.entity.position, offset)
       // void this.lookAt(offset);
       await this.alignToPath(thisMove, { lookAt: offset, sprint: true })
       // this.bot.setControlState('forward', false)
@@ -379,30 +380,35 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
   // TODO: re-optimize.
   private async performTwoPlace (thisMove: Move): Promise<void> {
-    this.bot.setControlState('sprint', false)
+    // this.bot.setControlState("sprint", false);
     let info = await thisMove.toPlace[0].performInfo(this.bot, 0)
     if (info.raycasts.length === 0) {
-      this.bot.setControlState('forward', true)
+      console.log('info')
+      void this.alignToPath(thisMove, { lookAt: thisMove.entryPos })
       await this.performInteraction(thisMove.toPlace[0])
     } else {
-      this.bot.setControlState('forward', false)
+      console.log('no info')
+      // this.bot.setControlState("forward", false);
       await this.performInteraction(thisMove.toPlace[0], { info })
     }
 
-    await this.lookAt(thisMove.exitPos)
-    this.bot.setControlState('back', false)
-    this.bot.setControlState('sprint', false)
-    this.bot.setControlState('forward', true)
+    console.log('did first place!')
+
     this.bot.setControlState('jump', true)
+    await this.alignToPath(thisMove, { lookAt: thisMove.entryPos })
+    // this.bot.setControlState('back', false)
+    // this.bot.setControlState('sprint', false)
+    // this.bot.setControlState('forward', true)
+    // this.bot.setControlState('jump', true)
 
     while (this.bot.entity.position.y - thisMove.exitPos.y < 0) {
-      await this.lookAt(thisMove.exitPos)
+      await this.alignToPath(thisMove, { lookAt: thisMove.entryPos })
       await this.bot.waitForTicks(1)
       // console.log('loop 0')
     }
     info = await thisMove.toPlace[1].performInfo(this.bot)
     while (info.raycasts.length === 0) {
-      await this.lookAt(thisMove.exitPos)
+      await this.alignToPath(thisMove, { lookAt: thisMove.entryPos })
       await this.bot.waitForTicks(1)
 
       info = await thisMove.toPlace[1].performInfo(this.bot)
@@ -417,6 +423,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+    console.log('performing jump movement!')
     this.flag = false
     this.bot.clearControlStates()
 
@@ -435,24 +442,33 @@ export class ForwardJumpExecutor extends MovementExecutor {
     // do some fancy handling here, will think of something later.
     if (thisMove.toPlace.length === 2) {
       await this.performTwoPlace(thisMove)
-    } else {
-      this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos)
+      return
+    }
 
-      if (this.jumpInfo === null) {
-        this.bot.setControlState('forward', true)
-        this.bot.setControlState('jump', true)
-        this.bot.setControlState('sprint', true)
-      }
+    this.jumpInfo = this.shitter.findJumpPoint(thisMove.exitPos)
 
-      // console.log("info", this.jumpInfo);
-      for (const place of thisMove.toPlace) {
-        const test = await place.performInfo(this.bot)
-        if (test !== null) await this.performInteraction(place, { info: test })
-      }
+    if (this.jumpInfo === null) {
+      this.bot.setControlState('forward', true)
+      this.bot.setControlState('jump', true)
+      this.bot.setControlState('sprint', true)
+    }
+
+    // console.log("info", this.jumpInfo);
+    for (const place of thisMove.toPlace) {
+      const test = await place.performInfo(this.bot)
+      if (test !== null) await this.performInteraction(place, { info: test })
     }
   }
 
   async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
+    console.log(
+      'per tick!',
+      this.bot.getControlState('forward'),
+      this.bot.getControlState('back'),
+      this.bot.getControlState('jump'),
+      this.bot.entity.position,
+      thisMove.exitPos
+    )
     // console.log(tickCount, this.jumpInfo, this.bot.entity.position, this.bot.entity.velocity, this.bot.blockAt(this.bot.entity.position))
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
       this.bot.clearControlStates()
@@ -465,8 +481,10 @@ export class ForwardJumpExecutor extends MovementExecutor {
       }
     }
 
-    void this.lookAtPathPos(thisMove.exitPos)
-    this.bot.setControlState('forward', true)
+    void this.alignToPath(thisMove, { sprint: true })
+
+    // void this.lookAtPathPos(thisMove.exitPos);
+    // this.bot.setControlState("forward", true);
     // this.bot.setControlState("sprint", true);
 
     // await this.alignToPath(thisMove, { sprint: false });

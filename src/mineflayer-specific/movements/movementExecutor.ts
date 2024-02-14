@@ -155,7 +155,7 @@ export abstract class MovementExecutor extends Movement {
    * and bounding box check (touching OR slightly above block).
    */
   protected isComplete (startMove: Move, endMove: Move = startMove, ticks = 1): boolean {
-    console.log('isComplete:', this.toBreakLen(), this.toPlaceLen())
+    // console.log('isComplete:', this.toBreakLen(), this.toPlaceLen())
     if (this.toBreakLen() > 0) return false
     if (this.toPlaceLen() > 0) return false
 
@@ -166,6 +166,7 @@ export abstract class MovementExecutor extends Movement {
     const offset = endMove.exitPos.minus(this.bot.entity.position)
     const dir = endMove.exitPos.minus(startMove.entryPos)
 
+    console.log(offset, dir)
     offset.translate(0, -offset.y, 0) // xz only
     dir.translate(0, -dir.y, 0) // xz only
 
@@ -206,7 +207,7 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (bbsVertTouching && offset.y <= 0) {
-      console.log(ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      // console.log(similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
@@ -421,7 +422,7 @@ export abstract class MovementExecutor extends Movement {
   protected async alignToPath (
     startMove: Move,
     endMove?: Move,
-    opts?: { handleBack?: boolean, target?: Vec3, sprint?: boolean }
+    opts?: { handleBack?: boolean, lookAt?: Vec3, sprint?: boolean }
   ): Promise<void>
   protected async alignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
@@ -435,7 +436,7 @@ export abstract class MovementExecutor extends Movement {
     }
 
     // const handleBack = opts.handleBack ?? false
-    const target = opts.target ?? endMove.exitPos
+    const target = opts.lookAt ?? endMove.exitPos
     // const offset = endMove.exitPos.minus(this.bot.entity.position)
     // const dir = endMove.exitPos.minus(startMove.entryPos)
     const sprint = opts.sprint ?? true

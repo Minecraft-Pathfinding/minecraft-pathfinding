@@ -348,7 +348,7 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      console.log('toPlace', move.toPlace, 'toBreak', move.toBreak, 'entryPos', move.entryPos, 'asVec', move.asVec(), 'exitPos', move.exitPos)
+      console.log('toPlace', move.toPlace.map(p => p.vec), 'toBreak', move.toBreak.map(b => b.vec), 'entryPos', move.entryPos, 'asVec', move.asVec(), 'exitPos', move.exitPos)
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {

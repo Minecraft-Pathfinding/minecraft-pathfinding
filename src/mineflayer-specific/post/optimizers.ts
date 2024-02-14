@@ -34,7 +34,6 @@ export class StraightAheadOpt extends MovementOptimizer {
 
     while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
       if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) {
-        console.log('hi')
         return --currentIndex
       }
 

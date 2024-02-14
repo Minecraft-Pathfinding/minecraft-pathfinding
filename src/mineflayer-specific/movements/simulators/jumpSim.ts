@@ -148,10 +148,17 @@ export class JumpSim extends BaseSimulator {
   static getReachedAABB (bbs: AABB[]): SimulationGoal {
     if (bbs.length === 0) throw new Error('JumpSim: No AABBs for goal provided')
     const maxY = bbs.reduce((max, a) => Math.max(max, a.maxY), -Infinity)
+
+    const lastXZVel = new Vec3(0, 0, 0)
     return (state) => {
       const bb = AABBUtils.getPlayerAABB({ position: state.pos, width: 0.5999, height: 1.8 })
       // if (state.pos.y >= maxY-0.3) console.log('hm?',state.age, state.pos, bbs)
-      return state.pos.y >= maxY && bbs.some((a) => a.collides(bb))
+      const xzVel = state.vel.offset(0, -state.vel.y, 0)
+
+      // make sure bump does not occur.
+      const ret = state.pos.y >= maxY && bbs.some((a) => a.collides(bb)) && lastXZVel.norm() - xzVel.norm() < 0.04
+
+      return ret
     }
   }
 
