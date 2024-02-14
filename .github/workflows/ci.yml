@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - path-resetting
+      - main
   pull_request:
 
 jobs:
