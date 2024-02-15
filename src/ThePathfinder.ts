@@ -24,7 +24,7 @@ import {
   StraightDown,
   StraightUp,
   ForwardDropDownExecutor,
-  ForwardExecutor,
+  NewForwardExecutor,
   ForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
@@ -49,10 +49,10 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
  * These are the default movement types and their respective executors.
  */
 const DEFAULT_PROVIDER_EXECUTORS = [
-  [Forward, ForwardExecutor],
+  [Forward, NewForwardExecutor],
   [ForwardJump, ForwardJumpExecutor],
   [ForwardDropDown, ForwardDropDownExecutor],
-  [Diagonal, ForwardExecutor],
+  [Diagonal, NewForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
   [ParkourForward, ParkourForwardExecutor]
@@ -468,18 +468,18 @@ export class ThePathfinder {
       }
 
       console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
-      // console.log(
-      //   'toPlace',
-      //   move.toPlace.map((p) => p.vec),
-      //   'toBreak',
-      //   move.toBreak.map((b) => b.vec),
-      //   'entryPos',
-      //   move.entryPos,
-      //   'asVec',
-      //   move.vec,
-      //   'exitPos',
-      //   move.exitPos
-      // )
+      console.log(
+        'toPlace',
+        move.toPlace.map((p) => p.vec),
+        'toBreak',
+        move.toBreak.map((b) => b.vec),
+        'entryPos',
+        move.entryPos,
+        'asVec',
+        move.vec,
+        'exitPos',
+        move.exitPos
+      )
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {

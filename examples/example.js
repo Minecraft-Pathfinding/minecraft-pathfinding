@@ -272,9 +272,12 @@ async function cmdHandler(username, msg) {
       const res1 = bot.pathfinder.getPathTo(goal);
       let test1;
       const test2 = [];
-      while ((test1 = await res1.next()).done === false) {
-        test2.concat(test1.value.result.path);
-      }
+      do {
+        test1 = await res1.next()
+        console.log(test1)
+        if (test1.value) test2.push(...test1.value.result.path);
+      } while (test1.done === false)
+    
       const endTime = performance.now();
       bot.whisper(
         username,
@@ -283,6 +286,13 @@ async function cmdHandler(username, msg) {
           1000
         ).toFixed(3)} seconds`
       );
+
+      console.log(args)
+
+      if (args[0] === "debug") {
+        console.log('hey')
+        console.log(test2.map((v) => `(${v.moveType.constructor.name}: ${v.x} ${v.y} ${v.z})`).join(", "));
+      }
       bot.whisper(username, bot.pathfinder.world.getCacheSize());
       console.log(test2.length);
       break;

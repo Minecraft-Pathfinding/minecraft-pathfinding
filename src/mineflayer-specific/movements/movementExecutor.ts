@@ -254,7 +254,7 @@ export abstract class MovementExecutor extends Movement {
    * Lazy code.
    */
   public safeToCancel (startMove: Move, endMove: Move = startMove): boolean {
-    return this.bot.entity.onGround
+    return this.bot.entity.onGround || (this.bot.entity as any).isInWater as boolean
   }
 
   /**
