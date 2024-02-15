@@ -270,13 +270,15 @@ async function cmdHandler(username, msg) {
       const startTime = performance.now();
       const goal = getGoal(bot.world, author.position.x, author.position.y-1, author.position.z);
       const res1 = bot.pathfinder.getPathTo(goal);
+      let test;
       let test1;
       const test2 = [];
       do {
-        test1 = await res1.next()
-        console.log(test1)
+        test = await res1.next()
+        if (!test.done) test1=test
+        // console.log(test1)
         if (test1.value) test2.push(...test1.value.result.path);
-      } while (test1.done === false)
+      } while (test.done === false)
     
       const endTime = performance.now();
       bot.whisper(
@@ -287,14 +289,20 @@ async function cmdHandler(username, msg) {
         ).toFixed(3)} seconds`
       );
 
-      console.log(args)
+    
 
       if (args[0] === "debug") {
         console.log('hey')
-        console.log(test2.map((v) => `(${v.moveType.constructor.name}: ${v.x} ${v.y} ${v.z})`).join(", "));
+        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
+
+        if (args[1] === 'trail') {
+          for (const pos of test1.value.result.path) {
+            bot.chat('/particle minecraft:flame ' + pos.entryPos.x + ' ' + pos.entryPos.y + ' ' + pos.entryPos.z + ' 0 0.5 0 0 10 force')
+          }
+        }
       }
       bot.whisper(username, bot.pathfinder.world.getCacheSize());
-      console.log(test2.length);
+      console.log(test1.length);
       break;
     }
 

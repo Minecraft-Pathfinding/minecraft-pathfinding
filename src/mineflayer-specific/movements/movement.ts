@@ -39,7 +39,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   maxDropDown: 3,
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
-  liquidCost: 3,
+  liquidCost: 1,
   placeCost: 2,
   digCost: 1,
   jumpCost: 0.5,
