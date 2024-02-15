@@ -373,6 +373,8 @@ export class ParkourForward extends MovementProvider {
 
   // Jump up, down or forward over a 1 block gap
   getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
+    if (this.getBlockInfo(node, 0, 0, 0).liquid) return // cant jump from water
+
     const block0 = this.getBlockInfo(node, 0, -1, 0)
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (
@@ -382,8 +384,7 @@ export class ParkourForward extends MovementProvider {
     ) {
       return
     }
-    if (this.getBlockInfo(node, 0, 0, 0).liquid) return // cant jump from water
-
+  
     const cost0 = 1 + this.settings.jumpCost // move cost (move+jump)
 
     // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important

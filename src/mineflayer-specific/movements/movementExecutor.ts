@@ -6,7 +6,7 @@ import { World } from '../world/worldInterface'
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
-import { AABBUtils } from '@nxg-org/mineflayer-util-plugin'
+import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
 
@@ -152,8 +152,51 @@ export abstract class MovementExecutor extends Movement {
    * This can be used to align to the center of blocks, etc.
    * Align IS allowed to throw exceptions, it will revert to recovery.
    */
-  align (thisMove: Move, tickCount: number, goal: goals.Goal): boolean | Promise<boolean> {
-    return true
+  align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): boolean | Promise<boolean> {
+      const target = lookTarget ?? thisMove.exitPos.floored().translate(0.5, 0, 0.5)
+      void this.alignToPath(thisMove, { lookAt: target })
+  
+      const off0 = thisMove.exitPos.minus(this.bot.entity.position)
+      const off1 = thisMove.exitPos.minus(target)
+  
+      off0.translate(0, -off0.y, 0)
+      off1.translate(0, -off1.y, 0)
+  
+      const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
+  
+      const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
+  
+      let bb1: AABB[];
+      let bb2: AABB[];
+      let bb1Good;
+      let bb2Good;
+      if ((this.bot.entity as any).isInWater as boolean) {
+        const bb1bl = this.getBlockInfo(target, 0, 0, 0)
+        bb1 = [AABB.fromBlock(target)];
+        bb1Good = bb1bl.liquid
+  
+  
+        const bb2bl = this.getBlockInfo(thisMove.exitPos.floored(), 0, 0, 0)
+        bb2 = [AABB.fromBlock(thisMove.exitPos.floored())]
+        bb2Good = bb2bl.liquid
+      } else {
+        const bb1bl = this.getBlockInfo(target, 0, -1, 0)
+        bb1 = bb1bl.getBBs()
+        if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
+        bb1Good = bb1bl.physical 
+  
+        const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
+        bb2 = bb2bl.getBBs()
+        if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
+        bb2Good = bb2bl.physical 
+      }
+  
+      if ((bb1.some((b) => b.collides(bb0)) && bb1Good) || (bb2.some((b) => b.collides(bb0)) && bb2Good)) {
+        if (similarDirection) return true
+        else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAtYaw(target)
+      }
+  
+      return false
   }
 
   /**
@@ -210,23 +253,37 @@ export abstract class MovementExecutor extends Movement {
     // bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
     // bb0.expand(-0.0001, 0, -0.0001);
 
-    const bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0))
+    let bb1bl;
+    let bbCheckCond = false;
+    let weGood = false;
+    if (ectx.state.isInWater) {
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored())
+      bbCheckCond = bb1bl.liquid
+      const bb1s = AABB.fromBlock(endMove.exitPos.floored());
+      weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
+      console.log('water check', bb1bl, bb1s, bb0, bbCheckCond)
+    } else {
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0))
+      bbCheckCond = bb1bl.physical
+      const bb1s = bb1bl.getBBs()
+      weGood = bb1s.some((b) => b.collides(bb0)) && bbCheckCond && pos.y >= bb1bl.height // && !(this.bot.entity as any).isCollidedHorizontally;
 
-    const bb1s = bb1bl.getBBs()
 
+    }
+    // const bbOff = new Vec3(0, ectx.state.isInWater ? 0 : -1, 0)
+
+  
     const headingThatWay = xzVelDir.dot(dir.normalize()) > -2
 
-    const bb1physical = bb1bl.physical || bb1bl.liquid
     // console.log(endMove.exitPos.floored().translate(0, -1, 0), bb1physical)
     // startMove.moveType.getBlockInfo(endMove.exitPos.floored(), 0, -1, 0).physical;
 
-    const bbsVertTouching = bb1s.some((b) => b.collides(bb0)) && bb1physical && pos.y >= bb1bl.height // && !(this.bot.entity as any).isCollidedHorizontally;
-
+ 
     // console.info('bb0', bb0, 'bb1s', bb1s)
-    // console.log(bbsVertTouching, similarDirection, offset.y <= 0, this.bot.entity.position);
+    console.log(weGood, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
-    if (bbsVertTouching && offset.y <= 0) {
-      // console.log(similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+    if (weGood) {
+      console.log(similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)

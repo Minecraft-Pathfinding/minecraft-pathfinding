@@ -28,43 +28,18 @@ export class NewForwardExecutor extends MovementExecutor {
     return this.currentMove?.toPlace.length === 0 && !near
   }
 
-  async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     const faceForward = await this.faceForward()
 
-    const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
+    let target;
     if (faceForward) {
-      void this.alignToPath(thisMove, { lookAt: target })
+      target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
     } else {
-      const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
-      void this.alignToPath(thisMove, { lookAt: offset })
+      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+      target = offset
     }
 
-    const off0 = thisMove.exitPos.minus(this.bot.entity.position)
-    const off1 = thisMove.exitPos.minus(target)
-
-    off0.translate(0, -off0.y, 0)
-    off1.translate(0, -off1.y, 0)
-
-    const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
-
-    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
-
-    const bb1bl = this.getBlockInfo(target, 0, -1, 0)
-    const bb1 = bb1bl.getBBs()
-    if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
-    const bb1physical = bb1bl.physical || bb1bl.liquid
-
-    const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
-    const bb2 = bb2bl.getBBs()
-    if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
-    const bb2physical = bb2bl.physical || bb2bl.liquid
-
-    if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
-      if (similarDirection) return true
-      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAtYaw(target)
-    }
-
-    return false
+    return super.align(thisMove, tickCount, goal, target)
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
@@ -835,7 +810,16 @@ export class StraightUpExecutor extends MovementExecutor {
     return this.bot.entity.position.y >= thisMove.exitPos.y
   }
 
-  async align (thisMove: Move): Promise<boolean> {
+  override async align (thisMove: Move): Promise<boolean> {
+    if ((this.bot.entity as any).isInWater as boolean) {
+      this.bot.setControlState('jump', true)
+      
+    }
+
+    return super.align(thisMove);
+  }
+
+  async align1 (thisMove: Move): Promise<boolean> {
     const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5)
     this.bot.clearControlStates()
 

@@ -50,12 +50,12 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
  */
 const DEFAULT_PROVIDER_EXECUTORS = [
   [Forward, NewForwardExecutor],
-  [ForwardJump, ForwardJumpExecutor],
-  [ForwardDropDown, ForwardDropDownExecutor],
+  // [ForwardJump, ForwardJumpExecutor],
+  // [ForwardDropDown, ForwardDropDownExecutor],
   [Diagonal, NewForwardExecutor],
-  [StraightDown, StraightDownExecutor],
+  // [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
-  [ParkourForward, ParkourForwardExecutor]
+  // [ParkourForward, ParkourForwardExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
 /**
