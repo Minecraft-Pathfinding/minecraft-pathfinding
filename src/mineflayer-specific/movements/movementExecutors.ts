@@ -283,8 +283,7 @@ export class ForwardExecutor extends MovementExecutor {
       throw new CancelError('ForwardMove: not on ground')
     }
     if ((this.bot.entity as any).isCollidedHorizontally as boolean) {
-      if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.02)
-      throw new CancelError("ForwardMove: collided horizontally");
+      // if (this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm() < 0.02) { throw new CancelError('ForwardMove: collided horizontally') }
     }
 
     const faceForward = await this.faceForward()
