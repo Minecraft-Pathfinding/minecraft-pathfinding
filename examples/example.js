@@ -77,11 +77,11 @@ bot.once("spawn", async () => {
   const val = new EntityPhysics(bot.registry)
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
-    // bot.jumpTicks = 0
-    // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-    // ctx.state.jumpTicks = 0; // allow immediate jumping
-    // // ctx.state.control.set('sneak', true)
-    // return val.simulate(ctx, bot.world).applyToBot(bot);
+    bot.jumpTicks = 0
+    const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    ctx.state.jumpTicks = 0; // allow immediate jumping
+    // ctx.state.control.set('sneak', true)
+    return val.simulate(ctx, bot.world).applyToBot(bot);
     return oldSim(...args);
   };
 

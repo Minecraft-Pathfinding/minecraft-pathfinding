@@ -384,7 +384,7 @@ export class ParkourForward extends MovementProvider {
     ) {
       return
     }
-  
+
     const cost0 = 1 + this.settings.jumpCost // move cost (move+jump)
 
     // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important

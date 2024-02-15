@@ -31,7 +31,7 @@ export class NewForwardExecutor extends MovementExecutor {
   override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     const faceForward = await this.faceForward()
 
-    let target;
+    let target
     if (faceForward) {
       target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
     } else {
@@ -39,7 +39,7 @@ export class NewForwardExecutor extends MovementExecutor {
       target = offset
     }
 
-    return super.align(thisMove, tickCount, goal, target)
+    return await super.align(thisMove, tickCount, goal, target)
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
@@ -813,10 +813,9 @@ export class StraightUpExecutor extends MovementExecutor {
   override async align (thisMove: Move): Promise<boolean> {
     if ((this.bot.entity as any).isInWater as boolean) {
       this.bot.setControlState('jump', true)
-      
     }
 
-    return super.align(thisMove);
+    return await super.align(thisMove)
   }
 
   async align1 (thisMove: Move): Promise<boolean> {
