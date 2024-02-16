@@ -48,6 +48,28 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
+    const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
+    let move: Move | undefined = this.currentMove
+
+    let i = 0
+    while (move !== undefined && i++ < 4) { // 5 levels
+      // console.log('i', i)
+      for (const m of move.toPlace) {
+        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+          return m.blockInfo
+        }
+      }
+
+      for (const m of move.toBreak) {
+        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+          return m.blockInfo
+        }
+      }
+
+      move = move.parent
+    }
+
+
     pos = {
       x: Math.floor(pos.x),
       y: Math.floor(pos.y),
@@ -235,6 +257,16 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal, closed)
     }
 
+    for (const move of moves) {
+      const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
+      if (bl.liquid && move.toPlace.length > 0) {
+        const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
+        console.log(blocksAtPoses.map(i=>[i, i.block?.getProperties(), (i.block as any)?._properties]))
+
+
+        throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec} `)
+      }
+    }
     // this.resetLocalData() // same speed, but less memory efficient.
 
     // console.log(moves.length, moves.map(m=>m.moveType.constructor.name))

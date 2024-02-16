@@ -94,6 +94,19 @@ export class BlockInfo {
     BlockInfo.liquids.add(registry.blocksByName.water.id)
     BlockInfo.liquids.add(registry.blocksByName.lava.id)
 
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (registry.blocksByName.seagrass) BlockInfo.liquids.add(registry.blocksByName.seagrass.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (registry.blocksByName.tall_seagrass) BlockInfo.liquids.add(registry.blocksByName.tall_seagrass.id)
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (registry.blocksByName.kelp_plant) BlockInfo.liquids.add(registry.blocksByName.kelp_plant.id)
+
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+  if (registry.blocksByName.kelp) BlockInfo.liquids.add(registry.blocksByName.kelp.id)
+
+
     BlockInfo.gravityBlocks.add(registry.blocksByName.sand.id)
     BlockInfo.gravityBlocks.add(registry.blocksByName.gravel.id)
 
@@ -163,7 +176,7 @@ export class BlockInfo {
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
-    b1.liquid = BlockInfo.liquids.has(b.type)
+    b1.liquid = BlockInfo.liquids.has(b.type) || ((b as any)._properties?.waterlogged && b.boundingBox === "empty")
     b1.height = b.position.y
     b1.canFall = BlockInfo.gravityBlocks.has(b.type)
     b1.openable = BlockInfo.openable.has(b.type)

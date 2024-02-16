@@ -25,10 +25,11 @@ import {
   StraightUp,
   ForwardDropDownExecutor,
   NewForwardExecutor,
-  ForwardJumpExecutor,
+  NewForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
-  DEFAULT_MOVEMENT_OPTS
+  DEFAULT_MOVEMENT_OPTS,
+  IdleMovementExecutor
 } from './mineflayer-specific/movements'
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
@@ -50,7 +51,7 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
  */
 const DEFAULT_PROVIDER_EXECUTORS = [
   [Forward, NewForwardExecutor],
-  [ForwardJump, ForwardJumpExecutor],
+  [ForwardJump, NewForwardJumpExecutor],
   [ForwardDropDown, ForwardDropDownExecutor],
   [Diagonal, NewForwardExecutor],
   [StraightDown, StraightDownExecutor],
@@ -215,6 +216,12 @@ export class ThePathfinder {
    */
   isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentExecutingPath): boolean {
     // console.log('pos:', pos, 'path:', path?.length)
+
+    const placements = path?.map((move) => move.toPlace.map((p) => p.vec.toString())).flat()
+    const breaks = path?.map((move) => move.toBreak.map((b) => b.vec.toString())).flat()
+
+    const all = new Set(placements?.concat(breaks ?? []));
+
     if (pos == null || path == null) return false
 
     for (const move of path) {
@@ -227,7 +234,9 @@ export class ThePathfinder {
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
       // console.log(comparisonPoint, dx, dy, dz, pos)
-      if (dx <= 1 && dy <= 2 && dz <= 1) return true
+      if (dx <= 1 && dy <= 2 && dz <= 1) {
+        if (!all.has(pos.floored().toString())) return true
+      }
     }
 
     return false
@@ -324,15 +333,17 @@ export class ThePathfinder {
     this.cancelCalculation = false
     this.allowRetry = false
     this.currentGoal = goal
-    const move = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
+
+    this.currentMove = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
+    this.currentExecutor = new IdleMovementExecutor(this.bot, this.world, this.defaultMoveSettings)
 
     // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
-      this.currentProducer = new PartialPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     } else {
-      this.currentProducer = new ContinuousPathProducer(move, goal, settings, this.bot, this.world, this.movements)
+      this.currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     }
 
     let { result, astarContext } = this.currentProducer.advance()
@@ -577,9 +588,10 @@ export class ThePathfinder {
 
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     await this.cleanupBot()
-    if (lastMove != null) await goal.onFinish(lastMove)
+    if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
+    this.cancelCalculation = false
     this.executing = false
     this.allowRetry = false
 

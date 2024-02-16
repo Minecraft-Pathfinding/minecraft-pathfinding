@@ -8,6 +8,7 @@ import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './int
 import { Block, Vec3Properties } from '../../types'
 
 export interface MovementOptions {
+  allowDiagonalBridging: boolean
   allowJumpSprint: boolean
   allow1by1towers: boolean
   liquidCost: number
@@ -39,13 +40,14 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   maxDropDown: 3,
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
-  liquidCost: 1,
+  liquidCost: 3,
   placeCost: 2,
   digCost: 1,
   jumpCost: 0.5,
   velocityKillCost: 2, // implement at a later date.
   forceLook: true,
-  careAboutLookAlignment: true
+  careAboutLookAlignment: true,
+  allowDiagonalBridging: false
 }
 
 const cardinalVec3s: Vec3[] = [
@@ -152,25 +154,7 @@ export abstract class Movement {
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
-    let move: Move | undefined = this.currentMove
 
-    let i = 0
-    while (move !== undefined && i++ < 4) { // 5 levels
-      // console.log('i', i)
-      for (const m of move.toPlace) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
-
-      for (const m of move.toBreak) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
-
-      move = move.parent
-    }
 
     // if (move) {
     //   const key = yes.toString();

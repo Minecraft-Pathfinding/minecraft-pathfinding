@@ -5,6 +5,7 @@ const { GoalBlock, GoalLookAt, GoalPlaceBlock } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
+const { GoalMineBlock } = require("../dist/mineflayer-specific/goals");
 
 
 const bot = createBot({
@@ -22,7 +23,7 @@ const bot = createBot({
 const pathfinder = createPlugin();
 
 
-const validTypes = ["block" , "lookat", "place"]
+const validTypes = ["block" , "lookat", "place", "break"]
 let mode = "block"
 
 function getGoal(world,x,y,z) {
@@ -43,6 +44,8 @@ function _getGoal(world, x, y, z) {
     case "place":
       item = bot.inventory.items().find(item => item.name === 'dirt');
       return GoalPlaceBlock.fromInfo(world, block.position.offset(0, 1, 0), item);
+    case "break":
+      return GoalMineBlock.fromBlock(world, block);
   }
 
   return new GoalBlock(x, y+1, z);
@@ -118,6 +121,13 @@ async function cmdHandler(username, msg) {
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
   switch (cmd) {
+    case "blockatme": {
+      if (!author) return bot.whisper(username, "failed to find player");
+      const block = bot.blockAt(author.position);
+      console.log(username, `Block at you: ${block.position.x} ${block.position.y} ${block.position.z}`, block);
+      console.log(block.getProperties())
+      break;
+    }
     case "mode": {
       if (args.length === 0) {
         bot.whisper(username, `mode is ${mode}`);
@@ -208,6 +218,11 @@ async function cmdHandler(username, msg) {
       }
       bot.setControlState("forward", true);
       break;
+    }
+
+    case "jump": {
+      bot.setControlState("jump", true);
+      break
     }
     case "cancel":
     case "stop": {

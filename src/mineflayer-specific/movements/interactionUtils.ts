@@ -82,7 +82,7 @@ export abstract class InteractHandler {
     return !this._internalLock
   }
 
-  public loadMove (move: Movement): void {
+  public loadMove (move: MovementExecutor): void {
     (this as any).move = move
   }
 

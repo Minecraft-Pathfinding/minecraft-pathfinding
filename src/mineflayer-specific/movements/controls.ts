@@ -44,7 +44,7 @@ export function wrapRadians (radians: number): number {
 
 // currentPoint: Vec3
 function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, nextPoint: Vec3, onGround: boolean): number {
-  const xzVel = velocity
+  const xzVel = velocity.offset(0, -velocity.y, 0)
   // const dir1 = getViewDir({ yaw, pitch })
 
   const amt = xzVel.norm()
@@ -56,6 +56,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
   let scale = onGround ? 0 : 1
   if (amt > 0.16) scale = 2
   if (position.distanceTo(nextPoint) < 0.3) scale = 0
+  if (amt < 0.02) scale = 0
   const offset = position.plus(velocity.scaled(scale))
   const lookDiff = wrapRadians(wrapRadians(yaw))
   if (xzVel.norm() < 0.03) {
@@ -250,11 +251,13 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
   if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
-    // console.log('stopping since near goal')
+    console.log('stopping since near goal')
     bot.setControlState('forward', false)
     bot.setControlState('back', false)
     return
   }
+
+  console.log('diff', diff, 'ratio', diff / (Math.PI / 12))
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 

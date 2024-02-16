@@ -110,6 +110,8 @@ export class Diagonal extends MovementProvider {
       if ((cost += this.safeOrPlace(blockN1, toPlace, 'solid')) > 100) return
     }
 
+    if (toPlace.length > 1 && !this.settings.allowDiagonalBridging) return
+
     // expect these to all be relatively easy.
     cost += this.safeOrBreak(block0, toBreak)
     cost += this.safeOrBreak(block1, toBreak)
@@ -169,6 +171,7 @@ export class ForwardJump extends MovementProvider {
 
       // if (this.getNumEntitiesAt(blockC.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
 
+      // console.log('blockC', blockC)
       const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z)
       if (!blockD.physical) {
         if (node.remainingBlocks <= 1) return // not enough blocks to place
@@ -385,7 +388,7 @@ export class ParkourForward extends MovementProvider {
 
   // Jump up, down or forward over a 1 block gap
   getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
-    if (this.getBlockInfo(node, 0, 0, 0).liquid) return // cant jump from water
+    if (!this.getBlockInfo(node, 0, 0, 0).physical) return // cant jump from water
 
     const block0 = this.getBlockInfo(node, 0, -1, 0)
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)

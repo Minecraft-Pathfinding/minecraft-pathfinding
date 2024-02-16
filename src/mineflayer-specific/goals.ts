@@ -3,10 +3,10 @@ import { Goal as AGoal } from '../abstract'
 import { Move } from './move'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
-import { Block } from '../types'
 import { PlaceHandler } from './movements/interactionUtils'
 import type { Item } from 'prismarine-item'
-import { Movement } from './movements'
+import { Movement, MovementExecutor } from './movements'
+import { Block } from '../types'
 
 /**
  * The abstract goal definition used by the pathfinder.
@@ -14,7 +14,7 @@ import { Movement } from './movements'
 export abstract class Goal implements AGoal<Move> {
   abstract isEnd (node: Move): boolean
   abstract heuristic (node: Move): number
-  async onFinish (node: Movement): Promise<void> {}
+  async onFinish (node: MovementExecutor): Promise<void> {}
 }
 
 /**
@@ -175,7 +175,7 @@ export class GoalLookAt extends Goal {
     return this.bb.containsVec(intsec)
   }
 
-  override async onFinish (node: Movement): Promise<void> {
+  override async onFinish (node: MovementExecutor): Promise<void> {
     const bot = node.bot
     await bot.lookAt(new Vec3(this.x, this.y, this.z))
     await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
@@ -194,7 +194,7 @@ export class GoalMineBlock extends GoalLookAt {
     return new GoalMineBlock(world, block, distance, height)
   }
 
-  override async onFinish (node: Movement): Promise<void> {
+  override async onFinish (node: MovementExecutor): Promise<void> {
     const bot = node.bot
     await bot.lookAt(new Vec3(this.x, this.y, this.z))
     await bot.lookAt(new Vec3(this.x, this.y, this.z), true) // weird alignment issue.
@@ -226,7 +226,7 @@ export class GoalPlaceBlock extends GoalLookAt {
     return new GoalPlaceBlock(world, bPos, item, distance, height)
   }
 
-  override async onFinish (node: Movement): Promise<void> {
+  override async onFinish (node: MovementExecutor): Promise<void> {
     const bot = node.bot
     this.handler.loadMove(node)
 

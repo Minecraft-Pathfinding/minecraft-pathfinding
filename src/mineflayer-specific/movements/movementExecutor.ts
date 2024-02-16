@@ -153,8 +153,9 @@ export abstract class MovementExecutor extends Movement {
    * Align IS allowed to throw exceptions, it will revert to recovery.
    */
   align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): boolean | Promise<boolean> {
-    const target = lookTarget ?? thisMove.exitPos.floored().translate(0.5, 0, 0.5)
-    void this.alignToPath(thisMove, { lookAt: target })
+    const target = lookTarget ?? thisMove.entryPos
+    if (lookTarget != null) void this.alignToPath(thisMove, { lookAt: target })
+    else void this.alignToPath(thisMove)
 
     const off0 = thisMove.exitPos.minus(this.bot.entity.position)
     const off1 = thisMove.exitPos.minus(target)
@@ -171,28 +172,33 @@ export abstract class MovementExecutor extends Movement {
     let bb1Good
     let bb2Good
     if ((this.bot.entity as any).isInWater as boolean) {
+      console.log('in water')
       const bb1bl = this.getBlockInfo(target, 0, 0, 0)
-      bb1 = [AABB.fromBlock(target)]
+      bb1 = [AABB.fromBlock(bb1bl.position)]
       bb1Good = bb1bl.liquid
 
       const bb2bl = this.getBlockInfo(thisMove.exitPos.floored(), 0, 0, 0)
-      bb2 = [AABB.fromBlock(thisMove.exitPos.floored())]
+      bb2 = [AABB.fromBlock(bb2bl.position)]
       bb2Good = bb2bl.liquid
     } else {
+      console.log('on land')
       const bb1bl = this.getBlockInfo(target, 0, -1, 0)
       bb1 = bb1bl.getBBs()
-      if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
+      // if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
       bb1Good = bb1bl.physical
 
       const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
       bb2 = bb2bl.getBBs()
-      if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
+      // if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
       bb2Good = bb2bl.physical
     }
 
+    console.log(bb0, bb1, bb2, bb1.some((b) => b.collides(bb0)), bb1Good, bb2.some((b) => b.collides(bb0)), bb2Good)
+
     if ((bb1.some((b) => b.collides(bb0)) && bb1Good) || (bb2.some((b) => b.collides(bb0)) && bb2Good)) {
+      console.log('hi', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
-      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return this.isLookingAtYaw(target)
+      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true// this.isLookingAtYaw(target)
     }
 
     return false
@@ -255,17 +261,25 @@ export abstract class MovementExecutor extends Movement {
     let bb1bl
     let bbCheckCond = false
     let weGood = false
-    if (ectx.state.isInWater) {
+
+    const aboveWater = !ectx.state.isInWater && !ectx.state.onGround && this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
+    if (aboveWater) {
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored())
+      bbCheckCond = bb1bl.safe
+      const bb1s = AABB.fromBlockPos(bb1bl.position)
+      weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
+    } else if (ectx.state.isInWater) {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored())
       bbCheckCond = bb1bl.liquid
-      const bb1s = AABB.fromBlock(endMove.exitPos.floored())
+      const bb1s = AABB.fromBlock(bb1bl.position)
       weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
-      console.log('water check', bb1bl, bb1s, bb0, bbCheckCond)
+      // console.log('water check', bb1bl.block?.type, bb1s, bb0, bbCheckCond)
     } else {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0))
       bbCheckCond = bb1bl.physical
       const bb1s = bb1bl.getBBs()
       weGood = bb1s.some((b) => b.collides(bb0)) && bbCheckCond && pos.y >= bb1bl.height // && !(this.bot.entity as any).isCollidedHorizontally;
+      // console.log('land check', endMove.exitPos, bb1bl.block, bb1s, bb0, bbCheckCond)
     }
     // const bbOff = new Vec3(0, ectx.state.isInWater ? 0 : -1, 0)
 
@@ -278,8 +292,9 @@ export abstract class MovementExecutor extends Movement {
     console.log(weGood, similarDirection, offset.y <= 0, this.bot.entity.position)
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (weGood) {
-      console.log(similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      console.log(offset.normalize().dot(dir.normalize()) , similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
+      else if (offset.norm() < 0.2) return true;
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
@@ -489,11 +504,11 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks)
   }
 
-  protected async alignToPath (startMove: Move, opts?: { handleBack?: boolean, lookAt?: Vec3, sprint?: boolean }): Promise<void>
+  protected async alignToPath (startMove: Move, opts?: { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }): Promise<void>
   protected async alignToPath (
     startMove: Move,
     endMove?: Move,
-    opts?: { handleBack?: boolean, lookAt?: Vec3, sprint?: boolean }
+    opts?: { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }
   ): Promise<void>
   protected async alignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
@@ -507,7 +522,11 @@ export abstract class MovementExecutor extends Movement {
     }
 
     // const handleBack = opts.handleBack ?? false
-    const target = opts.lookAt ?? endMove.exitPos
+    let target = opts.lookAt ?? opts.lookAtYaw ??  endMove.exitPos
+
+    if (opts.lookAtYaw && !opts.lookAt) {
+      target = target.offset(0, -target.y + this.bot.entity.position.y + this.bot.entity.height, 0)
+    }
     // const offset = endMove.exitPos.minus(this.bot.entity.position)
     // const dir = endMove.exitPos.minus(startMove.entryPos)
     const sprint = opts.sprint ?? true
@@ -530,19 +549,19 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    // console.log(
-    //   this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
-    //   ' | ',
-    //   this.bot.getControlState('forward'),
-    //   this.bot.getControlState('back'),
-    //   ' | ',
-    //   this.bot.getControlState('left'),
-    //   this.bot.getControlState('right'),
-    //   ' | ',
-    //   this.bot.getControlState('sprint'),
-    //   this.bot.getControlState('jump'),
-    //   this.bot.getControlState('sneak')
-    // )
+    console.log(
+      this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
+      ' | ',
+      this.bot.getControlState('forward'),
+      this.bot.getControlState('back'),
+      ' | ',
+      this.bot.getControlState('left'),
+      this.bot.getControlState('right'),
+      ' | ',
+      this.bot.getControlState('sprint'),
+      this.bot.getControlState('jump'),
+      this.bot.getControlState('sneak')
+    )
     await task
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

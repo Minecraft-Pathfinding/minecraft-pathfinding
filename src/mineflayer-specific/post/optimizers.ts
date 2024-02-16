@@ -128,6 +128,7 @@ export class DropDownOpt extends MovementOptimizer {
     let flag0 = false
     let flag1 = false
     while (currentIndex < path.length) {
+      
       if (nextMove.exitPos.y > lastMove.exitPos.y) return --currentIndex
 
       if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex
