@@ -89,14 +89,11 @@ const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
 
 // Temp typing.
 type PathInfo = Path
-type PathGenerator = AsyncGenerator<
-{
+type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult | null, unknown>
+type PathGeneratorResult = {
   result: PathInfo
   astarContext: AAStar<Move>
-},
-void,
-unknown
->
+}
 
 interface PerformOpts {
   errorOnRetry?: boolean
@@ -360,15 +357,16 @@ export class ThePathfinder {
     while (result.status === 'partial') {
       if (this.cancelCalculation) {
         console.log('cancelling!')
-        return
+        this.bot.off('physicsTick', listener)
+        return null
       }
 
       const { result: result2, astarContext } = this.currentProducer.advance()
       result = result2
 
       if (result.status === 'success') {
-        yield { result, astarContext }
-        break
+        this.bot.off('physicsTick', listener)
+        return { result, astarContext }
       }
       yield { result, astarContext }
 
@@ -379,7 +377,10 @@ export class ThePathfinder {
         ticked = false
       }
     }
-    this.bot.off('physicsTick', listener)
+    return {
+      result,
+      astarContext
+    }
   }
 
   async getPathFromToRaw (startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<PathInfo | null> {
@@ -585,7 +586,7 @@ export class ThePathfinder {
     this.bot.clearControlStates()
     // await this.bot.waitForTicks(1);
   }
-
+  
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     await this.cleanupBot()
     if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)

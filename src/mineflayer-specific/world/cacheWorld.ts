@@ -322,7 +322,7 @@ export class CacheSyncWorld implements WorldType {
     let count = 0
     return new LRUCache<string, BlockInfo, unknown>({
       max: size,
-      ttl: 1000,
+      ttl: 10000,
       updateAgeOnHas: false,
       updateAgeOnGet: true,
       dispose: (key, value, reason) => {

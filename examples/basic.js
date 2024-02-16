@@ -11,17 +11,17 @@ const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-ut
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  host: 'it-mil-1.halex.gg',
-  port: 25046
+  // host: 'it-mil-1.halex.gg',
+  // port: 25046
+  version: '1.19.4',
 
-  // host: "node2.endelon-hosting.de", port: 31997
-  // host: 'Ic3TankD2HO.aternos.me',
+  // host: "node2.endelon-hosting.de", port: 5000
+  host: 'Ic3TankD2HO.aternos.me',
   // port: 44656
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
 const pathfinder = createPlugin();
-
 
 const validTypes = ["block" , "lookat"]
 let type = "block"
@@ -40,7 +40,15 @@ function getGoal(world, x, y, z) {
 
 
 bot.on("inject_allowed", () => {});
-
+bot.once('login', () => {
+  console.info('Bot logged in');
+});
+bot.on('messagestr', (message) => {
+  console.info('Chat:', message);
+})
+bot.on('actionBar', (message) => {
+  console.info('Action bar:', message);
+})
 bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
@@ -113,3 +121,10 @@ bot.on("messagestr", async (msg, pos, jsonMsg) => {
   const username = bot.nearestEntity((e) => e.type === "player" && e !== bot.entity)?.username ?? "unknown";
   await cmdHandler(username, msg);
 });
+
+bot.on('error', (err) => {
+  console.log('Bot error', err)
+})
+bot.on('kicked', (reason) => {
+  console.log('Bot kicked', reason)
+})

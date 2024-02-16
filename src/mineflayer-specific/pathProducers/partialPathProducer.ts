@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { PathProducer, AStar } from '../../mineflayer-specific/algs'
+import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
@@ -15,6 +15,9 @@ export class PartialPathProducer implements PathProducer {
   private readonly movements: ExecutorMap
   private latestMove: Move | undefined
   private lastPath: Move[] = []
+
+  private readonly gcInterval: number = 10
+  private lastGc: number = 0
 
   private lastAstarContext: AStar | undefined
   constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
@@ -44,6 +47,21 @@ export class PartialPathProducer implements PathProducer {
 
     const result = this.lastAstarContext.compute()
 
+    if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
+      // const starttime = performance.now()
+
+      if (this.lastGc % (this.gcInterval * 10) === 0) {
+        // global.gc();
+      } else {
+        (global as any).gc(true)
+      }
+
+      // console.log('Garbage collection took', performance.now() - starttime, 'ms')
+    } else {
+      // console.log('Garbage collection unavailable.  Pass --expose-gc '
+      //   + 'when launching node to enable forced garbage collection.');
+    }
+
     this.latestMove = result.path[result.path.length - 1]
     this.lastPath = [...this.lastPath, ...result.path]
 
@@ -57,7 +75,17 @@ export class PartialPathProducer implements PathProducer {
     }
   }
 
-  // private mergePathspath (path1: Move[], path2: Move[]) {
-  //   const last: Move = path1[0]
-  // }
+  private mergePathspath(path1: Move[], path2: Move[]) {
+    let newPath = path1;
+    for (let i = 0; i < path2.length; i++) {
+      if (path1[i] === undefined) {
+        newPath = newPath.concat(path2.slice(i))
+        break;
+      }
+      if (path1[i].exitPos.distanceTo(path2[i].entryPos) > 0.5) {
+        newPath = newPath.concat(path2.slice(i))
+        break;
+      }
+    }
+  }
 }

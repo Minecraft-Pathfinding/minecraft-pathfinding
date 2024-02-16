@@ -9,14 +9,13 @@ const { GoalMineBlock } = require("../dist/mineflayer-specific/goals");
 
 
 const bot = createBot({
-  username: "testing1",
+  username: "testing2",
   auth: "offline",
   // host: 'fr-msr-1.halex.gg',
   // port: 25497
 
-  // host: "node2.endelon-hosting.de", port: 31997
-  host: 'node2.meowbot.de',
-  port: 5000
+  host: "node2.meowbot.de", port: 5000
+  // host: 'Ic3TankD2HO.aternos.me'
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
