@@ -589,6 +589,7 @@ export class ThePathfinder {
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     await this.cleanupBot()
     if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)
+    await this.cleanupBot()
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.cancelCalculation = false
