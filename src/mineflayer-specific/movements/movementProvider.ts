@@ -69,7 +69,6 @@ export abstract class MovementProvider extends Movement {
       move = move.parent
     }
 
-
     pos = {
       x: Math.floor(pos.x),
       y: Math.floor(pos.y),
@@ -261,10 +260,9 @@ export class MovementHandler implements AMovementProvider<Move> {
       const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
       if (bl.liquid && move.toPlace.length > 0) {
         const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
-        console.log(blocksAtPoses.map(i=>[i, i.block?.getProperties(), (i.block as any)?._properties]))
+        console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
 
-
-        throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec} `)
+        throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec.toString()} `)
       }
     }
     // this.resetLocalData() // same speed, but less memory efficient.

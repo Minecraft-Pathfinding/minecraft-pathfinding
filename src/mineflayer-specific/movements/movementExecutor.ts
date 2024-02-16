@@ -292,9 +292,9 @@ export abstract class MovementExecutor extends Movement {
     console.log(weGood, similarDirection, offset.y <= 0, this.bot.entity.position)
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (weGood) {
-      console.log(offset.normalize().dot(dir.normalize()) , similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      console.log(offset.normalize().dot(dir.normalize()), similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
-      else if (offset.norm() < 0.2) return true;
+      else if (offset.norm() < 0.2) return true
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
@@ -522,9 +522,9 @@ export abstract class MovementExecutor extends Movement {
     }
 
     // const handleBack = opts.handleBack ?? false
-    let target = opts.lookAt ?? opts.lookAtYaw ??  endMove.exitPos
+    let target = opts.lookAt ?? opts.lookAtYaw ?? endMove.exitPos
 
-    if (opts.lookAtYaw && !opts.lookAt) {
+    if (opts.lookAtYaw != null && opts.lookAt == null) {
       target = target.offset(0, -target.y + this.bot.entity.position.y + this.bot.entity.height, 0)
     }
     // const offset = endMove.exitPos.minus(this.bot.entity.position)

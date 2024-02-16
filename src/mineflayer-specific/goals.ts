@@ -5,7 +5,7 @@ import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { PlaceHandler } from './movements/interactionUtils'
 import type { Item } from 'prismarine-item'
-import { Movement, MovementExecutor } from './movements'
+import { MovementExecutor } from './movements'
 import { Block } from '../types'
 
 /**

@@ -155,7 +155,6 @@ export abstract class Movement {
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
 
-
     // if (move) {
     //   const key = yes.toString();
     //   if (move.interactMap.has(key)) {

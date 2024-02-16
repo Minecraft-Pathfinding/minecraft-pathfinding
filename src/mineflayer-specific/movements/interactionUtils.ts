@@ -8,7 +8,7 @@ import { World } from '../world/worldInterface'
 import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
 import { CancelError } from '../exceptions'
-import { Movement, MovementOptions } from './movement'
+import { MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
 import { Block } from '../../types'
 import { Task } from '../../utils'

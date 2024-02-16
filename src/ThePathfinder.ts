@@ -220,7 +220,7 @@ export class ThePathfinder {
     const placements = path?.map((move) => move.toPlace.map((p) => p.vec.toString())).flat()
     const breaks = path?.map((move) => move.toBreak.map((b) => b.vec.toString())).flat()
 
-    const all = new Set(placements?.concat(breaks ?? []));
+    const all = new Set(placements?.concat(breaks ?? []))
 
     if (pos == null || path == null) return false
 
