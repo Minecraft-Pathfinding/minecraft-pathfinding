@@ -14,6 +14,8 @@ export class PartialPathProducer implements PathProducer {
   private readonly world: World
   private readonly movements: ExecutorMap
   private latestMove: Move | undefined
+  private latestMoves: Move[] = []
+  private latestCost: number = 0
   private lastPath: Move[] = []
 
   private readonly gcInterval: number = 10
@@ -43,32 +45,45 @@ export class PartialPathProducer implements PathProducer {
     } else {
       start = this.start
     }
+    const lastClosedSet = this.lastAstarContext ? this.lastAstarContext.closedDataSet : new Set<string>()
     this.lastAstarContext = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
+    this.lastAstarContext.closedDataSet = lastClosedSet
 
     const result = this.lastAstarContext.compute()
 
-    if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
-      // const starttime = performance.now()
-
-      if (this.lastGc % (this.gcInterval * 10) === 0) {
-        // global.gc();
-      } else {
-        (global as any).gc(true)
-      }
-
-      // console.log('Garbage collection took', performance.now() - starttime, 'ms')
-    } else {
-      // console.log('Garbage collection unavailable.  Pass --expose-gc '
-      //   + 'when launching node to enable forced garbage collection.');
+    const lastNode = result.path[result.path.length - 1]
+    if (lastNode != null) {
+      this.latestCost = this.latestCost + lastNode.cost
+      console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total')
     }
+    
+    // This probably does not work lol
+    // someone needs to think about this more
+    if (result.status === 'noPath') {
+      this.latestMove = this.latestMoves[this.latestMoves.length - 2]
+      this.latestMoves.pop()
 
-    this.latestMove = result.path[result.path.length - 1]
+      if (!this.latestMove) {
+        return {
+          result: {
+            ...result,
+            cost: this.latestCost,
+            path: this.lastPath
+          },
+          astarContext: this.lastAstarContext
+        }
+      }
+    } else {
+      this.latestMove = result.path[result.path.length - 1]
+      this.latestMoves.push(this.latestMove)
+    }
     this.lastPath = [...this.lastPath, ...result.path]
 
-    console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
+    // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
     return {
       result: {
         ...result,
+        cost: this.latestCost,
         path: this.lastPath
       },
       astarContext: this.lastAstarContext

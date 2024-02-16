@@ -15,15 +15,18 @@ const bot = createBot({
   host: 'Ic3TankD2HO.aternos.me',
   version: '1.19.4'
 });
-const pathfinder = createPlugin({ partialPathProducer: true });
+const pathfinder = createPlugin();
+
+const targetGoal = new GoalBlock(-345, 109, 277)
 
 function chatEverywhere(message) {
   bot.chat(message);
   console.log(message);
 }
 
-async function debugPath(goal) {
+async function debugPath(goal, partialPathProducer) {
   bot.pathfinder.world.setEnabled(true)
+  bot.pathfinder.setPathfinderOptions({ partialPathProducer })
   console.info('Target:', new Vec3(goal.x, goal.y, goal.z).toString())
   const generator = bot.pathfinder.getPathFromTo(bot.entity.position, new Vec3(0, 0, 0), goal)
 
@@ -51,9 +54,16 @@ async function debugPath(goal) {
 
   const isDone = lastResult?.status === 'success'
   const visitedNodes = lastResult?.visitedNodes ?? 0
+  const cost = lastResult?.cost ?? 0
+  const lastMove = lastResult?.path?.[lastResult.path.length - 1]
+  const lastPos = lastMove ? new Vec3(lastMove.x, lastMove.y, lastMove.z) : undefined
   if (isDone) {
-    chatEverywhere(`Calc done: ✔️, Overlap: ${nodeOverlap} Visited: ${visitedNodes} (${(visitedNodes / ((end - start) / 1000)).toFixed(1)} n/s)`)
-    chatEverywhere(`Time: ${end - start}ms`)
+    chatEverywhere(`✔️ Calc ${partialPathProducer ? 'partial' : 'full'}, Overlap: ${nodeOverlap} Visited: ${visitedNodes} (${(visitedNodes / ((end - start) / 1000)).toFixed(1)} n/s)`)
+    chatEverywhere(`  Time: ${end - start}ms`)
+    chatEverywhere(`  Cost: ${cost}, Length: ${lastResult.path.length}`)
+    if (lastPos) {
+      console.info('  Last move distance to goal', lastPos.distanceTo(new Vec3(goal.x, goal.y, goal.z)))
+    } 
   } else {
     chatEverywhere(`Calc done: ❌, Overlap: ${nodeOverlap} Visited: ${visitedNodes} (${(visitedNodes / ((end - start) / 1000)).toFixed(1)} n/s)`)
   }
@@ -86,8 +96,10 @@ bot.once("spawn", async () => {
   })
 
   setTimeout(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     await bot.waitForChunksToLoad();
-    await debugPath(new GoalBlock(-311, 69, 304))
+    await debugPath(targetGoal, false)
+    await debugPath(targetGoal, true)
   }, 1000)
 });
 
@@ -117,7 +129,9 @@ bot._client.on("animation", (data) => {
   const block = rayTraceEntitySight({ entity });
   if (!block) return;
   const goal = new goals.GoalBlock(block.position.x, block.position.y + 1, block.position.z)
-  debugPath(goal).catch(console.error);
+  debugPath(goal, true).then(() => {
+    debugPath(goal, false)
+  }).catch(console.error)
 });
 
 /**

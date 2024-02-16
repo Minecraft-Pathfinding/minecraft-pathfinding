@@ -14,7 +14,7 @@ export function createPlugin (settings?: any) {
   return function (bot: Bot) {
     void BlockInfo.init(bot.registry) // set up block info
     if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
-    bot.pathfinder = new ThePathfinder(bot)
+    bot.pathfinder = new ThePathfinder(bot, undefined, undefined, settings)
     bot.pathingUtil = new PathingUtil(bot)
   }
 }
