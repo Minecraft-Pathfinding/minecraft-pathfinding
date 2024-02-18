@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
+import { PathProducer, AStar } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'

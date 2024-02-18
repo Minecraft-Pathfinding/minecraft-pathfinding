@@ -90,7 +90,7 @@ const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
 // Temp typing.
 type PathInfo = Path
 type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult | null, unknown>
-type PathGeneratorResult = {
+interface PathGeneratorResult {
   result: PathInfo
   astarContext: AAStar<Move>
 }
@@ -367,7 +367,7 @@ export class ThePathfinder {
       if (result.status === 'success') {
         this.bot.off('physicsTick', listener)
         yield { result, astarContext }
-        break;
+        break
       }
       yield { result, astarContext }
 
@@ -593,7 +593,7 @@ export class ThePathfinder {
     this.bot.clearControlStates()
     // await this.bot.waitForTicks(1);
   }
-  
+
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     await this.cleanupBot()
     if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)

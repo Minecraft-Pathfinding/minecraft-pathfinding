@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
+import { PathProducer, AStar } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
@@ -14,12 +14,12 @@ export class PartialPathProducer implements PathProducer {
   private readonly world: World
   private readonly movements: ExecutorMap
   private latestMove: Move | undefined
-  private latestMoves: Move[] = []
+  private readonly latestMoves: Move[] = []
   private latestCost: number = 0
   private lastPath: Move[] = []
 
   private readonly gcInterval: number = 10
-  private lastGc: number = 0
+  private readonly lastGc: number = 0
 
   private lastAstarContext: AStar | undefined
   constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
@@ -45,7 +45,7 @@ export class PartialPathProducer implements PathProducer {
     } else {
       start = this.start
     }
-    const lastClosedSet = this.lastAstarContext ? this.lastAstarContext.closedDataSet : new Set<string>()
+    const lastClosedSet = (this.lastAstarContext != null) ? this.lastAstarContext.closedDataSet : new Set<string>()
     this.lastAstarContext = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
     this.lastAstarContext.closedDataSet = lastClosedSet
 
@@ -56,14 +56,13 @@ export class PartialPathProducer implements PathProducer {
       this.latestCost = this.latestCost + result.cost
       console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total')
     }
-    
+
     // This probably does not work lol
     // someone needs to think about this more
     if (result.status === 'noPath') {
       this.latestMoves.pop()
-      this.latestMove = this.latestMoves[this.latestMoves.length - 1]
 
-      if (!this.latestMove) {
+      if (this.latestMoves.length === 0) {
         return {
           result: {
             ...result,
@@ -90,16 +89,16 @@ export class PartialPathProducer implements PathProducer {
     }
   }
 
-  private mergePathspath(path1: Move[], path2: Move[]) {
-    let newPath = path1;
+  private mergePathspath (path1: Move[], path2: Move[]): void {
+    let newPath = path1
     for (let i = 0; i < path2.length; i++) {
       if (path1[i] === undefined) {
         newPath = newPath.concat(path2.slice(i))
-        break;
+        break
       }
       if (path1[i].exitPos.distanceTo(path2[i].entryPos) > 0.5) {
         newPath = newPath.concat(path2.slice(i))
-        break;
+        break
       }
     }
   }
