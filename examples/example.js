@@ -9,7 +9,7 @@ const { GoalMineBlock } = require("../dist/mineflayer-specific/goals");
 
 
 const bot = createBot({
-  username: "testing2",
+  username: "testing1",
   auth: "offline",
   // host: 'fr-msr-1.halex.gg',
   // port: 25497

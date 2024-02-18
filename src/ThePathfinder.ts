@@ -366,7 +366,8 @@ export class ThePathfinder {
 
       if (result.status === 'success') {
         this.bot.off('physicsTick', listener)
-        return { result, astarContext }
+        yield { result, astarContext }
+        break;
       }
       yield { result, astarContext }
 
@@ -377,6 +378,8 @@ export class ThePathfinder {
         ticked = false
       }
     }
+
+    this.bot.off('physicsTick', listener)
     return {
       result,
       astarContext
@@ -408,6 +411,7 @@ export class ThePathfinder {
         if (res.result.status !== 'success') {
           if (res.result.status === 'noPath' || res.result.status === 'timeout') break
         } else {
+          console.log('sup gang!')
           const newPath = await this.postProcess(res.result)
           await this.perform(newPath, goal)
 
@@ -431,6 +435,8 @@ export class ThePathfinder {
 
     optimizer.loadPath(pathInfo.path)
 
+    console.log('hi')
+
     const res = await optimizer.compute()
 
     const ret = { ...pathInfo }
@@ -453,6 +459,7 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
+    console.log('sup gang')
     // eslint-disable-next-line no-labels
     outer: while (currentIndex < path.path.length) {
       const move = path.path[currentIndex]

@@ -12,12 +12,14 @@ const { performance } = require("perf_hooks");
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  host: 'Ic3TankD2HO.aternos.me',
-  version: '1.19.4'
+
+  host: "node2.meowbot.de", port: 5000
+  // host: 'Ic3TankD2HO.aternos.me',
+  // version: '1.19.4'
 });
 const pathfinder = createPlugin();
 
-const targetGoal = new GoalBlock(-345, 109, 277)
+const targetGoal = new GoalBlock(103,  64, -201)
 
 function chatEverywhere(message) {
   bot.chat(message);
@@ -92,15 +94,18 @@ bot.once("spawn", async () => {
   };
   bot.pathfinder.setDefaultMoveOptions({
     canDig: false,
-    canPlaceOn: false,
+    canPlace: false,
   })
 
+  bot.chat('rocky1928')
   setTimeout(async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     await bot.waitForChunksToLoad();
     await debugPath(targetGoal, false)
     await debugPath(targetGoal, true)
   }, 1000)
+
+
 });
 
 bot.on('chat', (username, message) => {
