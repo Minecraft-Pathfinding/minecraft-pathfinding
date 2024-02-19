@@ -21,6 +21,8 @@ export class PartialPathProducer implements PathProducer {
   private readonly gcInterval: number = 10
   private readonly lastGc: number = 0
 
+  private readonly maxPathLen: number = 50
+
   private lastAstarContext: AStar | undefined
   constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
     this.start = start
@@ -35,7 +37,18 @@ export class PartialPathProducer implements PathProducer {
     return this.lastAstarContext
   }
 
-  advance (): AdvanceRes {
+  private handleAstarContext (foundPathLen: number, maxPathLen = this.maxPathLen): AStar | undefined {
+    // if the path length is less than 50, return the previous astar context.
+    // otherwise, return a new one.
+
+    if (this.lastAstarContext != null && foundPathLen <= maxPathLen) {
+      return this.lastAstarContext
+    }
+
+    return this.generateAstarContext()
+  }
+
+  private generateAstarContext (): AStar {
     const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
     moveHandler.loadGoal(this.goal)
 
@@ -45,9 +58,16 @@ export class PartialPathProducer implements PathProducer {
     } else {
       start = this.start
     }
-    const lastClosedSet = (this.lastAstarContext != null) ? this.lastAstarContext.closedDataSet : new Set<string>()
-    this.lastAstarContext = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
-    this.lastAstarContext.closedDataSet = lastClosedSet
+
+    const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
+    const ret = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
+
+    ret.closedDataSet = lastClosedSet
+    return ret
+  }
+
+  advance (): AdvanceRes {
+    if (this.lastAstarContext == null) this.lastAstarContext = this.generateAstarContext()
 
     const result = this.lastAstarContext.compute()
 
@@ -57,19 +77,19 @@ export class PartialPathProducer implements PathProducer {
       console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total')
     }
 
-    // This probably does not work lol
-    // someone needs to think about this more
     if (result.status === 'noPath') {
       this.latestMoves.pop()
 
       if (this.latestMoves.length === 0) {
+        const astarContext = this.lastAstarContext
+        delete this.lastAstarContext
         return {
           result: {
             ...result,
             cost: this.latestCost,
             path: this.lastPath
           },
-          astarContext: this.lastAstarContext
+          astarContext
         }
       }
     } else {
@@ -79,7 +99,7 @@ export class PartialPathProducer implements PathProducer {
     this.lastPath = [...this.lastPath, ...result.path]
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
-    return {
+    const ret = {
       result: {
         ...result,
         cost: this.latestCost,
@@ -87,6 +107,10 @@ export class PartialPathProducer implements PathProducer {
       },
       astarContext: this.lastAstarContext
     }
+
+    this.lastAstarContext = this.handleAstarContext(result.path.length)
+
+    return ret
   }
 
   private mergePathspath (path1: Move[], path2: Move[]): void {

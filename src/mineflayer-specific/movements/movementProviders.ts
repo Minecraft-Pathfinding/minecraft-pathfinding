@@ -154,7 +154,8 @@ export class ForwardJump extends MovementProvider {
 
     let cost = 1 + this.settings.jumpCost // move cost (move+jump)
 
-    if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
+    const block0 = this.getBlockInfo(pos, 0, 0, 0)
+    if (block0.liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
@@ -166,7 +167,7 @@ export class ForwardJump extends MovementProvider {
     // if (blockB.physical && !blockH.physical && !blockC.physical && (this.getNumEntitiesAt(blockB.position, 0, 1, 0) > 0)) return // It is fine if an ent falls on B so long as we don't need to replace block C
 
     // if liquid, allow swim movement up to it.
-    if (!blockC.physical && !blockC.liquid) {
+    if (!blockC.physical && !blockB.liquid) {
       if (node.remainingBlocks <= 0) return // not enough blocks to place
 
       // if (this.getNumEntitiesAt(blockC.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
@@ -197,13 +198,14 @@ export class ForwardJump extends MovementProvider {
       cHeight += 1
     }
 
-    const block0 = this.getBlockInfo(pos, 0, -1, 0)
-    if (cHeight - block0.height > 1.2) return // Too high to jump
+    const block1 = this.getBlockInfo(pos, 0, -1, 0)
+    if (cHeight - block1.height > 1.2) return // Too high to jump
 
     if ((cost += this.safeOrBreak(blockA, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return
     // if (toPlace.length === 2) return;
+
     // set cachedVec to center of block we want.
     neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }

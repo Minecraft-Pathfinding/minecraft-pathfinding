@@ -257,7 +257,7 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
     return
   }
 
-  console.log('diff', diff, 'ratio', diff / (Math.PI / 12))
+  // console.log('diff', diff, 'ratio', diff / (Math.PI / 12))
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 

@@ -240,6 +240,7 @@ export abstract class MovementExecutor extends Movement {
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
     const xzVelDir = xzVel.normalize()
 
+    const dist = offset.norm()
     const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5
 
     const ectx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
@@ -294,7 +295,7 @@ export abstract class MovementExecutor extends Movement {
     if (weGood) {
       console.log(offset.normalize().dot(dir.normalize()), similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
-      else if (offset.norm() < 0.2) return true
+      else if (dist < 0.2) return true
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
@@ -549,7 +550,7 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    console.log(
+    console.trace(
       this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
       ' | ',
       this.bot.getControlState('forward'),

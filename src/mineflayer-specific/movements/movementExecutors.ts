@@ -486,7 +486,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
       return await super.align(thisMove, tickCount, goal)
     }
 
-    return this.align1(thisMove, tickCount, goal)
+    return await super.align(thisMove, tickCount, goal)
   }
 
   align1 (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {

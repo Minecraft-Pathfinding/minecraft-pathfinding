@@ -33,11 +33,13 @@ export class PathingUtil {
     const availableTools = this.tools
     const effects = this.bot.entity.effects
 
+    const creative = this.bot.game.gameMode === 'creative'
+
     let fastest = Number.MAX_VALUE
     let bestTool = null as unknown as Item
     for (const tool of availableTools) {
       const enchants = tool.nbt != null ? nbt.simplify(tool.nbt).Enchantments : []
-      const digTime = block.digTime(tool.type, false, false, false, enchants, effects)
+      const digTime = block.digTime(tool.type, creative, false, false, enchants, effects)
       if (digTime < fastest) {
         fastest = digTime
         bestTool = tool
@@ -45,7 +47,7 @@ export class PathingUtil {
     }
 
     if (fastest === Number.MAX_VALUE) {
-      fastest = block.digTime(null, false, false, false, [], effects)
+      fastest = block.digTime(null, creative, false, false, [], effects)
     }
 
     this.memoedBestTool[block.type] = bestTool

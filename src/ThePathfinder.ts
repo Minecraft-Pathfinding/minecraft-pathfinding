@@ -367,7 +367,7 @@ export class ThePathfinder {
       if (result.status === 'success') {
         this.bot.off('physicsTick', listener)
         yield { result, astarContext }
-        break
+        return { result, astarContext }
       }
       yield { result, astarContext }
 
