@@ -38,10 +38,12 @@ import { Block, ResetReason } from './types'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
+  partialPathLength: number
 }
 
 const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
-  partialPathProducer: false
+  partialPathProducer: false,
+  partialPathLength: 50
 }
 
 const EMPTY_VEC = new Vec3(0, 0, 0)
@@ -97,6 +99,7 @@ interface PathGeneratorResult {
 
 interface PerformOpts {
   errorOnRetry?: boolean
+  errorOnCancel?: boolean
 }
 
 /**
@@ -119,13 +122,14 @@ export class ThePathfinder {
 
   public executing = false
   public cancelCalculation = false
+  private userCancelled = false
 
   private currentGoal?: goals.Goal
   private currentExecutingPath?: Move[]
   private currentMove?: Move
   private currentExecutor?: MovementExecutor
 
-  private allowRetry = false
+  private resetReason?: ResetReason
   private currentProducer?: PathProducer
 
   public get currentAStar (): AStar | undefined {
@@ -161,22 +165,43 @@ export class ThePathfinder {
     this.setupListeners()
   }
 
-  async cancel (allowRetry = false, timeout = 1000): Promise<void> {
+  async cancel (): Promise<void> {
+    await this._cancel(1000, true)
+  }
+
+  async _cancel (timeout = 1000, userCalled = false, reasonStr?: ResetReason): Promise<void> {
+    if (this.currentProducer == null) return console.log('no producer')
     this.cancelCalculation = true
-    this.allowRetry = allowRetry
+    this.userCancelled = userCalled
 
     if (this.currentExecutor == null) return console.log('no executor')
+    // if (this.currentExecutor.aborted) return console.trace('already aborted')
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
-    await this.currentExecutor.abort(this.currentMove, { timeout, resetting: allowRetry })
+    let reason
+    if (reasonStr != null) {
+      switch (reasonStr) {
+        case 'blockUpdate':
+          reason = new ResetError('blockUpdate')
+          break
+        case 'chunkLoad':
+          reason = new ResetError('chunkLoad')
+          break
+        case 'goalUpdated':
+          reason = new ResetError('goalUpdated')
+          break
+      }
+    }
 
-    console.log('tried cancel frfr')
+    await this.currentExecutor.abort(this.currentMove, { timeout, reason })
+
+    console.trace('tried cancel frfr')
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
   async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
     this.bot.emit('resetPath', reason)
-    await this.cancel(true, cancelTimeout)
+    await this._cancel(cancelTimeout, false, reason)
   }
 
   setupListeners (): void {
@@ -328,7 +353,7 @@ export class ThePathfinder {
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.cancelCalculation = false
-    this.allowRetry = false
+    delete this.resetReason
     this.currentGoal = goal
 
     this.currentMove = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
@@ -343,21 +368,47 @@ export class ThePathfinder {
       this.currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     }
 
-    let { result, astarContext } = this.currentProducer.advance()
-
-    yield { result, astarContext }
-
     let ticked = false
+
     const listener = (): void => {
       ticked = true
     }
 
-    this.bot.on('physicsTick', listener)
+    let cleanup = (): void => {
+      this.bot.off('physicsTick', listener)
+    }
+
+    if (goal instanceof goals.GoalDynamic && goal.dynamic) {
+      const bounded = goal.hasChanged.bind(goal)
+      const old = cleanup
+      const list1 = (...args: any[]): void => {
+        const ret = bounded(...args)
+        if (ret) {
+          void this.reset('goalUpdated')
+          this.bot.off(goal.eventKey, list1)
+        }
+      }
+
+      this.bot.on(goal.eventKey, list1)
+      goal.cleanup = (reason) => {
+        this.bot.off(goal.eventKey, list1)
+        delete goal.cleanup
+      }
+
+      cleanup = () => {
+        old()
+        this.bot.off(goal.eventKey, list1)
+      }
+    }
+
+    let { result, astarContext } = this.currentProducer.advance()
+
+    yield { result, astarContext }
 
     while (result.status === 'partial') {
       if (this.cancelCalculation) {
         console.log('cancelling!')
-        this.bot.off('physicsTick', listener)
+        cleanup()
         return null
       }
 
@@ -365,7 +416,7 @@ export class ThePathfinder {
       result = result2
 
       if (result.status === 'success') {
-        this.bot.off('physicsTick', listener)
+        cleanup()
         yield { result, astarContext }
         return { result, astarContext }
       }
@@ -379,7 +430,7 @@ export class ThePathfinder {
       }
     }
 
-    this.bot.off('physicsTick', listener)
+    cleanup()
     return {
       result,
       astarContext
@@ -402,31 +453,61 @@ export class ThePathfinder {
    */
   async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     if (this.executing || goal == null) {
-      await this.cancel()
+      await this._cancel()
     }
     this.executing = true
 
+    const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
+
     do {
-      for await (const res of this.getPathTo(goal)) {
-        if (res.result.status !== 'success') {
-          if (res.result.status === 'noPath' || res.result.status === 'timeout') break
-        } else {
-          console.log('sup gang!')
-          const newPath = await this.postProcess(res.result)
-          await this.perform(newPath, goal)
+      do {
+        console.log('finding path!')
+        for await (const res of this.getPathTo(goal)) {
+          if (res.result.status !== 'success') {
+            if (res.result.status === 'noPath' || res.result.status === 'timeout') break
+          } else {
+            const newPath = await this.postProcess(res.result)
+            await this.perform(newPath, goal)
 
-          if (performOpts.errorOnRetry != null && this.allowRetry) {
-            throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
-          }
+            if (performOpts.errorOnRetry != null && this.resetReason != null) {
+              throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
+            }
 
-          if (!this.allowRetry) {
-            console.log('finished!', this.bot.entity.position, goal)
-            break
+            if (performOpts.errorOnCancel != null && this.cancelCalculation) {
+              throw new Error('Goto: Purposefully cancelled by user.')
+            }
+
+            if (this.resetReason == null && !this.cancelCalculation) {
+              console.log('finished!', this.bot.entity.position, this.bot.listenerCount('physicsTick'))
+              break
+            }
           }
         }
-      }
-    } while (this.allowRetry)
+      } while (this.resetReason != null && !this.cancelCalculation)
 
+      if (doForever) {
+        await this.cleanupBot()
+        const refGoal = goal
+
+        if (this.resetReason == null) {
+          await new Promise<void>((resolve, reject) => {
+            const bounded = refGoal.hasChanged.bind(refGoal)
+            const listener = (...args: any[]): void => {
+              if (this.userCancelled || bounded(...args)) {
+                console.log('hi', bounded(...args), this.bot.listenerCount(refGoal.eventKey))
+                refGoal.update()
+                this.bot.off(refGoal.eventKey, listener)
+                resolve()
+              }
+            }
+            this.bot.on(refGoal.eventKey, listener)
+          })
+        }
+      }
+    // eslint-disable-next-line no-unmodified-loop-condition
+    } while (doForever && !this.userCancelled)
+
+    console.log('sup gang!!1', doForever, this.userCancelled)
     await this.cleanupAll(goal, this.currentExecutor)
   }
 
@@ -435,14 +516,22 @@ export class ThePathfinder {
 
     optimizer.loadPath(pathInfo.path)
 
-    console.log('hi')
-
     const res = await optimizer.compute()
 
     const ret = { ...pathInfo }
 
     ret.path = res
     return ret
+  }
+
+  private check (): void {
+    if (this.userCancelled) {
+      throw new AbortError('User cancelled.')
+    }
+
+    if (this.resetReason != null) {
+      throw new ResetError(this.resetReason)
+    }
   }
 
   /**
@@ -459,9 +548,7 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
-    console.log('sup gang')
-    // eslint-disable-next-line no-labels
-    outer: while (currentIndex < path.path.length) {
+    while (currentIndex < path.path.length) {
       const move = path.path[currentIndex]
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
@@ -486,7 +573,7 @@ export class ThePathfinder {
         continue
       }
 
-      console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length, goal)
+      console.log('performing', move.moveType.constructor.name, 'at index', currentIndex, 'of', path.path.length)
       console.log(
         'toPlace',
         move.toPlace.map((p) => p.vec),
@@ -502,7 +589,8 @@ export class ThePathfinder {
 
       // wrap this code in a try-catch as we intentionally throw errors.
       try {
-        while (!(await executor._align(move, tickCount++, goal)) && tickCount < 999) {
+        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
+          this.check()
           await this.bot.waitForTicks(1)
         }
 
@@ -511,33 +599,34 @@ export class ThePathfinder {
         // allow the initial execution of this code.
         await executor._performInit(move, currentIndex, path.path)
 
+        this.check()
         let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
 
         while (!(adding as boolean) && tickCount < 999) {
+          this.check()
           await this.bot.waitForTicks(1)
           adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
         }
 
         currentIndex += adding as number
+        console.log('done with move', move.exitPos, this.bot.entity.position, this.bot.entity.position.distanceTo(move.exitPos))
       } catch (err) {
         // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
-          this.currentExecutor.reset()
-
-          // eslint-disable-next-line no-labels
-          break outer
+          console.log('hi, aborted')
+          executor.reset()
+          delete this.resetReason
+          return
         } else if (err instanceof ResetError) {
-          this.currentExecutor.reset()
-          this.allowRetry = true
+          this.resetReason = err.reason
+          executor.reset()
 
-          // eslint-disable-next-line no-labels
-          break outer
+          console.log('fuck', err.reason)
+          return
         } else if (err instanceof CancelError) {
           // allow recovery if movement intentionall canceled.
           await this.recovery(move, path, goal, entry)
-
-          // eslint-disable-next-line no-labels
-          break outer
+          return
         } else throw err
       }
     }
@@ -595,14 +684,19 @@ export class ThePathfinder {
   }
 
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
+    if (goal instanceof goals.GoalDynamic && goal.dynamic) {
+      goal.cleanup?.('normal')
+    }
+
     await this.cleanupBot()
     if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)
     await this.cleanupBot()
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
     this.cancelCalculation = false
+    this.userCancelled = false
     this.executing = false
-    this.allowRetry = false
+    delete this.resetReason
 
     delete this.currentGoal
     delete this.currentExecutingPath

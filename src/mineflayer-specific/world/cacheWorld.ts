@@ -175,7 +175,7 @@ export class BlockInfo {
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
-    b1.liquid = BlockInfo.liquids.has(b.type) || ((b as any)._properties?.waterlogged as boolean && b.boundingBox === 'empty')
+    b1.liquid = BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty')
     b1.height = b.position.y
     b1.canFall = BlockInfo.gravityBlocks.has(b.type)
     b1.openable = BlockInfo.openable.has(b.type)

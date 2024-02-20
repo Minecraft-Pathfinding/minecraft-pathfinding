@@ -204,7 +204,7 @@ export class ForwardJump extends MovementProvider {
     if ((cost += this.safeOrBreak(blockA, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
     if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return
-    // if (toPlace.length === 2) return;
+    if (toPlace.length > 0) return
 
     // set cachedVec to center of block we want.
     neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))

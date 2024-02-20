@@ -7,6 +7,8 @@ import { PlaceHandler } from './movements/interactionUtils'
 import type { Item } from 'prismarine-item'
 import { MovementExecutor } from './movements'
 import { Block } from '../types'
+import { BotEvents } from 'mineflayer'
+import type { Entity } from 'prismarine-entity'
 
 /**
  * The abstract goal definition used by the pathfinder.
@@ -17,6 +19,14 @@ export abstract class Goal implements AGoal<Move> {
   async onFinish (node: MovementExecutor): Promise<void> {}
 }
 
+export abstract class GoalDynamic<Key extends keyof BotEvents> extends Goal {
+  dynamic = true
+  neverfinish = false
+  readonly abstract eventKey: Key
+  abstract hasChanged (...args: Parameters<BotEvents[Key]>): boolean
+  abstract update (): void
+  cleanup?: (reason: 'cancel' | 'normal') => void // will be assigned later.
+}
 /**
  * A goal to be directly at a specific coordinate.
  */
@@ -226,6 +236,13 @@ export class GoalPlaceBlock extends GoalLookAt {
     return new GoalPlaceBlock(world, bPos, item, distance, height)
   }
 
+  /**
+   * Prevent overlap.
+   */
+  isEnd (node: Move): boolean {
+    return super.isEnd(node) && node.x !== this.x && node.y !== this.y && node.z !== this.z
+  }
+
   override async onFinish (node: MovementExecutor): Promise<void> {
     const bot = node.bot
     this.handler.loadMove(node)
@@ -242,5 +259,69 @@ export class GoalPlaceBlock extends GoalLookAt {
     bot.updateHeldItem()
 
     await this.handler.perform(bot, item)
+  }
+}
+
+interface GoalFollowEntityOpts {
+  neverfinish?: boolean
+  dynamic?: boolean
+
+}
+export class GoalFollowEntity extends GoalDynamic<'entityMoved'> {
+  readonly eventKey = 'entityMoved' as const
+
+  public x: number
+  public y: number
+  public z: number
+  public sqDist: number
+
+  constructor (public readonly refVec: Vec3, distance: number, opts: GoalFollowEntityOpts = {}) {
+    super()
+    this.x = refVec.x
+    this.y = refVec.y
+    this.z = refVec.z
+    this.sqDist = Math.pow(distance, 2)
+    this.neverfinish = opts.neverfinish ?? false
+    this.dynamic = opts.dynamic ?? true
+  }
+
+  static fromEntity (entity: { position: Vec3 }, distance: number, opts: GoalFollowEntityOpts): GoalFollowEntity {
+    return new GoalFollowEntity(entity.position, distance, opts)
+  }
+
+  isEnd (node: Move): boolean {
+    const dx = this.x - node.x
+    const dy = this.y - node.y
+    const dz = this.z - node.z
+
+    return dx * dx + dy * dy + dz * dz <= this.sqDist
+  }
+
+  heuristic (node: Move): number {
+    const dx = this.x - node.x
+    const dy = this.y - node.y
+    const dz = this.z - node.z
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+
+  hasChanged (e: Entity): boolean {
+    // if (e.position !== this.refVec) return false;
+    const dx = this.x - this.refVec.x
+    const dy = this.y - this.refVec.y
+    const dz = this.z - this.refVec.z
+
+    const ret = Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) > this.sqDist
+    if (ret) {
+      this.update()
+    }
+
+    return ret
+  }
+
+  update (): void {
+    this.x = this.refVec.x
+    this.y = this.refVec.y
+    this.z = this.refVec.z
   }
 }

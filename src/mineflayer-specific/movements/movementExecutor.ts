@@ -6,14 +6,19 @@ import { World } from '../world/worldInterface'
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
-import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
+import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
 
 // temp typing
 interface AbortOpts {
-  resetting?: boolean
+  reason?: ResetError | AbortError
   timeout?: number
+}
+
+export interface CompleteOpts {
+  ticks?: number
+  entry?: boolean
 }
 
 export abstract class MovementExecutor extends Movement {
@@ -49,12 +54,14 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Whether or not this movement has been cancelled/aborted.
    */
-  public cancelled = false
+  public aborted = false
 
   /**
    * Whether or not this movement is asking for a reset.
    */
-  public resetting = false
+  public resetReason?: AbortOpts['reason']
+
+  private task: Task<void, void> = new Task()
 
   public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings)
@@ -64,62 +71,81 @@ export abstract class MovementExecutor extends Movement {
   }
 
   public reset (): void {
-    this.cancelled = false
-    this.resetting = false
+    this.aborted = false
+    delete this.resetReason
   }
 
   /**
    * TODO: Implement.
    */
   public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
-    if (this.cancelled || this.resetting) return
+    if (this.aborted || this.resetReason != null) return
 
-    const timeout = settings.timeout ?? 1000
-    const resetting = settings.resetting ?? false
+    const resetting = settings.reason
 
-    this.cancelled = true
+    this.aborted = true
 
-    this.resetting = resetting
+    this.resetReason = resetting
 
+    await this.task.promise
+
+    this.task = new Task()
+  }
+
+  private async holdUntilAborted (move: Move, task: Task<void>, timeout = 1000): Promise<void> {
+    if (!this.aborted && this.resetReason == null) return
+
+    console.log('aborting')
+
+    let start = performance.now()
     for (const breakTarget of move.toBreak) {
       await breakTarget._abort(this.bot)
     }
 
+    console.log('aborted breaks', performance.now() - start)
+    start = performance.now()
+
     for (const place of move.toPlace) {
       await place._abort(this.bot)
     }
+
+    console.log('aborted places', performance.now() - start)
+    start = performance.now()
 
     // TODO: handle bug (nextMove not included).
     await new Promise<void>((resolve, reject) => {
       const listener = (): void => {
         if (this.safeToCancel(move)) {
           this.bot.off('physicsTick', listener)
+          task.finish()
           resolve()
         }
       }
       this.bot.on('physicsTick', listener)
       setTimeout(() => {
         this.bot.off('physicsTick', listener)
+        task.finish()
         reject(new Error('Movement failed to abort properly.'))
       }, timeout)
     })
+
+    console.log('aborted all', performance.now() - start)
+    if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
+    if (this.aborted) throw new AbortError('Movement aborted.')
   }
 
-  public _performInit (thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void> {
-    if (this.resetting) throw new ResetError('Movement is resetting.')
-    if (this.cancelled) throw new AbortError('Movement aborted.')
-    return this.performInit(thisMove, currentIndex, path)
+  public async _performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+    await this.holdUntilAborted(thisMove, this.task)
+    return await this.performInit(thisMove, currentIndex, path)
   }
 
   public async _performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
-    if (this.resetting) throw new ResetError('Movement is resetting.')
-    if (this.cancelled) throw new AbortError('Movement aborted.')
+    await this.holdUntilAborted(thisMove, this.task)
     return await this.performPerTick(thisMove, tickCount, currentIndex, path)
   }
 
   public async _align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    if (this.resetting) throw new ResetError('Movement is resetting.')
-    if (this.cancelled) throw new AbortError('Movement aborted.')
+    await this.holdUntilAborted(thisMove, this.task)
     return await this.align(thisMove, tickCount, goal)
   }
 
@@ -154,54 +180,10 @@ export abstract class MovementExecutor extends Movement {
    */
   align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): boolean | Promise<boolean> {
     const target = lookTarget ?? thisMove.entryPos
-    if (lookTarget != null) void this.alignToPath(thisMove, { lookAt: target })
-    else void this.alignToPath(thisMove)
+    if (lookTarget != null) void this.postInitAlignToPath(thisMove, { lookAt: target })
+    else void this.postInitAlignToPath(thisMove)
 
-    const off0 = thisMove.exitPos.minus(this.bot.entity.position)
-    const off1 = thisMove.exitPos.minus(target)
-
-    off0.translate(0, -off0.y, 0)
-    off1.translate(0, -off1.y, 0)
-
-    const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
-
-    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
-
-    let bb1: AABB[]
-    let bb2: AABB[]
-    let bb1Good
-    let bb2Good
-    if ((this.bot.entity as any).isInWater as boolean) {
-      console.log('in water')
-      const bb1bl = this.getBlockInfo(target, 0, 0, 0)
-      bb1 = [AABB.fromBlock(bb1bl.position)]
-      bb1Good = bb1bl.liquid
-
-      const bb2bl = this.getBlockInfo(thisMove.exitPos.floored(), 0, 0, 0)
-      bb2 = [AABB.fromBlock(bb2bl.position)]
-      bb2Good = bb2bl.liquid
-    } else {
-      console.log('on land')
-      const bb1bl = this.getBlockInfo(target, 0, -1, 0)
-      bb1 = bb1bl.getBBs()
-      // if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
-      bb1Good = bb1bl.physical
-
-      const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
-      bb2 = bb2bl.getBBs()
-      // if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
-      bb2Good = bb2bl.physical
-    }
-
-    console.log(bb0, bb1, bb2, bb1.some((b) => b.collides(bb0)), bb1Good, bb2.some((b) => b.collides(bb0)), bb2Good)
-
-    if ((bb1.some((b) => b.collides(bb0)) && bb1Good) || (bb2.some((b) => b.collides(bb0)) && bb2Good)) {
-      console.log('hi', similarDirection, this.bot.entity.position.xzDistanceTo(target))
-      if (similarDirection) return true
-      else if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true// this.isLookingAtYaw(target)
-    }
-
-    return false
+    return this.isInitAligned(thisMove, target)
   }
 
   /**
@@ -221,7 +203,7 @@ export abstract class MovementExecutor extends Movement {
    * Does so via velocity direction check (heading towards the block)
    * and bounding box check (touching OR slightly above block).
    */
-  protected isComplete (startMove: Move, endMove: Move = startMove, ticks = 1): boolean {
+  protected isComplete (startMove: Move, endMove: Move = startMove, opts: CompleteOpts = {}): boolean {
     // console.log('isComplete:', this.toBreakLen(), this.toPlaceLen())
     if (this.toBreakLen() > 0) return false
     if (this.toPlaceLen() > 0) return false
@@ -230,6 +212,9 @@ export abstract class MovementExecutor extends Movement {
       if (!this.cI.allowExit) return false
     }
 
+    const ticks = opts.ticks ?? 1
+
+    const target = endMove.exitPos
     const offset = endMove.exitPos.minus(this.bot.entity.position)
     const dir = endMove.exitPos.minus(startMove.entryPos)
 
@@ -263,24 +248,35 @@ export abstract class MovementExecutor extends Movement {
     let bbCheckCond = false
     let weGood = false
 
-    const aboveWater = !ectx.state.isInWater && !ectx.state.onGround && this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
+    const aboveWater =
+      !ectx.state.isInWater &&
+      !ectx.state.onGround &&
+      this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
     if (aboveWater) {
-      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored())
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
       bbCheckCond = bb1bl.safe
       const bb1s = AABB.fromBlockPos(bb1bl.position)
       weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
     } else if (ectx.state.isInWater) {
-      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored())
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
       bbCheckCond = bb1bl.liquid
       const bb1s = AABB.fromBlock(bb1bl.position)
       weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
       // console.log('water check', bb1bl.block?.type, bb1s, bb0, bbCheckCond)
     } else {
-      bb1bl = this.bot.pathfinder.world.getBlockInfo(endMove.exitPos.floored().translate(0, -1, 0))
+      bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored().translate(0, -1, 0))
       bbCheckCond = bb1bl.physical
       const bb1s = bb1bl.getBBs()
       weGood = bb1s.some((b) => b.collides(bb0)) && bbCheckCond && pos.y >= bb1bl.height // && !(this.bot.entity as any).isCollidedHorizontally;
-      // console.log('land check', endMove.exitPos, bb1bl.block, bb1s, bb0, bbCheckCond)
+      // console.log(
+      //   "land check",
+      //   endMove.exitPos,
+      //   bb1bl.block?.name,
+      //   bb1s,
+      //   bb0,
+      //   bbCheckCond,
+      //   bb1s.some((b) => b.collides(bb0))
+      // );
     }
     // const bbOff = new Vec3(0, ectx.state.isInWater ? 0 : -1, 0)
 
@@ -290,10 +286,10 @@ export abstract class MovementExecutor extends Movement {
     // startMove.moveType.getBlockInfo(endMove.exitPos.floored(), 0, -1, 0).physical;
 
     // console.info('bb0', bb0, 'bb1s', bb1s)
-    console.log(weGood, similarDirection, offset.y <= 0, this.bot.entity.position)
+    // console.log(weGood, similarDirection, offset.y <= 0, this.bot.entity.position);
     // console.info('end move exit pos', endMove.exitPos.toString())
     if (weGood) {
-      console.log(offset.normalize().dot(dir.normalize()), similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      // console.log(offset.normalize().dot(dir.normalize()), similarDirection, headingThatWay, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally
       else if (dist < 0.2) return true
 
@@ -318,11 +314,66 @@ export abstract class MovementExecutor extends Movement {
     )
   }
 
+  public isInitAligned (thisMove: Move, target: Vec3 = thisMove.entryPos): boolean {
+    target = thisMove.entryPos
+    const off0 = thisMove.exitPos.minus(this.bot.entity.position)
+    const off1 = thisMove.exitPos.minus(target)
+
+    if (this.bot.entity.position.y < thisMove.entryPos.y - 1) throw new CancelError('MovementExecutor: bot is too low.')
+    // const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0);
+
+    // console.log(off0.dot(off1), off0, off1)
+
+    off0.translate(0, -off0.y, 0)
+    off1.translate(0, -off1.y, 0)
+
+    const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
+    console.log(similarDirection, thisMove.moveType.constructor.name, target, thisMove.entryPos, thisMove.exitPos)
+    // if (!similarDirection) {
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
+
+    const bb1bl = this.getBlockInfo(target, 0, -1, 0)
+    const bb1 = bb1bl.getBBs()
+    if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
+    const bb1physical = bb1bl.physical || bb1bl.liquid
+
+    const bb2bl = this.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
+    const bb2 = bb2bl.getBBs()
+    if (bb2.length === 0) bb2.push(AABB.fromBlock(bb2bl.position))
+    const bb2physical = bb2bl.physical || bb2bl.liquid
+
+    console.log(
+      this.toPlaceLen(),
+      bb1bl.block?.name,
+      bb1,
+      bb2bl.block?.name,
+      bb2,
+      'test',
+      bb0,
+      bb1.some((b) => b.collides(bb0)),
+      bb1physical,
+      bb2.some((b) => b.collides(bb0)),
+      bb2physical,
+      bb2bl
+    )
+    // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
+    if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
+      console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))
+      if (similarDirection) return true
+      else {
+        if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true // this.isLookingAtYaw(target);
+        if (bb2.some((b) => b.collides(bb0)) && bb2physical) return true
+      }
+    }
+
+    return false
+  }
+
   /**
    * Lazy code.
    */
   public safeToCancel (startMove: Move, endMove: Move = startMove): boolean {
-    return this.bot.entity.onGround || (this.bot.entity as any).isInWater as boolean
+    return this.bot.entity.onGround || ((this.bot.entity as any).isInWater as boolean)
   }
 
   /**
@@ -392,10 +443,13 @@ export abstract class MovementExecutor extends Movement {
     // const dy = vec3.y - this.bot.entity.position.y
     // const dz = vec3.z - this.bot.entity.position.z
 
-    // console.log("lookAt", Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))
-
     if (this.isLookingAt(vec3, 0.001)) return
-    return await this.bot.lookAt(vec3, force)
+    await this.bot.lookAt(vec3, force)
+
+    // console.log("lookAt", this.bot.entity.yaw, Math.atan2(-dx, -dz), Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
+
+    // this.bot.entity.yaw = Math.atan2(-dx, -dz)
+    // this.bot.entity.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) - Math.PI / 2
   }
 
   public isLookingAt (vec3: Vec3, limit = 0.01): boolean {
@@ -441,16 +495,16 @@ export abstract class MovementExecutor extends Movement {
     // const yaw = wrapRadians(Math.atan2(-dx, -dz))
     // fuck it, I'm being lazy.
 
-    const bl = this.bot.blockAtCursor(256) as unknown as RayType | null
-    // console.log(bl)
-    if (bl == null) return false
+    // const bl = this.bot.blockAtCursor(256) as unknown as RayType | null;
+    // if (bl == null) return false;
 
     // const blPosXZ = bl.position.offset(0, -bl.position, 0)
     // const vec3XZ = vec3.offset(0, -vec3.y, 0)
 
+    const inter = this.bot.util.getViewDir()
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
-    const inter = bl.intersect.minus(eyePos)
-    inter.translate(0, -inter.y, 0)
+    // const inter = bl.intersect.minus(eyePos);
+    // inter.translate(0, -inter.y, 0);
 
     const pos1 = vec3.minus(eyePos)
     pos1.translate(0, -pos1.y, 0)
@@ -505,13 +559,16 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => {}, controller, this.simCtx, this.world, maxTicks)
   }
 
-  protected async alignToPath (startMove: Move, opts?: { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }): Promise<void>
-  protected async alignToPath (
+  protected async postInitAlignToPath (
+    startMove: Move,
+    opts?: { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }
+  ): Promise<void>
+  protected async postInitAlignToPath (
     startMove: Move,
     endMove?: Move,
     opts?: { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }
   ): Promise<void>
-  protected async alignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
+  protected async postInitAlignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
       endMove = startMove
       opts = {}
@@ -542,17 +599,29 @@ export abstract class MovementExecutor extends Movement {
 
     // console.log("target", target, opts)
 
-    let task
-    if (target !== endMove.exitPos) task = await this.lookAt(target)
-    else task = await this.lookAtPathPos(target)
+    if (target !== endMove.exitPos) {
+      await this.lookAt(target)
+      if (!this.isLookingAt(target, 0.01)) return
+    } else {
+      await this.lookAtPathPos(target)
+      if (!this.isLookingAtYaw(target, 0.01)) {
+        console.log('failed yaw check')
+        return
+      }
+    }
 
     // this.bot.chat(`/particle flame ${endMove.exitPos.x} ${endMove.exitPos.y} ${endMove.exitPos.z} 0 0.5 0 0 10 force`);
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    console.trace(
-      this.bot.entity.position.distanceTo(endMove.exitPos), this.bot.entity.position.distanceTo(endMove.exitPos.offset(0, 1, 0)),
-      ' | ',
+    console.log(this.bot.entity.yaw)
+    console.log(
+      target,
+      startMove.entryPos,
+      endMove.exitPos,
+      startMove === endMove,
+      this.bot.entity.position.distanceTo(endMove.exitPos),
+      '\n | ',
       this.bot.getControlState('forward'),
       this.bot.getControlState('back'),
       ' | ',
@@ -563,7 +632,7 @@ export abstract class MovementExecutor extends Movement {
       this.bot.getControlState('jump'),
       this.bot.getControlState('sneak')
     )
-    await task
+    // await task;
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);
     // this.bot.setControlState("forward", true);

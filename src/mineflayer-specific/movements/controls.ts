@@ -4,27 +4,27 @@ import { Vec3 } from 'vec3'
 
 // const ZERO = (0 * Math.PI) / 12
 // const PI_OVER_TWELVE = (1 * Math.PI) / 12
-// const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
+const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
 // const THREE_PI_OVER_TWELVE = (3 * Math.PI) / 12
-// const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
-const FIVE_PI_OVER_TWELVE = (5 * Math.PI) / 12
+const FOUR_PI_OVER_TWELVE = (4 * Math.PI) / 12
+// const FIVE_PI_OVER_TWELVE = (5 * Math.PI) / 12
 // const SIX_PI_OVER_TWELVE = (6 * Math.PI) / 12
-const SEVEN_PI_OVER_TWELVE = (7 * Math.PI) / 12
-// const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
+// const SEVEN_PI_OVER_TWELVE = (7 * Math.PI) / 12
+const EIGHT_PI_OVER_TWELVE = (8 * Math.PI) / 12
 // const NINE_PI_OVER_TWELVE = (9 * Math.PI) / 12
-// const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
+const TEN_PI_OVER_TWELVE = (10 * Math.PI) / 12
 // const ELEVEN_PI_OVER_TWELVE = (11 * Math.PI) / 12
 // const TWELVE_PI_OVER_TWELVE = (12 * Math.PI) / 12
 // const THIRTEEN_PI_OVER_TWELVE = (13 * Math.PI) / 12
-// const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
+const FOURTEEN_PI_OVER_TWELVE = (14 * Math.PI) / 12
 // const FIFTEEN_PI_OVER_TWELVE = (15 * Math.PI) / 12
-// const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
-const SEVENTEEN_PI_OVER_TWELVE = (17 * Math.PI) / 12
+const SIXTEEN_PI_OVER_TWELVE = (16 * Math.PI) / 12
+// const SEVENTEEN_PI_OVER_TWELVE = (17 * Math.PI) / 12
 // const EIGHTEEN_PI_OVER_TWELVE = (18 * Math.PI) / 12
-const NINETEEN_PI_OVER_TWELVE = (19 * Math.PI) / 12
-// const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
+// const NINETEEN_PI_OVER_TWELVE = (19 * Math.PI) / 12
+const TWENTY_PI_OVER_TWELVE = (20 * Math.PI) / 12
 // const TWENTY_ONE_PI_OVER_TWELVE = (21 * Math.PI) / 12
-// const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
+const TWENTY_TWO_PI_OVER_TWELVE = (22 * Math.PI) / 12
 // const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
 // const TWENTY_FOUR_PI_OVER_TWELVE = (24 * Math.PI) / 12
 const TWO_PI = 2 * Math.PI
@@ -54,7 +54,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
   // another method of doing this is vel.y > 0 ? 2 : 1
   // const offset = bot.entity.position.plus(bot.entity.velocity.scaled(amt > 0.15 ? 2 : 1));
   let scale = onGround ? 0 : 1
-  if (amt > 0.16) scale = 2
+  if (amt > 0.17) scale = 2
   if (position.distanceTo(nextPoint) < 0.3) scale = 0
   if (amt < 0.02) scale = 0
   const offset = position.plus(velocity.scaled(scale))
@@ -163,15 +163,13 @@ export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
  */
 // currentPoint,
 export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
-  // const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
+  const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
-  // bot.entity.position.distanceTo(nextPoint) < 0.3 ||
-  // if (true) {
+  if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
   // console.log('stopping since near goal')
-  bot.setControlState('left', false)
-  bot.setControlState('right', false)
-
-  // }
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+  }
 
   // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
 
@@ -179,19 +177,19 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
 
   // console.log('strafe diff', diff, diff / Math.PI * 12)
 
-  // if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-  //   // console.log('going left')
-  //   bot.setControlState('left', false) // are these reversed? tf
-  //   bot.setControlState('right', true)
-  // } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-  //   // console.log('going right')
-  //   bot.setControlState('left', true)
-  //   bot.setControlState('right', false)
-  // } else {
-  //   // console.log('going neither strafe')
-  //   bot.setControlState('left', false)
-  //   bot.setControlState('right', false)
-  // }
+  if (FOURTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_TWO_PI_OVER_TWELVE) {
+    // console.log('going left')
+    bot.setControlState('left', false) // are these reversed? tf
+    bot.setControlState('right', true)
+  } else if (TWO_PI_OVER_TWELVE < diff && diff < TEN_PI_OVER_TWELVE) {
+    // console.log('going right')
+    bot.setControlState('left', true)
+    bot.setControlState('right', false)
+  } else {
+    // console.log('going neither strafe')
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+  }
 }
 
 /**
@@ -217,16 +215,16 @@ export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true)
 
   // diff = wrapRadians(diff + lookDiff)
 
-  // console.log('forward/back diff', diff, diff / Math.PI * 12)
+  console.log('forward/back diff', diff, diff / Math.PI * 12)
 
-  if (SEVEN_PI_OVER_TWELVE < diff && diff < SEVENTEEN_PI_OVER_TWELVE) {
+  if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
     // console.log('going back')
     ctx.control.set('forward', false)
     ctx.control.set('sprint', false)
     ctx.control.set('back', true)
 
     // console.log("back");
-  } else if (NINETEEN_PI_OVER_TWELVE < diff || diff < FIVE_PI_OVER_TWELVE) {
+  } else if (TWENTY_PI_OVER_TWELVE < diff || diff < FOUR_PI_OVER_TWELVE) {
     // console.log('going forward')
     ctx.control.set('forward', true)
     ctx.control.set('sprint', sprint)
@@ -251,7 +249,7 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
   const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
 
   if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
-    console.log('stopping since near goal')
+    // console.log('stopping since near goal')
     bot.setControlState('forward', false)
     bot.setControlState('back', false)
     return
@@ -265,14 +263,14 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
 
   // console.log('forward/back diff', diff, diff / Math.PI * 12)
 
-  if (SEVEN_PI_OVER_TWELVE < diff && diff < SEVENTEEN_PI_OVER_TWELVE) {
+  if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
     // console.log('going back')
     bot.setControlState('forward', false)
     bot.setControlState('sprint', false)
     bot.setControlState('back', true)
 
     // console.log("back");
-  } else if (NINETEEN_PI_OVER_TWELVE < diff || diff < FIVE_PI_OVER_TWELVE) {
+  } else if (TWENTY_PI_OVER_TWELVE < diff || diff < FOUR_PI_OVER_TWELVE) {
     // console.log('going forward')
     bot.setControlState('forward', true)
     bot.setControlState('sprint', sprint)

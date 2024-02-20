@@ -5,7 +5,7 @@ const { GoalBlock, GoalLookAt, GoalPlaceBlock } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
-const { GoalMineBlock } = require("../dist/mineflayer-specific/goals");
+const { GoalMineBlock, GoalFollowEntity } = require("../dist/mineflayer-specific/goals");
 
 
 const bot = createBot({
@@ -25,17 +25,17 @@ const pathfinder = createPlugin();
 const validTypes = ["block" , "lookat", "place", "break"]
 let mode = "block"
 
-function getGoal(world,x,y,z) {
-  const ret = _getGoal(world,x,y,z)
+function getGoal(world,x,y,z,modes=mode) {
+  const ret = _getGoal(world,x,y,z,modes)
   bot.chat(`Going to: ${ret.x} ${ret.y} ${ret.z}`)
   console.log(ret)
   return ret;
 }
-function _getGoal(world, x, y, z) {
+function _getGoal(world, x, y, z,modes) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
   let item;
-  switch (mode) {
+  switch (modes) {
     case "block":
       return new GoalBlock(x, y+1, z);
     case "lookat":
@@ -54,8 +54,19 @@ function _getGoal(world, x, y, z) {
 bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
+
+  bot.on('physicsTick', () => {
+    if (bot.getControlState('forward') && bot.getControlState('back')) {
+      throw new Error('both forward and back are true')
+
+    }
+  })
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
+
+  bot.pathfinder.setPathfinderOptions({
+    partialPathProducer: true
+  })
   // bot.physics.yawSpeed = 3;
   // bot.physics.pitchSpeed = 3
 
@@ -79,11 +90,11 @@ bot.once("spawn", async () => {
   const val = new EntityPhysics(bot.registry)
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
-    bot.jumpTicks = 0
-    const ctx = EPhysicsCtx.FROM_BOT(val, bot)
-    ctx.state.jumpTicks = 0; // allow immediate jumping
-    // ctx.state.control.set('sneak', true)
-    return val.simulate(ctx, bot.world).applyToBot(bot);
+    // bot.jumpTicks = 0
+    // const ctx = EPhysicsCtx.FROM_BOT(val, bot)
+    // ctx.state.jumpTicks = 0; // allow immediate jumping
+    // // ctx.state.control.set('sneak', true)
+    // return val.simulate(ctx, bot.world).applyToBot(bot);
     return oldSim(...args);
   };
 
@@ -94,7 +105,7 @@ bot.once("spawn", async () => {
   })
   
   rlline.on('line', (line) => {
-    console.log('line!', line)
+    // console.log('line!', line)
     if (line === "exit") {
       bot.quit()
       process.exit()
@@ -111,7 +122,7 @@ bot.once("spawn", async () => {
 let lastStart = null;
 
 async function cmdHandler(username, msg) {
-  console.log(msg)
+  // console.log(msg)
   if (username === bot.username) return;
 
   const [cmd1, ...args] = msg.split(" ");
@@ -120,6 +131,15 @@ async function cmdHandler(username, msg) {
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
   switch (cmd) {
+
+    case "followme": {
+      if (!author) return bot.whisper(username, "failed to find player");
+      const dist = parseInt(args[0]) || 1;
+      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
+      await bot.pathfinder.goto(goal);
+      break;
+    }
+
     case "blockatme": {
       if (!author) return bot.whisper(username, "failed to find player");
       const block = bot.blockAt(author.position);
@@ -295,6 +315,32 @@ async function cmdHandler(username, msg) {
       } while (test.done === false)
     
       const endTime = performance.now();
+
+    
+
+      if (args.find(val=>val==='debug')) {
+        console.log('hey')
+        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
+
+   
+        const poses = [];
+        const listener = () => {
+          for (const pos of poses) {
+            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x+0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z+0.5) + ' 0 0 0 0 1 force')
+          }
+        }
+        const interval = setInterval(listener, 500)
+        if (args.find(val=>val==='trail')) {
+          const stagger = 2
+          for (const pos of test1.value.result.path) {
+            poses.push(pos)
+            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x+0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z+0.5) + ' 0 0 0 0 1 force')
+            await bot.waitForTicks(stagger);
+          }
+          clearInterval(interval)
+        }
+      }
+
       bot.whisper(
         username,
         `took ${(endTime - startTime).toFixed(3)} ms, ${Math.ceil((endTime - startTime) / 50)} ticks, ${(
@@ -303,18 +349,6 @@ async function cmdHandler(username, msg) {
         ).toFixed(3)} seconds`
       );
 
-    
-
-      if (args[0] === "debug") {
-        console.log('hey')
-        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
-
-        if (args[1] === 'trail') {
-          for (const pos of test1.value.result.path) {
-            bot.chat('/particle minecraft:flame ' + pos.entryPos.x + ' ' + pos.entryPos.y + ' ' + pos.entryPos.z + ' 0 0.5 0 0 10 force')
-          }
-        }
-      }
       bot.whisper(username, bot.pathfinder.world.getCacheSize());
       console.log(test1.length);
       break;
@@ -325,31 +359,64 @@ async function cmdHandler(username, msg) {
 
       let rayBlock;
       let info = new Vec3(0, 0, 0);
-      if (args.length === 3) {
+      if (args.length >= 3) {
         info = new Vec3(parseInt(args[0]), parseInt(args[1]), parseInt(args[2]));
         rayBlock = bot.blockAt(info);
-      } else if (args.length === 0) {
+      } else {
         if (!author) return bot.whisper(username, "failed to find player.");
 
         rayBlock = await rayTraceEntitySight({ entity: author });
         if (!rayBlock) return bot.whisper(username, "No block in sight");
         info = rayBlock.position;
 
-      } else {
-        bot.whisper(username, "pathtothere <x> <y> <z> | pathtothere");
-        return;
-      }
+      } 
+      
+      // else {
+      //   bot.whisper(username, "pathtothere <x> <y> <z> | pathtothere");
+      //   return;
+      // }
 
      
       bot.whisper(username, `pathing to ${info.x} ${info.y} ${info.z}`);
       const goal = getGoal(bot.world, info.x, info.y, info.z);
       const res1 = bot.pathfinder.getPathTo(goal);
+      let test;
       let test1;
       const test2 = [];
-      while ((test1 = await res1.next()).done === false) {
-        test2.concat(test1.value.result.path);
-      }
+      do {
+        test = await res1.next()
+        if (!test.done) test1=test
+        // console.log(test1)
+        if (test1.value) test2.push(...test1.value.result.path);
+      } while (test.done === false)
+    
       const endTime = performance.now();
+
+    
+
+      if (args.find(val=>val==='debug')) {
+        console.log('hey')
+        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
+
+   
+        const poses = [];
+        const listener = () => {
+          for (const pos of poses) {
+            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x+0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z+0.5) + ' 0 0 0 0 1 force')
+          }
+        }
+        const interval = setInterval(listener, 500)
+        if (args.find(val=>val==='trail')) {
+          const stagger = 2
+          for (const pos of test1.value.result.path) {
+            poses.push(pos)
+            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x+0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z+0.5) + ' 0 0 0 0 1 force')
+            await bot.waitForTicks(stagger);
+          }
+          clearInterval(interval)
+        }
+      }
+
       bot.whisper(
         username,
         `took ${(endTime - startTime).toFixed(3)} ms, ${Math.ceil((endTime - startTime) / 50)} ticks, ${(
@@ -357,6 +424,7 @@ async function cmdHandler(username, msg) {
           1000
         ).toFixed(3)} seconds`
       );
+
       bot.whisper(username, bot.pathfinder.world.getCacheSize());
       console.log(test2.length);
       break;

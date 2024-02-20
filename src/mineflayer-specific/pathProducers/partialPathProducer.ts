@@ -21,7 +21,11 @@ export class PartialPathProducer implements PathProducer {
   private readonly gcInterval: number = 10
   private readonly lastGc: number = 0
 
-  private readonly maxPathLen: number = 50
+  // private readonly maxPathLen: number = 30
+
+  public get maxPathLength (): number {
+    return this.bot.pathfinder.pathfinderSettings.partialPathLength
+  }
 
   private lastAstarContext: AStar | undefined
   constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
@@ -37,7 +41,7 @@ export class PartialPathProducer implements PathProducer {
     return this.lastAstarContext
   }
 
-  private handleAstarContext (foundPathLen: number, maxPathLen = this.maxPathLen): AStar | undefined {
+  private handleAstarContext (foundPathLen: number, maxPathLen = this.maxPathLength): AStar | undefined {
     // if the path length is less than 50, return the previous astar context.
     // otherwise, return a new one.
 
@@ -74,7 +78,7 @@ export class PartialPathProducer implements PathProducer {
     const lastNode = result.path[result.path.length - 1]
     if (lastNode != null) {
       this.latestCost = this.latestCost + result.cost
-      console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total')
+      console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
     }
 
     if (result.status === 'noPath') {
@@ -92,11 +96,13 @@ export class PartialPathProducer implements PathProducer {
           astarContext
         }
       }
-    } else {
+    }
+
+    if (result.path.length > this.maxPathLength || result.status === 'success') {
       this.latestMove = result.path[result.path.length - 1]
       this.latestMoves.push(this.latestMove)
+      this.lastPath = [...this.lastPath, ...result.path]
     }
-    this.lastPath = [...this.lastPath, ...result.path]
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
     const ret = {
