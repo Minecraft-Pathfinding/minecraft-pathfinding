@@ -131,8 +131,9 @@ export abstract class MovementExecutor extends Movement {
     })
 
     // console.log('aborted all', performance.now() - start)
-    if (this.aborted) throw new AbortError('Movement aborted.')
+ 
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
+    if (this.aborted) throw new AbortError('Movement aborted.')
   }
 
   public async _performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
