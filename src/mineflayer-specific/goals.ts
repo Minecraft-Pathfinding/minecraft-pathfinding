@@ -30,8 +30,8 @@ export abstract class GoalDynamic<
   neverfinish = false
   abstract readonly eventKeys: Readonly<Change>
   abstract readonly validKeys: Readonly<Valid>
-  abstract hasChanged (...args: Parameters<BotEvents[ChKey[number]]>): boolean
-  abstract isValid (...args: Parameters<BotEvents[VlKey[number]]>): boolean
+  abstract hasChanged (event: ChKey[number], ...args: Parameters<BotEvents[ChKey[number]]>): boolean
+  abstract isValid (event: VlKey[number], ...args: Parameters<BotEvents[VlKey[number]]>): boolean
   abstract update (): void
   cleanup?: () => void // will be assigned later.
 
@@ -75,14 +75,14 @@ export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic
     return new GoalInvert(goal)
   }
 
-  hasChanged (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+  hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     if (!this.dynamic) return false
-    return (this.goal as GoalDynamic).hasChanged(...args)
+    return (this.goal as GoalDynamic).hasChanged(event, ...args)
   }
 
-  isValid (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+  isValid (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     if (!this.dynamic) return false
-    return (this.goal as GoalDynamic).isValid(...args)
+    return (this.goal as GoalDynamic).isValid(event, ...args)
   }
 
   update (): void {
@@ -139,18 +139,95 @@ class GoalInvertOld<Et extends EasyKeys = [], Val extends EasyKeys = []> extends
     return -this.goal.heuristic(node)
   }
 
-  hasChanged (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+  hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     if (!this.isDynamic) return false
-    return (this.goal as GoalDynamic).hasChanged(...args)
+    return (this.goal as GoalDynamic).hasChanged(event, ...args)
   }
 
-  isValid (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+  isValid (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     if (!this.isDynamic) return false
-    return (this.goal as GoalDynamic).isValid(...args)
+    return (this.goal as GoalDynamic).isValid(event, ...args)
   }
 
   update (): void {
     if (this.goal instanceof GoalDynamic) this.goal.update()
+  }
+}
+
+export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynamic<any, any> {
+  public get eventKeys (): ReadonlyArray<keyof BotEvents> {
+    return [...this.dGEventMap.keys()]
+  }
+
+  public get validKeys (): ReadonlyArray<keyof BotEvents> {
+    return [...this.dGValidMap.keys()]
+  }
+
+  private readonly dynGoals: GoalDynamic[] = []
+  private readonly dGEventMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
+  private readonly dGValidMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
+
+  constructor (private readonly goals: Goals) {
+    // runtime enforcement.
+    if (goals.length === 0) throw new Error('GoalCompositeAny: Goals array cannot be empty.')
+    super()
+
+    for (const goal of goals) {
+      if (goal instanceof GoalDynamic) {
+        this.dynGoals.push(goal)
+        for (const key of goal._eventKeys) {
+          const got = this.dGEventMap.get(key)
+          if (got != null) got.push(goal)
+          else this.dGEventMap.set(key, [goal])
+        }
+
+        for (const key of goal._validKeys) {
+          const got = this.dGValidMap.get(key)
+          if (got != null) got.push(goal)
+          else this.dGValidMap.set(key, [goal])
+        }
+      }
+    }
+  }
+
+  isEnd (node: Move): boolean {
+    for (const goal of this.goals) {
+      if (goal.isEnd(node)) return true
+    }
+    return false
+  }
+
+  heuristic (node: Move): number {
+    let ret = Number.MAX_VALUE
+    for (const goal of this.goals) {
+      const h = goal.heuristic(node)
+      if (h < ret) ret = h
+    }
+    return ret
+  }
+
+  hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    const goals = this.dGEventMap.get(event)
+    if (goals == null) return false
+    for (const goal of goals) {
+      if (goal.hasChanged(event, ...args)) return true
+    }
+    return false
+  }
+
+  isValid (event: any, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    const goals = this.dGValidMap.get(event)
+    if (goals == null) return false
+    for (const goal of goals) {
+      if (goal.isValid(event, ...args)) return true
+    }
+    return false
+  }
+
+  update (): void {
+    for (const goal of this.dynGoals) {
+      goal.update()
+    }
   }
 }
 
@@ -433,7 +510,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     return Math.sqrt(dx * dx + dy * dy + dz * dz)
   }
 
-  hasChanged (e: Entity): boolean {
+  hasChanged (event: 'entityMoved', e: Entity): boolean {
     if (e.position !== this.refVec) return false
     const dx = this.x - this.refVec.x
     const dy = this.y - this.refVec.y
@@ -447,7 +524,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     return ret
   }
 
-  isValid (entity: Entity): boolean {
+  isValid (event: 'entityGone', entity: Entity): boolean {
     return entity.position === this.refVec
   }
 

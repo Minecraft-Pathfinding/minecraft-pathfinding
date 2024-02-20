@@ -1,4 +1,4 @@
-import { Bot } from 'mineflayer'
+import { Bot, BotEvents } from 'mineflayer'
 import { AStar as AAStar } from './abstract/algorithms/astar'
 import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
@@ -383,24 +383,31 @@ export class ThePathfinder {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
       const bounded = goal.hasChanged.bind(goal)
       const old = cleanup
-      const list1 = (...args: any[]): void => {
-        const ret = bounded(...args)
-        if (ret) {
-          void this.reset('goalUpdated')
-          for (const key of goal._eventKeys) this.bot.off(key, list1)
+      const fuck: Array<[keyof BotEvents, (...args: any[]) => void]> = []
+      for (const key of goal._eventKeys) {
+        const list1 = (...args: any[]): void => {
+          const ret = bounded(key, ...args)
+          if (ret) {
+            void this.reset('goalUpdated')
+            for (const key of goal._eventKeys) this.bot.off(key, list1)
+          }
         }
+        this.bot.on(key, list1)
+        fuck.push([key, list1])
       }
 
-      for (const key of goal._eventKeys) this.bot.on(key, list1)
-
       goal.cleanup = () => {
-        for (const key of goal._eventKeys) this.bot.off(key, list1)
+        for (const [key, val] of fuck) {
+          this.bot.off(key, val)
+        }
         delete goal.cleanup
       }
 
       cleanup = () => {
         old()
-        for (const key of goal._eventKeys) this.bot.off(key, list1)
+        for (const [key, val] of fuck) {
+          this.bot.off(key, val)
+        }
       }
     }
 
@@ -515,14 +522,16 @@ export class ThePathfinder {
         if (this.resetReason == null) {
           await new Promise<void>((resolve, reject) => {
             const bounded = refGoal.hasChanged.bind(refGoal)
-            const listener = (...args: any[]): void => {
-              if (this.userAborted || bounded(...args)) {
-                refGoal.update()
-                for (const key of refGoal._eventKeys) this.bot.off(key, listener)
-                resolve()
+            for (const key of refGoal._eventKeys) {
+              const listener = (...args: any[]): void => {
+                if (this.userAborted || bounded(key, ...args)) {
+                  // cleanup all
+                  for (const key of refGoal._eventKeys) this.bot.off(key, listener)
+                  resolve()
+                }
               }
+              this.bot.on(key, listener)
             }
-            for (const key of refGoal._eventKeys) this.bot.on(key, listener)
           })
         }
       }
