@@ -73,6 +73,7 @@ export abstract class MovementExecutor extends Movement {
   public reset (): void {
     this.aborted = false
     delete this.resetReason
+    this.task.finish()
   }
 
   /**
@@ -95,43 +96,43 @@ export abstract class MovementExecutor extends Movement {
   private async holdUntilAborted (move: Move, task: Task<void>, timeout = 1000): Promise<void> {
     if (!this.aborted && this.resetReason == null) return
 
-    console.log('aborting')
+    // console.log('aborting')
 
-    let start = performance.now()
+    // let start = performance.now()
     for (const breakTarget of move.toBreak) {
       await breakTarget._abort(this.bot)
     }
 
-    console.log('aborted breaks', performance.now() - start)
-    start = performance.now()
+    // console.log('aborted breaks', performance.now() - start)
+    // start = performance.now()
 
     for (const place of move.toPlace) {
       await place._abort(this.bot)
     }
 
-    console.log('aborted places', performance.now() - start)
-    start = performance.now()
+    // console.log('aborted places', performance.now() - start)
+    // start = performance.now()
 
     // TODO: handle bug (nextMove not included).
     await new Promise<void>((resolve, reject) => {
       const listener = (): void => {
         if (this.safeToCancel(move)) {
           this.bot.off('physicsTick', listener)
-          task.finish()
+          // task.finish()
           resolve()
         }
       }
       this.bot.on('physicsTick', listener)
       setTimeout(() => {
         this.bot.off('physicsTick', listener)
-        task.finish()
+        // task.finish()
         reject(new Error('Movement failed to abort properly.'))
       }, timeout)
     })
 
-    console.log('aborted all', performance.now() - start)
-    if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
+    // console.log('aborted all', performance.now() - start)
     if (this.aborted) throw new AbortError('Movement aborted.')
+    if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
   }
 
   public async _performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
@@ -328,7 +329,7 @@ export abstract class MovementExecutor extends Movement {
     off1.translate(0, -off1.y, 0)
 
     const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
-    console.log(similarDirection, thisMove.moveType.constructor.name, target, thisMove.entryPos, thisMove.exitPos)
+    // console.log(similarDirection, thisMove.moveType.constructor.name, target, thisMove.entryPos, thisMove.exitPos)
     // if (!similarDirection) {
     const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
 
@@ -342,23 +343,23 @@ export abstract class MovementExecutor extends Movement {
     if (bb2.length === 0) bb2.push(AABB.fromBlock(bb2bl.position))
     const bb2physical = bb2bl.physical || bb2bl.liquid
 
-    console.log(
-      this.toPlaceLen(),
-      bb1bl.block?.name,
-      bb1,
-      bb2bl.block?.name,
-      bb2,
-      'test',
-      bb0,
-      bb1.some((b) => b.collides(bb0)),
-      bb1physical,
-      bb2.some((b) => b.collides(bb0)),
-      bb2physical,
-      bb2bl
-    )
+    // console.log(
+    //   this.toPlaceLen(),
+    //   bb1bl.block?.name,
+    //   bb1,
+    //   bb2bl.block?.name,
+    //   bb2,
+    //   'test',
+    //   bb0,
+    //   bb1.some((b) => b.collides(bb0)),
+    //   bb1physical,
+    //   bb2.some((b) => b.collides(bb0)),
+    //   bb2physical,
+    //   bb2bl
+    // )
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
     if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
-      console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))
+      // console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
       else {
         if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true // this.isLookingAtYaw(target);
@@ -605,7 +606,7 @@ export abstract class MovementExecutor extends Movement {
     } else {
       await this.lookAtPathPos(target)
       if (!this.isLookingAtYaw(target, 0.01)) {
-        console.log('failed yaw check')
+        // console.log('failed yaw check')
         return
       }
     }
@@ -614,24 +615,24 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-    console.log(this.bot.entity.yaw)
-    console.log(
-      target,
-      startMove.entryPos,
-      endMove.exitPos,
-      startMove === endMove,
-      this.bot.entity.position.distanceTo(endMove.exitPos),
-      '\n | ',
-      this.bot.getControlState('forward'),
-      this.bot.getControlState('back'),
-      ' | ',
-      this.bot.getControlState('left'),
-      this.bot.getControlState('right'),
-      ' | ',
-      this.bot.getControlState('sprint'),
-      this.bot.getControlState('jump'),
-      this.bot.getControlState('sneak')
-    )
+    // console.log(this.bot.entity.yaw)
+    // console.log(
+    //   target,
+    //   startMove.entryPos,
+    //   endMove.exitPos,
+    //   startMove === endMove,
+    //   this.bot.entity.position.distanceTo(endMove.exitPos),
+    //   '\n | ',
+    //   this.bot.getControlState('forward'),
+    //   this.bot.getControlState('back'),
+    //   ' | ',
+    //   this.bot.getControlState('left'),
+    //   this.bot.getControlState('right'),
+    //   ' | ',
+    //   this.bot.getControlState('sprint'),
+    //   this.bot.getControlState('jump'),
+    //   this.bot.getControlState('sneak')
+    // )
     // await task;
     // if (this.bot.entity.position.xzDistanceTo(target) > 0.3)
     // // botSmartMovement(this.bot, endMove.exitPos, true);

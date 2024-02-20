@@ -35,6 +35,7 @@ import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-sp
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, ResetReason } from './types'
+import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -98,8 +99,8 @@ interface PathGeneratorResult {
 }
 
 interface PerformOpts {
-  errorOnRetry?: boolean
-  errorOnCancel?: boolean
+  errorOnReset?: boolean
+  errorOnAbort?: boolean
 }
 
 /**
@@ -120,9 +121,10 @@ export class ThePathfinder {
   defaultMoveSettings: MovementOptions
   pathfinderSettings: PathfinderOptions
 
-  public executing = false
-  public cancelCalculation = false
-  private userCancelled = false
+  private executeTask: Task<void, void> = Task.createDoneTask()
+  private wantedGoal: goals.Goal | null = null
+  public abortCalculation = false
+  private userAborted = false
 
   private currentGoal?: goals.Goal
   private currentExecutingPath?: Move[]
@@ -166,13 +168,14 @@ export class ThePathfinder {
   }
 
   async cancel (): Promise<void> {
-    this.userCancelled = true
+    this.userAborted = true
     await this.interrupt(1000, true)
   }
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
+    console.log('INTERRUPT CALLED')
     if (this.currentProducer == null) return console.log('no producer')
-    this.cancelCalculation = cancelCalculation
+    this.abortCalculation = cancelCalculation
 
     if (this.currentExecutor == null) return console.log('no executor')
     // if (this.currentExecutor.aborted) return console.trace('already aborted')
@@ -352,7 +355,7 @@ export class ThePathfinder {
   }
 
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
-    this.cancelCalculation = false
+    this.abortCalculation = false
     delete this.resetReason
     this.currentGoal = goal
 
@@ -406,7 +409,7 @@ export class ThePathfinder {
     yield { result, astarContext }
 
     while (result.status === 'partial') {
-      if (this.cancelCalculation) {
+      if (this.abortCalculation) {
         console.log('cancelling!')
         cleanup()
         return null
@@ -452,10 +455,22 @@ export class ThePathfinder {
    * @param {goals.Goal | null} goal
    */
   async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
-    if (this.executing || goal == null) {
-      await this.interrupt()
+    console.log('GOTO CALLED')
+    if (goal == null) {
+      await this.cancel()
+      await this.executeTask.promise
+      await this.cleanupAll(goal, this.currentExecutor)
+      return
     }
-    this.executing = true
+
+    if (!this.executeTask.done) {
+      console.log('cancelling others')
+      this.wantedGoal = goal
+      await this.cancel()
+      await this.executeTask.promise
+      if (this.wantedGoal !== goal) return
+    }
+    this.executeTask = new Task()
 
     const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
 
@@ -469,11 +484,11 @@ export class ThePathfinder {
             const newPath = await this.postProcess(res.result)
             await this.perform(newPath, goal)
 
-            if (performOpts.errorOnRetry != null && this.resetReason != null) {
+            if (performOpts.errorOnReset != null && this.resetReason != null) {
               throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
             }
 
-            if (performOpts.errorOnCancel != null && this.cancelCalculation) {
+            if (performOpts.errorOnAbort != null && this.abortCalculation) {
               throw new Error('Goto: Purposefully cancelled by user.')
             }
 
@@ -482,19 +497,21 @@ export class ThePathfinder {
               break
             }
 
+            console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
             await this.cleanupBot()
           }
         }
-      } while (this.resetReason != null && !this.cancelCalculation)
+      } while (this.resetReason != null && !this.abortCalculation && !this.userAborted)
 
       if (doForever) {
         const refGoal = goal
 
+        await this.cleanupBot()
         if (this.resetReason == null) {
           await new Promise<void>((resolve, reject) => {
             const bounded = refGoal.hasChanged.bind(refGoal)
             const listener = (...args: any[]): void => {
-              if (this.userCancelled || bounded(...args)) {
+              if (this.userAborted || bounded(...args)) {
                 console.log('hi', bounded(...args), this.bot.listenerCount(refGoal.eventKey))
                 refGoal.update()
                 this.bot.off(refGoal.eventKey, listener)
@@ -505,10 +522,10 @@ export class ThePathfinder {
           })
         }
       }
-    // eslint-disable-next-line no-unmodified-loop-condition
-    } while (doForever && !this.userCancelled)
+      // eslint-disable-next-line no-unmodified-loop-condition
+    } while (doForever && !this.userAborted)
 
-    console.log('sup gang!!1', doForever, this.userCancelled)
+    console.log('sup gang!!1', doForever, this.userAborted)
     await this.cleanupAll(goal, this.currentExecutor)
   }
 
@@ -526,7 +543,7 @@ export class ThePathfinder {
   }
 
   private check (): void {
-    if (this.userCancelled) {
+    if (this.userAborted) {
       throw new AbortError('User cancelled.')
     }
 
@@ -685,6 +702,10 @@ export class ThePathfinder {
 
   async cleanupBot (): Promise<void> {
     this.bot.clearControlStates()
+
+    for (const [, executor] of this.movements) {
+      executor.reset()
+    }
     // await this.bot.waitForTicks(1);
   }
 
@@ -694,13 +715,16 @@ export class ThePathfinder {
     }
 
     await this.cleanupBot()
-    if (lastMove != null && !this.cancelCalculation) await goal.onFinish(lastMove)
+    if (lastMove != null && !this.abortCalculation) await goal.onFinish(lastMove)
     await this.cleanupBot()
     this.bot.chat(this.world.getCacheSize())
     this.world.clearCache()
-    this.cancelCalculation = false
-    this.userCancelled = false
-    this.executing = false
+
+    console.log('CLEANUP CALLED')
+    this.abortCalculation = false
+    this.userAborted = false
+    this.executeTask.finish()
+
     delete this.resetReason
 
     delete this.currentGoal
