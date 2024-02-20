@@ -48,7 +48,13 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-    const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
+    // pos = {
+    //   x: Math.floor(pos.x),
+    //   y: Math.floor(pos.y),
+    //   z: Math.floor(pos.z)
+    // }
+
+    const yes = new Vec3(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
     let move: Move | undefined = this.currentMove
 
     let i = 0
@@ -69,25 +75,22 @@ export abstract class MovementProvider extends Movement {
       move = move.parent
     }
 
-    pos = {
-      x: Math.floor(pos.x),
-      y: Math.floor(pos.y),
-      z: Math.floor(pos.z)
-    }
-
-    const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
+    // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
+    const wantedDx = yes.x - this.orgPos.x + this.halfway[0]
 
     // if (wantedDx < 0 || wantedDx >= this.boundaries[0]) {
     //   return super.getBlockInfo(pos, dx, dy, dz);
     // }
 
-    const wantedDz = pos.z - this.orgPos.z + dz + this.halfway[1]
+    // const wantedDz = pos.z - this.orgPos.z + dz + this.halfway[1]
+    const wantedDz = yes.z - this.orgPos.z + this.halfway[1]
 
     // if (wantedDz < 0 || wantedDz >= this.boundaries[2]) {
     //   return super.getBlockInfo(pos, dx, dy, dz);
     // }
 
-    const wantedDy = pos.y - this.orgPos.y + dy + this.halfway[2]
+    // const wantedDy = pos.y - this.orgPos.y + dy + this.halfway[2]
+    const wantedDy = yes.y - this.orgPos.y + this.halfway[2]
 
     // if (wantedDy < 0 || wantedDy >= this.boundaries[2]) {
     //   return super.getBlockInfo(pos, dx, dy, dz);
@@ -104,7 +107,8 @@ export abstract class MovementProvider extends Movement {
       wantedDy >= this.boundaries[2]
     ) {
       // console.log('hey', idx, this.localData[idx])
-      return super.getBlockInfo(pos, dx, dy, dz)
+      return this.world.getBlockInfo(yes)
+      // return super.getBlockInfo(pos, dx, dy, dz)
       // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
     }
 
@@ -141,7 +145,8 @@ export abstract class MovementProvider extends Movement {
       return data
     }
 
-    const ret = super.getBlockInfo(pos, dx, dy, dz)
+    const ret = this.world.getBlockInfo(yes)
+    // const ret = super.getBlockInfo(pos, dx, dy, dz)
 
     this.localData[idx] = ret
     return ret
@@ -256,15 +261,15 @@ export class MovementHandler implements AMovementProvider<Move> {
       newMove.provideMovements(currentMove, moves, this.goal, closed)
     }
 
-    for (const move of moves) {
-      const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
-      if (bl.liquid && move.toPlace.length > 0) {
-        const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
-        console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
+    // for (const move of moves) {
+    //   const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
+    //   if (bl.liquid && move.toPlace.length > 0) {
+    //     const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
+    //     console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
 
-        // throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec.toString()} `)
-      }
-    }
+    //     // throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec.toString()} `)
+    //   }
+    // }
     // this.resetLocalData() // same speed, but less memory efficient.
 
     // console.log(moves.length, moves.map(m=>m.moveType.constructor.name))

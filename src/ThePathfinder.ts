@@ -166,13 +166,13 @@ export class ThePathfinder {
   }
 
   async cancel (): Promise<void> {
-    await this._cancel(1000, true)
+    this.userCancelled = true
+    await this.interrupt(1000, true)
   }
 
-  async _cancel (timeout = 1000, userCalled = false, reasonStr?: ResetReason): Promise<void> {
+  async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
     if (this.currentProducer == null) return console.log('no producer')
-    this.cancelCalculation = true
-    this.userCancelled = userCalled
+    this.cancelCalculation = cancelCalculation
 
     if (this.currentExecutor == null) return console.log('no executor')
     // if (this.currentExecutor.aborted) return console.trace('already aborted')
@@ -201,7 +201,7 @@ export class ThePathfinder {
 
   async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
     this.bot.emit('resetPath', reason)
-    await this._cancel(cancelTimeout, false, reason)
+    await this.interrupt(cancelTimeout, false, reason)
   }
 
   setupListeners (): void {
@@ -453,7 +453,7 @@ export class ThePathfinder {
    */
   async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     if (this.executing || goal == null) {
-      await this._cancel()
+      await this.interrupt()
     }
     this.executing = true
 
@@ -477,16 +477,17 @@ export class ThePathfinder {
               throw new Error('Goto: Purposefully cancelled by user.')
             }
 
-            if (this.resetReason == null && !this.cancelCalculation) {
+            if (this.resetReason == null) {
               console.log('finished!', this.bot.entity.position, this.bot.listenerCount('physicsTick'))
               break
             }
+
+            await this.cleanupBot()
           }
         }
       } while (this.resetReason != null && !this.cancelCalculation)
 
       if (doForever) {
-        await this.cleanupBot()
         const refGoal = goal
 
         if (this.resetReason == null) {
@@ -660,15 +661,19 @@ export class ThePathfinder {
       newGoal = goals.GoalBlock.fromVec(nextMove.vec)
     }
 
-    const path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
+    let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
+
     if (path1 === null) {
       // done
       this.bot.emit('exitedRecovery', entry)
     } else if (no) {
+      path1 = await this.postProcess(path1)
+
       // execution of past recoveries failed or not easily saveable, so full recovery needed.
       this.bot.emit('exitedRecovery', entry)
       await this.perform(path1, goal, entry + 1)
     } else {
+      path1 = await this.postProcess(path1)
       // attempt recovery to nearby node.
       await this.perform(path1, newGoal, entry + 1)
       path.path.splice(0, ind + 1)

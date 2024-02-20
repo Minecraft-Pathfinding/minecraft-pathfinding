@@ -63,10 +63,10 @@ export class PartialPathProducer implements PathProducer {
       start = this.start
     }
 
-    const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
+    // const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
     const ret = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
 
-    ret.closedDataSet = lastClosedSet
+    // ret.closedDataSet = lastClosedSet
     return ret
   }
 
@@ -75,11 +75,8 @@ export class PartialPathProducer implements PathProducer {
 
     const result = this.lastAstarContext.compute()
 
-    const lastNode = result.path[result.path.length - 1]
-    if (lastNode != null) {
-      this.latestCost = this.latestCost + result.cost
-      console.info('Partial Path cost increased by', lastNode.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
-    }
+    this.latestCost = this.latestCost + result.cost
+    console.info('Partial Path cost increased by', result.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
 
     if (result.status === 'noPath') {
       this.latestMoves.pop()
@@ -99,9 +96,12 @@ export class PartialPathProducer implements PathProducer {
     }
 
     if (result.path.length > this.maxPathLength || result.status === 'success') {
-      this.latestMove = result.path[result.path.length - 1]
+      // const val = result.path.length - 1
+      const val = Math.ceil(result.path.length * 3 / 4) - 1
+      this.latestMove = result.path[val]
+      const toTake = result.path.slice(0, val + 1)
       this.latestMoves.push(this.latestMove)
-      this.lastPath = [...this.lastPath, ...result.path]
+      this.lastPath = [...this.lastPath, ...toTake]
     }
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
