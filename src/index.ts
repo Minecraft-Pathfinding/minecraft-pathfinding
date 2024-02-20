@@ -8,7 +8,7 @@ import utilPlugin from '@nxg-org/mineflayer-util-plugin'
 import { Block, PlaceBlockOptions, ResetReason } from './types'
 import { PathingUtil } from './PathingUtil'
 
-export * as goals from './mineflayer-specific/goals'
+import * as goals from './mineflayer-specific/goals'
 
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {
@@ -31,5 +31,9 @@ declare module 'mineflayer' {
     resetPath: (reason: ResetReason) => void
     enteredRecovery: (errorCount: number) => void
     exitedRecovery: (errorCount: number) => void
+    goalSet: (goal: goals.Goal) => void
+    goalFinished: (goal: goals.Goal) => void
   }
 }
+
+export * as goals from './mineflayer-specific/goals'

@@ -126,7 +126,7 @@ export class ThePathfinder {
   public abortCalculation = false
   private userAborted = false
 
-  private currentGoal?: goals.Goal
+  private currentGotoGoal?: goals.Goal
   private currentExecutingPath?: Move[]
   private currentMove?: Move
   private currentExecutor?: MovementExecutor
@@ -357,7 +357,6 @@ export class ThePathfinder {
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.abortCalculation = false
     delete this.resetReason
-    this.currentGoal = goal
 
     this.currentMove = Move.startMove(new IdleMovement(this.bot, this.world), startPos.clone(), startVel.clone(), this.getScaffoldCount())
     this.currentExecutor = new IdleMovementExecutor(this.bot, this.world, this.defaultMoveSettings)
@@ -393,7 +392,7 @@ export class ThePathfinder {
       }
 
       this.bot.on(goal.eventKey, list1)
-      goal.cleanup = (reason) => {
+      goal.cleanup = () => {
         this.bot.off(goal.eventKey, list1)
         delete goal.cleanup
       }
@@ -471,6 +470,10 @@ export class ThePathfinder {
       if (this.wantedGoal !== goal) return
     }
     this.executeTask = new Task()
+
+    this.currentGotoGoal = goal
+
+    this.bot.emit('goalSet', goal)
 
     const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
 
@@ -711,7 +714,7 @@ export class ThePathfinder {
 
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
-      goal.cleanup?.('normal')
+      goal.cleanup?.()
     }
 
     await this.cleanupBot()
@@ -727,9 +730,11 @@ export class ThePathfinder {
 
     delete this.resetReason
 
-    delete this.currentGoal
+    delete this.currentGotoGoal
     delete this.currentExecutingPath
     delete this.currentMove
     delete this.currentExecutor
+
+    this.bot.emit('goalFinished', goal)
   }
 }

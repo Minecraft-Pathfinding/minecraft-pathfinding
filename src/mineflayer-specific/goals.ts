@@ -25,7 +25,7 @@ export abstract class GoalDynamic<Key extends keyof BotEvents> extends Goal {
   readonly abstract eventKey: Key
   abstract hasChanged (...args: Parameters<BotEvents[Key]>): boolean
   abstract update (): void
-  cleanup?: (reason: 'cancel' | 'normal') => void // will be assigned later.
+  cleanup?: () => void // will be assigned later.
 }
 /**
  * A goal to be directly at a specific coordinate.
