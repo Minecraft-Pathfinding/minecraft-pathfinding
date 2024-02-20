@@ -387,19 +387,20 @@ export class ThePathfinder {
         const ret = bounded(...args)
         if (ret) {
           void this.reset('goalUpdated')
-          this.bot.off(goal.eventKey, list1)
+          for (const key of goal._eventKeys) this.bot.off(key, list1)
         }
       }
 
-      this.bot.on(goal.eventKey, list1)
+      for (const key of goal._eventKeys) this.bot.on(key, list1)
+
       goal.cleanup = () => {
-        this.bot.off(goal.eventKey, list1)
+        for (const key of goal._eventKeys) this.bot.off(key, list1)
         delete goal.cleanup
       }
 
       cleanup = () => {
         old()
-        this.bot.off(goal.eventKey, list1)
+        for (const key of goal._eventKeys) this.bot.off(key, list1)
       }
     }
 
@@ -516,13 +517,12 @@ export class ThePathfinder {
             const bounded = refGoal.hasChanged.bind(refGoal)
             const listener = (...args: any[]): void => {
               if (this.userAborted || bounded(...args)) {
-                console.log('hi', bounded(...args), this.bot.listenerCount(refGoal.eventKey))
                 refGoal.update()
-                this.bot.off(refGoal.eventKey, listener)
+                for (const key of refGoal._eventKeys) this.bot.off(key, listener)
                 resolve()
               }
             }
-            this.bot.on(refGoal.eventKey, listener)
+            for (const key of refGoal._eventKeys) this.bot.on(key, listener)
           })
         }
       }

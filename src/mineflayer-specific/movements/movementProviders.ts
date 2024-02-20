@@ -430,15 +430,29 @@ export class ParkourForward extends MovementProvider {
 
       // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
 
-      if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
+      if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
+        const off = blockD.position
+        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
+
+        // Down
+        const blockE = this.getBlockInfo(node, dx, -2, dz)
+        if (blockE.physical) {
+          // cost += this.exclusionStep(blockD)
+          // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
+          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
+          // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
+        }
+        floorCleared = floorCleared && !blockE.physical
+      } else if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
         if (d === 5) continue
+        const cost1 = cost + 3 // potential slowdown (will fix later.)
         // cost += this.exclusionStep(blockB)
         // Forward
 
         const off = blockC.position
         if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
-        neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
+        neighbors.push(Move.fromPrevious(cost1, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break
       } else if (ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
@@ -456,19 +470,6 @@ export class ParkourForward extends MovementProvider {
         // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
         break
         // }
-      } else if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
-        const off = blockD.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
-
-        // Down
-        const blockE = this.getBlockInfo(node, dx, -2, dz)
-        if (blockE.physical) {
-          // cost += this.exclusionStep(blockD)
-          // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
-          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
-          // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
-        }
-        floorCleared = floorCleared && !blockE.physical
       } else if (!blockB.safe || !blockC.safe) {
         break
       }

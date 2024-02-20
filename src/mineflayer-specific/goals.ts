@@ -19,14 +19,84 @@ export abstract class Goal implements AGoal<Move> {
   async onFinish (node: MovementExecutor): Promise<void> {}
 }
 
-export abstract class GoalDynamic<Key extends keyof BotEvents> extends Goal {
+type EasyKeys = keyof BotEvents | Array<keyof BotEvents>
+export abstract class GoalDynamic<
+  Change extends EasyKeys = Array<keyof BotEvents>,
+  Valid extends EasyKeys = Array<keyof BotEvents>,
+  ChKey extends Change extends keyof BotEvents ? [Change] : Change = Change extends keyof BotEvents ? [Change] : Change,
+  VlKey extends Valid extends keyof BotEvents ? [Valid] : Valid = Valid extends keyof BotEvents ? [Valid] : Valid
+> extends Goal {
   dynamic = true
   neverfinish = false
-  readonly abstract eventKey: Key
-  abstract hasChanged (...args: Parameters<BotEvents[Key]>): boolean
+  abstract readonly eventKeys: Readonly<Change>
+  abstract readonly validKeys: Readonly<Valid>
+  abstract hasChanged (...args: Parameters<BotEvents[ChKey[number]]>): boolean
+  abstract isValid (...args: Parameters<BotEvents[VlKey[number]]>): boolean
   abstract update (): void
   cleanup?: () => void // will be assigned later.
+
+  get _eventKeys (): ChKey {
+    if (this.eventKeys instanceof Array) return this.eventKeys as ChKey
+    return [this.eventKeys] as ChKey
+  }
+
+  get _validKeys (): VlKey {
+    if (this.validKeys instanceof Array) return this.validKeys as VlKey
+    return [this.validKeys] as VlKey
+  }
 }
+
+export class GoalInvert<Et extends EasyKeys = [], Val extends EasyKeys = []> extends GoalDynamic<Et, Val> {
+  eventKeys = [] as unknown as Et
+  validKeys = [] as unknown as Val // to be set later.
+
+  isDynamic = false
+
+  private constructor (private readonly goal: Goal) {
+    super()
+
+    if (goal instanceof GoalDynamic) {
+      this.eventKeys = goal._eventKeys
+      this.validKeys = goal._validKeys
+      this.isDynamic = true
+    }
+  }
+
+  static from (goal: Goal): GoalInvert {
+    return new GoalInvert(goal)
+  }
+
+  static fromDyn<
+    G extends GoalDynamic,
+    K0 extends EasyKeys = G extends GoalDynamic<infer K extends EasyKeys> ? K : never,
+    K1 extends EasyKeys = G extends GoalDynamic<any, infer V extends EasyKeys> ? V : never
+  >(goal: GoalDynamic<K0, K1>): GoalInvert<K0, K1> {
+    return new GoalInvert(goal)
+  }
+
+  isEnd (node: Move): boolean {
+    return !this.goal.isEnd(node)
+  }
+
+  heuristic (node: Move): number {
+    return -this.goal.heuristic(node)
+  }
+
+  hasChanged (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    if (!this.isDynamic) return false
+    return (this.goal as GoalDynamic).hasChanged(...args)
+  }
+
+  isValid (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    if (!this.isDynamic) return false
+    return (this.goal as GoalDynamic).isValid(...args)
+  }
+
+  update (): void {
+    if (this.goal instanceof GoalDynamic) this.goal.update()
+  }
+}
+
 /**
  * A goal to be directly at a specific coordinate.
  */
@@ -265,10 +335,11 @@ export class GoalPlaceBlock extends GoalLookAt {
 interface GoalFollowEntityOpts {
   neverfinish?: boolean
   dynamic?: boolean
-
 }
-export class GoalFollowEntity extends GoalDynamic<'entityMoved'> {
-  readonly eventKey = 'entityMoved' as const
+
+export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
+  readonly eventKeys = 'entityMoved' as const
+  readonly validKeys = 'entityGone' as const
 
   public x: number
   public y: number
@@ -306,7 +377,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved'> {
   }
 
   hasChanged (e: Entity): boolean {
-    // if (e.position !== this.refVec) return false;
+    if (e.position !== this.refVec) return false
     const dx = this.x - this.refVec.x
     const dy = this.y - this.refVec.y
     const dz = this.z - this.refVec.z
@@ -317,6 +388,10 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved'> {
     }
 
     return ret
+  }
+
+  isValid (entity: Entity): boolean {
+    return entity.position === this.refVec
   }
 
   update (): void {

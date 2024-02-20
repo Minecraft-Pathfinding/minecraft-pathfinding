@@ -36,7 +36,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     movements: MovementProvider<Data>,
     goal: Goal<Data>,
     timeout: number,
-    tickTimeout = 45,
+    tickTimeout = 40,
     searchRadius = -1,
     differential = 0
   ) {

@@ -1,7 +1,7 @@
 "use strict";
 const { createBot } = require("mineflayer");
 const { createPlugin, goals } = require("../dist");
-const { GoalBlock, GoalLookAt, GoalPlaceBlock } = goals;
+const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
@@ -136,6 +136,7 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 1;
       const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
+      const goal1 = GoalInvert.fromDyn(goal);
       await bot.pathfinder.goto(goal);
       break;
     }
