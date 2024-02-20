@@ -41,6 +41,10 @@ export class PartialPathProducer implements PathProducer {
     return this.lastAstarContext
   }
 
+  private getSliceLen (orgLen: number): number {
+    return Math.min(orgLen - 1, Math.floor(orgLen * 0.9))
+  }
+
   private handleAstarContext (foundPathLen: number, maxPathLen = this.maxPathLength): AStar | undefined {
     // if the path length is less than 50, return the previous astar context.
     // otherwise, return a new one.
@@ -64,7 +68,7 @@ export class PartialPathProducer implements PathProducer {
     }
 
     // const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
-    const ret = new AStar(start, moveHandler, this.goal, -1, 45, -1, 0)
+    const ret = new AStar(start, moveHandler, this.goal, -1, 40, -1, 0)
 
     // ret.closedDataSet = lastClosedSet
     return ret
@@ -74,9 +78,6 @@ export class PartialPathProducer implements PathProducer {
     if (this.lastAstarContext == null) this.lastAstarContext = this.generateAstarContext()
 
     const result = this.lastAstarContext.compute()
-
-    this.latestCost = this.latestCost + result.cost
-    console.info('Partial Path cost increased by', result.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
 
     if (result.status === 'noPath') {
       this.latestMoves.pop()
@@ -97,11 +98,16 @@ export class PartialPathProducer implements PathProducer {
 
     if (result.path.length > this.maxPathLength || result.status === 'success') {
       // const val = result.path.length - 1
-      const val = Math.ceil(result.path.length * 3 / 4) - 1
+      const val = this.getSliceLen(result.path.length)
       this.latestMove = result.path[val]
       const toTake = result.path.slice(0, val + 1)
       this.latestMoves.push(this.latestMove)
       this.lastPath = [...this.lastPath, ...toTake]
+
+      const cost = toTake.reduce((acc, move) => acc + move.cost, 0)
+
+      this.latestCost = this.latestCost + cost
+      console.info('Partial Path cost increased by', result.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
     }
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)

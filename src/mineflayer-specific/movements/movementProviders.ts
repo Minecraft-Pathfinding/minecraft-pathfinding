@@ -390,9 +390,10 @@ export class ParkourForward extends MovementProvider {
 
   // Jump up, down or forward over a 1 block gap
   getMoveParkourForward (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
-    if (!this.getBlockInfo(node, 0, 0, 0).physical) return // cant jump from water
-
     const block0 = this.getBlockInfo(node, 0, -1, 0)
+
+    if (!block0.physical) return // cant jump from water
+
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (
       (block1.physical && block1.height >= block0.height) ||

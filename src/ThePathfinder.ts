@@ -122,7 +122,7 @@ export class ThePathfinder {
   pathfinderSettings: PathfinderOptions
 
   private executeTask: Task<void, void> = Task.createDoneTask()
-  private wantedGoal: goals.Goal | null = null
+  private wantedGoal?: goals.Goal
   public abortCalculation = false
   private userAborted = false
 
@@ -259,7 +259,7 @@ export class ThePathfinder {
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
       // console.log(comparisonPoint, dx, dy, dz, pos)
-      if (dx <= 1 && dy <= 2 && dz <= 1) {
+      if (dx <= 2 && dy <= 4 && dz <= 2) {
         if (!all.has(pos.floored().toString())) return true
       }
     }
@@ -468,6 +468,7 @@ export class ThePathfinder {
       await this.cancel()
       await this.executeTask.promise
       if (this.wantedGoal !== goal) return
+      delete this.wantedGoal
     }
     this.executeTask = new Task()
 

@@ -1,5 +1,5 @@
 import { Goal, MovementProvider, Path as APath } from '../abstract'
-import { AStar as AAStar } from '../abstract/algorithms/astar'
+import { AStarBackOff as AAStarBackOff } from '../abstract/algorithms/astar'
 import { CPathNode } from '../abstract/node'
 import { Move } from './move'
 import { PathNode } from './node'
@@ -13,7 +13,7 @@ export interface PathProducer {
   advance: () => { result: Path, astarContext: AStar }
 }
 
-export class AStar extends AAStar<Move> {
+export class AStar extends AAStarBackOff<Move> {
   visitedChunks: Set<string>
 
   constructor (
@@ -21,7 +21,7 @@ export class AStar extends AAStar<Move> {
     movements: MovementProvider<Move>,
     goal: Goal<Move>,
     timeout: number,
-    tickTimeout = 45,
+    tickTimeout = 40,
     searchRadius = -1,
     differential = 0
   ) {

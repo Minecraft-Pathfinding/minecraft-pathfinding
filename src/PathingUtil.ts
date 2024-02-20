@@ -17,7 +17,7 @@ export class PathingUtil {
   public refresh (): void {
     this.items = this.bot.inventory.items()
     this.tools = this.items.filter(
-      (item) => item.name.includes('pickaxe') || item.name.includes('axe') || item.name.includes('shovel') || item.name.includes('hoe')
+      (item) => item.name.includes('pickaxe') || item.name.includes('axe') || item.name.includes('shovel') || item.name.includes('hoe') || item.name.includes('shears')
     )
     this.memoedDigSpeed = {}
     this.memoedBestTool = {}
@@ -37,6 +37,8 @@ export class PathingUtil {
 
     let fastest = Number.MAX_VALUE
     let bestTool = null as unknown as Item
+
+    // if (creative === false)
     for (const tool of availableTools) {
       const enchants = tool.nbt != null ? nbt.simplify(tool.nbt).Enchantments : []
       const digTime = block.digTime(tool.type, creative, false, false, enchants, effects)
@@ -46,6 +48,7 @@ export class PathingUtil {
       }
     }
 
+    // // default to no tools used in creative.
     if (fastest === Number.MAX_VALUE) {
       fastest = block.digTime(null, creative, false, false, [], effects)
     }

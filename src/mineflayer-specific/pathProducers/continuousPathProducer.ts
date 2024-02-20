@@ -35,7 +35,7 @@ export class ContinuousPathProducer implements PathProducer {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
       moveHandler.loadGoal(this.goal)
 
-      this.astarContext = new AStar(this.start, moveHandler, this.goal, 30000, 40, -1, 0)
+      this.astarContext = new AStar(this.start, moveHandler, this.goal, -1, 40, -1, 0)
     }
 
     const result = this.astarContext.compute()
