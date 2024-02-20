@@ -136,7 +136,7 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 1;
       const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
-      const goal1 = GoalInvert.fromDyn(goal);
+      const goal1 = GoalInvert.from(goal);
       await bot.pathfinder.goto(goal);
       break;
     }

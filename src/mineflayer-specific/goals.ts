@@ -46,7 +46,64 @@ export abstract class GoalDynamic<
   }
 }
 
-export class GoalInvert<Et extends EasyKeys = [], Val extends EasyKeys = []> extends GoalDynamic<Et, Val> {
+/**
+ * Utility typing provided for TypeScript users.
+ * Can track what type of goal is being used if using the static `from` method.
+ */
+export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic<any, any> {
+  public readonly goal: G
+
+  public get eventKeys (): ReadonlyArray<keyof BotEvents> {
+    if (!this.dynamic) return []
+
+    return (this.goal as GoalDynamic).eventKeys
+  }
+
+  public get validKeys (): ReadonlyArray<keyof BotEvents> {
+    if (!this.dynamic) return []
+
+    return (this.goal as GoalDynamic).validKeys
+  }
+
+  constructor (goal: G) {
+    super()
+    this.goal = goal
+    this.dynamic = goal instanceof GoalDynamic ? goal.dynamic : false
+  }
+
+  static from<G1 extends Goal>(goal: G1): GoalInvert<G1> {
+    return new GoalInvert(goal)
+  }
+
+  hasChanged (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    if (!this.dynamic) return false
+    return (this.goal as GoalDynamic).hasChanged(...args)
+  }
+
+  isValid (...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+    if (!this.dynamic) return false
+    return (this.goal as GoalDynamic).isValid(...args)
+  }
+
+  update (): void {
+    if (!this.dynamic) return;
+    (this.goal as GoalDynamic).update()
+  }
+
+  isEnd (node: Move): boolean {
+    return !this.goal.isEnd(node)
+  }
+
+  heuristic (node: Move): number {
+    return -this.goal.heuristic(node)
+  }
+}
+
+/**
+ * Classic gen fuckery.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+class GoalInvertOld<Et extends EasyKeys = [], Val extends EasyKeys = []> extends GoalDynamic<Et, Val> {
   eventKeys = [] as unknown as Et
   validKeys = [] as unknown as Val // to be set later.
 
@@ -62,16 +119,16 @@ export class GoalInvert<Et extends EasyKeys = [], Val extends EasyKeys = []> ext
     }
   }
 
-  static from (goal: Goal): GoalInvert {
-    return new GoalInvert(goal)
+  static from (goal: Goal): GoalInvertOld {
+    return new GoalInvertOld(goal)
   }
 
   static fromDyn<
     G extends GoalDynamic,
     K0 extends EasyKeys = G extends GoalDynamic<infer K extends EasyKeys> ? K : never,
     K1 extends EasyKeys = G extends GoalDynamic<any, infer V extends EasyKeys> ? V : never
-  >(goal: GoalDynamic<K0, K1>): GoalInvert<K0, K1> {
-    return new GoalInvert(goal)
+  >(goal: GoalDynamic<K0, K1>): GoalInvertOld<K0, K1> {
+    return new GoalInvertOld(goal)
   }
 
   isEnd (node: Move): boolean {
