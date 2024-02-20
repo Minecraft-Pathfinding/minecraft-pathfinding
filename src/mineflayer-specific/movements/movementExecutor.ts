@@ -131,7 +131,7 @@ export abstract class MovementExecutor extends Movement {
     })
 
     // console.log('aborted all', performance.now() - start)
- 
+
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
     if (this.aborted) throw new AbortError('Movement aborted.')
   }
