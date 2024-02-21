@@ -195,10 +195,9 @@ export class ThePathfinder {
           break
       }
     }
-
+    this.resetReason = reasonStr
     await this.currentExecutor.abort(this.currentMove, { timeout, reason })
 
-    console.trace('tried cancel frfr')
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
@@ -214,7 +213,7 @@ export class ThePathfinder {
 
       // console.log('checking', oldblock.position, newBlock.type)
       if (this.isPositionNearPath(oldblock.position, this.currentExecutingPath) && oldblock.type !== newBlock.type) {
-        console.log('hi', oldblock.type, newBlock.type)
+        // console.log('hi', oldblock.type, newBlock.type)
         void this.reset('blockUpdate')
       }
     })
@@ -452,9 +451,8 @@ export class ThePathfinder {
 
     yield { result, astarContext }
 
-    while (result.status === 'partial') {
+    while (result.status === 'partial' || result.status === 'partialSuccess') {
       if (this.abortCalculation) {
-        console.log('cancelling!')
         cleanup()
         return null
       }
@@ -546,9 +544,6 @@ export class ThePathfinder {
     }
 
     do {
-      // necessary evil.
-      // Allows goals to be immediately cancelled if they are no longer valid.
-
       do {
         setupWait()
 
@@ -559,12 +554,12 @@ export class ThePathfinder {
             const newPath = await this.postProcess(res.result)
             await this.perform(newPath, goal)
 
-            if (performOpts.errorOnReset != null && performOpts.errorOnReset && this.resetReason != null) {
-              throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
-            }
-
             if (performOpts.errorOnAbort != null && performOpts.errorOnAbort && this.abortCalculation) {
               throw new Error('Goto: Goal was canceled.')
+            }
+
+            if (performOpts.errorOnReset != null && performOpts.errorOnReset && this.resetReason != null) {
+              throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
             }
 
             if (this.resetReason == null) {
@@ -591,7 +586,7 @@ export class ThePathfinder {
       // eslint-disable-next-line no-unmodified-loop-condition
     } while (doForever && !this.userAborted)
 
-    console.log('sup gang!!1', doForever, this.userAborted, performance.now())
+    // console.log('sup gang!!1', doForever, this.userAborted, performance.now())
 
     manualCleanup()
     await this.cleanupAll(goal, this.currentExecutor)
@@ -699,15 +694,11 @@ export class ThePathfinder {
       } catch (err) {
         // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
-          console.log('hi, aborted')
           executor.reset()
           delete this.resetReason
           return
         } else if (err instanceof ResetError) {
-          this.resetReason = err.reason
           executor.reset()
-
-          console.log('fuck', err.reason)
           return
         } else if (err instanceof CancelError) {
           // allow recovery if movement intentionall canceled.
@@ -721,7 +712,8 @@ export class ThePathfinder {
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     this.bot.emit('enteredRecovery', entry)
-    await this.cleanupAll(goal)
+    await this.cleanupBot()
+    this.cleanupClient()
 
     const ind = path.path.indexOf(move)
     if (ind === -1) {
@@ -801,12 +793,14 @@ export class ThePathfinder {
     this.world.clearCache()
 
     console.log('CLEANUP CALLED')
+
+    if (this.userAborted) this.bot.emit('goalAborted', goal)
+    else this.bot.emit('goalFinished', goal)
+
     this.abortCalculation = false
     this.userAborted = false
     this.executeTask.finish()
 
     this.cleanupClient()
-
-    this.bot.emit('goalFinished', goal)
   }
 }

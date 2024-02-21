@@ -1,4 +1,5 @@
 import { Goal, MovementProvider, Path, Algorithm } from '../'
+import { PathStatus } from '../../types'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
 import { CPathNode, PathData, PathNode } from '../node'
@@ -77,7 +78,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
 
   // for debugging.
   private lastAmt: number = 0
-  makeResult (status: string, node: PathNode<Data>): Path<Data, AStar<Data>> {
+  makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, AStar<Data>> {
     console.log(
       status,
       // this.goal,

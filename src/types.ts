@@ -5,6 +5,8 @@ export interface Vec3Properties {
   z: number
 }
 
+export type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess'
+
 export type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
 
 export type BlockType = ReturnType<typeof import('prismarine-block')>

@@ -1,3 +1,4 @@
+import { PathStatus } from '../types'
 import { PathData, PathNode } from './node'
 
 export interface Goal<Data> {
@@ -8,11 +9,11 @@ export interface Goal<Data> {
 export interface Algorithm<Data extends PathData = PathData> {
   movementProvider: MovementProvider<Data>
   compute: () => Path<Data, Algorithm<Data>> | null
-  makeResult: (status: string, node: PathNode<Data>) => Path<Data, Algorithm<Data>>
+  makeResult: (status: PathStatus, node: PathNode<Data>) => Path<Data, Algorithm<Data>>
 }
 
 export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
-  status: string // 'noPath' | 'timeout' | 'partial' | 'success'
+  status: PathStatus
   cost: number
   calcTime: number
   visitedNodes: number

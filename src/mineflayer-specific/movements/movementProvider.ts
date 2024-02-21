@@ -48,12 +48,6 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-    // pos = {
-    //   x: Math.floor(pos.x),
-    //   y: Math.floor(pos.y),
-    //   z: Math.floor(pos.z)
-    // }
-
     const yes = new Vec3(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
     let move: Move | undefined = this.currentMove
 

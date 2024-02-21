@@ -33,6 +33,7 @@ declare module 'mineflayer' {
     exitedRecovery: (errorCount: number) => void
     goalSet: (goal: goals.Goal) => void
     goalFinished: (goal: goals.Goal) => void
+    goalAborted: (goal: goals.Goal) => void
   }
 }
 

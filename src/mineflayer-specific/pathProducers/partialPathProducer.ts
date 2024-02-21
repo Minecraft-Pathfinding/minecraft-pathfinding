@@ -79,6 +79,8 @@ export class PartialPathProducer implements PathProducer {
 
     const result = this.lastAstarContext.compute()
 
+    let status = result.status
+
     if (result.status === 'noPath') {
       this.latestMoves.pop()
 
@@ -88,6 +90,7 @@ export class PartialPathProducer implements PathProducer {
         return {
           result: {
             ...result,
+            status,
             cost: this.latestCost,
             path: this.lastPath
           },
@@ -97,6 +100,8 @@ export class PartialPathProducer implements PathProducer {
     }
 
     if (result.path.length > this.maxPathLength || result.status === 'success') {
+      status = status === 'success' ? 'success' : 'partialSuccess'
+
       // const val = result.path.length - 1
       const val = this.getSliceLen(result.path.length)
       this.latestMove = result.path[val]
@@ -107,13 +112,14 @@ export class PartialPathProducer implements PathProducer {
       const cost = toTake.reduce((acc, move) => acc + move.cost, 0)
 
       this.latestCost = this.latestCost + cost
-      console.info('Partial Path cost increased by', result.cost, 'to', this.latestCost, 'total', this.latestMove?.vec, 'pos')
+      console.info('Partial Path cost increased by', cost, 'to', this.latestCost, 'total', this.latestMove?.vec)
     }
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
     const ret = {
       result: {
         ...result,
+        status,
         cost: this.latestCost,
         path: this.lastPath
       },

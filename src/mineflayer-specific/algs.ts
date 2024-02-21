@@ -1,6 +1,7 @@
 import { Goal, MovementProvider, Path as APath } from '../abstract'
 import { AStarBackOff as AAStarBackOff } from '../abstract/algorithms/astar'
 import { CPathNode } from '../abstract/node'
+import { PathStatus } from '../types'
 import { Move } from './move'
 import { PathNode } from './node'
 
@@ -49,7 +50,7 @@ export class AStar extends AAStarBackOff<Move> {
 }
 
 export class AStarNeighbor extends AStar {
-  makeResult (status: string, node: PathNode): Path {
+  makeResult (status: PathStatus, node: PathNode): Path {
     return {
       ...super.makeResult(status, node),
       context: this

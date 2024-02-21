@@ -421,6 +421,12 @@ export class ParkourForward extends MovementProvider {
       const dx = dir.x * d
       const dz = dir.z * d
 
+      const flag0 = !closed.has(`${node.x + dx},${node.y - 1},${node.z + dz}`)
+      const flag1 = !closed.has(`${node.x + dx},${node.y},${node.z + dz}`)
+      const flag2 = !closed.has(`${node.x + dx},${node.y + 1},${node.z + dz}`)
+
+      if (!flag0 && !flag1 && !flag2) return
+
       const blockA = this.getBlockInfo(node, dx, 2, dz)
       const blockB = this.getBlockInfo(node, dx, 1, dz)
       const blockC = this.getBlockInfo(node, dx, 0, dz)
@@ -430,37 +436,28 @@ export class ParkourForward extends MovementProvider {
 
       // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
 
-      if ((ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
-        const off = blockD.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
-
+      if (flag0 && (ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)
-        if (blockE.physical) {
+        if (blockE.physical) { // TODO: support jumping into liquid.
           // cost += this.exclusionStep(blockD)
           // cost += this.getNumEntitiesAt(blockD.position, 0, 0, 0) * this.entityCost
           neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
           // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
         }
         floorCleared = floorCleared && !blockE.physical
-      } else if (ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
+      } else if (flag1 && ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
         if (d === 5) continue
         const cost1 = cost + 3 // potential slowdown (will fix later.)
         // cost += this.exclusionStep(blockB)
         // Forward
 
-        const off = blockC.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
-
         neighbors.push(Move.fromPrevious(cost1, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break
-      } else if (ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
+      } else if (flag2 && ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
         // Up
         if (d === 5) continue
-
-        const off = blockB.position
-        if (closed.has(`${off.x},${off.y},${off.z}`)) continue
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         // cost += this.exclusionStep(blockA)
