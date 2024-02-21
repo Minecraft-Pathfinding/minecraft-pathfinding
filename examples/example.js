@@ -5,8 +5,7 @@ const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
-const { GoalMineBlock, GoalFollowEntity } = require("../dist/mineflayer-specific/goals");
-
+const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
 
 const bot = createBot({
   username: "testing1",
@@ -66,6 +65,12 @@ bot.once("spawn", async () => {
 
   bot.pathfinder.setPathfinderOptions({
     partialPathProducer: true
+  })
+
+
+  bot.on('goalFinished', (goal) => {
+    console.log('goal finished', goal)
+    bot.chat('goal finished')
   })
   // bot.physics.yawSpeed = 3;
   // bot.physics.pitchSpeed = 3
@@ -136,8 +141,27 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 1;
       const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
-      const goal1 = GoalInvert.from(goal);
       await bot.pathfinder.goto(goal);
+      break;
+    }
+
+    case "avoidme": {
+      if (!author) return bot.whisper(username, "failed to find player");
+      const dist = parseInt(args[0]) || 5;
+      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
+      const goal1 = GoalInvert.from(goal)
+      console.log(goal1)
+      await bot.pathfinder.goto(goal1);
+      break;
+    }
+
+    case "boundaryme": {
+      if (!author) return bot.whisper(username, "failed to find player");
+      const dist = parseInt(args[0]) || 5;
+      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
+      const goal1 = GoalInvert.from(GoalFollowEntity.fromEntity(author, dist - 1, {neverfinish: true}))
+     
+      await bot.pathfinder.goto(new GoalCompositeAll(goal, goal1));
       break;
     }
 

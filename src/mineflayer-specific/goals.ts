@@ -69,6 +69,7 @@ export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic
     super()
     this.goal = goal
     this.dynamic = goal instanceof GoalDynamic ? goal.dynamic : false
+    this.neverfinish = goal instanceof GoalDynamic ? goal.neverfinish : false
   }
 
   static from<G1 extends Goal>(goal: G1): GoalInvert<G1> {
@@ -77,6 +78,7 @@ export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic
 
   hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     if (!this.dynamic) return false
+    // console.log('check change', (this.goal as GoalDynamic).hasChanged(event, ...args), this.goal)
     return (this.goal as GoalDynamic).hasChanged(event, ...args)
   }
 
@@ -99,62 +101,7 @@ export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic
   }
 }
 
-/**
- * Classic gen fuckery.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-class GoalInvertOld<Et extends EasyKeys = [], Val extends EasyKeys = []> extends GoalDynamic<Et, Val> {
-  eventKeys = [] as unknown as Et
-  validKeys = [] as unknown as Val // to be set later.
-
-  isDynamic = false
-
-  private constructor (private readonly goal: Goal) {
-    super()
-
-    if (goal instanceof GoalDynamic) {
-      this.eventKeys = goal._eventKeys
-      this.validKeys = goal._validKeys
-      this.isDynamic = true
-    }
-  }
-
-  static from (goal: Goal): GoalInvertOld {
-    return new GoalInvertOld(goal)
-  }
-
-  static fromDyn<
-    G extends GoalDynamic,
-    K0 extends EasyKeys = G extends GoalDynamic<infer K extends EasyKeys> ? K : never,
-    K1 extends EasyKeys = G extends GoalDynamic<any, infer V extends EasyKeys> ? V : never
-  >(goal: GoalDynamic<K0, K1>): GoalInvertOld<K0, K1> {
-    return new GoalInvertOld(goal)
-  }
-
-  isEnd (node: Move): boolean {
-    return !this.goal.isEnd(node)
-  }
-
-  heuristic (node: Move): number {
-    return -this.goal.heuristic(node)
-  }
-
-  hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
-    if (!this.isDynamic) return false
-    return (this.goal as GoalDynamic).hasChanged(event, ...args)
-  }
-
-  isValid (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
-    if (!this.isDynamic) return false
-    return (this.goal as GoalDynamic).isValid(event, ...args)
-  }
-
-  update (): void {
-    if (this.goal instanceof GoalDynamic) this.goal.update()
-  }
-}
-
-export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynamic<any, any> {
+export abstract class GoalComposite<Gls extends readonly Goal[]> extends GoalDynamic<any, any> {
   public get eventKeys (): ReadonlyArray<keyof BotEvents> {
     return [...this.dGEventMap.keys()]
   }
@@ -163,15 +110,20 @@ export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynam
     return [...this.dGValidMap.keys()]
   }
 
-  private readonly dynGoals: GoalDynamic[] = []
-  private readonly dGEventMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
-  private readonly dGValidMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
+  protected readonly dynGoals: GoalDynamic[] = []
+  protected readonly dGEventMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
+  protected readonly dGValidMap: Map<keyof BotEvents, GoalDynamic[]> = new Map()
 
-  constructor (private readonly goals: Goals) {
+  protected readonly goals: Gls
+  constructor (...goals: Gls) {
     // runtime enforcement.
     if (goals.length === 0) throw new Error('GoalCompositeAny: Goals array cannot be empty.')
     super()
 
+    this.dynamic = goals.some(g => g instanceof GoalDynamic && g.dynamic)
+    this.neverfinish = goals.some(g => g instanceof GoalDynamic && g.neverfinish)
+
+    this.goals = goals
     for (const goal of goals) {
       if (goal instanceof GoalDynamic) {
         this.dynGoals.push(goal)
@@ -190,22 +142,6 @@ export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynam
     }
   }
 
-  isEnd (node: Move): boolean {
-    for (const goal of this.goals) {
-      if (goal.isEnd(node)) return true
-    }
-    return false
-  }
-
-  heuristic (node: Move): number {
-    let ret = Number.MAX_VALUE
-    for (const goal of this.goals) {
-      const h = goal.heuristic(node)
-      if (h < ret) ret = h
-    }
-    return ret
-  }
-
   hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     const goals = this.dGEventMap.get(event)
     if (goals == null) return false
@@ -215,7 +151,7 @@ export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynam
     return false
   }
 
-  isValid (event: any, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
+  isValid (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     const goals = this.dGValidMap.get(event)
     if (goals == null) return false
     for (const goal of goals) {
@@ -231,6 +167,50 @@ export class GoalCompositeAny<Goals extends [Goal, ...Goal[]]> extends GoalDynam
   }
 }
 
+export class GoalCompositeAny<Gls extends readonly Goal[]> extends GoalComposite<Gls> {
+  static from<G extends readonly Goal[]>(...goals: G): GoalCompositeAny<G> {
+    return new GoalCompositeAny(...goals)
+  }
+
+  isEnd (node: Move): boolean {
+    for (const goal of this.goals) {
+      if (goal.isEnd(node)) return true
+    }
+    return false
+  }
+
+  heuristic (node: Move): number {
+    let ret = Number.MAX_VALUE
+    for (const goal of this.goals) {
+      const h = goal.heuristic(node)
+      if (h < ret) ret = h
+    }
+    return ret
+  }
+}
+
+export class GoalCompositeAll<Gls extends readonly Goal[]> extends GoalComposite<Gls> {
+  static from<G extends readonly Goal[]>(...goals: G): GoalCompositeAll<G> {
+    return new GoalCompositeAll(...goals)
+  }
+
+  isEnd (node: Move): boolean {
+    for (const goal of this.goals) {
+      if (!goal.isEnd(node)) return false
+    }
+    return true
+  }
+
+  heuristic (node: Move): number {
+    let ret = 0
+    for (const goal of this.goals) {
+      const h = goal.heuristic(node)
+      if (h > ret) ret = h
+    }
+    return ret
+  }
+}
+
 /**
  * A goal to be directly at a specific coordinate.
  */
@@ -242,6 +222,11 @@ export class GoalBlock extends Goal {
     super()
   }
 
+  /**
+   *
+   * @param vec
+   * @returns {GoalBlock}
+   */
   static fromVec (vec: Vec3): GoalBlock {
     return new GoalBlock(vec.x, vec.y, vec.z)
   }
@@ -499,7 +484,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     const dy = this.y - node.y
     const dz = this.z - node.z
 
-    return dx * dx + dy * dy + dz * dz <= this.sqDist
+    return Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) <= this.sqDist
   }
 
   heuristic (node: Move): number {
@@ -516,7 +501,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     const dy = this.y - this.refVec.y
     const dz = this.z - this.refVec.z
 
-    const ret = Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) > this.sqDist
+    const ret = Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) > 1
     if (ret) {
       this.update()
     }
