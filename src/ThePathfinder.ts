@@ -354,62 +354,69 @@ export class ThePathfinder {
     return amt
   }
 
-  private registerValidation (goal: goals.GoalDynamic, cleanup = () => {}): () => void {
-    const old = cleanup
-    const refGoal = goal
-    const bounded = refGoal.isValid.bind(refGoal)
-    const fuck: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
-    for (const key of refGoal._validKeys) {
+  private registerAll (
+    goal: goals.GoalDynamic,
+    opts: { onHasUpdate?: () => void, onInvalid?: () => void, onCleanup?: () => void, forAll?: () => void }
+  ): () => void {
+    const boundEvent = goal.hasChanged.bind(goal)
+    const boundValid = goal.isValid.bind(goal)
+
+    const fuckEvent: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
+    const fuckValid: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
+
+    const newOnHasUpdate = (): void => {
+      if (opts.onHasUpdate != null) opts.onHasUpdate()
+      if (opts.forAll != null) opts.forAll()
+      for (const [key, val] of fuckEvent) {
+        this.bot.off(key, val)
+      }
+
+      // clear other listeners as well.
+      for (const [key, val] of fuckValid) {
+        this.bot.off(key, val)
+      }
+    }
+    const newOnInvalid = (): void => {
+      if (opts.onInvalid != null) opts.onInvalid()
+      if (opts.forAll != null) opts.forAll()
+      for (const [key, val] of fuckValid) {
+        this.bot.off(key, val)
+      }
+
+      // clear other listeners as well.
+      for (const [key, val] of fuckEvent) {
+        this.bot.off(key, val)
+      }
+    }
+
+    const cleanup = (): void => {
+      if (opts.onCleanup != null) opts.onCleanup()
+      if (opts.forAll != null) opts.forAll()
+      for (const [key, val] of fuckValid) {
+        this.bot.off(key, val)
+      }
+
+      for (const [key, val] of fuckEvent) {
+        this.bot.off(key, val)
+      }
+    }
+
+    for (const key of goal._eventKeys) {
       const listener = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        console.log('hey', performance.now())
-        if (this.userAborted || bounded(key, ...args)) {
-          console.log('fuck')
-          cleanup()
-          for (const key of refGoal._validKeys) this.bot.off(key, listener)
-          void this.cancel()
-        }
+        if (this.userAborted) return cleanup()
+        if (boundEvent(key, ...args)) newOnHasUpdate()
       }
       this.bot.on(key, listener)
-      fuck.push([key, listener])
+      fuckEvent.push([key, listener])
     }
 
-    cleanup = () => {
-      console.log('ypo')
-      old()
-      console.log('valids', fuck)
-      for (const [key, val] of fuck) {
-        this.bot.off(key, val)
+    for (const key of goal._validKeys) {
+      const listener1 = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
+        if (this.userAborted) return cleanup()
+        if (boundValid(key, ...args)) newOnInvalid()
       }
-    }
-
-    return cleanup
-  }
-
-  private registerEvents (goal: goals.GoalDynamic, cleanup = () => {}): () => void {
-    const old = cleanup
-    const fuck: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
-    for (const key of goal._eventKeys) {
-      const list1 = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        const bounded = goal.hasChanged.bind(goal)
-        const ret = bounded(key, ...args)
-        console.log('HIHIHIHIHI')
-        if (ret) {
-          console.log('sup hetere')
-          cleanup()
-          void this.reset('goalUpdated')
-        }
-      }
-      fuck.push([key, list1])
-      this.bot.on(key, list1)
-    }
-
-    cleanup = () => {
-      old()
-
-      for (const [key, val] of fuck) {
-        console.log('cleaning up', key, val)
-        this.bot.off(key, val)
-      }
+      this.bot.on(key, listener1)
+      fuckValid.push([key, listener1])
     }
 
     return cleanup
@@ -508,50 +515,43 @@ export class ThePathfinder {
       if (this.wantedGoal !== goal) return
       delete this.wantedGoal
     }
+
+    this.cleanupClient()
     this.executeTask = new Task()
-
     this.currentGotoGoal = goal
-
     this.bot.emit('goalSet', goal)
-
-    let cleanup = (): void => {}
 
     const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
 
-    do {
-      let checkNow = false
-      let toWaitOn = Promise.resolve()
-      let manualRes = (): void => {}
+    let toWaitOn = Promise.resolve()
+    let manualCleanup = (): void => {}
 
-      // necessary evil.
-      // Allows goals to be immediately cancelled if they are no longer valid.
+    const setupWait = (): void => {
       if (goal instanceof goals.GoalDynamic && goal.dynamic) {
-        toWaitOn = new Promise<void>((resolve, reject) => {
-          const bounded = goal.hasChanged.bind(goal)
-          const fuck: any[] = []
-          for (const key of goal._eventKeys) {
-            const listener = (...args: any[]): void => {
-              if (!checkNow) return
-              if (this.userAborted || bounded(key, ...args)) {
-                for (const key of goal._eventKeys) this.bot.off(key, listener)
-                manualRes()
-              }
+        toWaitOn = new Promise((resolve) => {
+          manualCleanup = this.registerAll(goal, {
+            onHasUpdate: () => {
+              void this.reset('goalUpdated')
+            },
+            onInvalid: () => {
+              void this.cancel()
+            },
+            forAll: () => {
+              console.log('cleaned up')
+              resolve()
             }
-            fuck.push([key, listener])
-            this.bot.on(key, listener)
-          }
-
-          manualRes = () => {
-            for (const [key, val] of fuck) {
-              this.bot.off(key, val)
-            }
-            resolve()
-          }
-          cleanup = this.registerValidation(goal, manualRes)
+          })
         })
       }
+    }
+
+    do {
+      // necessary evil.
+      // Allows goals to be immediately cancelled if they are no longer valid.
 
       do {
+        setupWait()
+
         for await (const res of this.getPathTo(goal)) {
           if (res.result.status !== 'success') {
             if (res.result.status === 'noPath' || res.result.status === 'timeout') break
@@ -559,33 +559,33 @@ export class ThePathfinder {
             const newPath = await this.postProcess(res.result)
             await this.perform(newPath, goal)
 
-            if (performOpts.errorOnReset != null && this.resetReason != null) {
+            if (performOpts.errorOnReset != null && performOpts.errorOnReset && this.resetReason != null) {
               throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
             }
 
-            if (performOpts.errorOnAbort != null && this.abortCalculation) {
-              throw new Error('Goto: Purposefully cancelled by user.')
+            if (performOpts.errorOnAbort != null && performOpts.errorOnAbort && this.abortCalculation) {
+              throw new Error('Goto: Goal was canceled.')
             }
 
             if (this.resetReason == null) {
               console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
+              await this.cleanupBot()
+              manualCleanup()
+              setupWait()
               break
             }
 
             console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
             await this.cleanupBot()
+            manualCleanup()
           }
         }
       } while (this.resetReason != null && !this.abortCalculation && !this.userAborted)
 
       await this.cleanupBot()
       if (doForever) {
-        if (this.resetReason != null || this.userAborted) {
-          cleanup()
-        } else {
-          checkNow = true
+        if (this.resetReason == null && !this.userAborted) {
           await toWaitOn
-          cleanup()
         }
       }
       // eslint-disable-next-line no-unmodified-loop-condition
@@ -593,7 +593,7 @@ export class ThePathfinder {
 
     console.log('sup gang!!1', doForever, this.userAborted, performance.now())
 
-    cleanup()
+    manualCleanup()
     await this.cleanupAll(goal, this.currentExecutor)
   }
 
@@ -721,7 +721,7 @@ export class ThePathfinder {
   // TODO: implement recovery for any movement and goal.
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     this.bot.emit('enteredRecovery', entry)
-    await this.cleanupBot()
+    await this.cleanupAll(goal)
 
     const ind = path.path.indexOf(move)
     if (ind === -1) {
@@ -777,6 +777,18 @@ export class ThePathfinder {
     // await this.bot.waitForTicks(1);
   }
 
+  cleanupClient (): void {
+    this.abortCalculation = false
+    this.userAborted = false
+
+    delete this.resetReason
+
+    delete this.currentGotoGoal
+    delete this.currentExecutingPath
+    delete this.currentMove
+    delete this.currentExecutor
+  }
+
   async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
       goal.cleanup?.()
@@ -793,12 +805,7 @@ export class ThePathfinder {
     this.userAborted = false
     this.executeTask.finish()
 
-    delete this.resetReason
-
-    delete this.currentGotoGoal
-    delete this.currentExecutingPath
-    delete this.currentMove
-    delete this.currentExecutor
+    this.cleanupClient()
 
     this.bot.emit('goalFinished', goal)
   }
