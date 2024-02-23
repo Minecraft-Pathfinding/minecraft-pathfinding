@@ -18,6 +18,11 @@
   - [GoalNearXZ](#goalnearxz)
   - [GoalLookAt](#goallookat)
   - [GoalMineBlock](#goalmineblock)
+  - [GoalPlaceBlock](#goalplaceblock)
+  - [GoalFollow](#goalfollow)
+  - [GoalInvert](#goalinvert)
+  - [GoalCompositeAny](#goalcompositeany)
+  - [GoalCompositeAll](#goalcompositeall)
 - [Settings](#settings)
 - [Events](#events)
   - [pathGenerated](#pathGenerated)
@@ -72,7 +77,7 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 | `Alg` | `Algorithm<Data>` | The algorithm type of the path. |
 
 
-<h4>Elements</h4>
+<h4>Properties</h4>
 
 | Property | Type | Description |
 | --- | --- | --- |
@@ -86,33 +91,38 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 | `context` | `Alg` | The algorithm context. |
 
 
-<h4>ResetReason</h4>
-
-```ts
-type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
-```
-
-The reason the path was reset. String value.
-
-| Value | Description |
-| --- | --- |
-| `blockUpdate` | A block update was detected. |
-| `goalUpdated` | The goal was updated. |
-| `chunkLoad` | A chunk was unloaded. |
-
-
-
 
 <h2 align="center">Mineflayer-Specific</h2>
 
 
 <h3>Path</h3>
 
+```ts
+interface Path extends APath<Move, AStar> {}
+```
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `status` | [PathStatus](#pathStatus) | The status of the path. |
+| `cost` | `number` | The cost of the path. |
+| `calcTime` | `number` | The time it took to calculate the path. |
+| `visitedNodes` | `number` | The number of nodes visited. |
+| `generatedNodes` | `number` | The number of nodes generated. |
+| `movementProvider` | `MovementProvider<Move>` | The movement provider. |
+| `path` | `Move[]` | The path. |
+| `context` | `AStar<Move>` | The astar context. |
+
+
+
 
 
 <h3>PathStatus</h3>
 
-The status of a path. String value.
+```ts
+type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess'
+```
+
+The status of a path.
 
 | Value | Description |
 | --- | --- |
@@ -124,6 +134,13 @@ The status of a path. String value.
 
 
 <h3>PathGenerator</h3>
+
+```ts
+interface PathGeneratorResult {
+  result: PathInfo
+  astarContext: AAStar<Move>
+}
+```
 
 An async generator that generates partial paths until a successful path is found, or no path is found.
 
@@ -142,12 +159,31 @@ The result of a path generator.
 | `astarContext` | AStar<Move> | The astar context. |
 
 
+<h3>ResetReason</h3>
+
+```ts
+type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
+```
+
+The reason the path was reset. String value.
+
+| Value | Description |
+| --- | --- |
+| `blockUpdate` | A block update was detected. |
+| `goalUpdated` | The goal was updated. |
+| `chunkLoad` | A chunk was unloaded. |
+
+
+
 
 
 
 <h1 align="center">Goals</h1>
 
 <h3>GoalBlock</h3>
+
+`dynamic?:` No.
+`automatically finishes?:` Yes.
 
 This goal will have the bot stand on top of the block chosen.
 
@@ -173,6 +209,9 @@ GoalBlock.fromVec(new Vec3(0, 0, 0))
 
 
 <h3>GoalNear</h3>
+
+`dynamic?:` No.
+`automatically finishes?:` Yes.
 
 This goal will have the bot approach the coordinates chosen, and finish when within a given radius.
 
@@ -225,6 +264,9 @@ GoalNearXZ.fromVec(new Vec3(0, 0, 0), 4)
 
 <h3>GoalLookAt</h3>
 
+`dynamic?:` No.
+`automatically finishes?:` Yes.
+
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, and finally look at the coordinates chosen.
 
 <h4>Constructor</h4>
@@ -257,6 +299,9 @@ GoalLookAt.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 
 <h3>GoalMineBlock</h3>
 
+`dynamic?:` No.
+`automatically finishes?:` Yes.
+
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally break the block.
 
 <h4>Constructor</h4>
@@ -279,42 +324,103 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 GoalMineBlock.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 ```
 
+ <h3>GoalPlaceBlock</h3>
+
+ `dynamic?:` No.
+`automatically finishes?:` Yes.
+
+This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally place the block.
+
+
+<h4>Constructor</h4>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| world | World | The world the block is in. |
+| bPos | Vec3 | The position of the block. |
+| item | Item | The item to place. |
+| distance | number | The distance to the block. |
+| height | number | The height of the block. |
+
+<h4>Methods</h4>
+
+▸ **fromInfo(`world: World`, `bPos: Vec3`, `item: Item`, `distance?: number`, `height?: number`): `GoalPlaceBlock`**
+
+<h4>Example</h4>
+
+```ts
+GoalPlaceBlock.fromInfo(bot.world, new Vec3(0,0,0), bot.inventory.items()[0])
+```
+
+
+<h3>GoalFollow</h3>
+
+`dynamic?:` Yes.
+`automatically finishes?:` No. (customizable)
+
+This goal will have the bot follow the entity chosen.
+
+<h4>Constructor</h4>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| entity | Entity | The entity to follow. |
+| range | number | The range to follow the entity. |
+| opts | GoalDynamicOpts | The options for the goal. |
+
+
+
 
 <h1 align="center">Settings</h1>
 
 These are the currently available settings.
 
+
 | Property | Type | Description | Default |
 | --- | --- | --- | --- |
-| `forceLook` | `boolean` | Whether or not the pathfinder uses `force` in `bot.lookAt`. | `true` |
-| `jumpCost` | `number` | Heuristic cost for jumping. | `0.5` |
-| `placeCost` | `number` | Heuristic cost for placing. | `2` |
-| `canOpenDoors` | `boolean` | Not used yet. | `true` |
+| `allowDiagonalBridging` | `boolean` | Whether or not to allow diagonal bridging. | `true` |
+| `allowJumpSprint` | `boolean` | Whether or not to allow jump sprinting. | `true` |
+| `allow1by1towers` | `boolean` | Whether or not to allow 1x1 towers. | `true` |
+| `liquidCost` | `number` | The cost of moving through liquid. | `3` |
+| `digCost` | `number` | The cost of digging. | `1` |
+| `forceLook` | `boolean` | Whether or not to force the bot to look at the goal. | `true` |
+| `jumpCost` | `number` | The cost of jumping. | `0.5` |
+| `placeCost` | `number` | The cost of placing a block. | `2` |
+| `velocityKillCost` | `number` | The cost of being killed by velocity. | `2` |
+| `canOpenDoors` | `boolean` | Whether or not the bot can open doors. | `true` |
 | `canDig` | `boolean` | Whether or not the bot can dig. | `true` |
-| `dontCreateFlow` | `boolean` | Care about liquid flowing when breaking blocks (keep this on). | `true` |
-| `dontMineUnderFallingBlock` | `boolean` | Don't mine a block that could cause gravity-affected blocks to fall (keep this on). | `true` |
-| `allow1by1towers` | `boolean` | Allow 1 by 1 towers. Keep it on, no issue with it not being on. | `true` |
-| `maxDropDown` | `number` | Max continuous dropdown. | `3` |
-| `infiniteLiquidDropdownDistance` | `boolean` | Dropdown distance is infinite if it finds a liquid at the bottom. | `true` |
-| `allowSprinting` | `boolean` | Allow sprinting. | `true` |
-| `careAboutLookAlignment` | `boolean` | With this off, moves can be started without having the proper look vector established. With `forceLook` on, this means nothing. With `forceLook` off, movements may become unreliable in exchange for faster execution while still being compliant with anticheats. | `true` |
+| `canPlace` | `boolean` | Whether or not the bot can place blocks. | `true` |
+| `dontCreateFlow` | `boolean` | Whether or not to create flow. | `false` |
+| `dontMineUnderFallingBlock` | `boolean` | Whether or not to mine under a falling block. | `false` |
+| `maxDropDown` | `number` | The maximum drop down distance. | `3` |
+| `infiniteLiquidDropdownDistance` | `boolean` | Whether or not to have an infinite liquid dropdown distance. | `true` |
+| `allowSprinting` | `boolean` | Whether or not to allow sprinting. | `true` |
+| `careAboutLookAlignment` | `boolean` | Whether or not to care about look alignment. | `true` |
 
 
 ```ts
-export interface MovementOptions {
+interface MovementOptions {
+  allowDiagonalBridging: boolean
+  allowJumpSprint: boolean
+  allow1by1towers: boolean
+  liquidCost: number
+  digCost: number
   forceLook: boolean
   jumpCost: number
   placeCost: number
+  velocityKillCost: number
   canOpenDoors: boolean
   canDig: boolean
+  canPlace: boolean
   dontCreateFlow: boolean
   dontMineUnderFallingBlock: boolean
-  allow1by1towers: boolean
+
   maxDropDown: number
   infiniteLiquidDropdownDistance: boolean
   allowSprinting: boolean
   careAboutLookAlignment: boolean
 }
+
 ```
 
 
