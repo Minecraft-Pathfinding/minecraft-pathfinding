@@ -1,5 +1,11 @@
 "use strict";
+const express = require('express');
+const cors = require('cors')
+const app = express();
+app.use(cors())
+const port = 5000;
 const { createBot } = require("mineflayer");
+const mineflayerViewer = require('prismarine-viewer').mineflayer
 const { createPlugin, goals } = require("../dist");
 const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
 const { Vec3 } = require("vec3");
@@ -54,7 +60,7 @@ function _getGoal(world, x, y, z,modes) {
 bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
-
+  mineflayerViewer(bot, { firstPerson: true, port: 5001 })
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
       throw new Error('both forward and back are true')
@@ -563,3 +569,50 @@ function rayTraceEntitySight(options) {
 }
 
 bot.on("kicked", console.log);
+
+
+const botEvents = {
+  resetPath: [],
+  enteredRecovery: [],
+  exitedRecovery: [],
+  goalSet: [],
+  goalFinished: [],
+  goalAborted: [],
+};
+
+app.get('/bot-events', (req, res) => {
+  res.json(botEvents);
+});
+
+bot.on('resetPath', (goal) => {
+  botEvents.resetPath.push(goal);
+});
+
+bot.on('resetPath', (reason) => {
+  botEvents.resetPath.push(reason);
+});
+
+bot.on('enteredRecovery', (entry) => {
+  botEvents.enteredRecovery.push(entry);
+});
+
+bot.on('exitedRecovery', (entry) => {
+  botEvents.exitedRecovery.push(entry);
+});
+
+bot.on('goalSet', (goal) => {
+  botEvents.goalSet.push(goal);
+});
+
+bot.on('goalFinished', (goal) => {
+  botEvents.goalFinished.push(goal);
+});
+
+bot.on('goalAborted', (goal) => {
+  botEvents.goalAborted.push(goal);
+});
+
+
+app.listen(port, () => {
+  console.log(`API server listening at http://localhost:${port}`);
+});
