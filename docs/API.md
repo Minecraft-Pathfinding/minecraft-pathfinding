@@ -76,7 +76,7 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `status`` | [PathStatus](#pathStatus) | The status of the path. |
+| `status` | [PathStatus](#pathStatus) | The status of the path. |
 | `cost` | `number` | The cost of the path. |
 | `calcTime` | `number` | The time it took to calculate the path. |
 | `visitedNodes` | `number` | The number of nodes visited. |
