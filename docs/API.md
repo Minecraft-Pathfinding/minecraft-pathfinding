@@ -65,6 +65,7 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 ```
 
 <h4>Generics</h4>
+
 | Generics | Base | Description |
 | --- | --- | --- |
 | `Data` | `PathData` | The data type of the path. |
@@ -72,6 +73,7 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 
 
 <h4>Elements</h4>
+
 | Property | Type | Description |
 | --- | --- | --- |
 | `status`` | [PathStatus](#pathStatus) | The status of the path. |
