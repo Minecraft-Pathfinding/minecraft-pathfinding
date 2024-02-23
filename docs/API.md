@@ -1,4 +1,4 @@
-<h3>Table of contents</h3>
+<h4>Table of contents</h4>
 
 - [Pathfinder](#pathfinder)
 - [Types](#types)
@@ -31,7 +31,7 @@
 
 Base class of the Pathfinder in `bot.pathfinder` after the plugin has loaded.
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 ▸ **getPathTo(`vec: Vec3`): `PathGenerator`**
 
@@ -45,7 +45,7 @@ Return an async generator that generates partial paths until a successful path i
 
 Moves the bot to the goal.
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 await bot.pathfinder.goto(GoalBlock.fromVec(0,0,0))
@@ -55,7 +55,29 @@ await bot.pathfinder.goto(GoalBlock.fromVec(0,0,0))
 
 <h1 align="center">Types</h1>
 
-<h2>PathStatus</h2>
+<h2 align="center">Abstract</h2>
+
+<h4>Path</h4>
+
+TODO! Has generics.
+
+
+<h4>ResetReason</h4>
+
+The reason the path was reset. String value.
+
+| Value | Description |
+| --- | --- |
+| `blockUpdate` | A block update was detected. |
+| `goalUpdated` | The goal was updated. |
+| `chunkLoad` | A chunk was unloaded. |
+
+
+
+
+<h2 align="center">Mineflayer-Specific</h2>
+
+<h3>PathStatus</h3>
 
 The status of a path. String value.
 
@@ -63,12 +85,12 @@ The status of a path. String value.
 | --- | --- |
 | `success` | The path was successful. |
 | `partial` | The path is partial. |
-| 'partialSuccess' | The path is partial, but this section will be used to get to the goal. |
+| `partialSuccess` | The path is partial, but this section will be used to get to the goal. |
 | `noPath` | No path was found. |
 | `timeout` | The pathfinder timed out. |
 
 
-<h2>PathGenerator</h2>
+<h3>PathGenerator</h3>
 
 An async generator that generates partial paths until a successful path is found, or no path is found.
 
@@ -77,7 +99,7 @@ An async generator that generates partial paths until a successful path is found
 | `next() => Promise<PathGeneratorResult>` | Returns a promise that resolves to the next path result. |
 
 
-<h2>PathGeneratorResult</h2>
+<h3>PathGeneratorResult</h3>
 
 The result of a path generator.
 
@@ -92,11 +114,11 @@ The result of a path generator.
 
 <h1 align="center">Goals</h1>
 
-<h2>GoalBlock</h2>
+<h3>GoalBlock</h3>
 
 This goal will have the bot stand on top of the block chosen.
 
-<h3>Constructor</h3>
+<h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
@@ -104,24 +126,24 @@ This goal will have the bot stand on top of the block chosen.
 | y | number |
 | z | number |
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 ▸ **fromVec(`vec: Vec3`): `GoalBlock`**
 
 ▸ **fromBlock(`block: Block | { position: Vec3 }`): `GoalBlock`**
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 GoalBlock.fromVec(new Vec3(0, 0, 0))
 ```
 
 
-<h2>GoalNear</h2>
+<h3>GoalNear</h3>
 
 This goal will have the bot approach the coordinates chosen, and finish when within a given radius.
 
-<h3>Constructor</h3>
+<h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
@@ -130,7 +152,7 @@ This goal will have the bot approach the coordinates chosen, and finish when wit
 | z | number |
 | distance | number |
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 ▸ **fromVec(`vec: Vec3`): `GoalNear`**
 
@@ -138,7 +160,7 @@ This goal will have the bot approach the coordinates chosen, and finish when wit
 
 ▸ **fromBlock(`block: Block | { position: Vec3 }`): `GoalNear`**
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 GoalNear.fromVec(new Vec3(0, 0, 0), 4)
@@ -146,11 +168,11 @@ GoalNear.fromEntity(bot.entities[...], 4)
 GoalNear.fromBlock(bot.blockAt(new Vec3(0,0,0)), 4)
 ```
 
-<h2>GoalNearXZ</h2>
+<h3>GoalNearXZ</h3>
 
 This goal will have the bot approach the coordinates chosen, and finish when within a given radius on the XZ plane.
 
-<h3>Constructor</h3>
+<h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
@@ -158,21 +180,21 @@ This goal will have the bot approach the coordinates chosen, and finish when wit
 | z | number |
 | distance | number |
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 ▸ **fromVec(`vec: Vec3`): `GoalNearXZ`**
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 GoalNearXZ.fromVec(new Vec3(0, 0, 0), 4)
 ```
 
-<h2>GoalLookAt</h2>
+<h3>GoalLookAt</h3>
 
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, and finally look at the coordinates chosen.
 
-<h3>Constructor</h3>
+<h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
@@ -185,13 +207,13 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 | distance | number |
 | eyeHeight | number |
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 ▸ **fromEntity(`world: World`, `entity: Entity | { position: Vec3 }`, `width: number`, `distance?: number`, `height?: number`): `GoalLookAt`**
 
 ▸ **fromBlock(`world: World`, `block: Block | { position: Vec3 }`, `distance?: number`, `height?: number`): `GoalLookAt`**
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 // setup for targeting a player (width is 0.6 blocks)
@@ -200,11 +222,11 @@ GoalLookAt.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 ```
 
 
-<h2>GoalMineBlock</h2>
+<h3>GoalMineBlock</h3>
 
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally break the block.
 
-<h3>Constructor</h3>
+<h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
@@ -213,12 +235,12 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 | distance | number |
 | eyeHeight | number |
 
-<h3>Methods</h3>
+<h4>Methods</h4>
 
 
 ▸ **fromBlock(`world: World`, `block: Block`, `distance?: number`, `height?: number`): `GoalLookAt`**
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 GoalMineBlock.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
@@ -269,18 +291,18 @@ export interface MovementOptions {
 
 <!-- Generate docs for events -->
 <!-- copilot say hi -->
-<h2>goalSet</h2>
+<h3>goalSet</h3>
 
 Fired when a new goal is set.
 
-<h3>Arguments</h3>
+<h4>Arguments</h4>
 
 | Parameter | Type |
 | --- | --- |
 | goal | goals.Goal |
 
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 bot.on('goalSet', (goal) => {
@@ -288,17 +310,17 @@ bot.on('goalSet', (goal) => {
 })
 ```
 
-<h2>goalFinished</h2>
+<h3>goalFinished</h3>
 
 Fired when a goal is finished.
 
-<h3>Arguments</h3>
+<h4>Arguments</h4>
 
 | Parameter | Type |
 | --- | --- |
 | goal | goals.Goal |
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 bot.on('goalFinished', (goal) => {
@@ -306,17 +328,17 @@ bot.on('goalFinished', (goal) => {
 })
 ```
 
-<h2>goalAborted</h2>
+<h3>goalAborted</h3>
 
 Fired when a goal is aborted.
 
-<h3>Arguments</h3>
+<h4>Arguments</h4>
 
 | Parameter | Type |
 | --- | --- |
 | goal | goals.Goal |
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 bot.on('goalAborted', (goal) => {
@@ -324,11 +346,11 @@ bot.on('goalAborted', (goal) => {
 })
 ```
 
-<h2>enteredRecovery</h2>
+<h3>enteredRecovery</h3>
 
 Fired when the bot enters recovery mode.
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 bot.on('enteredRecovery', () => {
@@ -336,11 +358,11 @@ bot.on('enteredRecovery', () => {
 })
 ```
 
-<h2>exitedRecovery</h2>
+<h3>exitedRecovery</h3>
 
 Fired when the bot exits recovery mode.
 
-<h3>Example</h3>
+<h4>Example</h4>
 
 ```ts
 bot.on('exitedRecovery', () => {
@@ -348,11 +370,11 @@ bot.on('exitedRecovery', () => {
 })
 ```
 
-<h2>resetPath</h2>
+<h3>resetPath</h3>
 
 Fired when the bot resets the path.
 
-<h3>Arguments</h3>
+<h4>Arguments</h4>
 
 | Parameter | Type |
 | --- | --- |
