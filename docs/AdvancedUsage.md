@@ -87,7 +87,7 @@ export abstract class GoalDynamic<
   }
 } -->
 
-<h3>Creating a sublcass of goals.GoalDynamic</h3>
+<h3>Creating a subclass of goals.GoalDynamic</h3>
 
 To create a subclass of `goals.GoalDynamic`, you need to implement all of the required methods for `goals.Goal` and also implement the `hasChanged`, `isValid`, and `update` methods. You will also have to specify the `eventKeys` and `validKeys` values and match them to your provided generic typing. 
 
