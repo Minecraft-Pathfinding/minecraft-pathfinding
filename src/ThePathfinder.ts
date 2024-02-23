@@ -144,6 +144,10 @@ export class ThePathfinder {
     return this._currentProducer
   }
 
+  public get isPathing (): boolean {
+    return this.executeTask.done
+  }
+
   reconstructPath = reconstructPath
 
   constructor (
@@ -458,33 +462,33 @@ export class ThePathfinder {
       this.bot.off('physicsTick', listener)
     }
 
-    let { result, astarContext } = this._currentProducer.advance()
+    let result, astarContext
 
-    yield { result, astarContext }
-
-    while (result.status === 'partial' || result.status === 'partialSuccess') {
-      if (this.abortCalculation) {
-        cleanup()
-        return null
-      }
-
-      const { result: result2, astarContext } = this._currentProducer.advance()
-      result = result2
+    do {
+      const res = this._currentProducer.advance()
+      result = res.result
+      astarContext = res.astarContext
 
       if (result.status === 'success') {
+        cleanup()
+        this.bot.emit('pathGenerated', result)
+        yield { result, astarContext }
+        return { result, astarContext }
+      }
+
+      if (this.abortCalculation) {
         cleanup()
         yield { result, astarContext }
         return { result, astarContext }
       }
+
       yield { result, astarContext }
 
-      // allow bot to function even while calculating.
-      // Note: if we already ticked, there is no point in waiting. Our packets are already desynced.
       if (!ticked) {
         await this.bot.waitForTicks(1)
         ticked = false
       }
-    }
+    } while (result.status === 'partial' || result.status === 'partialSuccess')
 
     cleanup()
     return {
