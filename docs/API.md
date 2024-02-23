@@ -3,7 +3,7 @@
 - [Pathfinder](#pathfinder)
 - [Types](#types)
   - [Abstract](#abstract)
-    - [Path](#path)
+    - [APath](#apath)
     - [PathStatus](#pathStatus)
     - [PathGenerator](#pathGenerator)
     - [PathGeneratorResult](#pathGeneratorResult)
@@ -20,6 +20,7 @@
   - [GoalMineBlock](#goalmineblock)
 - [Settings](#settings)
 - [Events](#events)
+  - [pathGenerated](#pathGenerated)
   - [goalSet](#goalSet)
   - [goalFinished](#goalFinished)
   - [goalAborted](#goalAborted)
@@ -57,12 +58,37 @@ await bot.pathfinder.goto(GoalBlock.fromVec(0,0,0))
 
 <h2 align="center">Abstract</h2>
 
-<h4>Path</h4>
+<h4>APath</h4>
 
-TODO! Has generics.
+```ts
+type Path<Data extends PathData, Alg extends Algorithm<Data>>
+```
+
+<h4>Generics</h4>
+| Generics | Base | Description |
+| --- | --- | --- |
+| `Data` | `PathData` | The data type of the path. |
+| `Alg` | `Algorithm<Data>` | The algorithm type of the path. |
+
+
+<h4>Elements</h4>
+| Property | Type | Description |
+| --- | --- | --- |
+| `status`` | [PathStatus](#pathStatus) | The status of the path. |
+| `cost` | `number` | The cost of the path. |
+| `calcTime` | `number` | The time it took to calculate the path. |
+| `visitedNodes` | `number` | The number of nodes visited. |
+| `generatedNodes` | `number` | The number of nodes generated. |
+| `movementProvider` | `MovementProvider<Data>` | The movement provider. |
+| `path` | `Data[]` | The path. |
+| `context` | `Alg` | The algorithm context. |
 
 
 <h4>ResetReason</h4>
+
+```ts
+type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
+```
 
 The reason the path was reset. String value.
 
@@ -76,6 +102,11 @@ The reason the path was reset. String value.
 
 
 <h2 align="center">Mineflayer-Specific</h2>
+
+
+<h3>Path</h3>
+
+
 
 <h3>PathStatus</h3>
 
@@ -287,6 +318,26 @@ export interface MovementOptions {
 
 
 <h1 align="center">Events</h1>
+
+
+<h3>pathGenerated</h3>
+
+Fired when a path is generated.
+
+<h4>Arguments</h4>
+
+| Parameter | Type |
+| --- | --- |
+| path | [Path](#path) |
+
+<h4>Example</h4>
+
+```ts
+bot.on('pathGenerated', (path) => {
+  console.log(`Path generated: ${path}`)
+})
+```
+
 
 
 <h3>goalSet</h3>
