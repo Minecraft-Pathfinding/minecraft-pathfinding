@@ -135,9 +135,9 @@ This pathfiner supports three levels of customization for movement: Movement Pro
 To break down how this works, let's trace the code functionality.
 
 1. We provide a goal to Pathfinder
-  - now, pathfinder wants to create a path.
+   - now, pathfinder wants to create a path.
 2. Pathfinder takes the current `MovementProviders` loaded in its settings and begins calculating the path based on them.
-  - `MovementProviders` are only used at calculation time, not execution time. They are used to determine whether or not movement is possible.
+   - `MovementProviders` are only used at calculation time, not execution time. They are used to determine whether or not movement is possible.
 3. The initial path has been calculated!
 4. The pathfinder now takes the calculated path and *optimizes* it using `MovementOptimizers`
    - `MovementOptimizers` are used to optimize the path, removing unnecessary nodes and making the path more efficient. This is the step where straight-lining can be introduced, as normal A* does not provide this functionality well. *Note: see [here](#https://www.ijcai.org/Proceedings/09/Papers/303.pdf) for more information on straight-lining.*
