@@ -16,8 +16,8 @@
   - [Creating_a_sublcass_of_goals.GoalDynamic](#creating-a-sublcass-of-goals.goal)
   - [Creating_a_sublcass_of_goals.GoalDynamic](#creating-a-sublcass-of-goals.goaldynamic)
 - [Movement Customization](#movement-customization)
-  - [Custom Movement Producers](#custom-movement-producers)
-    - [Creating_a_sublcass_of_move_produders.MoveProducer](#creating-a-sublcass-of-move-producers.moveproducer)
+  - [Custom Movement Providers](#custom-movement-providers)
+    - [Creating_a_sublcass_of_move_produders.MoveProvider](#creating-a-sublcass-of-move-providers.moveprovider)
   - [Custom Movement Executors](#custom-movement-executors)
     - [Creating_a_sublcass_of_move_executor.MoveExecutor](#creating-a-sublcass-of-move-executor.moveexecutor)
   - [Custom Movement_Optimizers](#move-optimizer)
@@ -130,7 +130,45 @@ class MyGoalDynamic extends GoalDynamic<'physicsTick', 'physicsTick'> {
 
 <h1 align="center">Movement Customization</h1>
 
-This pathfiner supports three levels of customization for movement: Movement Producers, Movement Executors, and Movement Optimizers. Each of these classes are designed to be extended and provide a simple interface for creating custom movement logic.
+
+<h2>FAQ</h2>
+
+<!-- write a clean FAQ format -->
+<h5>Q: What is a Movement Provider?</h5>
+
+A: A Movement Provider is a class that is used to determine whether or not movement is possible. It is used to calculate the path based on the current movement logic.
+
+<h5>Q: What is a Movement Executor?</h5>
+
+A: A Movement Executor is a class that is used to execute the path, performing any necessary actions to reach the goal. It is used to move and interact with the world.
+
+<h5>Q: What is a Movement Optimizer?</h5>
+
+A: A Movement Optimizer is a class that is used to optimize the path, removing unnecessary nodes and making the path more efficient. It is used to optimize the path in a specific way.
+
+<h5>Q: Can I customize an already existing Movement Provider by extending it?</h5>
+
+A: Yes, but you must de-register the Provider that was extended and register the new Provider with an Executor.
+
+<h5>Q: Can I customize an already existing Movement Executor by extending it?</h5>
+
+A: Yes, but you must de-register the Executor that was extended and register the new Executor.
+
+<h5>Q: Can I customize an already existing Movement Optimizer by extending it?</h5>
+
+A: Yes, but you must de-register the Optimizer that was extended and register the new Optimizer.
+
+<h5>Q: Can I pair a custom Movement Executor with an already registered Provider?</h5>
+
+A: Yes. it will entirely overwrite the previous executor linked to that producer for all *future* paths generated.
+
+<h5>Q: If I change the link between Producers and Executors, or Producers and Optimizers, will it affect the current path?</h5>
+
+A: No. The path is calculated and optimized based on the current links between Producers and Executors, and Producers and Optimizers. Changing the links will only affect future paths.
+
+<h2>Custom Movement Providers</h2>
+
+This pathfinder supports three levels of customization for movement: Movement Providers, Movement Executors, and Movement Optimizers. Each of these classes are designed to be extended and provide a simple interface for creating custom movement logic.
 
 To break down how this works, let's trace the code functionality.
 
@@ -167,7 +205,15 @@ Inserting a Provider **must** be with its static instance. This is so lookups ac
 The movement Executor can be either its static instance or a new instance of the class. We recommend using its **static instance**.
 
 
+<h4>Best Practice</h4>
+
+When developing custom extensions, it is best to include both the `Executor` and `Optimizer` for the `Provider`. It is not necessary, but recommended.
+
 <h4>Inserting a Custom Movement Executor</h4>
+
+**Important!** Inserting an executor with a provider that has *no* optimizer does *not* break the code. Functionally, the bot will perform the unoptimized path.
+
+The provider list when calculating a path is *not* linked to the provider list that has executors. This means that if you add an executor to a provider that has no optimizer, the produced path will not be optimized.
 
 <!-- Function on bot.pathfinder that inserts executors -->
 <!-- BuildableMoveProvider is the static instance of MovementProvider -->
@@ -182,7 +228,8 @@ The movement Executor can be either its static instance or a new instance of the
 
 
 ```ts
-import { MovementExecutor, MovementProvider, Bot, World, MovementOptions } from 'mineflayer-pathfinder'
+import { custom } from 'mineflayer-pathfinder'
+const {MovementProvider, MovementExecutor} = custom
 
 class MyProvider extends MovementProvider {
   // ... implementation
@@ -196,18 +243,58 @@ bot.pathfinder.setExecutor(MyProvider, MyExecutor)
 
 // OR:
 
-const executor = new MyExecutor(bot, world, settings)
+/* MovementOptions, this is not synced with pathfinder's settings */
+const executor = new MyExecutor(bot, world, settings )
 
 bot.pathfinder.setExecutor(MyProvider, executor)
+```
+
+<h4>Inserting a Custom Movement Optimizer</h4>
+
+**Important!** Adding an optimizer paired with a provider that has *no* executor does *not* break the code. Functionally, nothing will change.
+
+The provider list when calculating a path is *not* linked to the provider list that has optimizers. This means that if you add an optimizer to a provider that has no executor, the optimizer will not be used. 
+
+This allows providers to be removed from the calculation step without needing to remove the optimizer as well.
+
+<!-- Function on bot.pathfinder that inserts optimizers -->
+  <!-- setOptimizer (provider: BuildableMoveProvider, Optimizer: BuildableOptimizer | MovementOptimizer): void {
+    if (Optimizer instanceof MovementOptimizer) {
+      this.optimizers.set(provider, Optimizer)
+    } else {
+      this.optimizers.set(provider, new Optimizer(this.bot, this.world))
+    }
+  } -->
+
+
+```ts
+import { custom } from 'mineflayer-pathfinder'
+const {MovementProvider, MovementOptimizer} = custom
+
+class MyProvider extends MovementProvider {
+  // ... implementation
+}
+
+class MyOptimizer extends MovementOptimizer {
+    // ... implementation
+}
+
+bot.pathfinder.setOptimizer(MyProvider, MyOptimizer)
+
+// OR:
+
+const optimizer = new MyOptimizer(bot, world)
+
+bot.pathfinder.setOptimizer(MyProvider, optimizer)
 
 ```
 
 
 
 
-<h2>Custom Movement Producers</h2>
+<h2>Custom Movement Providers</h2>
 
-<!-- The class of Movement, the base class of MovementProducer -->
+<!-- The class of Movement, the base class of MovementProvider -->
 
 
 <!-- export abstract class Movement {
@@ -384,7 +471,7 @@ bot.pathfinder.setExecutor(MyProvider, executor)
   }
 } -->
 
-<!-- The MovementProducer class -->
+<!-- The MovementProvider class -->
 <!-- 
 export abstract class MovementProvider extends Movement {
   orgPos!: Vec3
@@ -518,9 +605,9 @@ export abstract class MovementProvider extends Movement {
   }
 } -->
 
-<h3>Creating a sublcass of move_produders.MoveProducer</h3>
+<h3>Creating a sublcass of move_produders.MoveProvider</h3>
 
-To create a subclass of `move_produders.MoveProducer`, you need to implement the `provideMovements` method. This method is responsible for deciding whether or not movement is possible and, if possible, appending to the provided storage.
+To create a subclass of `move_produders.MoveProvider`, you need to implement the `provideMovements` method. This method is responsible for deciding whether or not movement is possible and, if possible, appending to the provided storage.
 
 <h4>Example</h4>
 
@@ -528,7 +615,7 @@ To create a subclass of `move_produders.MoveProducer`, you need to implement the
 
 import { MovementProvider, Move, goals } from 'mineflayer-pathfinder'
 
-class MyMoveProducer extends MovementProvider {
+class MyMoveProvider extends MovementProvider {
   movementDirs = [
     new Vec3(1, 0, 0),
     new Vec3(-1, 0, 0),
@@ -545,7 +632,7 @@ class MyMoveProducer extends MovementProvider {
 
 <h2>Custom Movement Executors</h2>
 
-<!-- The class of Movement, the base class of MovementExecutor, is the same as MovementProducers -->
+<!-- The class of Movement, the base class of MovementExecutor, is the same as MovementProviders -->
 
 <!-- The class MovementExecutor -->
 
