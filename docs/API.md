@@ -1,6 +1,17 @@
 <h3>Table of contents</h3>
 
 - [Pathfinder](#pathfinder)
+- [Types](#types)
+  - [Abstract](#abstract)
+    - [Path](#path)
+    - [PathStatus](#pathStatus)
+    - [PathGenerator](#pathGenerator)
+    - [PathGeneratorResult](#pathGeneratorResult)
+  - [Mineflayer-Specific](#mineflayer-specific)
+    - [Path](#path)
+    - [PathGenerator](#pathGenerator)
+    - [PathGeneratorResult](#pathGeneratorResult)
+    - [ResetReason](#resetReason)
 - [Goals](#goals)
   - [GoalBlock](#goalblock)
   - [GoalNear](#goalnear)
@@ -39,6 +50,44 @@ Moves the bot to the goal.
 ```ts
 await bot.pathfinder.goto(GoalBlock.fromVec(0,0,0))
 ```
+
+
+
+<h1 align="center">Types</h1>
+
+<h2>PathStatus</h2>
+
+The status of a path. String value.
+
+| Value | Description |
+| --- | --- |
+| `success` | The path was successful. |
+| `partial` | The path is partial. |
+| 'partialSuccess' | The path is partial, but this section will be used to get to the goal. |
+| `noPath` | No path was found. |
+| `timeout` | The pathfinder timed out. |
+
+
+<h2>PathGenerator</h2>
+
+An async generator that generates partial paths until a successful path is found, or no path is found.
+
+| Method | Description |
+| --- | --- |
+| `next() => Promise<PathGeneratorResult>` | Returns a promise that resolves to the next path result. |
+
+
+<h2>PathGeneratorResult</h2>
+
+The result of a path generator.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `result` | [Path](#path) | The result of the path. |
+| `astarContext` | AStar<Move> | The astar context. |
+
+
+
 
 
 <h1 align="center">Goals</h1>
@@ -219,3 +268,95 @@ export interface MovementOptions {
 
 
 <!-- Generate docs for events -->
+<!-- copilot say hi -->
+<h2>goalSet</h2>
+
+Fired when a new goal is set.
+
+<h3>Arguments</h3>
+
+| Parameter | Type |
+| --- | --- |
+| goal | goals.Goal |
+
+
+<h3>Example</h3>
+
+```ts
+bot.on('goalSet', (goal) => {
+  console.log(`New goal set: ${goal}`)
+})
+```
+
+<h2>goalFinished</h2>
+
+Fired when a goal is finished.
+
+<h3>Arguments</h3>
+
+| Parameter | Type |
+| --- | --- |
+| goal | goals.Goal |
+
+<h3>Example</h3>
+
+```ts
+bot.on('goalFinished', (goal) => {
+  console.log(`Goal finished: ${goal}`)
+})
+```
+
+<h2>goalAborted</h2>
+
+Fired when a goal is aborted.
+
+<h3>Arguments</h3>
+
+| Parameter | Type |
+| --- | --- |
+| goal | goals.Goal |
+
+<h3>Example</h3>
+
+```ts
+bot.on('goalAborted', (goal) => {
+  console.log(`Goal aborted: ${goal}`)
+})
+```
+
+<h2>enteredRecovery</h2>
+
+Fired when the bot enters recovery mode.
+
+<h3>Example</h3>
+
+```ts
+bot.on('enteredRecovery', () => {
+  console.log(`Entered recovery mode`)
+})
+```
+
+<h2>exitedRecovery</h2>
+
+Fired when the bot exits recovery mode.
+
+<h3>Example</h3>
+
+```ts
+bot.on('exitedRecovery', () => {
+  console.log(`Exited recovery mode`)
+})
+```
+
+<h2>resetPath</h2>
+
+Fired when the bot resets the path.
+
+<h3>Arguments</h3>
+
+| Parameter | Type |
+| --- | --- |
+| reason | [ResetReason](#resetReason) |
+
+
+
