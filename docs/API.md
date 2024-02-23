@@ -289,8 +289,6 @@ export interface MovementOptions {
 <h1 align="center">Events</h1>
 
 
-<!-- Generate docs for events -->
-<!-- copilot say hi -->
 <h3>goalSet</h3>
 
 Fired when a new goal is set.
@@ -379,6 +377,16 @@ Fired when the bot resets the path.
 | Parameter | Type |
 | --- | --- |
 | reason | [ResetReason](#resetReason) |
+
+<h4>Example</h4>
+
+```ts
+bot.on('resetPath', (reason) => {
+  console.log(`Path reset: ${reason}`)
+})
+```
+
+
 
 
 

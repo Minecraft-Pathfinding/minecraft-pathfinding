@@ -369,7 +369,7 @@ export class ThePathfinder {
     goal: goals.GoalDynamic,
     opts: { onHasUpdate?: () => void, onInvalid?: () => void, onCleanup?: () => void, forAll?: () => void }
   ): () => void {
-    const boundEvent = goal.hasChanged.bind(goal)
+    const boundEvent = goal._hasChanged.bind(goal)
     const boundValid = goal.isValid.bind(goal)
 
     const fuckEvent: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
