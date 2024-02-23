@@ -166,7 +166,7 @@ A: Yes. it will entirely overwrite the previous executor linked to that producer
 
 A: No. The path is calculated and optimized based on the current links between Producers and Executors, and Producers and Optimizers. Changing the links will only affect future paths.
 
-<h2>Custom Movement Providers</h2>
+<h2>Custom Movement Providers: A Summary</h2>
 
 This pathfinder supports three levels of customization for movement: Movement Providers, Movement Executors, and Movement Optimizers. Each of these classes are designed to be extended and provide a simple interface for creating custom movement logic.
 
@@ -194,9 +194,14 @@ Providing customization to each step is important for creating a bot that can ha
 
 To add custom movement logic, you need to create a subclass of the appropriate class and implement the required methods. You can then provide an instance of your custom class to the pathfinder when creating a path.
 
-<h3>Inserting custom classes into the pathfinder</h3>
+<h2>Inserting custom classes into the pathfinder</h2>
 
-<h4>Movement Providers</h4>
+<h4>Best Practice</h4>
+
+When developing custom extensions, it is best to include both the `Executor` and `Optimizer` for the `Provider`. It is not necessary, but recommended.
+
+
+<h3>Movement Providers</h3>
 
 Because Providers cannot do anything on their own, we do not provide a method of adding them to the pathfinder alone. Instead, they are paired with an executor during insertion.
 
@@ -204,12 +209,7 @@ Inserting a Provider **must** be with its static instance. This is so lookups ac
 
 The movement Executor can be either its static instance or a new instance of the class. We recommend using its **static instance**.
 
-
-<h4>Best Practice</h4>
-
-When developing custom extensions, it is best to include both the `Executor` and `Optimizer` for the `Provider`. It is not necessary, but recommended.
-
-<h4>Inserting a Custom Movement Executor</h4>
+<h3>Inserting a Custom Movement Executor</h3>
 
 **Important!** Inserting an executor with a provider that has *no* optimizer does *not* break the code. Functionally, the bot will perform the unoptimized path.
 
@@ -249,7 +249,7 @@ const executor = new MyExecutor(bot, world, settings )
 bot.pathfinder.setExecutor(MyProvider, executor)
 ```
 
-<h4>Inserting a Custom Movement Optimizer</h4>
+<h3>Inserting a Custom Movement Optimizer</h3>
 
 **Important!** Adding an optimizer paired with a provider that has *no* executor does *not* break the code. Functionally, nothing will change.
 
@@ -613,7 +613,8 @@ To create a subclass of `move_produders.MoveProvider`, you need to implement the
 
 ```ts
 
-import { MovementProvider, Move, goals } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from 'mineflayer-pathfinder'
+const {MovementProvider} = custom
 
 class MyMoveProvider extends MovementProvider {
   movementDirs = [
@@ -1292,7 +1293,8 @@ To create a subclass of `move_executors.MoveExecutor`, you need to implement the
 <h4>Example</h4>
 
 ```ts
-import { Move, goals, MovementExecutor } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from 'mineflayer-pathfinder'
+const {MovementExecutor} = custom;
 
 class MyMoveExecutor extends MovementExecutor {
   
@@ -1311,5 +1313,88 @@ class MyMoveExecutor extends MovementExecutor {
   }
 
 
+}
+```
+
+<h2>Custom Movement Optimizers</h2>
+
+<!-- the MovementOptimizer class -->
+<!-- export abstract class MovementOptimizer {
+  bot: Bot
+  world: World
+  sim: BaseSimulator
+
+  public readonly mergeInteracts: boolean = true
+
+  constructor (bot: Bot, world: World) {
+    this.bot = bot
+    this.world = world
+    this.sim = new BaseSimulator(new EntityPhysics(bot.registry))
+  }
+
+  abstract identEndOpt (currentIndex: number, path: Move[]): number | Promise<number>
+
+  mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]): Move {
+    // console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
+    const startMove = path[startIndex]
+    const endMove = path[endIndex]
+
+    // console.log('start', startMove.x, startMove.y, startMove.z, startMove.entryPos, startMove.moveType.constructor.name)
+    // console.log('end', endMove.x, endMove.y, endMove.z, endMove.exitPos, endMove.moveType.constructor.name)
+    const toBreak = [...startMove.toBreak]
+    const toPlace = [...startMove.toPlace]
+    let costSum = 0
+
+    for (let i = startIndex + 1; i < endIndex; i++) {
+      const intermediateMove = path[i]
+      if (this.mergeInteracts) {
+        toBreak.push(...intermediateMove.toBreak)
+        toPlace.push(...intermediateMove.toPlace)
+      }
+
+      // TODO: calculate semi-accurate cost by reversing C heuristic of algorithm,
+      // and then calculating the cost of the path from the start to the end.
+      costSum += intermediateMove.cost
+    }
+
+    toBreak.push(...endMove.toBreak)
+    toPlace.push(...endMove.toPlace)
+
+    costSum += endMove.cost
+
+    // console.log('fully merged', startMove.entryPos, endMove.exitPos, costSum)
+    return new Move(
+      startMove.x,
+      startMove.y,
+      startMove.z,
+      toPlace,
+      toBreak,
+      endMove.remainingBlocks,
+      costSum,
+      startMove.moveType,
+      startMove.entryPos,
+      startMove.entryVel,
+      endMove.exitPos,
+      endMove.exitVel,
+      startMove.parent
+    )
+  }
+} -->
+
+
+<h3>Creating a sublcass of move_optimizers.MovementOptimizer</h3>
+
+To create a subclass of `move_optimizers.MovementOptimizer`, you need to implement the `identEndOpt` method.
+
+<h4>Example</h4>
+
+```ts
+import { Move, goals, custom } from 'mineflayer-pathfinder'
+const {MovementOptimizer} = custom;
+
+class MyMoveOptimizer extends MovementOptimizer {
+  async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {
+    // Return the index of the last move in the path
+  }
 }
 ```
