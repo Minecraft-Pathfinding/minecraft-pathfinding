@@ -14,6 +14,7 @@ export class ContinuousPathProducer implements PathProducer {
   private readonly world: World
   private readonly movements: ExecutorMap
   private astarContext: AStar | undefined
+  private _currentPath: Move[] = []
 
   private readonly gcInterval: number = 10
   private lastGc: number = 0
@@ -30,6 +31,10 @@ export class ContinuousPathProducer implements PathProducer {
     return this.astarContext
   }
 
+  getCurrentPath (): Move[] {
+    return this._currentPath
+  }
+
   advance (): AdvanceRes {
     if (this.astarContext == null) {
       const moveHandler = MovementHandler.create(this.bot, this.world, this.movements, this.settings)
@@ -39,10 +44,11 @@ export class ContinuousPathProducer implements PathProducer {
     }
 
     const result = this.astarContext.compute()
+    this._currentPath = result.path
 
     console.log('advancing!')
 
-    if ((global.gc != null) && ++this.lastGc % this.gcInterval === 0) {
+    if (global.gc != null && ++this.lastGc % this.gcInterval === 0) {
       // const starttime = performance.now()
 
       if (this.lastGc % (this.gcInterval * 10) === 0) {

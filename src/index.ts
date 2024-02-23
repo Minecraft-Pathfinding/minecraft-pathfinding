@@ -9,6 +9,7 @@ import { Block, PlaceBlockOptions, ResetReason } from './types'
 import { PathingUtil } from './PathingUtil'
 
 import * as goals from './mineflayer-specific/goals'
+import { Path } from './mineflayer-specific/algs'
 
 export function createPlugin (settings?: any) {
   return function (bot: Bot) {
@@ -28,6 +29,7 @@ declare module 'mineflayer' {
   }
 
   interface BotEvents {
+    pathGenerated: (path: Path) => void
     resetPath: (reason: ResetReason) => void
     enteredRecovery: (errorCount: number) => void
     exitedRecovery: (errorCount: number) => void
@@ -38,3 +40,4 @@ declare module 'mineflayer' {
 }
 
 export * as goals from './mineflayer-specific/goals'
+export * as custom from './mineflayer-specific/custom'

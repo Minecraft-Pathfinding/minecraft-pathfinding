@@ -13,29 +13,37 @@ import {
   MovementOptions,
   MovementSetup,
   ExecutorMap,
-  ParkourForward,
-  ParkourForwardExecutor,
   MovementExecutor,
+  DEFAULT_MOVEMENT_OPTS
+} from './mineflayer-specific/movements'
+
+import {
+  ParkourForward,
   Diagonal,
   Forward,
   ForwardDropDown,
   ForwardJump,
   IdleMovement,
   StraightDown,
-  StraightUp,
+  StraightUp
+} from './mineflayer-specific/movements/movementProviders'
+
+import {
+  ParkourForwardExecutor,
   ForwardDropDownExecutor,
   NewForwardExecutor,
   NewForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
-  DEFAULT_MOVEMENT_OPTS,
   IdleMovementExecutor
-} from './mineflayer-specific/movements'
+} from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
+
+import { reconstructPath } from './abstract/algorithms'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -132,11 +140,21 @@ export class ThePathfinder {
   private currentExecutor?: MovementExecutor
 
   private resetReason?: ResetReason
-  private currentProducer?: PathProducer
+  private _currentProducer?: PathProducer
 
   public get currentAStar (): AStar | undefined {
-    return this.currentProducer?.getAstarContext()
+    return this._currentProducer?.getAstarContext()
   }
+
+  public get currentProducer (): PathProducer | undefined {
+    return this._currentProducer
+  }
+
+  public get isPathing (): boolean {
+    return this.executeTask.done
+  }
+
+  reconstructPath = reconstructPath
 
   constructor (
     private readonly bot: Bot,
@@ -174,7 +192,7 @@ export class ThePathfinder {
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
     console.log('INTERRUPT CALLED')
-    if (this.currentProducer == null) return console.log('no producer')
+    if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
     if (this.currentExecutor == null) return console.log('no executor')
@@ -258,7 +276,7 @@ export class ThePathfinder {
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
       // console.log(comparisonPoint, dx, dy, dz, pos)
-      if (dx <= 2 && dy <= 4 && dz <= 2) {
+      if (dx <= 1 && dy <= 2 && dz <= 1) {
         if (!all.has(pos.floored().toString())) return true
       }
     }
@@ -357,7 +375,7 @@ export class ThePathfinder {
     goal: goals.GoalDynamic,
     opts: { onHasUpdate?: () => void, onInvalid?: () => void, onCleanup?: () => void, forAll?: () => void }
   ): () => void {
-    const boundEvent = goal.hasChanged.bind(goal)
+    const boundEvent = goal._hasChanged.bind(goal)
     const boundValid = goal.isValid.bind(goal)
 
     const fuckEvent: Array<[keyof BotEvents, (...args: Parameters<BotEvents[keyof BotEvents]>) => void]> = []
@@ -418,6 +436,9 @@ export class ThePathfinder {
       fuckValid.push([key, listener1])
     }
 
+    // potential bug fixed with this.
+    goal.cleanup = cleanup
+
     return cleanup
   }
 
@@ -432,9 +453,9 @@ export class ThePathfinder {
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
-      this.currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     } else {
-      this.currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     }
 
     let ticked = false
@@ -447,33 +468,33 @@ export class ThePathfinder {
       this.bot.off('physicsTick', listener)
     }
 
-    let { result, astarContext } = this.currentProducer.advance()
+    let result, astarContext
 
-    yield { result, astarContext }
-
-    while (result.status === 'partial' || result.status === 'partialSuccess') {
-      if (this.abortCalculation) {
-        cleanup()
-        return null
-      }
-
-      const { result: result2, astarContext } = this.currentProducer.advance()
-      result = result2
+    do {
+      const res = this._currentProducer.advance()
+      result = res.result
+      astarContext = res.astarContext
 
       if (result.status === 'success') {
+        cleanup()
+        this.bot.emit('pathGenerated', result)
+        yield { result, astarContext }
+        return { result, astarContext }
+      }
+
+      if (this.abortCalculation) {
         cleanup()
         yield { result, astarContext }
         return { result, astarContext }
       }
+
       yield { result, astarContext }
 
-      // allow bot to function even while calculating.
-      // Note: if we already ticked, there is no point in waiting. Our packets are already desynced.
       if (!ticked) {
         await this.bot.waitForTicks(1)
         ticked = false
       }
-    }
+    } while (result.status === 'partial' || result.status === 'partialSuccess')
 
     cleanup()
     return {

@@ -1,11 +1,12 @@
 "use strict";
 const { createBot } = require("mineflayer");
-const { createPlugin, goals } = require("../dist");
-const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
+const { createPlugin, goals, custom } = require("../dist");
+const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
 const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
+
 
 const bot = createBot({
   username: "testing1",
@@ -55,6 +56,15 @@ bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
 
+
+  // // to get a path to the best node considered (updated per producer.advance() call)
+  // bot.pathfinder.currentProducer.getCurrentPath();
+
+
+  // // to get a path to the most recent node considered
+  // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
+
+
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
       throw new Error('both forward and back are true')
@@ -65,8 +75,11 @@ bot.once("spawn", async () => {
   bot.loadPlugin(loader);
 
   bot.pathfinder.setPathfinderOptions({
-    partialPathProducer: false
+    partialPathProducer: true,
+    partialPathLength: 30
   })
+
+  bot.pathfinder.setCacheEnabled(true);
 
 
   bot.on('goalFinished', (goal) => {
@@ -563,3 +576,5 @@ function rayTraceEntitySight(options) {
 }
 
 bot.on("kicked", console.log);
+
+

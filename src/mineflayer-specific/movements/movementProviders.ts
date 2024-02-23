@@ -421,9 +421,9 @@ export class ParkourForward extends MovementProvider {
       const dx = dir.x * d
       const dz = dir.z * d
 
-      const flag0 = !closed.has(`${node.x + dx},${node.y - 1},${node.z + dz}`)
-      const flag1 = !closed.has(`${node.x + dx},${node.y},${node.z + dz}`)
-      const flag2 = !closed.has(`${node.x + dx},${node.y + 1},${node.z + dz}`)
+      const flag0 = /* true */ !closed.has(`${node.x + dx},${node.y - 1},${node.z + dz}`)
+      const flag1 = /* true */ !closed.has(`${node.x + dx},${node.y},${node.z + dz}`)
+      const flag2 = /* true */ !closed.has(`${node.x + dx},${node.y + 1},${node.z + dz}`)
 
       if (!flag0 && !flag1 && !flag2) return
 
