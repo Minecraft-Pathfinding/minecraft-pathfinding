@@ -13,24 +13,30 @@ import {
   MovementOptions,
   MovementSetup,
   ExecutorMap,
-  ParkourForward,
-  ParkourForwardExecutor,
   MovementExecutor,
+  DEFAULT_MOVEMENT_OPTS
+} from './mineflayer-specific/movements'
+
+import {
+  ParkourForward,
   Diagonal,
   Forward,
   ForwardDropDown,
   ForwardJump,
   IdleMovement,
   StraightDown,
-  StraightUp,
+  StraightUp
+} from './mineflayer-specific/movements/movementProviders'
+
+import {
+  ParkourForwardExecutor,
   ForwardDropDownExecutor,
   NewForwardExecutor,
   NewForwardJumpExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
-  DEFAULT_MOVEMENT_OPTS,
   IdleMovementExecutor
-} from './mineflayer-specific/movements'
+} from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'

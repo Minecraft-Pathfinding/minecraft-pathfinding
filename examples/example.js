@@ -1,11 +1,12 @@
 "use strict";
 const { createBot } = require("mineflayer");
-const { createPlugin, goals } = require("../dist");
-const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
+const { createPlugin, goals, custom } = require("../dist");
+const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
 const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
+
 
 const bot = createBot({
   username: "testing1",
