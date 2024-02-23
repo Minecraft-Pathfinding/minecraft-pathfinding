@@ -5,7 +5,6 @@ import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
 import { CPathNode, PathData, PathNode } from '../node'
 
-
 export class AStar<Data extends PathData = PathData> implements Algorithm<Data> {
   startTime: number
   goal: Goal<Data>

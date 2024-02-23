@@ -144,7 +144,6 @@ export class ThePathfinder {
     return this._currentProducer
   }
 
-
   reconstructPath = reconstructPath
 
   constructor (
