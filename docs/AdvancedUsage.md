@@ -270,7 +270,7 @@ bot.pathfinder.setOptimizer(MyProvider, optimizer)
 
 <h2>Custom Movement Providers</h2>
 
-To create a subclass of `.MoveProvider`, you need to implement the `provideMovements` method. This method is responsible for deciding whether or not movement is possible and, if possible, appending to the provided storage.
+To create a subclass of `MovementProvider`, you need to implement the `provideMovements` method. This method is responsible for deciding whether or not movement is possible and, if possible, appending to the provided storage.
 
 <h4>Example</h4>
 
@@ -279,7 +279,7 @@ To create a subclass of `.MoveProvider`, you need to implement the `provideMovem
 import { Move, goals, custom } from 'mineflayer-pathfinder'
 const {MovementProvider} = custom
 
-class MyMoveProvider extends MovementProvider {
+class MyMovementProvider extends MovementProvider {
   movementDirs = [
     new Vec3(1, 0, 0),
     new Vec3(-1, 0, 0),
@@ -296,7 +296,7 @@ class MyMoveProvider extends MovementProvider {
 
 <h2>Custom Movement Executors</h2>
 
-To create a subclass of `s.MoveExecutor`, you need to implement the `performInit`, `performPerTick`, and `align` methods.
+To create a subclass of `MovementExecutor`, you need to implement the `performInit`, `performPerTick`, and `align` methods.
 
 <h4>Example</h4>
 
@@ -304,7 +304,7 @@ To create a subclass of `s.MoveExecutor`, you need to implement the `performInit
 import { Move, goals, custom } from 'mineflayer-pathfinder'
 const {MovementExecutor} = custom;
 
-class MyMoveExecutor extends MovementExecutor {
+class MyMovementExecutor extends MovementExecutor {
   
   async align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): Promise<boolean> {
     // Perform modifications on bot BEFORE attempting the move
@@ -334,7 +334,7 @@ To create a subclass of `MovementOptimizer`, you need to implement the `identEnd
 import { Move, goals, custom } from 'mineflayer-pathfinder'
 const {MovementOptimizer} = custom;
 
-class MyMoveOptimizer extends MovementOptimizer {
+class MyMovementOptimizer extends MovementOptimizer {
   async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {
     // Return the index of the last move in the path
   }
