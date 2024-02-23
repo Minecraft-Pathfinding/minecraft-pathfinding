@@ -35,7 +35,6 @@ export abstract class GoalDynamic<
   abstract update (): void
   cleanup?: () => void // will be assigned later.
 
-
   _hasChanged (event: keyof BotEvents, ...args: Parameters<BotEvents[keyof BotEvents]>): boolean {
     const ret = this.hasChanged(event as ChKey[number], ...args as Parameters<BotEvents[ChKey[number]]>)
     if (ret) this.update()
@@ -508,7 +507,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     const dy = this.y - this.refVec.y
     const dz = this.z - this.refVec.z
 
-    return  Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) > 1
+    return Math.abs(dx * dx) + Math.abs(dy * dy) + Math.abs(dz * dz) > 1
   }
 
   isValid (event: 'entityGone', entity: Entity): boolean {

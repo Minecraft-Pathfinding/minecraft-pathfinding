@@ -40,3 +40,5 @@ declare module 'mineflayer' {
 }
 
 export * as goals from './mineflayer-specific/goals'
+
+export * as moves from './mineflayer-specific/movements'
