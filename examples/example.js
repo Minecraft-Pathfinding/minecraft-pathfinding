@@ -566,4 +566,3 @@ function rayTraceEntitySight(options) {
 
 bot.on("kicked", console.log);
 
-bot.pathfinder.currentAStar?.mostRecentNode
