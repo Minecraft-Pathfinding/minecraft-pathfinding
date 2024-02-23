@@ -3,7 +3,7 @@
 <h3>Table of Contents</h3>
 
 - [Custom Goals](#custom-goals)
-  - [Custom goals.GoalDynamic](#Custom-goal)
+  - [Custom goals.Goal](#custom-goal)
   - [Custom goals.GoalDynamic](#Custom-goaldynamic)
 - [Movement Customization](#movement-customization)
   - [Custom Movement Providers](#custom-movement-providers)
@@ -22,7 +22,7 @@ This pathfinder supports any type of goal, provided they extend our base classes
 
 Both of these classes are abstract, meaning you cannot create an instance of them directly. Instead, you must create a subclass of them and implement the required methods.
 
-<h3>Creating a subclass of goals.Goal</h3>
+<h3>Custom Goal</h3>
 
 To create a subclass of `goals.Goal`, you need to implement the `isEnd` and `heuristic` methods. You can also override the `onFinish` method to perform any cleanup or additional actions when the goal is finished.
 
@@ -49,7 +49,7 @@ class MyGoal extends Goal {
 }
 ```
 
-<h3>Creating a subclass of goals.GoalDynamic</h3>
+<h3>Custom GoalDynamic</h3>
 
 To create a subclass of `goals.GoalDynamic`, you need to implement all of the required methods for `goals.Goal` and also implement the `hasChanged`, `isValid`, and `update` methods. You will also have to specify the `eventKeys` and `validKeys` values and match them to your provided generic typing. 
 
