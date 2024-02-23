@@ -296,8 +296,6 @@ class MyMoveProvider extends MovementProvider {
 
 <h2>Custom Movement Executors</h2>
 
-<h3>Creating a sublcass of s.MoveExecutor</h3>
-
 To create a subclass of `s.MoveExecutor`, you need to implement the `performInit`, `performPerTick`, and `align` methods.
 
 <h4>Example</h4>
