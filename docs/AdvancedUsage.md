@@ -166,7 +166,6 @@ Inserting a Provider **must** be with its static instance. This is so lookups ac
 
 The movement Executor can be either its static instance or a new instance of the class. We recommend using its **static instance**.
 
-<h4>Movement Executors</h4>
 
 <h4>Inserting a Custom Movement Executor</h4>
 
