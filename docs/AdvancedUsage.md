@@ -18,7 +18,7 @@
 - [Movement Customization](#movement-customization)
   - [Custom Movement Providers](#custom-movement-providers)
   - [Custom Movement Executors](#custom-movement-executors)
-  - [Custom Movement_Optimizers](#custom-move-optimizers)
+  - [Custom Movement Optimizers](#custom-movement-optimizers)
 
 
 
