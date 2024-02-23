@@ -1,18 +1,10 @@
+import { reconstructPath } from '.'
 import { Goal, MovementProvider, Path, Algorithm } from '../'
 import { PathStatus } from '../../types'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
 import { CPathNode, PathData, PathNode } from '../node'
 
-export function reconstructPath<Data extends PathData> (node: PathNode<Data>): Data[] {
-  const path: Data[] = []
-  while (node.parent != null) {
-    if (node.data == null) throw new Error('Node data is null!') // should never occur.
-    path.push(node.data)
-    node = node.parent
-  }
-  return path.reverse()
-}
 
 export class AStar<Data extends PathData = PathData> implements Algorithm<Data> {
   startTime: number

@@ -52,6 +52,10 @@ export class PartialPathProducer implements PathProducer {
     return this._lastContext
   }
 
+  getCurrentPath (): Move[] {
+    return this.lastPath
+  }
+
   private getSliceLen (orgLen: number): number {
     return Math.min(orgLen - 1, Math.floor(orgLen * 0.9))
   }

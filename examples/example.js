@@ -54,6 +54,15 @@ bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
 
+
+  // // to get a path to the best node considered (updated per producer.advance() call)
+  // bot.pathfinder.currentProducer.getCurrentPath();
+
+
+  // // to get a path to the most recent node considered
+  // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
+
+
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
       throw new Error('both forward and back are true')
@@ -565,4 +574,5 @@ function rayTraceEntitySight(options) {
 }
 
 bot.on("kicked", console.log);
+
 

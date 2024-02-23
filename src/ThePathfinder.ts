@@ -37,6 +37,8 @@ import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specif
 import { Block, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
+import { reconstructPath } from './abstract/algorithms'
+
 export interface PathfinderOptions {
   partialPathProducer: boolean
   partialPathLength: number
@@ -141,6 +143,9 @@ export class ThePathfinder {
   public get currentProducer (): PathProducer | undefined {
     return this._currentProducer
   }
+
+
+  reconstructPath = reconstructPath
 
   constructor (
     private readonly bot: Bot,
