@@ -17,6 +17,7 @@ export interface PathProducer {
 export class AStar extends AAStarBackOff<Move> {
   visitedChunks: Set<string>
 
+  mostRecentNode: PathNode = this.bestNode // also known as start
   constructor (
     start: Move,
     movements: MovementProvider<Move>,
@@ -38,6 +39,8 @@ export class AStar extends AAStarBackOff<Move> {
     // Checking with if statement is slow.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.visitedChunks.add(`${node.data!.x >> 4},${node.data!.z >> 4}`)
+
+    this.mostRecentNode = node
   }
 
   public override compute (): Path {

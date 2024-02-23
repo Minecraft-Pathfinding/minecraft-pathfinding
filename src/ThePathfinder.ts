@@ -132,10 +132,14 @@ export class ThePathfinder {
   private currentExecutor?: MovementExecutor
 
   private resetReason?: ResetReason
-  private currentProducer?: PathProducer
+  private _currentProducer?: PathProducer
 
   public get currentAStar (): AStar | undefined {
-    return this.currentProducer?.getAstarContext()
+    return this._currentProducer?.getAstarContext()
+  }
+
+  public get currentProducer (): PathProducer | undefined {
+    return this._currentProducer
   }
 
   constructor (
@@ -174,7 +178,7 @@ export class ThePathfinder {
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
     console.log('INTERRUPT CALLED')
-    if (this.currentProducer == null) return console.log('no producer')
+    if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
     if (this.currentExecutor == null) return console.log('no executor')
@@ -258,7 +262,7 @@ export class ThePathfinder {
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
       // console.log(comparisonPoint, dx, dy, dz, pos)
-      if (dx <= 2 && dy <= 4 && dz <= 2) {
+      if (dx <= 1 && dy <= 2 && dz <= 1) {
         if (!all.has(pos.floored().toString())) return true
       }
     }
@@ -418,6 +422,9 @@ export class ThePathfinder {
       fuckValid.push([key, listener1])
     }
 
+    // potential bug fixed with this.
+    goal.cleanup = cleanup
+
     return cleanup
   }
 
@@ -432,9 +439,9 @@ export class ThePathfinder {
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
-      this.currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     } else {
-      this.currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     }
 
     let ticked = false
@@ -447,7 +454,7 @@ export class ThePathfinder {
       this.bot.off('physicsTick', listener)
     }
 
-    let { result, astarContext } = this.currentProducer.advance()
+    let { result, astarContext } = this._currentProducer.advance()
 
     yield { result, astarContext }
 
@@ -457,7 +464,7 @@ export class ThePathfinder {
         return null
       }
 
-      const { result: result2, astarContext } = this.currentProducer.advance()
+      const { result: result2, astarContext } = this._currentProducer.advance()
       result = result2
 
       if (result.status === 'success') {

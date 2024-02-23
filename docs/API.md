@@ -8,6 +8,13 @@
   - [GoalLookAt](#goallookat)
   - [GoalMineBlock](#goalmineblock)
 - [Settings](#settings)
+- [Events](#events)
+  - [goalSet](#goalSet)
+  - [goalFinished](#goalFinished)
+  - [goalAborted](#goalAborted)
+  - [enteredRecovery](#enteredRecovery)
+  - [exitedRecovery](#exitedRecovery)
+  - [resetPath](#resetPath)
 
 <h1 align="center">Pathfinder</h1>
 
@@ -205,3 +212,10 @@ export interface MovementOptions {
   careAboutLookAlignment: boolean
 }
 ```
+
+
+
+<h1 align="center">Events</h1>
+
+
+<!-- Generate docs for events -->

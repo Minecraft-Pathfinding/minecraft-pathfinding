@@ -64,8 +64,11 @@ bot.once("spawn", async () => {
   bot.loadPlugin(loader);
 
   bot.pathfinder.setPathfinderOptions({
-    partialPathProducer: true
+    partialPathProducer: true,
+    partialPathLength: 30
   })
+
+  bot.pathfinder.setCacheEnabled(true);
 
 
   bot.on('goalFinished', (goal) => {
@@ -562,3 +565,5 @@ function rayTraceEntitySight(options) {
 }
 
 bot.on("kicked", console.log);
+
+bot.pathfinder.currentAStar?.mostRecentNode

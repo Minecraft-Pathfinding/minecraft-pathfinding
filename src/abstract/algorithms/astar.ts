@@ -30,7 +30,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   maxCost: number
 
   checkInterval = 1 << 5 - 1
-  checkCounter = 0
+  nodeConsiderCount = 0
 
   constructor (
     start: Data,
@@ -117,11 +117,10 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     }
 
     while (!this.openHeap.isEmpty()) {
-      if ((++this.checkCounter & this.checkInterval) === 0) {
+      if ((++this.nodeConsiderCount & this.checkInterval) === 0) {
         const time = performance.now()
         if (time - computeStartTime > this.tickTimeout) {
           // compute time per tick
-          console.log('hey', time - computeStartTime)
           return this.makeResult('partial', this.bestNode)
         }
         if (this.timeout >= 0 && time - this.startTime > this.timeout) {
@@ -199,13 +198,13 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
   bestNode5: PathNode<Data> = this.bestNode
   bestNode6: PathNode<Data> = this.bestNode
 
-  bn0: number = Number.MAX_VALUE
-  bn1: number = Number.MAX_VALUE
-  bn2: number = Number.MAX_VALUE
-  bn3: number = Number.MAX_VALUE
-  bn4: number = Number.MAX_VALUE
-  bn5: number = Number.MAX_VALUE
-  bn6: number = Number.MAX_VALUE
+  bn0: number = this.bestNode.h
+  bn1: number = this.bestNode.h
+  bn2: number = this.bestNode.h
+  bn3: number = this.bestNode.h
+  bn4: number = this.bestNode.h
+  bn5: number = this.bestNode.h
+  bn6: number = this.bestNode.h
 
   // these are stolen from baritone. Thanks guys.
   x0 = 1 / 1.5
@@ -217,7 +216,8 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
   x6 = 1 / 10
 
   checkInterval = 1 << 5 - 1
-  checkCounter = 0
+  nodeConsiderCount = 0
+  moveConsiderCount = 0
 
   assignBestNodes (check: PathNode<Data>): void {
     if (check.h < this.bestNode.h) {
@@ -288,7 +288,7 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
     }
 
     while (!this.openHeap.isEmpty()) {
-      if ((++this.checkCounter & this.checkInterval) === 0) {
+      if ((++this.nodeConsiderCount & this.checkInterval) === 0) {
         const time = performance.now()
         if (time - computeStartTime > this.tickTimeout) {
           // compute time per tick
@@ -314,6 +314,7 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const neighbors = this.movementProvider.getNeighbors(node.data!, this.closedDataSet)
       for (const neighborData of neighbors) {
+        this.moveConsiderCount++
         if (this.closedDataSet.has(neighborData.hash)) {
           continue // skip closed neighbors
         }
