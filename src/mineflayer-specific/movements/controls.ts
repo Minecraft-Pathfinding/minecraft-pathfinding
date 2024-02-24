@@ -171,12 +171,6 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
     bot.setControlState('right', false)
   }
 
-  // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
-
-  // diff = wrapRadians(diff + lookDiff)
-
-  // console.log('strafe diff', diff, diff / Math.PI * 12)
-
   if (FOURTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_TWO_PI_OVER_TWELVE) {
     // console.log('going left')
     bot.setControlState('left', false) // are these reversed? tf
@@ -254,14 +248,6 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
     bot.setControlState('back', false)
     return
   }
-
-  // console.log('diff', diff, 'ratio', diff / (Math.PI / 12))
-
-  // const lookDiff = wrapRadians(wrapRadians(bot.entity.yaw))
-
-  // diff = wrapRadians(diff + lookDiff)
-
-  // console.log('forward/back diff', diff, diff / Math.PI * 12)
 
   if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
     // console.log('going back')

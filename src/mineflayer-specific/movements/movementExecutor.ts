@@ -433,14 +433,14 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Utility function to have the bot look in the direction of the target, but only on the xz plane.
    */
-  protected async lookAtPathPos (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
+  public async lookAtPathPos (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
     // const dx = vec3.x - this.bot.entity.position.x
     // const dz = vec3.z - this.bot.entity.position.z
 
     return await this.lookAt(vec3.offset(0, -vec3.y + this.bot.entity.position.y + 1.62, 0), force)
   }
 
-  protected async lookAt (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
+  public async lookAt (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
     // const dx = vec3.x - this.bot.entity.position.x
     // const dy = vec3.y - this.bot.entity.position.y
     // const dz = vec3.z - this.bot.entity.position.z

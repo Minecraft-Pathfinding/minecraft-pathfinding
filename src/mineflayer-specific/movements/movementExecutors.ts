@@ -19,13 +19,14 @@ export class IdleMovementExecutor extends MovementExecutor {
 
 export class NewForwardExecutor extends MovementExecutor {
   private async faceForward (): Promise<boolean> {
+    console.log('called faceForward!')
     if (this.doWaterLogic()) return true
     const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
-    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec))
+    const placementVecs = this.currentMove.toPlace.map((p) => AABB.fromBlock(p.vec))
     const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
 
-    // console.log('this.currentMove?.toPlace.length === 0 || !near', this.currentMove?.toPlace.length === 0 || !near)
-
+    console.log('this.currentMove?.toPlace.length === 0 || !near', this.currentMove?.toPlace.length === 0 || !near)
+    console.log(this.currentMove.toPlace.length, this.toPlace().length, placementVecs.map((p) => p.distanceToVec(eyePos)), near, this.currentMove?.toPlace.length === 0 && !near)
     return this.currentMove?.toPlace.length === 0 || !near
   }
 
@@ -41,7 +42,8 @@ export class NewForwardExecutor extends MovementExecutor {
       target = offset
     }
 
-    await this.postInitAlignToPath(thisMove, { lookAt: target })
+    await this.landAlign(thisMove, tickCount, goal)
+    // await this.postInitAlignToPath(thisMove, { lookAtYaw: target })
     return this.isInitAligned(thisMove, target)
   }
 
@@ -50,18 +52,18 @@ export class NewForwardExecutor extends MovementExecutor {
 
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
     if (faceForward) {
-      void this.postInitAlignToPath(thisMove, { lookAt: target })
+      // await this.postInitAlignToPath(thisMove)
       // void this.lookAt(target);
-      // this.bot.setControlState("forward", true);
-      // if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
-      // else this.bot.setControlState("sprint", true);
+      this.bot.setControlState("forward", true);
+      if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
+      else this.bot.setControlState("sprint", true);
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
-      void this.postInitAlignToPath(thisMove, { lookAt: offset })
-      // void this.lookAt(offset);
-      // this.bot.setControlState("forward", false);
-      // this.bot.setControlState("sprint", false);
-      // this.bot.setControlState("back", true);
+      // await this.postInitAlignToPath(thisMove, { lookAt: offset })
+      void this.lookAt(offset);
+      this.bot.setControlState("forward", false);
+      this.bot.setControlState("sprint", false);
+      this.bot.setControlState("back", true);
     }
 
     // return this.isComplete(thisMove, thisMove, {entry: true})
@@ -72,7 +74,7 @@ export class NewForwardExecutor extends MovementExecutor {
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    // console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
+    console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
 
     this.bot.clearControlStates()
 
@@ -83,7 +85,7 @@ export class NewForwardExecutor extends MovementExecutor {
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
       console.log('here!', thisMove.exitPos, this.bot.entity.position, offset)
-      await this.postInitAlignToPath(thisMove, { lookAt: offset, sprint: true })
+      await this.postInitAlignToPath(thisMove, { lookAt: offset })
     }
   }
 
@@ -105,8 +107,6 @@ export class NewForwardExecutor extends MovementExecutor {
         return false
       }
     }
-
-    if (!this.settings.allowJumpSprint) return false
 
     if (!this.settings.allowJumpSprint) return false
     if (!this.bot.entity.onGround) return false
@@ -155,13 +155,11 @@ export class NewForwardExecutor extends MovementExecutor {
 
   async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
-      this.bot.clearControlStates()
-      this.bot.setControlState('sneak', true)
       return false
     } else if (this.cI == null) {
-      // const start = performance.now()
       const test = await this.interactPossible(5)
       if (test != null) {
+        console.log('performing interaction')
         void this.performInteraction(test)
         return false
       }
@@ -209,6 +207,7 @@ export class ForwardExecutor extends MovementExecutor {
     const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec))
     const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
 
+    console.log(placementVecs.map((p) => p.distanceToVec(eyePos)), near, this.currentMove?.toPlace.length === 0 && !near)
     return this.currentMove?.toPlace.length === 0 && !near
     // const wanted = await this.interactPossible(15);
 
@@ -438,8 +437,8 @@ export class ForwardExecutor extends MovementExecutor {
 
   async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
-      this.bot.clearControlStates()
-      this.bot.setControlState('sneak', true)
+      // this.bot.clearControlStates()
+      // this.bot.setControlState('sneak', true)
       return false
     } else if (this.cI == null) {
       // const start = performance.now()
