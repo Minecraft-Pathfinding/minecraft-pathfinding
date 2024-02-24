@@ -12,6 +12,7 @@
     - [PathGenerator](#pathGenerator)
     - [PathGeneratorResult](#pathGeneratorResult)
     - [ResetReason](#resetReason)
+    - [GoalDynamicOpts](#goalDynamicOpts)
 - [Goals](#goals)
   - [GoalBlock](#goalblock)
   - [GoalNear](#goalnear)
@@ -179,6 +180,21 @@ The reason the path was reset. String value.
 | `chunkLoad` | A chunk was unloaded. |
 
 
+<h3> GoalDynamicOpts</h3>
+
+```ts
+interface GoalDynamicOpts {
+  dynamic: boolean
+  neverfinish: boolean
+}
+```
+
+The options for a dynamic goal.
+
+| Property | Type | Description | Default |
+| --- | --- | --- | --- |
+| `dynamic` | `boolean` | Whether or not the goal is dynamic. | `true` |
+| `neverfinish` | `boolean` | Whether or not the goal will never finish. | `false` |
 
 
 
@@ -371,7 +387,7 @@ This goal will have the bot follow the entity chosen.
 | --- | --- | --- |
 | entity | Entity | The entity to follow. |
 | range | number | The range to follow the entity. |
-| opts | GoalDynamicOpts | The options for the goal. |
+| opts | [GoalDynamicOpts](#goalDynamicOpts) | The options for the goal. |
 
 
 
