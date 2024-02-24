@@ -201,6 +201,14 @@ The options for a dynamic goal.
 
 <h1 align="center">Goals</h1>
 
+<h2>Goal Properties</h2>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `dynamic` | `boolean` | Whether or not the goal is capable of moving. |
+| `neverfinish` | `boolean` | Whether or not the goal will never finish. (Used for goals like following) |
+
+
 <h3>GoalBlock</h3>
 
 `dynamic?:` No.
