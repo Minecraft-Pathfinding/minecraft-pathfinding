@@ -32,7 +32,7 @@ To create a subclass of `goals.Goal`, you need to implement the `isEnd` and `heu
 
 ```ts
 
-import { goals, MovementExecutor } from 'mineflayer-pathfinder'
+import { goals, MovementExecutor } from '@nxg-org/mineflayer-pathfinder'
 const {Goal} = goals
 
 class MyGoal extends Goal {
@@ -59,7 +59,7 @@ To create a subclass of `goals.GoalDynamic`, you need to implement all of the re
 
 ```ts
 
-import { goals, BotEvents } from 'mineflayer-pathfinder'
+import { goals, BotEvents } from '@nxg-org/mineflayer-pathfinder'
 const {GoalDynamic} = goals
 
 class MyGoalDynamic extends GoalDynamic<'physicsTick', 'physicsTick'> {
@@ -177,7 +177,7 @@ The movement Executor can be either its static instance or a new instance of the
 The provider list when calculating a path is *not* linked to the provider list that has executors. This means that if you add an executor to a provider that has no optimizer, the produced path will not be optimized.
 
 ```ts
-import { custom } from 'mineflayer-pathfinder'
+import { custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider, MovementExecutor} = custom
 
 class MyProvider extends MovementProvider {
@@ -208,7 +208,7 @@ This allows providers to be removed from the calculation step without needing to
 
 
 ```ts
-import { custom } from 'mineflayer-pathfinder'
+import { custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider, MovementOptimizer} = custom
 
 class MyProvider extends MovementProvider {
@@ -240,7 +240,7 @@ To create a subclass of `MovementProvider`, you need to implement the `provideMo
 
 ```ts
 
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider} = custom
 
 class MyMovementProvider extends MovementProvider {
@@ -265,7 +265,7 @@ To create a subclass of `MovementExecutor`, you need to implement the `performIn
 <h4>Example</h4>
 
 ```ts
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementExecutor} = custom;
 
 class MyMovementExecutor extends MovementExecutor {
@@ -295,7 +295,7 @@ To create a subclass of `MovementOptimizer`, you need to implement the `identEnd
 <h4>Example</h4>
 
 ```ts
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementOptimizer} = custom;
 
 class MyMovementOptimizer extends MovementOptimizer {
