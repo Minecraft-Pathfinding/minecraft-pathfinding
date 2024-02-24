@@ -42,4 +42,5 @@ Examples will be added as the project undergoes more development.
 | Link | Description |
 | --- | --- |
 | [API](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/API.md) | The documentation with the available methods and properties. |
+| [Advanced Usage](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/AdvancedUsage.md) | The documentation with the advanced usage of the pathfinder, including the customization of goals and movements. |
 | [Examples](https://github.com/GenerelSchwerz/minecraft-pathfinding/tree/main/examples) | The folder with the examples. |
