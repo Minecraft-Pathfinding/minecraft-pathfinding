@@ -136,10 +136,8 @@ The status of a path.
 <h3>PathGenerator</h3>
 
 ```ts
-interface PathGeneratorResult {
-  result: PathInfo
-  astarContext: AAStar<Move>
-}
+type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult, void>
+
 ```
 
 An async generator that generates partial paths until a successful path is found, or no path is found.
@@ -150,6 +148,13 @@ An async generator that generates partial paths until a successful path is found
 
 
 <h3>PathGeneratorResult</h3>
+
+```ts
+interface PathGeneratorResult {
+  result: PathInfo
+  astarContext: AAStar<Move>
+}
+```
 
 The result of a path generator.
 
