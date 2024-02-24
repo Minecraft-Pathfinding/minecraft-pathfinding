@@ -180,7 +180,7 @@ The reason the path was reset. String value.
 | `chunkLoad` | A chunk was unloaded. |
 
 
-<h3> GoalDynamicOpts</h3>
+<h3>GoalDynamicOpts</h3>
 
 ```ts
 interface GoalDynamicOpts {
