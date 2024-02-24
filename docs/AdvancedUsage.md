@@ -12,7 +12,7 @@
 
 
 
-<h2>Goal Creation</h2>
+<h2>Custom Goals</h2>
 
 This pathfinder supports any type of goal, provided they extend our base classes `goals.Goal` and `goals.GoalDynamic`. These classes are designed to be extended and provide a simple interface for creating custom goals.
 
