@@ -32,7 +32,8 @@ To create a subclass of `goals.Goal`, you need to implement the `isEnd` and `heu
 
 ```ts
 
-import { Goal, MovementExecutor } from 'mineflayer-pathfinder'
+import { goals, MovementExecutor } from 'mineflayer-pathfinder'
+const {Goal} = goals
 
 class MyGoal extends Goal {
   isEnd (node: Move): boolean {
@@ -58,7 +59,8 @@ To create a subclass of `goals.GoalDynamic`, you need to implement all of the re
 
 ```ts
 
-import { GoalDynamic, BotEvents } from 'mineflayer-pathfinder'
+import { goals, BotEvents } from 'mineflayer-pathfinder'
+const {GoalDynamic} = goals
 
 class MyGoalDynamic extends GoalDynamic<'physicsTick', 'physicsTick'> {
   readonly eventKeys = 'physicsTick' as const // required for typing
