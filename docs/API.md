@@ -151,7 +151,7 @@ An async generator that generates partial paths until a successful path is found
 
 ```ts
 interface PathGeneratorResult {
-  result: PathInfo
+  result: Path
   astarContext: AAStar<Move>
 }
 ```
