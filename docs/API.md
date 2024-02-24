@@ -430,7 +430,88 @@ This goal will have the bot invert the goal chosen.
 
 <h4>Methods</h4>
 
-▸ **from<G1>(`goal: G1`): `GoalInvert<G1>`**
+▸ **from(`goal: G1`): `GoalInvert<G1>`**
+
+<h4>Example</h4>
+
+```ts
+GoalInvert.from(GoalBlock.fromVec(new Vec3(0,0,0)))
+```
+
+<h3>GoalCompositeAny</h3>
+
+`dynamic?:` Based on given goals.
+
+`automatically finishes?:` Based on given goals.
+
+This goal will have the bot complete any of the goals chosen.
+
+<h4>Generics></h4>
+
+| Generics | Base | Description |
+| --- | --- | --- |
+| `Gls` | `Goal[]` | The typings for the goals given. |
+
+
+<h4>Constructor</h4>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| goals | `Gls` | The goals to complete. |
+
+<h4>Methods</h4>
+
+▸ **from(`...goals: Gls`): `GoalCompositeAny<Gls>`**
+
+
+<h4>Example</h4>
+
+```ts
+
+const goal0 = GoalBlock.fromVec(new Vec3(0,0,0))
+const goal1 = GoalBlock.fromVec(new Vec3(0,0,0))
+
+const gls = [goal0, goal1]
+
+GoalCompositeAny.from(...gls), 
+```
+
+<h3>GoalCompositeAll</h3>
+
+`dynamic?:` Based on given goals.
+
+`automatically finishes?:` Based on given goals.
+
+This goal will have the bot complete all of the goals chosen.
+
+<h4>Generics></h4>
+
+| Generics | Base | Description |
+| --- | --- | --- |
+| `Gls` | `Goal[]` | The typings for the goals given. |
+
+<h4>Constructor</h4>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| goals | `Gls` | The goals to complete. |
+
+<h4>Methods</h4>
+
+▸ **from(`...goals: Gls`): `GoalCompositeAll<Gls>`**
+
+<h4>Example</h4>
+
+```ts
+
+const goal0 = GoalBlock.fromVec(new Vec3(0,0,0))
+const goal1 = GoalBlock.fromVec(new Vec3(0,0,0))
+
+const gls = [goal0, goal1]
+
+GoalCompositeAll.from(...gls), 
+```
+
 
 
 
