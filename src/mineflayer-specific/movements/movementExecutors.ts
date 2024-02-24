@@ -54,16 +54,16 @@ export class NewForwardExecutor extends MovementExecutor {
     if (faceForward) {
       // await this.postInitAlignToPath(thisMove)
       // void this.lookAt(target);
-      this.bot.setControlState("forward", true);
-      if (this.bot.food <= 6) this.bot.setControlState("sprint", false);
-      else this.bot.setControlState("sprint", true);
+      this.bot.setControlState('forward', true)
+      if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
+      else this.bot.setControlState('sprint', true)
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
       // await this.postInitAlignToPath(thisMove, { lookAt: offset })
-      void this.lookAt(offset);
-      this.bot.setControlState("forward", false);
-      this.bot.setControlState("sprint", false);
-      this.bot.setControlState("back", true);
+      void this.lookAt(offset)
+      this.bot.setControlState('forward', false)
+      this.bot.setControlState('sprint', false)
+      this.bot.setControlState('back', true)
     }
 
     // return this.isComplete(thisMove, thisMove, {entry: true})
@@ -74,7 +74,7 @@ export class NewForwardExecutor extends MovementExecutor {
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    console.log("ForwardMove", thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length);
+    console.log('ForwardMove', thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length)
 
     this.bot.clearControlStates()
 

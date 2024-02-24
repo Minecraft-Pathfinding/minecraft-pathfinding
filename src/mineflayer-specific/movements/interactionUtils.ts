@@ -11,7 +11,7 @@ import { CancelError } from '../exceptions'
 import { MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
 import { Block } from '../../types'
-import { Task, printBotControls } from '../../utils'
+import { Task } from '../../utils'
 
 export type InteractType = 'water' | 'solid' | 'replaceable'
 export type RayType = {
@@ -400,14 +400,13 @@ export class PlaceHandler extends InteractHandler {
 
         // const invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
 
-        const start1 = performance.now()
         let i = 0
         for (; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
           const state = ectx.state
           bot.physicsUtil.engine.simulate(ectx, bot.world)
-          console.log(bot.entity.position, state.pos)
+          // console.log(bb.pos, bot.entity.position)
           const sPos = state.pos.offset(0, 1.62, 0)
           const testCheck = (await bot.world.raycast(
             sPos,
@@ -415,16 +414,12 @@ export class PlaceHandler extends InteractHandler {
             PlaceHandler.reach * 2
           )) as unknown as RayType
 
-          if (testCheck === null) {
-
-            console.log('break due to test check')
-            break
-          }
+          if (testCheck === null) break
 
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
-            console.log("skipping on tick", i);
+            // console.log("skipping on tick", i);
             if (i < works.ticks - 1 && i !== 0) {
               await bot.waitForTicks(1)
             }
@@ -433,16 +428,11 @@ export class PlaceHandler extends InteractHandler {
           await bot.waitForTicks(1)
         }
 
-        console.log('waiting took', performance.now() - start1, 'ms', works.ticks)
-
-        printBotControls(bot);
-
-
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 })
 
-        // if (this.settings.forceLook) {
-        //   this.move.lookAt(rayRes.intersect)
-        // }
+        if (!this.move.isLookingAt(rayRes.intersect)) {
+          await bot.lookAt(rayRes.intersect, this.settings.forceLook)
+        }
 
         const invalidPlacement = botBB.intersects(posBl)
         if (invalidPlacement) {
@@ -452,13 +442,13 @@ export class PlaceHandler extends InteractHandler {
           throw new CancelError('Invalid placement')
         }
 
-        console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
-        console.log(bot.entity.position, bot.entity.velocity);
+        // console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
+        // console.log(bot.entity.position, bot.entity.velocity);
 
         let finished = false
         let sneaking = false
         const direction = this.faceToVec(rayRes.face)
-        console.log("looking at", rayRes.intersect);
+        // console.log("looking at", rayRes.intersect);
         start = performance.now()
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
         if (predictBlock) {
@@ -470,11 +460,11 @@ export class PlaceHandler extends InteractHandler {
         this._internalLock = false
 
         // auto crouch if block does not update (this is outdated code, see predictBlock)
-        // setTimeout(() => {
-        //   if (finished) return
-        //   sneaking = true
-        //   bot.setControlState('sneak', true)
-        // }, Math.max(30 - bot._client.latency, 0))
+        setTimeout(() => {
+          if (finished) return
+          sneaking = true
+          bot.setControlState('sneak', true)
+        }, Math.max(30 - bot._client.latency, 0))
 
         await this._placeTask
         finished = true
