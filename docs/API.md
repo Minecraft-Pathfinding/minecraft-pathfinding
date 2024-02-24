@@ -85,8 +85,8 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 | `status` | [PathStatus](#pathStatus) | The status of the path. |
 | `cost` | `number` | The cost of the path. |
 | `calcTime` | `number` | The time it took to calculate the path. |
-| `visitedNodes` | `number` | The number of nodes visited. |
-| `generatedNodes` | `number` | The number of nodes generated. |
+| `visitedNodes` | `number` | The `number` of nodes visited. |
+| `generatedNodes` | `number` | The `number` of nodes generated. |
 | `movementProvider` | `MovementProvider<Data>` | The movement provider. |
 | `path` | `Data[]` | The path. |
 | `context` | `Alg` | The algorithm context. |
@@ -107,8 +107,8 @@ interface Path extends APath<Move, AStar> {}
 | `status` | [PathStatus](#pathStatus) | The status of the path. |
 | `cost` | `number` | The cost of the path. |
 | `calcTime` | `number` | The time it took to calculate the path. |
-| `visitedNodes` | `number` | The number of nodes visited. |
-| `generatedNodes` | `number` | The number of nodes generated. |
+| `visitedNodes` | `number` | The `number` of nodes visited. |
+| `generatedNodes` | `number` | The `number` of nodes generated. |
 | `movementProvider` | `MovementProvider<Move>` | The movement provider. |
 | `path` | `Move[]` | The path. |
 | `context` | `AStar<Move>` | The astar context. |
@@ -175,7 +175,7 @@ The reason the path was reset. String value.
 
 | Value | Description |
 | --- | --- |
-| `blockUpdate` | A block update was detected. |
+| `blockUpdate` | A `block` update was detected. |
 | `goalUpdated` | The goal was updated. |
 | `chunkLoad` | A chunk was unloaded. |
 
@@ -204,17 +204,18 @@ The options for a dynamic goal.
 <h3>GoalBlock</h3>
 
 `dynamic?:` No.
+
 `automatically finishes?:` Yes.
 
-This goal will have the bot stand on top of the block chosen.
+This goal will have the bot stand on top of the `block` chosen.
 
 <h4>Constructor</h4>
 
 | Parameter | Type |
 | --- | --- |
-| x | number |
-| y | number |
-| z | number |
+| `x`| `number` |
+| `y`  | `number` |
+| `y`| `number` |
 
 <h4>Methods</h4>
 
@@ -232,6 +233,7 @@ GoalBlock.fromVec(new Vec3(0, 0, 0))
 <h3>GoalNear</h3>
 
 `dynamic?:` No.
+
 `automatically finishes?:` Yes.
 
 This goal will have the bot approach the coordinates chosen, and finish when within a given radius.
@@ -240,10 +242,10 @@ This goal will have the bot approach the coordinates chosen, and finish when wit
 
 | Parameter | Type |
 | --- | --- |
-| x | number |
-| y | number |
-| z | number |
-| distance | number |
+| `x`| `number` |
+| `y`  | `number` |
+| `y`| `number` |
+| `distance` | `number` |
 
 <h4>Methods</h4>
 
@@ -269,9 +271,9 @@ This goal will have the bot approach the coordinates chosen, and finish when wit
 
 | Parameter | Type |
 | --- | --- |
-| x | number |
-| z | number |
-| distance | number |
+| `x`| `number` |
+| `y`| `number` |
+| `distance` | `number` |
 
 <h4>Methods</h4>
 
@@ -286,6 +288,7 @@ GoalNearXZ.fromVec(new Vec3(0, 0, 0), 4)
 <h3>GoalLookAt</h3>
 
 `dynamic?:` No.
+
 `automatically finishes?:` Yes.
 
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, and finally look at the coordinates chosen.
@@ -294,14 +297,14 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 
 | Parameter | Type |
 | --- | --- |
-| world | World |
-| x | number |
-| y | number |
-| z | number |
-| width | number |
-| height | number |
-| distance | number |
-| eyeHeight | number |
+| `world` | `World` |
+| `x`| `number` |
+| `y`  | `number` |
+| `y`| `number` |
+| `width` | `number` |
+| `height` | `number` |
+| `distance` | `number` |
+| `eyeHeight` | `number` |
 
 <h4>Methods</h4>
 
@@ -321,6 +324,7 @@ GoalLookAt.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 <h3>GoalMineBlock</h3>
 
 `dynamic?:` No.
+
 `automatically finishes?:` Yes.
 
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally break the block.
@@ -329,10 +333,10 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 
 | Parameter | Type |
 | --- | --- |
-| world | World |
-| block | Block |
-| distance | number |
-| eyeHeight | number |
+| `world` | `World` |
+| `block` | `Block` |
+| `distance` | `number` |
+| `eyeHeight` | `number` |
 
 <h4>Methods</h4>
 
@@ -345,9 +349,10 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 GoalMineBlock.fromBlock(bot.world, bot.blockAt(new Vec3(0,0,0)))
 ```
 
- <h3>GoalPlaceBlock</h3>
+<h3>GoalPlaceBlock</h3>
 
- `dynamic?:` No.
+`dynamic?:` No.
+
 `automatically finishes?:` Yes.
 
 This goal will have the bot approach the coordinates chosen, finish when within a given radius, look at the coordinates chosen, and then finally place the block.
@@ -357,11 +362,11 @@ This goal will have the bot approach the coordinates chosen, finish when within 
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| world | World | The world the block is in. |
-| bPos | Vec3 | The position of the block. |
-| item | Item | The item to place. |
-| distance | number | The distance to the block. |
-| height | number | The height of the block. |
+| `world` | `World` | The world the block is in. |
+| `bPos` | `Vec3` | The position of the block. |
+| `item` | `Item` | The item to place. |
+| `distance` | `number` | The distance to the block. |
+| `height` | `number` | The height of the block. |
 
 <h4>Methods</h4>
 
@@ -376,7 +381,8 @@ GoalPlaceBlock.fromInfo(bot.world, new Vec3(0,0,0), bot.inventory.items()[0])
 
 <h3>GoalFollow</h3>
 
-`dynamic?:` Yes.
+`dynamic?:` Yes. (customizable)
+
 `automatically finishes?:` No. (customizable)
 
 This goal will have the bot follow the entity chosen.
@@ -386,8 +392,45 @@ This goal will have the bot follow the entity chosen.
 | Parameter | Type | Description |
 | --- | --- | --- |
 | entity | Entity | The entity to follow. |
-| range | number | The range to follow the entity. |
+| range | `number` | The range to follow the entity. |
 | opts | [GoalDynamicOpts](#goalDynamicOpts) | The options for the goal. |
+
+
+<h4>Methods</h4>
+
+▸ **fromEntity(`entity: Entity`, `range: number`, `opts?: GoalDynamicOpts`): `GoalFollow`**
+
+
+<h4>Example</h4>
+
+```ts
+GoalFollow.fromEntity(bot.entities[...], 4)
+```
+
+<h3>GoalInvert</h3>
+
+`dynamic?:` Based on given goals.
+
+`automatically finishes?:` Based on given goals.
+
+This goal will have the bot invert the goal chosen.
+
+<h4>Generics></h4>
+
+| Generics | Base | Description |
+| --- | --- | --- |
+| `G` | `Goal` | The goal to invert. (for ease-of-use, not necessary) |
+
+
+<h4>Constructor</h4>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| goal | [Goal](#goal) | The goal to invert. |
+
+<h4>Methods</h4>
+
+▸ **from<G1>(`goal: G1`): `GoalInvert<G1>`**
 
 
 
