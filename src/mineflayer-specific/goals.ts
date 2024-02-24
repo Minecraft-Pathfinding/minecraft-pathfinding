@@ -32,8 +32,7 @@ export abstract class GoalDynamic<
   ChKey extends Change extends keyof BotEvents ? [Change] : Change = Change extends keyof BotEvents ? [Change] : Change,
   VlKey extends Valid extends keyof BotEvents ? [Valid] : Valid = Valid extends keyof BotEvents ? [Valid] : Valid
 > extends Goal {
-
-  protected constructor(opts: GoalDynamicOpts = {}) {
+  protected constructor (opts: GoalDynamicOpts = {}) {
     super()
     this.neverfinish = opts.neverfinish ?? false
     this.dynamic = opts.dynamic ?? true
@@ -469,8 +468,6 @@ export class GoalPlaceBlock extends GoalLookAt {
     await this.handler.perform(bot, item)
   }
 }
-
-
 
 export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
   readonly eventKeys = 'entityMoved' as const
