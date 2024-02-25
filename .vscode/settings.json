@@ -1,3 +1,6 @@
 {
-    "print.colourScheme": "GitHub"
+    "print.colourScheme": "GitHub",
+    "githubPullRequests.ignoredPullRequestBranches": [
+        "main"
+    ]
 }

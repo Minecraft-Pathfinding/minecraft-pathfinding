@@ -1,4 +1,5 @@
 "use strict";
+
 const { createBot } = require("mineflayer");
 const { createPlugin, goals } = require("../dist");
 const { GoalBlock, GoalLookAt } = goals;
@@ -13,11 +14,11 @@ const bot = createBot({
   auth: "offline",
   // host: 'it-mil-1.halex.gg',
   // port: 25046
-  version: '1.19.4',
+  version: false,
 
   // host: "node2.endelon-hosting.de", port: 5000
-  host: 'Ic3TankD2HO.aternos.me',
-  // port: 44656
+  host: 'localhost',
+  port: 43923
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
@@ -98,12 +99,31 @@ async function cmdHandler(username, msg) {
     }
 
     case "goto": {
-      const x = Math.floor(Number(args[0]));
-      const y = Math.floor(Number(args[1]));
-      const z = Math.floor(Number(args[2]));
+      let x = NaN;
+      let y = NaN;
+      let z = NaN;
+
+      if (args[0] === "~") {
+        x = Math.floor(Number(bot.entity.position.x));
+      } else {
+        x = Math.floor(Number(args[0]));
+      }
+
+      if (args[1] === "~") {
+        y = Math.floor(Number(bot.entity.position.y));
+      } else {
+        y = Math.floor(Number(args[1]));
+      }
+
+      if (args[2] === "~") {
+        z = Math.floor(Number(bot.entity.position.z));
+      } else {
+        z = Math.floor(Number(args[2]));
+      }
+
       if (isNaN(x) || isNaN(y) || isNaN(z)) return bot.whisper(username, "goto <x> <y> <z> failed | invalid args");
       
-      bot.whisper(username, `going to ${args[0]} ${args[1]} ${args[2]}`);
+      bot.whisper(username, `going to ${x} ${y} ${z}`);
 
       await bot.pathfinder.goto(new GoalBlock(x,y,z));
    

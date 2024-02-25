@@ -2,8 +2,11 @@
   "dependencies": {
     "@nxg-org/mineflayer-physics-util": "1.5.8",
     "@nxg-org/mineflayer-util-plugin": "^1.8.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "heap-typed": "^1.52.0",
-    "lru-cache": "^10.1.0"
+    "lru-cache": "^10.1.0",
+    "prismarine-viewer": "^1.28.0"
   },
   "scripts": {
     "install": "npm run build",
