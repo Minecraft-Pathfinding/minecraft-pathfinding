@@ -20,12 +20,24 @@ export abstract class Goal implements AGoal<Move> {
 }
 
 type EasyKeys = keyof BotEvents | Array<keyof BotEvents>
+
+interface GoalDynamicOpts {
+  neverfinish?: boolean
+  dynamic?: boolean
+}
+
 export abstract class GoalDynamic<
   Change extends EasyKeys = Array<keyof BotEvents>,
   Valid extends EasyKeys = Array<keyof BotEvents>,
   ChKey extends Change extends keyof BotEvents ? [Change] : Change = Change extends keyof BotEvents ? [Change] : Change,
   VlKey extends Valid extends keyof BotEvents ? [Valid] : Valid = Valid extends keyof BotEvents ? [Valid] : Valid
 > extends Goal {
+  protected constructor (opts: GoalDynamicOpts = {}) {
+    super()
+    this.neverfinish = opts.neverfinish ?? false
+    this.dynamic = opts.dynamic ?? true
+  }
+
   dynamic = true
   neverfinish = false
   abstract readonly eventKeys: Readonly<Change>
@@ -457,11 +469,6 @@ export class GoalPlaceBlock extends GoalLookAt {
   }
 }
 
-interface GoalFollowEntityOpts {
-  neverfinish?: boolean
-  dynamic?: boolean
-}
-
 export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
   readonly eventKeys = 'entityMoved' as const
   readonly validKeys = 'entityGone' as const
@@ -471,17 +478,15 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
   public z: number
   public sqDist: number
 
-  constructor (public readonly refVec: Vec3, distance: number, opts: GoalFollowEntityOpts = {}) {
-    super()
+  constructor (public readonly refVec: Vec3, distance: number, opts: GoalDynamicOpts = {}) {
+    super(opts)
     this.x = refVec.x
     this.y = refVec.y
     this.z = refVec.z
     this.sqDist = Math.pow(distance, 2)
-    this.neverfinish = opts.neverfinish ?? false
-    this.dynamic = opts.dynamic ?? true
   }
 
-  static fromEntity (entity: { position: Vec3 }, distance: number, opts: GoalFollowEntityOpts): GoalFollowEntity {
+  static fromEntity (entity: { position: Vec3 }, distance: number, opts: GoalDynamicOpts): GoalFollowEntity {
     return new GoalFollowEntity(entity.position, distance, opts)
   }
 

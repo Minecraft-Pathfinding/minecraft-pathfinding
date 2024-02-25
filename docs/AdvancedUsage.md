@@ -1,19 +1,9 @@
-<!-- Explain how to create a subclass of goals.Goal class -->
-
-<!-- reference typescript code -->
-<!-- export abstract class Goal implements AGoal<Move> {
-  abstract isEnd (node: Move): boolean
-  abstract heuristic (node: Move): number
-  async onFinish (node: MovementExecutor): Promise<void> {}
-} -->
-
-
 <h1 align="center">Advanced Usage!</h1>
 
 <h3>Table of Contents</h3>
 
 - [Custom Goals](#custom-goals)
-  - [Custom goals.GoalDynamic](#Custom-goal)
+  - [Custom goals.Goal](#custom-goal)
   - [Custom goals.GoalDynamic](#Custom-goaldynamic)
 - [Movement Customization](#movement-customization)
   - [Custom Movement Providers](#custom-movement-providers)
@@ -22,7 +12,7 @@
 
 
 
-<h2>Goal Creation</h2>
+<h2>Custom Goals</h2>
 
 This pathfinder supports any type of goal, provided they extend our base classes `goals.Goal` and `goals.GoalDynamic`. These classes are designed to be extended and provide a simple interface for creating custom goals.
 
@@ -32,7 +22,7 @@ This pathfinder supports any type of goal, provided they extend our base classes
 
 Both of these classes are abstract, meaning you cannot create an instance of them directly. Instead, you must create a subclass of them and implement the required methods.
 
-<h3>Creating a subclass of goals.Goal</h3>
+<h3>Custom Goal</h3>
 
 To create a subclass of `goals.Goal`, you need to implement the `isEnd` and `heuristic` methods. You can also override the `onFinish` method to perform any cleanup or additional actions when the goal is finished.
 
@@ -42,7 +32,8 @@ To create a subclass of `goals.Goal`, you need to implement the `isEnd` and `heu
 
 ```ts
 
-import { Goal, MovementExecutor } from 'mineflayer-pathfinder'
+import { goals, MovementExecutor } from '@nxg-org/mineflayer-pathfinder'
+const {Goal} = goals
 
 class MyGoal extends Goal {
   isEnd (node: Move): boolean {
@@ -59,35 +50,7 @@ class MyGoal extends Goal {
 }
 ```
 
-
-<!-- type EasyKeys = keyof BotEvents | Array<keyof BotEvents>
-export abstract class GoalDynamic<
-  Change extends EasyKeys = Array<keyof BotEvents>,
-  Valid extends EasyKeys = Array<keyof BotEvents>,
-  ChKey extends Change extends keyof BotEvents ? [Change] : Change = Change extends keyof BotEvents ? [Change] : Change,
-  VlKey extends Valid extends keyof BotEvents ? [Valid] : Valid = Valid extends keyof BotEvents ? [Valid] : Valid
-> extends Goal {
-  dynamic = true
-  neverfinish = false
-  abstract readonly eventKeys: Readonly<Change>
-  abstract readonly validKeys: Readonly<Valid>
-  abstract hasChanged (event: ChKey[number], ...args: Parameters<BotEvents[ChKey[number]]>): boolean
-  abstract isValid (event: VlKey[number], ...args: Parameters<BotEvents[VlKey[number]]>): boolean
-  abstract update (): void
-  cleanup?: () => void // will be assigned later.
-
-  get _eventKeys (): ChKey {
-    if (this.eventKeys instanceof Array) return this.eventKeys as ChKey
-    return [this.eventKeys] as ChKey
-  }
-
-  get _validKeys (): VlKey {
-    if (this.validKeys instanceof Array) return this.validKeys as VlKey
-    return [this.validKeys] as VlKey
-  }
-} -->
-
-<h3>Creating a subclass of goals.GoalDynamic</h3>
+<h3>Custom GoalDynamic</h3>
 
 To create a subclass of `goals.GoalDynamic`, you need to implement all of the required methods for `goals.Goal` and also implement the `hasChanged`, `isValid`, and `update` methods. You will also have to specify the `eventKeys` and `validKeys` values and match them to your provided generic typing. 
 
@@ -96,7 +59,8 @@ To create a subclass of `goals.GoalDynamic`, you need to implement all of the re
 
 ```ts
 
-import { GoalDynamic, BotEvents } from 'mineflayer-pathfinder'
+import { goals, BotEvents } from '@nxg-org/mineflayer-pathfinder'
+const {GoalDynamic} = goals
 
 class MyGoalDynamic extends GoalDynamic<'physicsTick', 'physicsTick'> {
   readonly eventKeys = 'physicsTick' as const // required for typing
@@ -213,7 +177,7 @@ The movement Executor can be either its static instance or a new instance of the
 The provider list when calculating a path is *not* linked to the provider list that has executors. This means that if you add an executor to a provider that has no optimizer, the produced path will not be optimized.
 
 ```ts
-import { custom } from 'mineflayer-pathfinder'
+import { custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider, MovementExecutor} = custom
 
 class MyProvider extends MovementProvider {
@@ -244,7 +208,7 @@ This allows providers to be removed from the calculation step without needing to
 
 
 ```ts
-import { custom } from 'mineflayer-pathfinder'
+import { custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider, MovementOptimizer} = custom
 
 class MyProvider extends MovementProvider {
@@ -276,7 +240,7 @@ To create a subclass of `MovementProvider`, you need to implement the `provideMo
 
 ```ts
 
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementProvider} = custom
 
 class MyMovementProvider extends MovementProvider {
@@ -301,7 +265,7 @@ To create a subclass of `MovementExecutor`, you need to implement the `performIn
 <h4>Example</h4>
 
 ```ts
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementExecutor} = custom;
 
 class MyMovementExecutor extends MovementExecutor {
@@ -331,7 +295,7 @@ To create a subclass of `MovementOptimizer`, you need to implement the `identEnd
 <h4>Example</h4>
 
 ```ts
-import { Move, goals, custom } from 'mineflayer-pathfinder'
+import { Move, goals, custom } from '@nxg-org/mineflayer-pathfinder'
 const {MovementOptimizer} = custom;
 
 class MyMovementOptimizer extends MovementOptimizer {

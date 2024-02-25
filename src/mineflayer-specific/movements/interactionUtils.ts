@@ -430,10 +430,8 @@ export class PlaceHandler extends InteractHandler {
 
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 })
 
-        if (this.settings.forceLook) {
-          if (!this.move.isLookingAt(rayRes.intersect)) {
-            await bot.lookAt(rayRes.intersect, this.settings.forceLook)
-          }
+        if (!this.move.isLookingAt(rayRes.intersect)) {
+          await bot.lookAt(rayRes.intersect, this.settings.forceLook)
         }
 
         const invalidPlacement = botBB.intersects(posBl)

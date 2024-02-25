@@ -1,4 +1,15 @@
+import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
+
+export function printBotControls (bot: Bot) {
+  console.log('forward', bot.getControlState('forward'))
+  console.log('back', bot.getControlState('back'))
+  console.log('left', bot.getControlState('left'))
+  console.log('right', bot.getControlState('right'))
+  console.log('jump', bot.getControlState('jump'))
+  console.log('sprint', bot.getControlState('sprint'))
+  console.log('sneak', bot.getControlState('sneak'))
+}
 
 export async function onceWithCleanup<T> (
   emitter: NodeJS.EventEmitter,
