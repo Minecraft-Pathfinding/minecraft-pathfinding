@@ -12,6 +12,7 @@ const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
 const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
+let firstPerson = false;
 
 const bot = createBot({
   username: "testing1",
@@ -75,7 +76,8 @@ bot.once("spawn", async () => {
   bot.loadPlugin(loader);
 
   bot.pathfinder.setPathfinderOptions({
-    partialPathProducer: true
+    partialPathProducer: true,
+    partialPathLength: 10
   })
 
 
@@ -582,6 +584,7 @@ const botEvents = {
   goalSet: [],
   goalFinished: [],
   goalAborted: [],
+  mostRecentNode: []
 };
 
 app.get('/bot-events', (req, res) => {
@@ -623,27 +626,53 @@ bot.on('goalAborted', (goal) => {
 
   // // to get a path to the most recent node considered
   // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
+   function toObject () {
+        return JSON.parse(JSON.stringify(this, (key, value) =>
+            typeof value === 'bigint'
+                ? value.toString()
+                : value // return everything else unchanged
+        ));
+    }
 
-  const loop = () => {
-    setInterval(() => {
-      try {
-        console.log("HERE\\n\\n", bot.pathfinder.currentProducer.getCurrentPath().targetPos);
-        const path = [bot.entity.position.clone()]
-        // if (path[path.length - 1].distanceTo(bot.pathfinder.currentProducer.getCurrentPath().targetPos) > 1) {
-          path.push(bot.pathfinder.currentProducer.getCurrentPath().targetPos)
-          bot.viewer.drawLine('path', path)
-        // }
-      } catch (e) {
-        console.log(e);
-      }
-    }, 2000);
-  }
-
-  bot.on('pathGenerated', (path) => {
-    console.log(`Path generated: ${path}`)
-  })
   
-  loop();
+
+
+
+app.get('/switch', (req, res) => {
+  bot.viewer.close()
+  firstPerson = !firstPerson;
+  mineflayerViewer(bot, { firstPerson: firstPerson, port: 5001 })
+  res.json({success: true, firstPerson: firstPerson});
+});
+
+const loop = () => {
+
+
+  let vecPath = null;
+  setInterval(() => {
+
+      if (!bot.pathfinder.currentProducer) {
+        if (vecPath != null) bot.viewer.erase(vecPath);
+        console.log('hi no producder')
+        return;
+      }
+
+      console.log('rendering path!')
+
+      const path = bot.pathfinder.currentProducer.getCurrentPath();
+
+    
+      if (vecPath != null) bot.viewer.erase(vecPath);
+
+      vecPath = path.map(p=>p.exitPos);
+    
+      bot.viewer.drawLine('path', vecPath)
+
+  }, 50);
+}
+bot.once('spawn', loop)
+
+  
 
 app.listen(port, () => {
   console.log(`API server listening at http://localhost:${port}`);
