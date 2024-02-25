@@ -20,7 +20,7 @@ const bot = createBot({
   // port: 25497
 
   host: 'localhost',
-  port: 43923
+  port: 40051
   // host: 'Ic3TankD2HO.aternos.me'
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
@@ -60,18 +60,22 @@ function _getGoal(world, x, y, z,modes) {
 bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
-  mineflayerViewer(bot, { firstPerson: true, port: 5001 })
+  mineflayerViewer(bot, { firstPerson: false, port: 5001 })
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
       throw new Error('both forward and back are true')
 
     }
+
+
   })
+
+
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
   bot.pathfinder.setPathfinderOptions({
-    partialPathProducer: false
+    partialPathProducer: true
   })
 
 
@@ -612,6 +616,34 @@ bot.on('goalAborted', (goal) => {
   botEvents.goalAborted.push(goal);
 });
 
+
+  // to get a path to the best node considered (updated per producer.advance() call)
+  // bot.pathfinder.currentProducer.getCurrentPath();
+
+
+  // // to get a path to the most recent node considered
+  // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
+
+  const loop = () => {
+    setInterval(() => {
+      try {
+        console.log("HERE\\n\\n", bot.pathfinder.currentProducer.getCurrentPath().targetPos);
+        const path = [bot.entity.position.clone()]
+        // if (path[path.length - 1].distanceTo(bot.pathfinder.currentProducer.getCurrentPath().targetPos) > 1) {
+          path.push(bot.pathfinder.currentProducer.getCurrentPath().targetPos)
+          bot.viewer.drawLine('path', path)
+        // }
+      } catch (e) {
+        console.log(e);
+      }
+    }, 2000);
+  }
+
+  bot.on('pathGenerated', (path) => {
+    console.log(`Path generated: ${path}`)
+  })
+  
+  loop();
 
 app.listen(port, () => {
   console.log(`API server listening at http://localhost:${port}`);
