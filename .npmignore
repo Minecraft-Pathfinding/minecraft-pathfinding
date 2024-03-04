@@ -3,5 +3,4 @@
 .github/
 src/
 examples/
-tsconfig.json
 yarn*

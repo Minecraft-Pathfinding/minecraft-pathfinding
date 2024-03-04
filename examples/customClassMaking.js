@@ -1,19 +1,24 @@
 "use strict";
 const { createBot } = require("mineflayer");
-const { createPlugin, goals, custom } = require("../dist");
+const { createPlugin, goals, custom } = require("@nxg-org/mineflayer-pathfinder");
 const { GoalBlock, GoalLookAt } = goals;
 const {MovementProvider, MovementExecutor} = custom
 const { Vec3 } = require("vec3");
 const rl = require('readline')
-const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-util");
-
 
 
 class MyProvider extends MovementProvider {
+  // provideMovements(start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void;
+  provideMovements(start, storage, goal, closed) {
     
+
+  }
 }
 
-console.log(MovementProvider)
+class MyExecutor extends MovementExecutor {
+
+}
+
 
 const bot = createBot({
   username: "testing1",
@@ -58,7 +63,6 @@ bot.on('actionBar', (message) => {
 })
 bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
-  bot.loadPlugin(loader);
 
   bot.physics.autojumpCooldown = 0;
 

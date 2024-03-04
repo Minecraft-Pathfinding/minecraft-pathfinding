@@ -4,17 +4,15 @@
     "@nxg-org/mineflayer-util-plugin": "^1.8.3",
     "heap-typed": "^1.52.0",
     "lru-cache": "^10.1.0",
-    "typescript": "^5.3.3"
   },
   "scripts": {
-    "install": "npm run build",
     "prepublishOnly": "npm run lint && npm run build",
-    "build": "tsc",
+    "build": "tsc -p ./tsconfig.json",
     "pub": "npm run lint && npm run build && npm publish --access public",
     "lint": "ts-standard -y --fix"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.16",
+  "version": "0.0.18",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/Minecraft-Pathfinding/minecraft-pathfinding.git",
@@ -30,6 +28,7 @@
     "mineflayer": "^4.10.1",
     "prismarine-viewer": "^1.28.0",
     "ts-standard": "^12.0.2",
+    "typescript": "^5.3.3",
     "vec3": "^0.1.8"
   },
   "ts-standard": {

@@ -33,6 +33,12 @@ export abstract class MovementProvider extends Movement {
    *
    * Decide whether or not movement is possible.
    * If possible, append to provided storage.
+   *
+   *
+   * @param {Move} start
+   * @param {Move[]} storage put all resulting moves to this storage
+   * @param {goals.Goal} goal
+   * @param {Set<string>} closed Closed set of hashed positions for movements. Use this to cancel calculation early.
    */
   abstract provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void
 
