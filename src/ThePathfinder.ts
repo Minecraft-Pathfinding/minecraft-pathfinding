@@ -586,7 +586,6 @@ export class ThePathfinder {
             if (res.result.status === 'noPath' || res.result.status === 'timeout') break
 
             if (res.result.status === 'partialSuccess') {
-
               // could potentially introduce a bug of movement count not matching entirely.
               // Keep a lookout for that.
               const newPath = await this.postProcess(res.result)
