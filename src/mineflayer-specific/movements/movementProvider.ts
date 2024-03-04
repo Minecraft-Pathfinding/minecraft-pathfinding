@@ -200,8 +200,8 @@ export class MovementHandler implements AMovementProvider<Move> {
   private readonly swapArray = new Array(this.maxBound).fill(null)
   private readonly swapSet = new Array(this.maxBound)
 
-  public count = 0
-  public totCount = 0
+  static count = 0
+  static totCount = 0
   shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
     const diff = newPos.minus(orgPos)
 
@@ -234,8 +234,8 @@ export class MovementHandler implements AMovementProvider<Move> {
       const idx = this.swapSet[i]
       this.localData[idx] = this.swapArray[idx]
     }
-    if (swapIdx > 0) this.count++
-    this.totCount++
+    if (swapIdx > 0) MovementHandler.count++
+    MovementHandler.totCount++
   }
 
   private lastPos?: Vec3

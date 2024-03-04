@@ -69,14 +69,16 @@ export class AStarNeighbor extends AStar {
     }
 
     while (!this.openHeap.isEmpty()) {
-      const time = performance.now()
-      if (time - computeStartTime > this.tickTimeout) {
-        // compute time per tick
-        return this.makeResult('partial', this.bestNode)
-      }
-      if (this.timeout >= 0 && time - this.startTime > this.timeout) {
-        // total compute time
-        return this.makeResult('timeout', this.bestNode)
+      if ((++this.nodeConsiderCount & this.checkInterval) === 0) {
+        const time = performance.now()
+        if (time - computeStartTime > this.tickTimeout) {
+          // compute time per tick
+          return this.makeResult('partial', this.getActualBestNode())
+        }
+        if (this.timeout >= 0 && time - this.startTime > this.timeout) {
+          // total compute time
+          return this.makeResult('timeout', this.getActualBestNode())
+        }
       }
       // const node = this.openHeap.poll()!
       const node = this.openHeap.pop()
@@ -98,7 +100,7 @@ export class AStarNeighbor extends AStar {
       //   }
     }
     // all the neighbors of every accessible node have been exhausted
-    return this.makeResult('noPath', this.bestNode)
+    return this.makeResult('noPath', this.getActualBestNode())
   }
 
   private test (node: PathNode, maxDepth: number, depth = 0, seen = new Set()): void {
@@ -115,9 +117,8 @@ export class AStarNeighbor extends AStar {
       return
     }
 
+    let bestLocal = node
     // if (node.f < this.bestNode.f - 50) return;
-
-    let oldBestCost = this.bestNode.f - node.f
 
     // allow specific implementations to access visited and closed data.
     this.addToClosedDataSet(node)
@@ -129,12 +130,12 @@ export class AStarNeighbor extends AStar {
         continue // skip closed neighbors
       }
 
-      //   if (seen.has(neighborData.hash)) {
-      //     // console.log('seen!')
-      //     continue;
-      //   }
+      // if (seen.has(neighborData.hash)) {
+      //   // console.log('seen!')
+      //   continue;
+      // }
 
-      //   seen.add(neighborData.hash)
+      // seen.add(neighborData.hash)
 
       //   console.log('called with:', node.data?.hash, neighborData.hash, seen.size, depth)
 
@@ -147,30 +148,31 @@ export class AStarNeighbor extends AStar {
       if (pastNeighbor === undefined) {
         // add neighbor to the open set
         const neighbor = new CPathNode(gFromThisNode, heuristic, neighborData, node)
-        if (neighbor.h < this.bestNode.h) this.bestNode = neighbor
-        if (neighbor.f - node.f < oldBestCost) {
-          oldBestCost = neighbor.f - node.f
+        this.assignBestNodes(neighbor)
+        // if (neighbor.h < this.bestNode.h) this.bestNode = neighbor
+        if (neighbor.h < node.h) {
+          bestLocal = neighbor
           // bestLocal = neighbor;
           // oldBestCost = pastNeighborNode.f;
-          this.test(neighbor, maxDepth, depth + 1, seen)
+          // this.test(neighbor, maxDepth, depth + 1, seen)
         }
 
         this.openDataMap.set(neighborData.hash, neighbor)
         this.openHeap.push(neighbor)
       } else if (gFromThisNode - pastNeighbor.g < this.differential) {
         pastNeighbor.update(gFromThisNode, heuristic, neighborData, node)
+        this.assignBestNodes(pastNeighbor)
         this.openHeap.update(pastNeighbor)
-        if (pastNeighbor.h < this.bestNode.h) this.bestNode = pastNeighbor
-        if (pastNeighbor.f - node.f < oldBestCost) {
-          oldBestCost = pastNeighbor.f - node.f
-          this.test(pastNeighbor, maxDepth, depth + 1, seen)
+        // if (pastNeighbor.h < this.bestNode.h) this.bestNode = pastNeighbor
+        if (pastNeighbor.h < node.h) {
+          bestLocal = pastNeighbor
+          // this.test(pastNeighbor, maxDepth, depth + 1, seen)
           // bestLocal = pastNeighborNode;
         }
-      } else continue
+      }
     }
-
-    // if (bestLocal && depth < maxDepth) {
-    //     this.test(bestLocal, maxDepth, depth + 1);
-    // }
+    if (bestLocal !== node) {
+      this.test(bestLocal, maxDepth, depth + 1, seen)
+    }
   }
 }

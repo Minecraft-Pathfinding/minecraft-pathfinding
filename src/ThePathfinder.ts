@@ -185,6 +185,13 @@ export class ThePathfinder {
     this.setupListeners()
   }
 
+  debug (...args: any[]): void {
+    console.log(...args)
+    const msg = args.join(' ')
+
+    this.bot.chat(msg)
+  }
+
   async cancel (): Promise<void> {
     this.userAborted = true
     await this.interrupt(1000, true)
@@ -478,6 +485,9 @@ export class ThePathfinder {
       if (result.status === 'success') {
         cleanup()
         this.bot.emit('pathGenerated', result)
+        console.log('locality %', MovementHandler.count / MovementHandler.totCount * 100)
+        MovementHandler.count = 0
+        MovementHandler.totCount = 0
         yield { result, astarContext }
         return { result, astarContext }
       }

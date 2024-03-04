@@ -1,7 +1,7 @@
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
-export function printBotControls (bot: Bot) {
+export function printBotControls (bot: Bot): void {
   console.log('forward', bot.getControlState('forward'))
   console.log('back', bot.getControlState('back'))
   console.log('left', bot.getControlState('left'))

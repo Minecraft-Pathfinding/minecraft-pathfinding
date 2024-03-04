@@ -114,7 +114,8 @@ export class JumpSim extends BaseSimulator {
   simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): EntityState {
     let jump = false
     let changed = false
-    const goalBlockTop = goalCorner.floored().translate(0.5, 1, 0.5)
+
+    console.log('edge jump init', ctx.state.pos)
     return this.simulateUntil(
       JumpSim.getReachedAABB(goalBlock),
       JumpSim.getCleanupPosition(goalCorner),
@@ -123,12 +124,13 @@ export class JumpSim extends BaseSimulator {
         JumpSim.getControllerStrafeAim(goalCorner),
         JumpSim.getControllerSmartMovement(goalCorner, sprint),
         (state, ticks) => {
+          // console.log('jump edge', state.age, state.pos)
           state.control.sneak = false
           // check if player is leaving src block collision
           const playerBB = state.getAABB()
-          playerBB.expand(0, 1e-1, 0)
+          playerBB.expand(0, 1e-6, 0)
           if (jump && state.pos.xzDistanceTo(goalCorner) < 0.5 && !changed) {
-            goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z)
+            // goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z)
             changed = true
           }
           if (ticks > 0 && srcAABBs.every((src) => !src.intersects(playerBB)) && !jump) {

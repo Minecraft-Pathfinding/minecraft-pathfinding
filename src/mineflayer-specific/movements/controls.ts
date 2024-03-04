@@ -209,7 +209,7 @@ export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true)
 
   // diff = wrapRadians(diff + lookDiff)
 
-  console.log('forward/back diff', diff, diff / Math.PI * 12)
+  // console.log('forward/back diff', diff, diff / Math.PI * 12)
 
   if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
     // console.log('going back')

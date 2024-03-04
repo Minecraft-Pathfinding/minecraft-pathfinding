@@ -1,23 +1,23 @@
 "use strict";
+const express = require('express');
+const cors = require('cors')
+const app = express();
+app.use(cors())
+const port = 5000;
 const { createBot } = require("mineflayer");
-const { createPlugin, goals, custom } = require("../dist");
-const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals
+const mineflayerViewer = require('prismarine-viewer').mineflayer
+const { createPlugin, goals } = require("../dist");
+const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals;
 const { Vec3 } = require("vec3");
 const rl = require('readline')
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
 const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
-
+let firstPerson = false;
 
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  // host: 'fr-msr-1.halex.gg',
-  // port: 25497
-
   host: "node2.meowbot.de", port: 5000
-  // host: 'Ic3TankD2HO.aternos.me'
-  // host: "us1.node.minecraft.sneakyhub.com",
-  // port: 25607,
 });
 const pathfinder = createPlugin();
 
@@ -54,33 +54,24 @@ function _getGoal(world, x, y, z,modes) {
 bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
-
-
-  // // to get a path to the best node considered (updated per producer.advance() call)
-  // bot.pathfinder.currentProducer.getCurrentPath();
-
-
-  // // to get a path to the most recent node considered
-  // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
-
-
+  mineflayerViewer(bot, { firstPerson: false, port: 5001 })
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
-      // console.log(bot.pathfinder.currentExecutor.constructor.name)
-  
       throw new Error('both forward and back are true')
 
     }
+
+
   })
+
+
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
   bot.pathfinder.setPathfinderOptions({
     partialPathProducer: true,
-    partialPathLength: 30
+    partialPathLength: 10
   })
-
-  bot.pathfinder.setCacheEnabled(true);
 
 
   bot.on('goalFinished', (goal) => {
@@ -95,11 +86,6 @@ bot.once("spawn", async () => {
   EntityState.prototype.apply = function (bot) {
     this.applyToBot(bot);
   };
-
-  // bot.on('entityMoved', e=> {
-  //   if (e ===bot.entity) return
-  //   console.log(e.name, e.position)
-  // })
 
   bot.on('resetPath', (reason)=>console.log('reset path!', reason))
 
@@ -584,3 +570,102 @@ function rayTraceEntitySight(options) {
 bot.on("kicked", console.log);
 
 
+const botEvents = {
+  resetPath: [],
+  enteredRecovery: [],
+  exitedRecovery: [],
+  goalSet: [],
+  goalFinished: [],
+  goalAborted: [],
+  mostRecentNode: []
+};
+
+app.get('/bot-events', (req, res) => {
+  res.json(botEvents);
+});
+
+bot.on('resetPath', (goal) => {
+  botEvents.resetPath.push(goal);
+});
+
+bot.on('resetPath', (reason) => {
+  botEvents.resetPath.push(reason);
+});
+
+bot.on('enteredRecovery', (entry) => {
+  botEvents.enteredRecovery.push(entry);
+});
+
+bot.on('exitedRecovery', (entry) => {
+  botEvents.exitedRecovery.push(entry);
+});
+
+bot.on('goalSet', (goal) => {
+  botEvents.goalSet.push(goal);
+});
+
+bot.on('goalFinished', (goal) => {
+  botEvents.goalFinished.push(goal);
+});
+
+bot.on('goalAborted', (goal) => {
+  botEvents.goalAborted.push(goal);
+});
+
+
+  // to get a path to the best node considered (updated per producer.advance() call)
+  // bot.pathfinder.currentProducer.getCurrentPath();
+
+
+  // // to get a path to the most recent node considered
+  // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
+   function toObject () {
+        return JSON.parse(JSON.stringify(this, (key, value) =>
+            typeof value === 'bigint'
+                ? value.toString()
+                : value // return everything else unchanged
+        ));
+    }
+
+  
+
+
+
+app.get('/switch', (req, res) => {
+  bot.viewer.close()
+  firstPerson = !firstPerson;
+  mineflayerViewer(bot, { firstPerson: firstPerson, port: 5001 })
+  res.json({success: true, firstPerson: firstPerson});
+});
+
+const loop = () => {
+
+  let vecPath = null;
+  setInterval(() => {
+
+      if (!bot.pathfinder.currentProducer) {
+        if (vecPath != null) bot.viewer.erase(vecPath);
+        console.log('hi no producder')
+        return;
+      }
+
+      console.log('rendering path!')
+
+      const path = bot.pathfinder.currentProducer.getCurrentPath();
+
+    
+      if (vecPath != null) bot.viewer.erase('path');
+
+      vecPath = path.map(p=>p.exitPos);
+    
+      bot.viewer.drawLine('path', vecPath)
+
+  }, 50);
+}
+bot.once('spawn', loop)
+
+  
+
+app.listen(port, () => {
+  console.log(`API server listening at http://localhost:${port}`);
+});
