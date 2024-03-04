@@ -393,9 +393,9 @@ export class ParkourForward extends MovementProvider {
     const block0 = this.getBlockInfo(node, 0, -1, 0)
 
     if (!block0.physical) return // cant jump from water
-    
+
     const block00 = this.getBlockInfo(node, 0, 0, 0)
-    if (block00.liquid) return;
+    if (block00.liquid) return
 
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (
