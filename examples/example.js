@@ -66,9 +66,9 @@ bot.once("spawn", async () => {
 
   bot.on('physicsTick', () => {
     if (bot.getControlState('forward') && bot.getControlState('back')) {
-      // console.log(bot.pathfinder.currentExecutor.constructor.name)
+      console.log(bot.pathfinder.currentExecutor.constructor.name)
   
-      throw new Error('both forward and back are true')
+      // throw new Error('both forward and back are true')
 
     }
   })
