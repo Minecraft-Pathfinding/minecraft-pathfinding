@@ -3,7 +3,7 @@
     "@nxg-org/mineflayer-physics-util": "1.5.8",
     "@nxg-org/mineflayer-util-plugin": "^1.8.3",
     "heap-typed": "^1.52.0",
-    "lru-cache": "^10.1.0",
+    "lru-cache": "^10.1.0"
   },
   "scripts": {
     "prepublishOnly": "npm run lint && npm run build",
@@ -12,7 +12,7 @@
     "lint": "ts-standard -y --fix"
   },
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/Minecraft-Pathfinding/minecraft-pathfinding.git",
