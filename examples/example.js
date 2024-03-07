@@ -75,7 +75,7 @@ bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
-/*  miningStates[bot.username] = setInterval(async () => { // if the blockupdate doesnt work this can be an alternative too
+/*  miningStates[bot.username] = setInterval(async () => { // if the blockupdate event dont work this can be an alternative too
     try {
       if (bot.pathfinder.isBuilding()) {
         const blockInHand = bot.heldItem;
