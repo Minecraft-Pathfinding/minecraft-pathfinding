@@ -94,6 +94,8 @@ bot.once("spawn", async () => {
     } catch (e) { }
   }, 100);*/
 
+  let placedBlocks = new Set();
+  
   bot.on('blockUpdate', (oldBlock, newBlock) => { // fix for bot failing on trying to place blocks
     if (newBlock && !oldBlock) {
       placedBlocks.add(newBlock.position.toString());
