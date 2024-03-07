@@ -75,6 +75,37 @@ bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
+/*  miningStates[bot.username] = setInterval(async () => { // if the blockupdate event dont work this can be an alternative too
+    try {
+      if (bot.pathfinder.isBuilding()) {
+        const blockInHand = bot.heldItem;
+
+        if (blockInHand) {
+          const lookAtBlockPos = bot.blockAtCursor();
+          if (lookAtBlockPos && lookAtBlockPos.position) {
+            const blockPosStr = lookAtBlockPos.position.toString();
+            if (!placedBlocks.has(blockPosStr)) {
+              await bot.placeBlock(bot.blockAt(lookAtBlockPos.position), new Vec3(0, 1, 0)).catch();
+              placedBlocks.add(blockPosStr);
+            }
+          }
+        }
+      }
+    } catch (e) { }
+  }, 100);*/
+
+  let placedBlocks = new Set();
+  
+  bot.on('blockUpdate', (oldBlock, newBlock) => { // fix for bot failing on trying to place blocks
+    if (newBlock && !oldBlock) {
+      placedBlocks.add(newBlock.position.toString());
+      //mineBlocks(bot, blockType, newBlock);
+    }
+    else if (!newBlock && oldBlock) {
+      placedBlocks.delete(oldBlock.position.toString());
+    }
+  });
+  
   bot.pathfinder.setPathfinderOptions({
     partialPathProducer: true,
     partialPathLength: 30
