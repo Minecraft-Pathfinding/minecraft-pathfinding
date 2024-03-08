@@ -17,7 +17,6 @@ export interface HandlerOpts {
   pathfinderSettings?: PathfinderOptions
 }
 
-
 export type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess' | 'canceled'
 
 export type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'

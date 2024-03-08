@@ -9,7 +9,7 @@ import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { RayType } from '../movements/interactionUtils'
 
 import pBlock from 'prismarine-block'
-import { Movement, MovementOptions } from '../movements'
+import { Movement } from '../movements'
 
 export class BlockInfo {
   static initialized = false
@@ -282,7 +282,7 @@ export class BlockInfo {
     }
   }
 
-  public loadAdditionalInfo (movement: Movement) {
+  public loadAdditionalInfo (movement: Movement): void {
     if (this.additionalLoaded) return
     this.additionalLoaded = true
     if (movement.settings.dontCreateFlow || movement.settings.dontMineUnderFallingBlock) {
@@ -382,10 +382,10 @@ export class CacheSyncWorld implements WorldType {
       updateAgeOnGet: true,
       dispose: (key, value, reason) => {
         if (reason === 'set') {
-        console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
+          console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
           this.blockInfos.clear()
         } else if (reason === 'evict') {
-        console.log('resetting', this.blockInfos.size)
+          console.log('resetting', this.blockInfos.size)
           this.blockInfos.clear()
           this.blockInfos = this.makeLRUCache(size)
         }

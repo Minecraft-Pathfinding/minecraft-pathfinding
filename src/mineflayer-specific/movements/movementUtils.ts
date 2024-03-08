@@ -93,7 +93,7 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1, ectx?: EPh
 
   const bad = ctx.state.pos.y < bot.entity.position.y
 
-console.trace(minY, minY1, bot.entity.position, ctx.state.pos)
+  console.trace(minY, minY1, bot.entity.position, ctx.state.pos)
   if ((minY === Infinity || minY1 === Infinity) || bad) {
     return true
   }
@@ -253,7 +253,7 @@ export class JumpCalculator {
       (state, ticks) => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const boundary = sj ? ft + st : ft
-        const xzVel = state.vel.offset(0, -state.vel.y, 0)
+        // const xzVel = state.vel.offset(0, -state.vel.y, 0)
         // console.log(ticks, firstTicks, secondTicks, backTicks)
         // console.log('checking goal', state.control.get('jump'), state.control.get('forward'), state.control.get('back'), state.control.get('sprint'))
         // console.log(state.onGround, state.isCollidedHorizontally, state.isCollidedVertically, state.pos)
@@ -490,7 +490,7 @@ export class ParkourJumpHelper {
 
     const reached0 = JumpSim.getReachedAABB(goalBBs)
     const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks)
-  console.log('fall off edge init', orgPos)
+    console.log('fall off edge init', orgPos)
     const state = this.sim.simulateUntil(
       reached,
       () => {},

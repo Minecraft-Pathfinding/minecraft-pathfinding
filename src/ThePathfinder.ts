@@ -11,7 +11,6 @@ import {
   BuildableMoveProvider,
   MovementHandler,
   MovementOptions,
-  MovementSetup,
   ExecutorMap,
   MovementExecutor,
   DEFAULT_MOVEMENT_OPTS
@@ -38,7 +37,7 @@ import {
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
-import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
+import { BuildableOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, HandlerOpts, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
@@ -112,9 +111,6 @@ interface PerformOpts {
   errorOnReset?: boolean
   errorOnAbort?: boolean
 }
-
-
-
 
 /**
  * Eventually, I want all pathfinder logic entirely off thread.
@@ -240,7 +236,7 @@ export class ThePathfinder {
   }
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-  console.log('INTERRUPT CALLED')
+    console.log('INTERRUPT CALLED')
     if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
@@ -316,7 +312,7 @@ export class ThePathfinder {
         if (place.vec.equals(pos)) {
           switch (place.type) {
             case 'solid':
-              console.log('if true, we are ignoring',  block.boundingBox === 'block')
+              console.log('if true, we are ignoring', block.boundingBox === 'block')
               return block.boundingBox === 'block'
             case 'water':
               return BlockInfo.waters.has(block.type)
@@ -485,7 +481,7 @@ export class ThePathfinder {
       if (result.status === 'success') {
         cleanup()
         this.bot.emit('pathGenerated', result)
-      console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
+        console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
         MovementHandler.count = 0
         MovementHandler.totCount = 0
         yield { result, astarContext }
@@ -494,7 +490,7 @@ export class ThePathfinder {
 
       if (this.abortCalculation) {
         cleanup()
-        result.status === 'canceled'
+        result.status = 'canceled'
         yield { result, astarContext }
         return { result, astarContext }
       }
@@ -529,7 +525,7 @@ export class ThePathfinder {
    * @param {goals.Goal | null} goal
    */
   async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
-  console.log('GOTO CALLED')
+    console.log('GOTO CALLED')
     if (goal == null) {
       await this.cancel()
       await this.executeTask.promise
@@ -538,7 +534,7 @@ export class ThePathfinder {
     }
 
     if (!this.executeTask.done) {
-    console.log('cancelling others')
+      console.log('cancelling others')
       this.wantedGoal = goal
       await this.cancel()
       await this.executeTask.promise
@@ -567,7 +563,7 @@ export class ThePathfinder {
               void this.cancel()
             },
             forAll: () => {
-            console.log('cleaned up')
+              console.log('cleaned up')
               resolve()
             }
           })
@@ -576,14 +572,13 @@ export class ThePathfinder {
     }
 
     do {
-      let madeIt = false;
+      let madeIt = false
       do {
         setupWait()
 
-      console.log('reset I believe', doForever)
+        console.log('reset I believe', doForever)
         let task: Promise<void> | null = null
         let res1 = null
-    
 
         for await (const res of this.getPathTo(goal)) {
           if (res.result.status !== 'success') {
@@ -605,11 +600,10 @@ export class ThePathfinder {
               }
               if (task === null) {
                 // technically, perform should keep track of the current index. So this *should* be fine.
-                task = this.perform(res1, goal)
-                task.then(() => {
+                task = this.perform(res1, goal).then(() => {
                   task = null
                   res1 = null
-                console.log('cleared task!')
+                  console.log('cleared task!')
                 })
               }
             }
@@ -636,7 +630,7 @@ export class ThePathfinder {
             }
 
             if (this.resetReason == null) {
-            console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
+              console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
               await this.cleanupBot()
               manualCleanup()
               setupWait()
@@ -644,7 +638,7 @@ export class ThePathfinder {
               break
             }
 
-          console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
+            console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
             await this.cleanupBot()
             manualCleanup()
           }
@@ -699,7 +693,7 @@ export class ThePathfinder {
   async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
-  console.log('ENTER PERFORM')
+    console.log('ENTER PERFORM')
     let currentIndex = 0
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
@@ -725,14 +719,14 @@ export class ThePathfinder {
 
       // if the movement has already been completed (another movement has already completed it), skip it.
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
-      console.log('skipping', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
+        console.log('skipping', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
 
         currentIndex++
         continue
       }
 
-    console.log('performing', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
-    console.log(
+      console.log('performing', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
+      console.log(
         'toPlace',
         move.toPlace.map((p) => p.vec),
         'toBreak',
@@ -767,7 +761,7 @@ export class ThePathfinder {
         }
 
         currentIndex += adding as number
-      console.log('done with move', move.exitPos, this.bot.entity.position, this.bot.entity.position.distanceTo(move.exitPos))
+        console.log('done with move', move.exitPos, this.bot.entity.position, this.bot.entity.position.distanceTo(move.exitPos))
       } catch (err) {
         // immediately exit since we want to abort the entire path.
         if (err instanceof AbortError) {
@@ -780,7 +774,7 @@ export class ThePathfinder {
           // await this.cleanupBot()
           break
         } else if (err instanceof CancelError) {
-        console.log('canceled')
+          console.log('canceled')
           // await this.cleanupBot()
           // allow recovery if movement intentionall canceled.
           // await this.recovery(move, path, goal, entry)
@@ -790,7 +784,7 @@ export class ThePathfinder {
     }
 
     await this.cleanupBot()
-  console.log('FINISHED PERFORM')
+    console.log('FINISHED PERFORM')
   }
 
   // TODO: implement recovery for any movement and goal.
@@ -876,7 +870,7 @@ export class ThePathfinder {
     // this.bot.chat(this.world.getCacheSize())
     this.world.cleanup?.()
 
-  console.log('CLEANUP CALLED')
+    console.log('CLEANUP CALLED')
 
     if (this.userAborted) this.bot.emit('goalAborted', goal)
     else this.bot.emit('goalFinished', goal)

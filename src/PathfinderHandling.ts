@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Bot, BotEvents } from 'mineflayer'
 import { AStar as AAStar } from './abstract/algorithms/astar'
 import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
@@ -46,7 +47,6 @@ import { Task } from '@nxg-org/mineflayer-util-plugin'
 import { reconstructPath } from './abstract/algorithms'
 import { closestPointOnLineSegment, getScaffoldCount } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
-import { InteractType } from './mineflayer-specific/movements/interactionUtils'
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -58,7 +58,7 @@ const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
   partialPathLength: 50
 }
 
-const EMPTY_VEC = new Vec3(0, 0, 0)
+// const EMPTY_VEC = new Vec3(0, 0, 0)
 
 /**
  * These are the default movement types and their respective executors.
@@ -109,10 +109,10 @@ interface PathGeneratorResult {
   astarContext: AAStar<Move>
 }
 
-interface PerformOpts {
-  errorOnReset?: boolean
-  errorOnAbort?: boolean
-}
+// interface PerformOpts {
+//   errorOnReset?: boolean
+//   errorOnAbort?: boolean
+// }
 
 interface HandlerOpts {
   world?: CacheSyncWorld
@@ -239,7 +239,7 @@ export class PathfinderHandler {
   }
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-  console.log('INTERRUPT CALLED')
+    console.log('INTERRUPT CALLED')
     if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
@@ -437,7 +437,7 @@ export class PathfinderHandler {
 
   // utility for identifying where partial paths merge
 
-  async perform () {}
+  async perform (): Promise<void> {}
 
   // path getting utilities
 
@@ -486,7 +486,7 @@ export class PathfinderHandler {
       if (result.status === 'success') {
         cleanup()
         this.bot.emit('pathGenerated', result)
-      console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
+        console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
         MovementHandler.count = 0
         MovementHandler.totCount = 0
         yield { result, astarContext }
@@ -495,7 +495,7 @@ export class PathfinderHandler {
 
       if (this.abortCalculation) {
         cleanup()
-        result.status === 'canceled'
+        result.status = 'canceled'
         yield { result, astarContext }
         return { result, astarContext }
       }
@@ -570,7 +570,7 @@ export class PathfinderHandler {
     await this.cleanupBot()
     this.world.cleanup?.()
 
-  console.log('CLEANUP CALLED')
+    console.log('CLEANUP CALLED')
 
     if (this.userAborted) this.bot.emit('goalAborted', goal)
     else this.bot.emit('goalFinished', goal)
@@ -583,39 +583,37 @@ export class PathfinderHandler {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class Perform {
   public currentIndex = 0
-  public curPath: Move[] = [];
+  public curPath: Move[] = []
 
   constructor (private readonly bot: Bot, private readonly handler: PathfinderHandler, public readonly goal: goals.Goal) {}
 
   async perform (): Promise<void> {
     while (this.currentIndex < this.curPath.length) {
-        const move = this.curPath[this.currentIndex]
-        const executor = this.handler.movements.get(move.moveType.constructor as BuildableMoveProvider)
-        if (executor == null) throw new Error('No executor for move type.')
+      const move = this.curPath[this.currentIndex]
+      const executor = this.handler.movements.get(move.moveType.constructor as BuildableMoveProvider)
+      if (executor == null) throw new Error('No executor for move type.')
 
-        // this.handler.currentMove = move
-        // this.handler.currentExecutor = executor
+      // this.handler.currentMove = move
+      // this.handler.currentExecutor = executor
 
-        try {
-          await executor.perform(move, this.currentIndex, this.curPath);
-        } catch (err) {
-          if (err instanceof AbortError) {
-            return
-          } else if (err instanceof ResetError) {
-            return
-          }else if (err instanceof CancelError) {
-            this.identRecover();
-            return
-          } else {
-            throw err
-          }
+      try {
+        await executor.perform(move, this.currentIndex, this.curPath)
+      } catch (err) {
+        if (err instanceof AbortError) {
+          return
+        } else if (err instanceof ResetError) {
+          return
+        } else if (err instanceof CancelError) {
+          void this.identRecover()
+          return
+        } else {
+          throw err
         }
+      }
     }
-
-
-
   }
 
   async identRecover (): Promise<void> {}
@@ -632,9 +630,6 @@ class Perform {
 
     // due to the nature of our partial paths, all new paths must be longer than the current path.
     if (newPath.length < this.curPath.length) throw new Error('new path is shorter than current path')
- 
-
-
 
     for (let i = this.curPath.length - 1; i >= 0; i--) {
       const move = this.curPath[i]
@@ -644,16 +639,13 @@ class Perform {
 
       // if i is greater than current index, then merge is clean as we have not passed the overlap index.
       if (i > this.currentIndex) {
-        // include current node 
-        this.curPath = this.curPath.slice(0, i+1).concat(newPath.slice(1))
-      }
-      // we are already perfoming the move where overlap occurs.
-      else if (i == this.currentIndex) {
+        // include current node
+        this.curPath = this.curPath.slice(0, i + 1).concat(newPath.slice(1))
+      } else if (i === this.currentIndex) {
+        // we are already perfoming the move where overlap occurs.
         if (this.curPath[i].exitPos.equals(newPath[0].entryPos)) this.curPath = this.curPath.slice(0, i).concat(newPath)
         else throw new Error('overlap is not clean')
-      }
-      // TODO: handle
-      else if (i < this.currentIndex) throw new Error('overlap is not clean')
+      } else if (i < this.currentIndex) throw new Error('overlap is not clean')
     }
   }
 }

@@ -3,20 +3,20 @@ import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 
 export function printBotControls (bot: Bot): void {
-console.trace('forward', bot.getControlState('forward'))
-console.trace('back', bot.getControlState('back'))
-console.trace('left', bot.getControlState('left'))
-console.trace('right', bot.getControlState('right'))
-console.trace('jump', bot.getControlState('jump'))
-console.trace('sprint', bot.getControlState('sprint'))
-console.trace('sneak', bot.getControlState('sneak'))
+  console.trace('forward', bot.getControlState('forward'))
+  console.trace('back', bot.getControlState('back'))
+  console.trace('left', bot.getControlState('left'))
+  console.trace('right', bot.getControlState('right'))
+  console.trace('jump', bot.getControlState('jump'))
+  console.trace('sprint', bot.getControlState('sprint'))
+  console.trace('sneak', bot.getControlState('sneak'))
 }
 
 export const debug = (bot: Bot | undefined, ...args: any[]): void => {
   if (bot != null) {
     bot.chat(args.join(' '))
   }
-console.trace(...args)
+  console.trace(...args)
 }
 
 export const getScaffoldCount = (bot: Bot): number => {

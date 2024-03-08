@@ -86,7 +86,7 @@ export abstract class InteractHandler {
     (this as any).move = move
   }
 
-  abstract needToPerform(bot: Bot): boolean;
+  abstract needToPerform (bot: Bot): boolean
 
   abstract getItem (bot: Bot, block?: Block): Item | null
   abstract perform (bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>
@@ -172,7 +172,6 @@ export abstract class InteractHandler {
 }
 
 export class PlaceHandler extends InteractHandler {
-
   static reach = 4
   private _placeTask?: Promise<void>
 
@@ -251,12 +250,11 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  needToPerform(bot: Bot): boolean {
+  needToPerform (bot: Bot): boolean {
     // check if block at position is already what we want it to be
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
     if (blockInfo.isInvalid) return true
 
-   
     switch (this.type) {
       case 'water': {
         return !(blockInfo.liquid && BlockInfo.waters.has(blockInfo.type))
@@ -269,7 +267,7 @@ export class PlaceHandler extends InteractHandler {
       }
     }
 
-    return true;
+    return true
   }
 
   async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
@@ -460,18 +458,16 @@ export class PlaceHandler extends InteractHandler {
           await bot.lookAt(rayRes.intersect, this.settings.forceLook)
         }
 
-
         // console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
         // console.log(bot.entity.position, bot.entity.velocity);
 
         const invalidPlacement = botBB.intersects(posBl)
         if (invalidPlacement) {
-        console.log("invalid placement", bot.entity.position, invalidPlacement, botBB, posBl);
+          console.log('invalid placement', bot.entity.position, invalidPlacement, botBB, posBl)
           // console.log(botBB, posBl);
           await bot.lookAt(rayRes.intersect, this.settings.forceLook)
           throw new CancelError('Invalid placement')
         }
-
 
         let finished = false
         let sneaking = false
@@ -519,7 +515,7 @@ export class PlaceHandler extends InteractHandler {
     this._done = true
     this.performing = false
     delete this._placeTask
-  console.log('done in ', performance.now() - start, 'ms')
+    console.log('done in ', performance.now() - start, 'ms')
   }
 
   async abort (bot: Bot): Promise<void> {
@@ -548,7 +544,6 @@ export class PlaceHandler extends InteractHandler {
 }
 
 export class BreakHandler extends InteractHandler {
-
   static reach = 4
   private _breakTask?: Promise<void>
 
@@ -581,7 +576,7 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  needToPerform(bot: Bot): boolean {
+  needToPerform (bot: Bot): boolean {
     // check if block at position is already what we want it to be
 
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
@@ -590,9 +585,7 @@ export class BreakHandler extends InteractHandler {
 
     if (blockInfo.block?.boundingBox === 'empty' && !BlockInfo.liquids.has(blockInfo.type)) return false
 
-    return true;
-
-
+    return true
   }
 
   async performInfo (bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {

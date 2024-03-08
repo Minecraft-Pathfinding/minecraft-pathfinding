@@ -136,11 +136,10 @@ export abstract class MovementExecutor extends Movement {
     if (this.aborted) throw new AbortError('Movement aborted.')
   }
 
-
   /**
    * TODO: potentially buggy code. Check.
    */
-  public async perform(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  public async perform (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.currentMove = thisMove
     if (this.aborted) throw new AbortError('Movement aborted.')
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
@@ -149,7 +148,7 @@ export abstract class MovementExecutor extends Movement {
 
     let result: boolean | number = false
     await new Promise<void>((resolve, reject) => {
-      const listener = async () => {  
+      const listener = async (): Promise<void> => {
         if (this.aborted) {
           reject(new AbortError('Movement aborted.'))
         }
@@ -159,18 +158,18 @@ export abstract class MovementExecutor extends Movement {
 
         if (result === false) {
           result = await this._performPerTick(thisMove, tickCount, currentIndex, path)
-        } 
+        }
 
-        if ((result as boolean) === true) {
+        if (result as boolean) {
           this.bot.off('physicsTick', listener)
           resolve()
         }
       }
-      this.bot.on('physicsTick', listener);
+      this.bot.on('physicsTick', listener)
     })
 
     let tickCount = 0
-    
+
     while (result === false) {
       result = await this._performPerTick(thisMove, tickCount, currentIndex, path)
       tickCount++
@@ -428,7 +427,7 @@ export abstract class MovementExecutor extends Movement {
   async interactNeeded (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
     for (const breakTarget of this.currentMove.toBreak) {
       if (breakTarget !== this._cI && !breakTarget.done) {
-        if (!breakTarget.needToPerform(this.bot)) continue;
+        if (!breakTarget.needToPerform(this.bot)) continue
         const res = await breakTarget.performInfo(this.bot, ticks)
         // console.log("break", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return breakTarget
@@ -437,7 +436,7 @@ export abstract class MovementExecutor extends Movement {
 
     for (const place of this.currentMove.toPlace) {
       if (place !== this._cI && !place.done) {
-        if (!place.needToPerform(this.bot)) continue;
+        if (!place.needToPerform(this.bot)) continue
         const res = await place.performInfo(this.bot, ticks)
         // console.log("place", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return place

@@ -70,7 +70,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   // for debugging.
   private lastAmt: number = 0
   makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, AStar<Data>> {
-  console.log(
+    console.log(
       status,
       // this.goal,
       performance.now() - this.startTime,
