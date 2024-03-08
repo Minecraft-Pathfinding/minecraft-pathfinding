@@ -50,6 +50,7 @@ export class BlockInfo {
     return this._fallBlockOver
   }
 
+  public readonly solidFull: boolean
   public readonly isInvalid = this.type === -1
 
   constructor (
@@ -65,7 +66,10 @@ export class BlockInfo {
     // comp only
     public readonly type: number,
     public readonly block: Block | null = null
-  ) {}
+  ) {
+    // this.solidFull = physical
+    this.solidFull = this.height - this.position.y >= 1 && this.physical
+  }
 
   static init (registry: MCData): void {
     if (BlockInfo.initialized) return
@@ -398,9 +402,9 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlock (pos: Vec3): Block | null {
-    if (!this.enabled) {
-      return this.world.getBlock(pos) as unknown as Block
-    }
+    // if (!this.enabled) {
+    //   return this.world.getBlock(pos) as unknown as Block
+    // }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
@@ -417,9 +421,9 @@ export class CacheSyncWorld implements WorldType {
     // this.cacheCalls++
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
-    if (!this.enabled) {
-      return BlockInfo.fromBlock(this.world.getBlock(pos))
-    }
+    // if (!this.enabled) {
+    //   return BlockInfo.fromBlock(this.world.getBlock(pos))
+    // }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`

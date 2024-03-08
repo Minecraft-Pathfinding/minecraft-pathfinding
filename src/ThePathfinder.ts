@@ -43,7 +43,7 @@ import { Block, HandlerOpts, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 import { reconstructPath } from './abstract/algorithms'
-import { closestPointOnLineSegment, getScaffoldCount } from './utils'
+import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 
 export interface PathfinderOptions {
@@ -444,6 +444,8 @@ export class ThePathfinder {
     this.abortCalculation = false
     delete this.resetReason
 
+    startPos = getNormalizedPos(this.bot, startPos)
+
     this.currentMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
       startPos.clone(),
@@ -777,7 +779,7 @@ export class ThePathfinder {
           console.log('canceled')
           // await this.cleanupBot()
           // allow recovery if movement intentionall canceled.
-          // await this.recovery(move, path, goal, entry)
+          await this.recovery(move, path, goal, entry)
           break
         } else throw err
       }
@@ -809,7 +811,7 @@ export class ThePathfinder {
       nextMove = path.path[ind + 1]
     }
 
-    const no = entry > 0 || bad
+    const no = entry > 5 || bad
     if (no || nextMove == null) {
       newGoal = goal
     } else {

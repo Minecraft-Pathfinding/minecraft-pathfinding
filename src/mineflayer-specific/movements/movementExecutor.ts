@@ -9,6 +9,7 @@ import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
+import { getNormalizedPos } from '../../utils'
 
 // temp typing
 interface AbortOpts {
@@ -281,8 +282,10 @@ export abstract class MovementExecutor extends Movement {
 
     // console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
 
+    const normPos = getNormalizedPos(this.bot, pos)
+
     // const pos = this.bot.entity.position
-    const bb0 = AABBUtils.getPlayerAABB({ position: pos, width: 0.599, height: 1.8 })
+    const bb0 = AABBUtils.getPlayerAABB({ position: normPos, width: 0.599, height: 1.8 })
     // bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
     // bb0.expand(-0.0001, 0, -0.0001);
 
@@ -370,9 +373,12 @@ export abstract class MovementExecutor extends Movement {
     off1.translate(0, -off1.y, 0)
 
     const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
+
+    const normPos = getNormalizedPos(this.bot)
+
     // console.log(similarDirection, thisMove.moveType.constructor.name, target, thisMove.entryPos, thisMove.exitPos)
     // if (!similarDirection) {
-    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: normPos, width: 0.6, height: 1.8 })
 
     const bb1bl = this.getBlockInfo(target, 0, -1, 0)
     const bb1 = bb1bl.getBBs()
@@ -384,20 +390,20 @@ export abstract class MovementExecutor extends Movement {
     if (bb2.length === 0) bb2.push(AABB.fromBlock(bb2bl.position))
     const bb2good = bb2bl.physical || bb2bl.liquid
 
-    // console.log(
-    //   this.toPlaceLen(),
-    //   bb1bl.block?.name,
-    //   bb1,
-    //   bb2bl.block?.name,
-    //   bb2,
-    //   'test',
-    //   bb0,
-    //   bb1.some((b) => b.collides(bb0)),
-    //   bb1physical,
-    //   bb2.some((b) => b.collides(bb0)),
-    //   bb2physical,
-    //   bb2bl
-    // )
+    console.log(
+      this.toPlaceLen(),
+      bb1bl.block?.name,
+      bb1,
+      bb2bl.block?.name,
+      bb2,
+      'test',
+      bb0,
+      bb1.some((b) => b.collides(bb0)),
+      bb1good,
+      bb2.some((b) => b.collides(bb0)),
+      bb2good,
+      bb2bl
+    )
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
     if ((bb1.some((b) => b.collides(bb0)) && bb1good) || (bb2.some((b) => b.collides(bb0)) && bb2good)) {
       // console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))

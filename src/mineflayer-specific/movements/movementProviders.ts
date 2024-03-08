@@ -175,14 +175,14 @@ export class ForwardJump extends MovementProvider {
     // if (blockB.physical && !blockH.physical && !blockC.physical && (this.getNumEntitiesAt(blockB.position, 0, 1, 0) > 0)) return // It is fine if an ent falls on B so long as we don't need to replace block C
 
     // if liquid, allow swim movement up to it.
-    if (!blockC.physical && !blockB.liquid) {
+    if (!blockC.solidFull && !blockB.liquid) {
       if (node.remainingBlocks <= 0) return // not enough blocks to place
 
       // if (this.getNumEntitiesAt(blockC.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
 
       // console.log('blockC', blockC)
       const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z)
-      if (!blockD.physical) {
+      if (!blockD.solidFull) {
         if (node.remainingBlocks <= 1) return // not enough blocks to place
 
         // if (this.getNumEntitiesAt(blockD.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
@@ -380,12 +380,12 @@ export class StraightUp extends MovementProvider {
           toBreak.push(BreakHandler.fromVec(block1.position, 'solid'))
         }
 
+        if ((cost += this.safeOrPlace(block1, toPlace, 'solid')) > 100) return
+
         const block0 = this.getBlockInfo(node, 0, -1, 0)
 
         if (block0.liquid) return // cant build in water
         if (block0.physical && block0.height - node.y < -0.2) return // cannot jump-place from a half block
-
-        if ((cost += this.safeOrPlace(block1, toPlace, 'solid')) > 100) return
       }
     }
 

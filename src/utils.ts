@@ -55,6 +55,19 @@ export function closestPointOnLineSegment (point: Vec3, segmentStart: Vec3, segm
   return segmentStart.plus(segmentEnd.minus(segmentStart).scaled(t))
 }
 
+export function getNormalizedPos (bot: Bot, startPos?: Vec3): Vec3 {
+  if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
+  // check if we are on carpet
+  const pos = startPos ?? bot.entity.position.clone()
+
+  const block = bot.pathfinder.world.getBlockInfo(pos)
+  if (BlockInfo.carpets.has(block.type)) {
+    return pos.floor()
+  }
+
+  return pos
+}
+
 export async function onceWithCleanup<T> (
   emitter: NodeJS.EventEmitter,
   event: string,
