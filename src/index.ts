@@ -4,6 +4,7 @@ import { PathfinderOptions, ThePathfinder } from './ThePathfinder'
 import { Vec3 } from 'vec3'
 
 import utilPlugin from '@nxg-org/mineflayer-util-plugin'
+import physicsUtil, { initSetup } from '@nxg-org/mineflayer-physics-util'
 
 import { Block, PlaceBlockOptions, ResetReason } from './types'
 import { PathingUtil } from './PathingUtil'
@@ -20,9 +21,11 @@ export function createPlugin (opts?: {
   moveSettings?: MovementOptions
 }) {
   return function (bot: Bot) {
-    void BlockInfo.init(bot.registry) // set up block info
+    BlockInfo.init(bot.registry) // set up block info
     if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
-    bot.pathfinder = new ThePathfinder(bot, opts?.movements, opts?.optimizers, opts?.moveSettings, opts?.settings)
+    if (!bot.hasPlugin(physicsUtil)) bot.loadPlugin(physicsUtil)
+    initSetup(bot.registry)
+    bot.pathfinder = new ThePathfinder(bot, opts)
     bot.pathingUtil = new PathingUtil(bot)
   }
 }

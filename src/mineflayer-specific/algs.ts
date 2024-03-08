@@ -137,7 +137,7 @@ export class AStarNeighbor extends AStar {
 
       // seen.add(neighborData.hash)
 
-      //   console.log('called with:', node.data?.hash, neighborData.hash, seen.size, depth)
+      // console.trace('called with:', node.data?.hash, neighborData.hash, seen.size, depth)
 
       const gFromThisNode = node.g + neighborData.cost
       const pastNeighbor = this.openDataMap.get(neighborData.hash)

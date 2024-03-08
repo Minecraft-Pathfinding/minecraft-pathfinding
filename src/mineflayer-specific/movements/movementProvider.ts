@@ -58,8 +58,7 @@ export abstract class MovementProvider extends Movement {
     let move: Move | undefined = this.currentMove
 
     let i = 0
-    while (move !== undefined && i++ < 4) { // 5 levels
-      // console.log('i', i)
+    while (move !== undefined && i++ < 5) { // 5 levels
       for (const m of move.toPlace) {
         if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
           return m.blockInfo
@@ -75,6 +74,7 @@ export abstract class MovementProvider extends Movement {
       move = move.parent
     }
 
+    // if (i > 0) console.log('i', i)
     // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
     const wantedDx = yes.x - this.orgPos.x + this.halfway[0]
 
@@ -121,7 +121,7 @@ export abstract class MovementProvider extends Movement {
       // this.toClear.add(packed)
       // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
       // if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
-      //   console.log(
+      // console.trace(
       //     'crap',
       //     pos,
       //     dx,
@@ -265,7 +265,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     //   const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
     //   if (bl.liquid && move.toPlace.length > 0) {
     //     const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
-    //     console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
+    //   console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
 
     //     // throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec.toString()} `)
     //   }

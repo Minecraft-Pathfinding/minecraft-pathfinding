@@ -20,7 +20,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   bestNode: PathNode<Data>
   maxCost: number
 
-  checkInterval = 1 << 5 - 1
+  checkInterval = 0// 1 << 5 - 1
   nodeConsiderCount = 0
 
   constructor (
@@ -70,7 +70,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   // for debugging.
   private lastAmt: number = 0
   makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, AStar<Data>> {
-    console.log(
+  console.log(
       status,
       // this.goal,
       performance.now() - this.startTime,
@@ -206,7 +206,7 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
   x5 = 1 / 5
   x6 = 1 / 10
 
-  checkInterval = 1 << 5 - 1
+  checkInterval = 0 // 1 << 5 - 1
   nodeConsiderCount = 0
   moveConsiderCount = 0
 

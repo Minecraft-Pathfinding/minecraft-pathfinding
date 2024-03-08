@@ -8,6 +8,9 @@ import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { RayType } from '../movements/interactionUtils'
 
+import pBlock from 'prismarine-block'
+import { Movement, MovementOptions } from '../movements'
+
 export class BlockInfo {
   static initialized = false
   static readonly interactableBlocks = new Set()
@@ -18,13 +21,14 @@ export class BlockInfo {
   static readonly fences = new Set()
   static readonly replaceables = new Set()
   static readonly liquids = new Set()
+  static readonly waters = new Set()
   static readonly gravityBlocks = new Set()
   static readonly openable = new Set()
   static readonly emptyBlocks = new Set()
   static readonly scaffoldingBlockItems = new Set<number>()
   static readonly mlgItems = new Set<number>()
 
-  static DEFAULT: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
+  static readonly INVALID: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static PBlock: BlockType
 
   static _waterBlock: Block
@@ -34,7 +38,19 @@ export class BlockInfo {
 
   public static readonly substituteBlockStateId: number = 1
 
-  public breakCost?: number
+  public additionalLoaded = false
+  private _waterAround = false
+  private _fallBlockOver = false
+
+  public get waterAround (): boolean {
+    return this._waterAround
+  }
+
+  public get fallBlockOver (): boolean {
+    return this._fallBlockOver
+  }
+
+  public readonly isInvalid = this.type === -1
 
   constructor (
     public readonly replaceable: boolean,
@@ -51,26 +67,26 @@ export class BlockInfo {
     public readonly block: Block | null = null
   ) {}
 
-  static async init (registry: MCData): Promise<void> {
+  static init (registry: MCData): void {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
-    BlockInfo.PBlock = (await import('prismarine-block')).default(registry) // require('prismarine-block')(registry)
+    BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
-    BlockInfo._waterBlock = BlockInfo.PBlock.fromString('minecraft:water', 0)
+    BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
     BlockInfo._waterBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._solidBlock = BlockInfo.PBlock.fromString('minecraft:dirt', 0)
+    BlockInfo._solidBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.dirt.minStateId as number, 0)
     BlockInfo._solidBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._airBlock = BlockInfo.PBlock.fromString('minecraft:air', 0)
+    BlockInfo._airBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId as number, 0)
     BlockInfo._airBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._replaceableBlock = BlockInfo.PBlock.fromString('minecraft:air', 0) // also replaceable
+    BlockInfo._replaceableBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId as number, 0) // also replaceable
     BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0)
 
     // console.log(BlockInfo._waterBlock)
-    BlockInfo.WATER1 = BlockInfo.fromBlock(BlockInfo._waterBlock)
-    BlockInfo.SOLID1 = BlockInfo.fromBlock(BlockInfo._solidBlock)
-    BlockInfo.AIR1 = BlockInfo.fromBlock(BlockInfo._airBlock)
-    BlockInfo.REPLACEABLE1 = BlockInfo.fromBlock(BlockInfo._replaceableBlock)
+    // BlockInfo.WATER1 = BlockInfo.fromBlock(BlockInfo._waterBlock)
+    // BlockInfo.SOLID1 = BlockInfo.fromBlock(BlockInfo._solidBlock)
+    // BlockInfo.AIR1 = BlockInfo.fromBlock(BlockInfo._airBlock)
+    // BlockInfo.REPLACEABLE1 = BlockInfo.fromBlock(BlockInfo._replaceableBlock)
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b))
 
@@ -92,19 +108,39 @@ export class BlockInfo {
     BlockInfo.blocksToAvoid.add(registry.blocksByName.lava.id)
 
     BlockInfo.liquids.add(registry.blocksByName.water.id)
+    BlockInfo.waters.add(registry.blocksByName.water.id)
+    BlockInfo.replaceables.add(registry.blocksByName.water.id)
+
     BlockInfo.liquids.add(registry.blocksByName.lava.id)
+    BlockInfo.replaceables.add(registry.blocksByName.lava.id)
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (registry.blocksByName.seagrass) BlockInfo.liquids.add(registry.blocksByName.seagrass.id)
+    if (registry.blocksByName.seagrass) {
+      BlockInfo.liquids.add(registry.blocksByName.seagrass.id)
+      BlockInfo.waters.add(registry.blocksByName.seagrass.id)
+      BlockInfo.replaceables.add(registry.blocksByName.seagrass.id)
+    }
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (registry.blocksByName.tall_seagrass) BlockInfo.liquids.add(registry.blocksByName.tall_seagrass.id)
+    if (registry.blocksByName.tall_seagrass) {
+      BlockInfo.liquids.add(registry.blocksByName.tall_seagrass.id)
+      BlockInfo.waters.add(registry.blocksByName.tall_seagrass.id)
+      BlockInfo.replaceables.add(registry.blocksByName.tall_seagrass.id)
+    }
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (registry.blocksByName.kelp_plant) BlockInfo.liquids.add(registry.blocksByName.kelp_plant.id)
+    if (registry.blocksByName.kelp_plant) {
+      BlockInfo.liquids.add(registry.blocksByName.kelp_plant.id)
+      BlockInfo.waters.add(registry.blocksByName.kelp_plant.id)
+      BlockInfo.replaceables.add(registry.blocksByName.kelp_plant.id)
+    }
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (registry.blocksByName.kelp) BlockInfo.liquids.add(registry.blocksByName.kelp.id)
+    if (registry.blocksByName.kelp) {
+      BlockInfo.liquids.add(registry.blocksByName.kelp.id)
+      BlockInfo.waters.add(registry.blocksByName.kelp.id)
+      BlockInfo.replaceables.add(registry.blocksByName.kelp.id)
+    }
 
     BlockInfo.gravityBlocks.add(registry.blocksByName.sand.id)
     BlockInfo.gravityBlocks.add(registry.blocksByName.gravel.id)
@@ -119,9 +155,6 @@ export class BlockInfo {
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.void_air) BlockInfo.replaceables.add(registry.blocksByName.void_air.id)
-
-    BlockInfo.replaceables.add(registry.blocksByName.water.id)
-    BlockInfo.replaceables.add(registry.blocksByName.lava.id)
 
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (registry.blocksByName.tall_grass) BlockInfo.replaceables.add(registry.blocksByName.tall_grass.id)
@@ -163,9 +196,9 @@ export class BlockInfo {
   }
 
   static fromBlock (b: Block | null): BlockInfo {
-    if (b === null) return BlockInfo.DEFAULT
+    if (b === null) return BlockInfo.INVALID
 
-    const b1 = {} as any
+    const b1 = {} as any // trick compiler into not doing pseudo class.
     b1.climbable = BlockInfo.climbables.has(b.type)
 
     // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
@@ -199,17 +232,17 @@ export class BlockInfo {
     )
   }
 
-  static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0, 0, 0), -1)
+  // static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static SOLID (pos: Vec3): BlockInfo {
     return new BlockInfo(false, false, false, true, false, false, pos.y + 1, false, pos, BlockInfo._solidBlock.type, BlockInfo._solidBlock)
   }
 
-  static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
+  // static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static AIR (pos: Vec3): BlockInfo {
     return new BlockInfo(true, false, true, false, false, false, 0, false, pos, BlockInfo._airBlock.type, BlockInfo._airBlock)
   }
 
-  static REPLACEABLE1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
+  // static REPLACEABLE1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static REPLACEABLE (pos: Vec3): BlockInfo {
     return new BlockInfo(
       true,
@@ -226,8 +259,7 @@ export class BlockInfo {
     )
   }
 
-  static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0, 0, 0), -1)
-
+  // static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0, 0, 0), -1)
   static WATER (pos: Vec3): BlockInfo {
     return new BlockInfo(false, false, false, false, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock)
   }
@@ -247,6 +279,29 @@ export class BlockInfo {
           this.position.z + hW
         )
       ]
+    }
+  }
+
+  public loadAdditionalInfo (movement: Movement) {
+    if (this.additionalLoaded) return
+    this.additionalLoaded = true
+    if (movement.settings.dontCreateFlow || movement.settings.dontMineUnderFallingBlock) {
+      const top = movement.getBlockInfo(this.position, 0, 1, 0)
+      // false if next to liquid
+
+      if (movement.settings.dontCreateFlow) {
+        if (top.liquid) this._waterAround = true
+        else if (movement.getBlockInfo(this.position, -1, 0, 0).liquid) this._waterAround = true
+        else if (movement.getBlockInfo(this.position, 1, 0, 0).liquid) this._waterAround = true
+        else if (movement.getBlockInfo(this.position, 0, 0, -1).liquid) this._waterAround = true
+        else if (movement.getBlockInfo(this.position, 0, 0, 1).liquid) this._waterAround = true
+      }
+
+      if (movement.settings.dontMineUnderFallingBlock) {
+        if (top.canFall) {
+          this._fallBlockOver = true
+        }
+      }
     }
   }
 }
@@ -280,7 +335,7 @@ export class BlockInfo {
 //   }
 
 //   clear () {
-//     console.log('resetting')
+//   console.log('resetting')
 //     this.keyMap = {}
 //     this._size = 0
 //   }
@@ -295,7 +350,7 @@ export class CacheSyncWorld implements WorldType {
   blockInfos: LRUCache<string, BlockInfo>
   world: Bot['world']
   cacheCalls = 0
-  enabled = false
+  enabled = true
 
   constructor (bot: Bot, referenceWorld: Bot['world']) {
     // this.posCache = {};
@@ -327,10 +382,10 @@ export class CacheSyncWorld implements WorldType {
       updateAgeOnGet: true,
       dispose: (key, value, reason) => {
         if (reason === 'set') {
-          console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
+        console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
           this.blockInfos.clear()
         } else if (reason === 'evict') {
-          console.log('resetting', this.blockInfos.size)
+        console.log('resetting', this.blockInfos.size)
           this.blockInfos.clear()
           this.blockInfos = this.makeLRUCache(size)
         }
@@ -371,7 +426,7 @@ export class CacheSyncWorld implements WorldType {
 
     if (!this.blockInfos.has(key)) {
       const block = this.world.getBlock(pos) as unknown as Block
-      if (block === null) return BlockInfo.DEFAULT
+      if (block === null) return BlockInfo.INVALID
       const blockInfo = BlockInfo.fromBlock(block)
       this.blockInfos.set(key, blockInfo)
       // console.log('didnt have info:', key, blockInfo, this.blockInfos.get(key))

@@ -28,7 +28,7 @@ function chatEverywhere(message) {
 
 async function debugPath(goal, partialPathProducer) {
   bot.pathfinder.world.setEnabled(true)
-  bot.pathfinder.setPathfinderOptions({ partialPathProducer })
+  bot.pathfinder.setOptions({ partialPathProducer })
   console.info('Target:', new Vec3(goal.x, goal.y, goal.z).toString())
   const generator = bot.pathfinder.getPathFromTo(bot.entity.position, new Vec3(0, 0, 0), goal)
 
@@ -92,7 +92,7 @@ bot.once("spawn", async () => {
     return val.simulate(ctx, bot.world).applyToBot(bot);
     return oldSim(...args);
   };
-  bot.pathfinder.setDefaultMoveOptions({
+  bot.pathfinder.setMoveOptions({
     canDig: false,
     canPlace: false,
   })

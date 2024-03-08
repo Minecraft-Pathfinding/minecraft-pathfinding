@@ -136,6 +136,47 @@ export abstract class MovementExecutor extends Movement {
     if (this.aborted) throw new AbortError('Movement aborted.')
   }
 
+
+  /**
+   * TODO: potentially buggy code. Check.
+   */
+  public async perform(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+    this.currentMove = thisMove
+    if (this.aborted) throw new AbortError('Movement aborted.')
+    if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
+
+    await this._performInit(thisMove, currentIndex, path)
+
+    let result: boolean | number = false
+    await new Promise<void>((resolve, reject) => {
+      const listener = async () => {  
+        if (this.aborted) {
+          reject(new AbortError('Movement aborted.'))
+        }
+        if (this.resetReason != null) {
+          reject(this.resetReason)
+        }
+
+        if (result === false) {
+          result = await this._performPerTick(thisMove, tickCount, currentIndex, path)
+        } 
+
+        if ((result as boolean) === true) {
+          this.bot.off('physicsTick', listener)
+          resolve()
+        }
+      }
+      this.bot.on('physicsTick', listener);
+    })
+
+    let tickCount = 0
+    
+    while (result === false) {
+      result = await this._performPerTick(thisMove, tickCount, currentIndex, path)
+      tickCount++
+    }
+  }
+
   public async _performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     await this.holdUntilAborted(thisMove, this.task)
     return await this.performInit(thisMove, currentIndex, path)
@@ -337,12 +378,12 @@ export abstract class MovementExecutor extends Movement {
     const bb1bl = this.getBlockInfo(target, 0, -1, 0)
     const bb1 = bb1bl.getBBs()
     if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
-    const bb1physical = bb1bl.physical || bb1bl.liquid
+    const bb1good = bb1bl.physical || bb1bl.liquid
 
     const bb2bl = this.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
     const bb2 = bb2bl.getBBs()
     if (bb2.length === 0) bb2.push(AABB.fromBlock(bb2bl.position))
-    const bb2physical = bb2bl.physical || bb2bl.liquid
+    const bb2good = bb2bl.physical || bb2bl.liquid
 
     // console.log(
     //   this.toPlaceLen(),
@@ -359,12 +400,12 @@ export abstract class MovementExecutor extends Movement {
     //   bb2bl
     // )
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
-    if ((bb1.some((b) => b.collides(bb0)) && bb1physical) || (bb2.some((b) => b.collides(bb0)) && bb2physical)) {
+    if ((bb1.some((b) => b.collides(bb0)) && bb1good) || (bb2.some((b) => b.collides(bb0)) && bb2good)) {
       // console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
       else {
         if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true // this.isLookingAtYaw(target);
-        if (bb2.some((b) => b.collides(bb0)) && bb2physical) return true
+        if (bb2.some((b) => b.collides(bb0)) && bb2good) return true
       }
     }
 
@@ -384,9 +425,10 @@ export abstract class MovementExecutor extends Movement {
    * Return breaks first as they will not interfere with placements,
    * whereas placements will almost always interfere with breaks (LOS failure).
    */
-  async interactPossible (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
+  async interactNeeded (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
     for (const breakTarget of this.currentMove.toBreak) {
       if (breakTarget !== this._cI && !breakTarget.done) {
+        if (!breakTarget.needToPerform(this.bot)) continue;
         const res = await breakTarget.performInfo(this.bot, ticks)
         // console.log("break", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return breakTarget
@@ -395,6 +437,7 @@ export abstract class MovementExecutor extends Movement {
 
     for (const place of this.currentMove.toPlace) {
       if (place !== this._cI && !place.done) {
+        if (!place.needToPerform(this.bot)) continue;
         const res = await place.performInfo(this.bot, ticks)
         // console.log("place", res, res.raycasts.length > 0);
         if (res.ticks < Infinity) return place

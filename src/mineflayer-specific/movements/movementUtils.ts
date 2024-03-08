@@ -93,7 +93,7 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1, ectx?: EPh
 
   const bad = ctx.state.pos.y < bot.entity.position.y
 
-  console.log(minY, minY1, bot.entity.position, ctx.state.pos)
+console.trace(minY, minY1, bot.entity.position, ctx.state.pos)
   if ((minY === Infinity || minY1 === Infinity) || bad) {
     return true
   }
@@ -136,7 +136,7 @@ export class JumpCalculator {
 
     // console.log(this.ctx.state.pos, this.ctx.state.vel, goal, sprintAfterJump)
     while (firstTick < 12) {
-      while (secondTick < 12) {
+      while (secondTick < 12 - firstTick) {
         const res = this.checkSprintJump(goal, firstTick, secondTick, sprintAfterJump)
         if (res) {
           return sprintAfterJump
@@ -151,8 +151,8 @@ export class JumpCalculator {
 
     let backTick = 1
     let sprintTick = 0
-    while (backTick < 12) {
-      while (sprintTick < 12 - backTick) {
+    while (backTick < 4) {
+      while (sprintTick < 4 - backTick) {
         const res = this.checkSprintJump(goal, 0, sprintTick + backTick, true, backTick)
         if (res) {
           return { jumpTick: 0, sprintTick: sprintTick + backTick, backTick }
@@ -195,20 +195,20 @@ export class JumpCalculator {
       sprintAfterJump,
       maxTicks: 20
     })
-    console.log(
-      'sim jump',
-      firstTicks,
-      secondTicks,
-      sprintAfterJump,
-      backTicks,
-      state.pos,
-      state.control,
-      state.age,
-      goal,
-      state.isCollidedHorizontally,
-      state.isCollidedHorizontally,
-      state.onGround
-    )
+    // console.log(
+    //   'sim jump',
+    //   firstTicks,
+    //   secondTicks,
+    //   sprintAfterJump,
+    //   backTicks,
+    //   state.pos,
+    //   state.control,
+    //   state.age,
+    //   goal,
+    //   state.isCollidedHorizontally,
+    //   state.isCollidedHorizontally,
+    //   state.onGround
+    // )
     if (state.isCollidedHorizontally) return false
     if (state.onGround && state.pos.y === goal.y) return true
     return false
@@ -254,10 +254,10 @@ export class JumpCalculator {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const boundary = sj ? ft + st : ft
         const xzVel = state.vel.offset(0, -state.vel.y, 0)
-        console.log(ticks, firstTicks, secondTicks, backTicks)
-        console.log('checking goal', state.control.get('jump'), state.control.get('forward'), state.control.get('back'), state.control.get('sprint'))
-        console.log(state.onGround, state.isCollidedHorizontally, state.isCollidedVertically, state.pos)
-        console.log(state.vel, xzVel.norm(), xzVel)
+        // console.log(ticks, firstTicks, secondTicks, backTicks)
+        // console.log('checking goal', state.control.get('jump'), state.control.get('forward'), state.control.get('back'), state.control.get('sprint'))
+        // console.log(state.onGround, state.isCollidedHorizontally, state.isCollidedVertically, state.pos)
+        // console.log(state.vel, xzVel.norm(), xzVel)
         return (state.control.get('jump') && state.onGround && ticks > boundary) || (ticks > 0 && state.isCollidedHorizontally)
       },
       () => {},
@@ -490,7 +490,7 @@ export class ParkourJumpHelper {
 
     const reached0 = JumpSim.getReachedAABB(goalBBs)
     const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks)
-    console.log('fall off edge init', orgPos)
+  console.log('fall off edge init', orgPos)
     const state = this.sim.simulateUntil(
       reached,
       () => {},

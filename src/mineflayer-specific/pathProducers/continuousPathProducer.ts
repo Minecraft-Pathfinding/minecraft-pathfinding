@@ -46,7 +46,7 @@ export class ContinuousPathProducer implements PathProducer {
     const result = this.astarContext.compute()
     this._currentPath = result.path
 
-    console.log('advancing!')
+  console.log('advancing!')
 
     if (global.gc != null && ++this.lastGc % this.gcInterval === 0) {
       // const starttime = performance.now()

@@ -8,4 +8,5 @@ export interface World {
   getBlock: (pos: Vec3) => Block | null
   getBlockInfo: (pos: Vec3) => BlockInfo
   getBlockStateId: (pos: Vec3) => number | undefined
+  cleanup?: () => void
 }

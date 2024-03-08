@@ -71,8 +71,8 @@ export class JumpSim extends BaseSimulator {
     )
 
     // if (print) {
-    //   console.log("potentially good", state.pos, state.vel, goal(state, 0));
-    //   console.log();
+    // console.trace("potentially good", state.pos, state.vel, goal(state, 0));
+    // console.trace();
     // }
     return state
   }
@@ -115,7 +115,7 @@ export class JumpSim extends BaseSimulator {
     let jump = false
     let changed = false
 
-    console.log('edge jump init', ctx.state.pos)
+  console.log('edge jump init', ctx.state.pos)
     return this.simulateUntil(
       JumpSim.getReachedAABB(goalBlock),
       JumpSim.getCleanupPosition(goalCorner),

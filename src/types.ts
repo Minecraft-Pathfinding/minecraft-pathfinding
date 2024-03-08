@@ -1,3 +1,7 @@
+import { PathfinderOptions } from './ThePathfinder'
+import { MovementOptions, MovementSetup } from './mineflayer-specific/movements'
+import { OptimizationSetup } from './mineflayer-specific/post'
+import { World } from './mineflayer-specific/world/worldInterface'
 
 export interface Vec3Properties {
   x: number
@@ -5,7 +9,16 @@ export interface Vec3Properties {
   z: number
 }
 
-export type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess'
+export interface HandlerOpts {
+  world?: World
+  movements?: MovementSetup
+  optimizers?: OptimizationSetup
+  moveSettings?: MovementOptions
+  pathfinderSettings?: PathfinderOptions
+}
+
+
+export type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess' | 'canceled'
 
 export type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
 

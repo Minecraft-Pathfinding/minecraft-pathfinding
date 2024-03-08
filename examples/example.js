@@ -1,92 +1,81 @@
 "use strict";
 const { createBot } = require("mineflayer");
 const { createPlugin, goals, custom } = require("../dist");
-const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert } = goals
+const { GoalBlock, GoalLookAt, GoalPlaceBlock, GoalInvert, GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = goals;
 const { Vec3 } = require("vec3");
-const rl = require('readline')
+const rl = require("readline");
 const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@nxg-org/mineflayer-physics-util");
-const { GoalMineBlock, GoalFollowEntity, GoalCompositeAll } = require("../dist/mineflayer-specific/goals");
-
 
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  // host: 'fr-msr-1.halex.gg',
-  // port: 25497
-
-  host: "node2.meowbot.de", port: 5000
-  // host: 'Ic3TankD2HO.aternos.me'
-  // host: "us1.node.minecraft.sneakyhub.com",
-  // port: 25607,
+  host: "node2.meowbot.de",
+  port: 5000,
+  version: "1.20.1",
 });
 const pathfinder = createPlugin();
 
+const validTypes = ["block", "lookat", "place", "break"];
+let mode = "block";
 
-const validTypes = ["block" , "lookat", "place", "break"]
-let mode = "block"
-
-function getGoal(world,x,y,z,modes=mode) {
-  const ret = _getGoal(world,x,y,z,modes)
-  bot.chat(`Going to: ${ret.x} ${ret.y} ${ret.z}`)
-  console.log(ret)
+function getGoal(world, x, y, z, modes = mode) {
+  const ret = _getGoal(world, x, y, z, modes);
+  bot.chat(`Going to: ${ret.x} ${ret.y} ${ret.z}`);
+  console.log(ret);
   return ret;
 }
-function _getGoal(world, x, y, z,modes) {
+function _getGoal(world, x, y, z, modes) {
   const block = bot.blockAt(new Vec3(x, y, z));
-  if (block === null) return new GoalBlock(x, y+1, z);
+  if (block === null) return new GoalBlock(x, y + 1, z);
   let item;
   switch (modes) {
     case "block":
-      return new GoalBlock(x, y+1, z);
+      return new GoalBlock(x, y + 1, z);
     case "lookat":
       return GoalLookAt.fromBlock(world, block);
     case "place":
-      item = bot.inventory.items().find(item => item.name === 'dirt');
+      item = bot.inventory.items().find((item) => item.name === "dirt");
       return GoalPlaceBlock.fromInfo(world, block.position.offset(0, 1, 0), item);
     case "break":
       return GoalMineBlock.fromBlock(world, block);
   }
 
-  return new GoalBlock(x, y+1, z);
+  return new GoalBlock(x, y + 1, z);
 }
-
 
 bot.on("inject_allowed", () => {});
 
 bot.once("spawn", async () => {
-
-
   // // to get a path to the best node considered (updated per producer.advance() call)
   // bot.pathfinder.currentProducer.getCurrentPath();
-
 
   // // to get a path to the most recent node considered
   // bot.pathfinder.reconstructPath(bot.pathfinder.currentAStar?.mostRecentNode)
 
+  bot.on("physicsTick", () => {
+    if (bot.getControlState("forward") && bot.getControlState("back")) {
+      console.log(bot.pathfinder.currentExecutor.constructor.name);
 
-  bot.on('physicsTick', () => {
-    if (bot.getControlState('forward') && bot.getControlState('back')) {
-      console.log(bot.pathfinder.currentExecutor.constructor.name)
-  
       // throw new Error('both forward and back are true')
-
     }
-  })
+  });
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
-  bot.pathfinder.setPathfinderOptions({
+  bot.pathfinder.setOptions({
     partialPathProducer: true,
-    partialPathLength: 30
-  })
+    partialPathLength: 30,
+  });
 
-  bot.pathfinder.setCacheEnabled(true);
+  bot.pathfinder.setMoveOptions({
+    canDig: true
+  });
 
 
-  bot.on('goalFinished', (goal) => {
-    console.log('goal finished', goal)
-    bot.chat('goal finished')
-  })
+  bot.on("goalFinished", (goal) => {
+    console.log("goal finished", goal);
+    bot.chat("goal finished");
+  });
   // bot.physics.yawSpeed = 3;
   // bot.physics.pitchSpeed = 3
 
@@ -101,7 +90,7 @@ bot.once("spawn", async () => {
   //   console.log(e.name, e.position)
   // })
 
-  bot.on('resetPath', (reason)=>console.log('reset path!', reason))
+  bot.on("resetPath", (reason) => console.log("reset path!", reason));
 
   // EntityPhysics.prototype.simulate = function (ctx, world) {
   //   bot.physics.simulatePlayer(ctx.state, world);
@@ -112,7 +101,7 @@ bot.once("spawn", async () => {
 
   // bot.jumpTicks = 0;
 
-  const val = new EntityPhysics(bot.registry)
+  const val = new EntityPhysics(bot.registry);
   const oldSim = bot.physics.simulatePlayer;
   bot.physics.simulatePlayer = (...args) => {
     // bot.jumpTicks = 0
@@ -125,22 +114,21 @@ bot.once("spawn", async () => {
 
   const rlline = rl.createInterface({
     input: process.stdin,
-    output: process.stdout
-  
-  })
-  
-  rlline.on('line', (line) => {
+    output: process.stdout,
+  });
+
+  rlline.on("line", (line) => {
     // console.log('line!', line)
     if (line === "exit") {
-      bot.quit()
-      process.exit()
+      bot.quit();
+      process.exit();
     }
-  
-    bot.chat(line)
-  })
+
+    bot.chat(line);
+  });
 
   await bot.waitForChunksToLoad();
-  bot.chat('rocky1928')
+  bot.chat("rocky1928");
 });
 
 /** @type { Vec3 | null } */
@@ -156,21 +144,20 @@ async function cmdHandler(username, msg) {
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
   switch (cmd) {
-
     case "followme": {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 1;
-      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
-      await bot.pathfinder.goto(goal, {errorOnAbort: false, errorOnReset: false});
+      const goal = GoalFollowEntity.fromEntity(author, dist, { neverfinish: true });
+      await bot.pathfinder.goto(goal, { errorOnAbort: false, errorOnReset: false });
       break;
     }
 
     case "avoidme": {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 5;
-      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
-      const goal1 = GoalInvert.from(goal)
-      console.log(goal1)
+      const goal = GoalFollowEntity.fromEntity(author, dist, { neverfinish: true });
+      const goal1 = GoalInvert.from(goal);
+      console.log(goal1);
       await bot.pathfinder.goto(goal1);
       break;
     }
@@ -178,9 +165,9 @@ async function cmdHandler(username, msg) {
     case "boundaryme": {
       if (!author) return bot.whisper(username, "failed to find player");
       const dist = parseInt(args[0]) || 5;
-      const goal = GoalFollowEntity.fromEntity(author, dist, {neverfinish: true});
-      const goal1 = GoalInvert.from(GoalFollowEntity.fromEntity(author, dist - 1, {neverfinish: true}))
-     
+      const goal = GoalFollowEntity.fromEntity(author, dist, { neverfinish: true });
+      const goal1 = GoalInvert.from(GoalFollowEntity.fromEntity(author, dist - 1, { neverfinish: true }));
+
       await bot.pathfinder.goto(new GoalCompositeAll(goal, goal1));
       break;
     }
@@ -189,7 +176,7 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player");
       const block = bot.blockAt(author.position);
       console.log(username, `Block at you: ${block.position.x} ${block.position.y} ${block.position.z}`, block);
-      console.log(block.getProperties())
+      console.log(block.getProperties());
       break;
     }
     case "mode": {
@@ -249,7 +236,7 @@ async function cmdHandler(username, msg) {
 
         bot.whisper(username, `${key} is now ${value}, was ${bot.pathfinder.defaultMoveSettings[key]}`);
         newSets[key] = setter;
-        bot.pathfinder.setDefaultMoveOptions(newSets);
+        bot.pathfinder.setMoveOptions(newSets);
       } else if (keys1.includes(key)) {
         if (value === undefined) {
           bot.whisper(username, `${key} is ${bot.pathfinder.pathfinderSettings[key]}`);
@@ -258,8 +245,7 @@ async function cmdHandler(username, msg) {
         const newSets = { ...bot.pathfinder.pathfinderSettings };
         bot.whisper(username, `${key} is now ${value}, was ${bot.pathfinder.pathfinderSettings[key]}`);
         newSets[key] = setter;
-        bot.pathfinder.setPathfinderOptions(newSets);
-
+        bot.pathfinder.setOptions(newSets);
       } else {
         if (value === undefined) {
           bot.whisper(username, `${key} is ${bot.physics[key]}`);
@@ -286,7 +272,7 @@ async function cmdHandler(username, msg) {
 
     case "jump": {
       bot.setControlState("jump", true);
-      break
+      break;
     }
     case "cancel":
     case "stop": {
@@ -323,10 +309,10 @@ async function cmdHandler(username, msg) {
       const y = Math.floor(Number(args[1]));
       const z = Math.floor(Number(args[2]));
       if (isNaN(x) || isNaN(y) || isNaN(z)) return bot.whisper(username, "goto <x> <y> <z> failed | invalid args");
-      
+
       const block = bot.blockAt(new Vec3(x, y, z));
-      if (block === null && mode !== 'block') return bot.whisper(username, "goto <x> <y> <z> failed | invalid block");
-    
+      if (block === null && mode !== "block") return bot.whisper(username, "goto <x> <y> <z> failed | invalid block");
+
       bot.whisper(username, `going to ${args[0]} ${args[1]} ${args[2]}`);
 
       const startTime = performance.now();
@@ -347,42 +333,59 @@ async function cmdHandler(username, msg) {
       if (!author) return bot.whisper(username, "failed to find player.");
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      const goal = getGoal(bot.world, author.position.x, author.position.y-1, author.position.z);
+      const goal = getGoal(bot.world, author.position.x, author.position.y - 1, author.position.z);
       const res1 = bot.pathfinder.getPathTo(goal);
       let test;
       let test1;
       const test2 = [];
       do {
-        test = await res1.next()
-        if (!test.done) test1=test
+        test = await res1.next();
+        if (!test.done) test1 = test;
         // console.log(test1)
         if (test1.value) test2.push(...test1.value.result.path);
-      } while (test.done === false)
-    
+      } while (test.done === false);
+
       const endTime = performance.now();
 
-    
+      if (args.find((val) => val === "debug")) {
+        console.log("hey");
+        console.log(
+          test1.value.result.path
+            .map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`)
+            .join("\n")
+        );
 
-      if (args.find(val=>val==='debug')) {
-        console.log('hey')
-        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
-
-   
         const poses = [];
         const listener = () => {
           for (const pos of poses) {
-            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x-0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z-0.5) + ' 0 0 0 0 1 force')
+            bot.chat(
+              "/particle minecraft:flame " +
+                (pos.entryPos.x - 0.5) +
+                " " +
+                (pos.entryPos.y + 0.5) +
+                " " +
+                (pos.entryPos.z - 0.5) +
+                " 0 0 0 0 1 force"
+            );
           }
-        }
-        const interval = setInterval(listener, 500)
-        if (args.find(val=>val==='trail')) {
-          const stagger = 2
+        };
+        const interval = setInterval(listener, 500);
+        if (args.find((val) => val === "trail")) {
+          const stagger = 2;
           for (const pos of test1.value.result.path) {
-            poses.push(pos)
-            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x-0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z-0.5) + ' 0 0 0 0 1 force')
+            poses.push(pos);
+            bot.chat(
+              "/particle minecraft:flame " +
+                (pos.entryPos.x - 0.5) +
+                " " +
+                (pos.entryPos.y + 0.5) +
+                " " +
+                (pos.entryPos.z - 0.5) +
+                " 0 0 0 0 1 force"
+            );
             await bot.waitForTicks(stagger);
           }
-          clearInterval(interval)
+          clearInterval(interval);
         }
       }
 
@@ -413,15 +416,13 @@ async function cmdHandler(username, msg) {
         rayBlock = await rayTraceEntitySight({ entity: author });
         if (!rayBlock) return bot.whisper(username, "No block in sight");
         info = rayBlock.position;
+      }
 
-      } 
-      
       // else {
       //   bot.whisper(username, "pathtothere <x> <y> <z> | pathtothere");
       //   return;
       // }
 
-     
       bot.whisper(username, `pathing to ${info.x} ${info.y} ${info.z}`);
       const goal = getGoal(bot.world, info.x, info.y, info.z);
       const res1 = bot.pathfinder.getPathTo(goal);
@@ -429,36 +430,53 @@ async function cmdHandler(username, msg) {
       let test1;
       const test2 = [];
       do {
-        test = await res1.next()
-        if (!test.done) test1=test
+        test = await res1.next();
+        if (!test.done) test1 = test;
         // console.log(test1)
         if (test1.value) test2.push(...test1.value.result.path);
-      } while (test.done === false)
-    
+      } while (test.done === false);
+
       const endTime = performance.now();
 
-    
+      if (args.find((val) => val === "debug")) {
+        console.log("hey");
+        console.log(
+          test1.value.result.path
+            .map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`)
+            .join("\n")
+        );
 
-      if (args.find(val=>val==='debug')) {
-        console.log('hey')
-        console.log(test1.value.result.path.map((v) => `(${v.moveType.constructor.name}: ${v.toPlace.length} ${v.toBreak.length} | ${v.entryPos} ${v.exitPos})`).join("\n"));
-
-   
         const poses = [];
         const listener = () => {
           for (const pos of poses) {
-            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x-0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z-0.5) + ' 0 0 0 0 1 force')
+            bot.chat(
+              "/particle minecraft:flame " +
+                (pos.entryPos.x - 0.5) +
+                " " +
+                (pos.entryPos.y + 0.5) +
+                " " +
+                (pos.entryPos.z - 0.5) +
+                " 0 0 0 0 1 force"
+            );
           }
-        }
-        const interval = setInterval(listener, 500)
-        if (args.find(val=>val==='trail')) {
-          const stagger = 2
+        };
+        const interval = setInterval(listener, 500);
+        if (args.find((val) => val === "trail")) {
+          const stagger = 2;
           for (const pos of test1.value.result.path) {
-            poses.push(pos)
-            bot.chat('/particle minecraft:flame ' + (pos.entryPos.x-0.5) + ' ' + (pos.entryPos.y +0.5) + ' ' + (pos.entryPos.z-0.5) + ' 0 0 0 0 1 force')
+            poses.push(pos);
+            bot.chat(
+              "/particle minecraft:flame " +
+                (pos.entryPos.x - 0.5) +
+                " " +
+                (pos.entryPos.y + 0.5) +
+                " " +
+                (pos.entryPos.z - 0.5) +
+                " 0 0 0 0 1 force"
+            );
             await bot.waitForTicks(stagger);
           }
-          clearInterval(interval)
+          clearInterval(interval);
         }
       }
 
@@ -517,8 +535,8 @@ async function cmdHandler(username, msg) {
       lastStart = author.position.clone();
       bot.whisper(username, "hi");
       const startTime = performance.now();
-      const goal = getGoal(bot.world, author.position.x, author.position.y-1, author.position.z);
-      console.log(goal)
+      const goal = getGoal(bot.world, author.position.x, author.position.y - 1, author.position.z);
+      console.log(goal);
       await bot.pathfinder.goto(goal);
       const endTime = performance.now();
       bot.whisper(
@@ -582,5 +600,3 @@ function rayTraceEntitySight(options) {
 }
 
 bot.on("kicked", console.log);
-
-

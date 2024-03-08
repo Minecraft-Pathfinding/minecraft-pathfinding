@@ -47,7 +47,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   velocityKillCost: 2, // implement at a later date.
   forceLook: true,
   careAboutLookAlignment: true,
-  allowDiagonalBridging: false
+  allowDiagonalBridging: true
 }
 
 const cardinalVec3s: Vec3[] = [
@@ -179,7 +179,7 @@ export abstract class Movement {
 
   /**
    * Takes into account if the block is within a break exclusion area.
-   * @param {import('prismarine-block').Block} block
+   * @param {BlockInfo} block
    * @returns
    */
   safeToBreak (block: BlockInfo): boolean {
@@ -188,25 +188,22 @@ export abstract class Movement {
     }
 
     if (this.settings.dontCreateFlow) {
-      // false if next to liquid
-      if (this.getBlockInfo(block.position, 0, 1, 0).liquid) return false
-      if (this.getBlockInfo(block.position, -1, 0, 0).liquid) return false
-      if (this.getBlockInfo(block.position, 1, 0, 0).liquid) return false
-      if (this.getBlockInfo(block.position, 0, 0, -1).liquid) return false
-      if (this.getBlockInfo(block.position, 0, 0, 1).liquid) return false
+      if (!block.additionalLoaded) block.loadAdditionalInfo(this)
+      if (block.waterAround) return false
     }
 
     if (this.settings.dontMineUnderFallingBlock) {
+      if (!block.additionalLoaded) block.loadAdditionalInfo(this)
       // TODO: Determine if there are other blocks holding the entity up
-      if (this.getBlockInfo(block.position, 0, 1, 0).canFall) {
-        // || (this.getNumEntitiesAt(block.position, 0, 1, 0) > 0)
-        return false
-      }
+      if (block.fallBlockOver) return false
+      // if (this.getBlockInfo(block.position, 0, 1, 0).canFall) {
+      //   // || (this.getNumEntitiesAt(block.position, 0, 1, 0) > 0)
+      //   return false
+      // }
     }
 
-    if (BlockInfo.replaceables.has(block.type)) return true
     // console.log('block type:', this.bot.registry.blocks[block.type], block.position, !BlockInfo.blocksCantBreak.has(block.type))
-    return !BlockInfo.blocksCantBreak.has(block.type) // && this.exclusionBreak(block) < 100
+    return BlockInfo.replaceables.has(block.type) || !BlockInfo.blocksCantBreak.has(block.type) // && this.exclusionBreak(block) < 100
   }
 
   /**

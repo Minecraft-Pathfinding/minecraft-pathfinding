@@ -37,8 +37,10 @@ export class Forward extends MovementProvider {
 
     if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
-    const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z)
+    if (blockC.isInvalid) return // out of range.
+
+    const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
     const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z)
 
     const toBreak: BreakHandler[] = []
@@ -61,7 +63,7 @@ export class Forward extends MovementProvider {
     if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return
 
     // set cachedVec to center of wanted block
-    neighbors.push(Move.fromPrevious(cost, pos.plus(dir).translate(0.5, 0, 0.5), start, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), start, this, toPlace, toBreak))
   }
 }
 
@@ -81,13 +83,16 @@ export class Diagonal extends MovementProvider {
   getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
     let cost = Diagonal.diagonalCost
 
+    const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
+
+    if (block0.isInvalid) return // out of range.
+
     if (this.getBlockInfo(node.cachedVec, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
     const block00 = this.getBlockInfo(node, 0, 0, 0)
 
-    const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
     if (block00.height - block0.height > 0.6) return // Too high to walk up
     // const needSideClearance = block00.height - block0.height < 0
     const block1 = this.getBlockInfo(node, dir.x, 1, dir.z)
@@ -121,7 +126,7 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
     if (cost > 100) return
 
-    neighbors.push(Move.fromPrevious(cost, node.cachedVec.plus(dir).translate(0.5, 0, 0.5), node, this, toPlace, toBreak))
+    neighbors.push(Move.fromPrevious(cost, block0.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
 }
 
@@ -147,9 +152,12 @@ export class ForwardJump extends MovementProvider {
   getMoveJumpUp (node: Move, dir: Vec3, neighbors: Move[]): void {
     // const pos = node.exitRounded(1)
     const pos = node.cachedVec
+    const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
+
+    if (blockB.isInvalid) return // out of range.
+
     const blockA = this.getBlockInfo(pos, 0, 2, 0)
     const blockH = this.getBlockInfo(pos, dir.x, 2, dir.z)
-    const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z)
 
     let cost = 1 + this.settings.jumpCost // move cost (move+jump)
@@ -234,7 +242,7 @@ abstract class DropDownProvider extends MovementProvider {
       }
     }
 
-    min = node.y - this.settings.maxDropDown
+    // min = node.y - this.settings.maxDropDown
 
     while (blockLand.position.y >= min) {
       if (blockLand.liquid && blockLand.safe) {
@@ -270,6 +278,12 @@ export class ForwardDropDown extends DropDownProvider {
     let cost = 1 // move cost
 
     const block0 = this.getBlockInfo(node, 0, 0, 0)
+    const blockLand = this.getLandingBlock(block0, node, dir)
+
+    if (blockLand == null) return
+    if (blockLand.isInvalid) return // out of range.
+    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
+
     if (block0.liquid) cost += this.settings.liquidCost
 
     const blockA = this.getBlockInfo(node, dir.x, 2, dir.z)
@@ -279,10 +293,6 @@ export class ForwardDropDown extends DropDownProvider {
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
-
-    const blockLand = this.getLandingBlock(block0, node, dir)
-    if (blockLand == null) return
-    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     // if (!this.settings.infiniteLiquidDropdownDistance && node.y - blockLand.position.y > this.settings.maxDropDown) return; // Don't drop down into water
 
@@ -314,16 +324,17 @@ export class StraightDown extends DropDownProvider {
     let cost = 1 // move cost
     const block0 = this.getBlockInfo(node, 0, 0, 0)
 
+    const blockLand = this.getLandingBlock(block0, node)
+    if (blockLand == null) return
+    if (blockLand.isInvalid) return // out of range.
+    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
+
     if (block0.liquid) cost += this.settings.liquidCost // dont go underwater
 
     const block1 = this.getBlockInfo(node, 0, -1, 0)
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
-
-    const blockLand = this.getLandingBlock(block0, node)
-    if (blockLand == null) return
-    if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     if ((cost += this.safeOrBreak(block1, toBreak)) > 100) return
 
@@ -346,6 +357,9 @@ export class StraightUp extends MovementProvider {
     let cost = this.settings.jumpCost // move cost
 
     const block1 = this.getBlockInfo(node, 0, 0, 0)
+
+    if (block1.isInvalid) return // out of range.
+
     if (block1.liquid) cost += this.settings.liquidCost
     // if (this.getNumEntitiesAt(node, 0, 0, 0) > 0) return // an entity (besides the player) is blocking the building area
 

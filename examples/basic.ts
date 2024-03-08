@@ -94,7 +94,7 @@ async function cmdHandler(username, msg) {
   
     case "pos": {
       bot.whisper(username, `I am at ${bot.entity.position}`);
-      console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`);
+    console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`);
       break;
     }
 
@@ -124,8 +124,8 @@ bot.on("messagestr", async (msg, pos, jsonMsg) => {
 });
 
 bot.on('error', (err) => {
-  console.log('Bot error', err)
+console.trace('Bot error', err)
 })
 bot.on('kicked', (reason) => {
-  console.log('Bot kicked', reason)
+console.trace('Bot kicked', reason)
 })

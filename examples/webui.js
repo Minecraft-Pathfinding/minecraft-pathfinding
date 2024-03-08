@@ -68,7 +68,7 @@ bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
-  bot.pathfinder.setPathfinderOptions({
+  bot.pathfinder.setOptions({
     partialPathProducer: true,
     partialPathLength: 10
   })
@@ -235,7 +235,7 @@ async function cmdHandler(username, msg) {
 
         bot.whisper(username, `${key} is now ${value}, was ${bot.pathfinder.defaultMoveSettings[key]}`);
         newSets[key] = setter;
-        bot.pathfinder.setDefaultMoveOptions(newSets);
+        bot.pathfinder.setMoveOptions(newSets);
       } else if (keys1.includes(key)) {
         if (value === undefined) {
           bot.whisper(username, `${key} is ${bot.pathfinder.pathfinderSettings[key]}`);
@@ -244,7 +244,7 @@ async function cmdHandler(username, msg) {
         const newSets = { ...bot.pathfinder.pathfinderSettings };
         bot.whisper(username, `${key} is now ${value}, was ${bot.pathfinder.pathfinderSettings[key]}`);
         newSets[key] = setter;
-        bot.pathfinder.setPathfinderOptions(newSets);
+        bot.pathfinder.setOptions(newSets);
 
       } else {
         if (value === undefined) {

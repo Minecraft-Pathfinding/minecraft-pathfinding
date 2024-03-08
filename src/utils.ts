@@ -1,14 +1,58 @@
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
+import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 
 export function printBotControls (bot: Bot): void {
-  console.log('forward', bot.getControlState('forward'))
-  console.log('back', bot.getControlState('back'))
-  console.log('left', bot.getControlState('left'))
-  console.log('right', bot.getControlState('right'))
-  console.log('jump', bot.getControlState('jump'))
-  console.log('sprint', bot.getControlState('sprint'))
-  console.log('sneak', bot.getControlState('sneak'))
+console.trace('forward', bot.getControlState('forward'))
+console.trace('back', bot.getControlState('back'))
+console.trace('left', bot.getControlState('left'))
+console.trace('right', bot.getControlState('right'))
+console.trace('jump', bot.getControlState('jump'))
+console.trace('sprint', bot.getControlState('sprint'))
+console.trace('sneak', bot.getControlState('sneak'))
+}
+
+export const debug = (bot: Bot | undefined, ...args: any[]): void => {
+  if (bot != null) {
+    bot.chat(args.join(' '))
+  }
+console.trace(...args)
+}
+
+export const getScaffoldCount = (bot: Bot): number => {
+  if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
+  const amt = bot.inventory.items().reduce((acc, item) => (BlockInfo.scaffoldingBlockItems.has(item.type) ? item.count + acc : acc), 0)
+  if (bot.game.gameMode === 'creative') {
+    return amt > 0 ? Infinity : 0
+  }
+  return amt
+}
+
+/**
+   * Gen here, this code is alright.
+   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L285
+   */
+export function closestPointOnLineSegment (point: Vec3, segmentStart: Vec3, segmentEnd: Vec3): Vec3 {
+  const segmentLength = segmentEnd.minus(segmentStart).norm()
+
+  if (segmentLength === 0) {
+    return segmentStart
+  }
+
+  // given the start and end segment of a line that is of arbitrary length,
+  // identify the closest point on the line to the given point.
+
+  const t = point.minus(segmentStart).dot(segmentEnd.minus(segmentStart)) / segmentLength ** 2
+
+  if (t < 0) {
+    return segmentStart
+  }
+
+  if (t > 1) {
+    return segmentEnd
+  }
+
+  return segmentStart.plus(segmentEnd.minus(segmentStart).scaled(t))
 }
 
 export async function onceWithCleanup<T> (
@@ -88,6 +132,6 @@ export function getViewDir (info: { yaw: number, pitch: number }): Vec3 {
 //   const data = task0.promise
 //   task0.finish(1);
 
-//   console.log(await data)
+// console.trace(await data)
 
 // })()

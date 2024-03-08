@@ -71,7 +71,7 @@ bot.on("chat", async (username, msg) => {
 
     case "pos": {
       bot.chat(`I am at ${bot.entity.position}`);
-      console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`);
+    console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`);
       break;
     }
 
@@ -80,7 +80,7 @@ bot.on("chat", async (username, msg) => {
       const res = bot.pathfinder.getPathTo(new GoalBlock(Number(args[0]), Number(args[1]), Number(args[2])));
       let test;
       while ((test = await res.next()).done === false) {
-        console.log(test);
+      console.log(test);
       }
       break;
     }
@@ -123,7 +123,7 @@ bot.on("chat", async (username, msg) => {
         ).toFixed(3)} seconds`
       );
       bot.chat(bot.pathfinder.world.getCacheSize());
-      console.log(test2.length);
+    console.log(test2.length);
       break;
     }
 
@@ -135,7 +135,7 @@ bot.on("chat", async (username, msg) => {
       const res = bot.pathfinder.getPathFromTo(lastStart, bot.entity.velocity, GoalBlock.fromVec(author.position));
       let test;
       while ((test = await res.next()).done === false) {
-        console.log(test);
+      console.log(test);
       }
       break;
     }
