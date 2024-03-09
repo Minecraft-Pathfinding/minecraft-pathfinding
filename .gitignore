@@ -3,3 +3,5 @@ dist/
 yarn-*
 package-lock.json
 *.log
+vscode-profile-*
+flamegraph.htm
