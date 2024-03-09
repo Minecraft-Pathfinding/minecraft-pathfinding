@@ -119,27 +119,27 @@ export abstract class MovementProvider extends Movement {
     if (data !== null) {
       // this.toClear.add(packed)
       // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
-      // if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
-      // console.trace(
-      //     'crap',
-      //     pos,
-      //     dx,
-      //     dy,
-      //     dz,
-      //     data.position,
-      //     '\n\n',
-      //     this.orgPos,
-      //     wantedDx,
-      //     wantedDy,
-      //     wantedDz,
-      //     target,
-      //     this.halfway,
-      //     this.boundaries,
+      if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
+      console.trace(
+          'crap',
+          pos,
+          dx,
+          dy,
+          dz,
+          data.position,
+          '\n\n',
+          this.orgPos,
+          wantedDx,
+          wantedDy,
+          wantedDz,
+          target,
+          this.halfway,
+          this.boundaries,
 
-      //     this.localData[idx]
-      //   )
-      //   throw new Error('dang')
-      // }
+          this.localData[idx]
+        )
+        throw new Error('dang')
+      }
 
       return data
     }
@@ -247,30 +247,49 @@ export class MovementHandler implements AMovementProvider<Move> {
     // data has already been shifted, no need to worry.
     let move1: Move | undefined = move
     let exit = false
+    let i = 0;
 
     const seen = new Set<number>()
-
+    const orgPos = move.entryPos.floored()
     // theoretically, this is incorrect. Newest iteration should occur, not oldest.
     // reverse by starting at root then traversing down.
     // or keep track of changes.
-    while (move1 !== undefined && !exit) {
+    while (move1 !== undefined && !exit && i++ < 3) {
       for (const m of move1.toPlace) {
-        const idx = m.x * this.boundaries[2] * this.boundaries[1] + m.z * this.boundaries[2] + m.y
-        // bound check
-        if (idx < 0 || idx >= this.maxBound) exit = true
-        else if (!seen.has(idx)) {
-          this.localData[idx] = m.blockInfo
-          seen.add(idx)
-        } else break
+     
+        // idx is the index of the block in the localData array
+        // idx is offset from current position
+        const wantedDx = m.x - orgPos.x + this.halfway[0]
+        const wantedDz = m.z - orgPos.z + this.halfway[1]
+        const wantedDy = m.y - orgPos.y + this.halfway[2]
+
+        if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+          exit = true
+        } else {
+          const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
+          if (!seen.has(idx)) {
+            this.localData[idx] = m.blockInfo
+            seen.add(idx)
+          } else break
+        }
       }
 
       for (const m of move1.toBreak) {
-        const idx = m.x * this.boundaries[2] * this.boundaries[1] + m.z * this.boundaries[2] + m.y
-        if (idx < 0 || idx >= this.maxBound) exit = true
-        else if (!seen.has(idx)) {
-          this.localData[idx] = m.blockInfo
-          seen.add(idx)
-        } else break
+        // idx is the index of the block in the localData array
+        // idx is offset from current position
+        const wantedDx = m.x - orgPos.x + this.halfway[0]
+        const wantedDz = m.z - orgPos.z + this.halfway[1]
+        const wantedDy = m.y - orgPos.y + this.halfway[2]
+
+        if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+          exit = true
+        } else {
+          const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
+           if (!seen.has(idx)) {
+            this.localData[idx] = m.blockInfo
+            seen.add(idx)
+          } else break
+        }
       }
       move1 = move1.parent
     }
