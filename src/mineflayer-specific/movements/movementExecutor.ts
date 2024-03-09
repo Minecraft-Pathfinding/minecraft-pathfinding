@@ -23,7 +23,6 @@ export interface CompleteOpts {
 }
 
 export abstract class MovementExecutor extends Movement {
-
   /**
    * Physics engine, baby.
    */

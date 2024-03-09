@@ -59,7 +59,7 @@ export abstract class MovementProvider extends Movement {
 
     // let i = 0
     // while (move !== undefined && i++ < 3) { // 5 levels
-     
+
     //   for (const m of move.toPlace) {
     //     if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
     //       return m.blockInfo
@@ -106,10 +106,9 @@ export abstract class MovementProvider extends Movement {
       wantedDz >= this.boundaries[1] ||
       wantedDy < 0 ||
       wantedDy >= this.boundaries[2]
-    ) 
-      return this.world.getBlockInfo(yes)
-      // return super.getBlockInfo(pos, dx, dy, dz)
-      // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
+    ) { return this.world.getBlockInfo(yes) }
+    // return super.getBlockInfo(pos, dx, dy, dz)
+    // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
     // }
 
     const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
@@ -142,7 +141,7 @@ export abstract class MovementProvider extends Movement {
       //   throw new Error('dang')
       // }
 
-      return data as BlockInfo
+      return data
     }
 
     const ret = this.world.getBlockInfo(yes)
@@ -188,7 +187,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     this.goal = goal
   }
 
-  private readonly boundaries: [x: number, z: number, y: number] = [7,7,7]
+  private readonly boundaries: [x: number, z: number, y: number] = [7, 7, 7]
   private readonly halfway: [x: number, z: number, y: number] = [Math.floor(this.boundaries[0] / 2), Math.floor(this.boundaries[1] / 2), Math.floor(this.boundaries[2] / 2)]
 
   private readonly maxBound = this.boundaries[0] * this.boundaries[1] * this.boundaries[2]
@@ -244,12 +243,12 @@ export class MovementHandler implements AMovementProvider<Move> {
     MovementHandler.totCount++
   }
 
-  preloadInteractData(move: Move): void {
+  preloadInteractData (move: Move): void {
     // data has already been shifted, no need to worry.
     let move1: Move | undefined = move
-    let exit = false;
+    let exit = false
 
-    const seen = new Set<number>();
+    const seen = new Set<number>()
 
     // theoretically, this is incorrect. Newest iteration should occur, not oldest.
     // reverse by starting at root then traversing down.
@@ -262,7 +261,7 @@ export class MovementHandler implements AMovementProvider<Move> {
         else if (!seen.has(idx)) {
           this.localData[idx] = m.blockInfo
           seen.add(idx)
-        } else break;
+        } else break
       }
 
       for (const m of move1.toBreak) {
@@ -271,9 +270,9 @@ export class MovementHandler implements AMovementProvider<Move> {
         else if (!seen.has(idx)) {
           this.localData[idx] = m.blockInfo
           seen.add(idx)
-        } else break;
+        } else break
       }
-      move1 = move1.parent      
+      move1 = move1.parent
     }
     // if (i > 1) console.log('i', i)
   }

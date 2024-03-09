@@ -286,6 +286,9 @@ export class ForwardDropDown extends DropDownProvider {
 
     if (block0.liquid) cost += this.settings.liquidCost
 
+    // drop cost
+    cost += (node.y - blockLand.position.y) * 0.5
+
     const blockA = this.getBlockInfo(node, dir.x, 2, dir.z)
     const blockB = this.getBlockInfo(node, dir.x, 1, dir.z)
     const blockC = this.getBlockInfo(node, dir.x, 0, dir.z)
@@ -330,6 +333,9 @@ export class StraightDown extends DropDownProvider {
     if (closed.has(`${blockLand.position.x},${blockLand.position.y},${blockLand.position.z}`)) return
 
     if (block0.liquid) cost += this.settings.liquidCost // dont go underwater
+
+    // drop cost
+    cost += (node.y - blockLand.position.y) * 0.5
 
     const block1 = this.getBlockInfo(node, 0, -1, 0)
 

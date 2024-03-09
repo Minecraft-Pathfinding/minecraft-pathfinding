@@ -18,7 +18,7 @@ export class ContinuousPathProducer implements PathProducer {
 
   private readonly gcInterval: number = 10
   private lastGc: number = 0
-  private lastStartTime = performance.now()
+  private readonly lastStartTime = performance.now()
   constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
     this.start = start
     this.goal = goal
@@ -66,31 +66,27 @@ export class ContinuousPathProducer implements PathProducer {
 
     // debug all same info in partialPathProducer
 
-      const cost = this.astarContext?.bestNode?.g ?? 0
-      const nodecount = this.astarContext?.nodeConsiderCount ?? 0
-      const seensize = this.astarContext?.closedDataSet.size ?? 0
-      const movecount = this.astarContext?.moveConsiderCount ?? 0
+    const cost = this.astarContext?.bestNode?.g ?? 0
+    const nodecount = this.astarContext?.nodeConsiderCount ?? 0
+    const seensize = this.astarContext?.closedDataSet.size ?? 0
+    const movecount = this.astarContext?.moveConsiderCount ?? 0
 
-    
-   
-      const time1 = performance.now() - this.lastStartTime
+    const time1 = performance.now() - this.lastStartTime
 
-      
-      console.log('\nthis iter:', time1)
-      console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
-      console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
-      console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
+    console.log('\nthis iter:', time1)
+    console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
+    console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
+    console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
 
-      console.log("locality %", (MovementHandler.count / MovementHandler.totCount) * 100);
-      console.log("cost", cost)
-      console.log("path length", result.path.length)
-      // this.lastStartTime = performance.now()
-      // const time = performance.now() - this.startTime
-      // console.log('\ntotal', time, 'ms')
-      // console.log('total considered nodes', this.consideredNodeCount, time, (this.consideredNodeCount / time) * 1000, 'nodes/s')
-      // console.log('total seen size', this.latestClosedNodeCount, time, (this.latestClosedNodeCount / time) * 1000, 'nodes/s')
-      // console.log('total move considered', this.latestMoveCount, time, (this.latestMoveCount / time) * 1000, 'nodes/s')
-
+    console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
+    console.log('cost', cost)
+    console.log('path length', result.path.length)
+    // this.lastStartTime = performance.now()
+    // const time = performance.now() - this.startTime
+    // console.log('\ntotal', time, 'ms')
+    // console.log('total considered nodes', this.consideredNodeCount, time, (this.consideredNodeCount / time) * 1000, 'nodes/s')
+    // console.log('total seen size', this.latestClosedNodeCount, time, (this.latestClosedNodeCount / time) * 1000, 'nodes/s')
+    // console.log('total move considered', this.latestMoveCount, time, (this.latestMoveCount / time) * 1000, 'nodes/s')
 
     return { result, astarContext: this.astarContext }
   }

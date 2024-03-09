@@ -47,7 +47,7 @@ export abstract class InteractHandler {
 
   protected _internalLock = true
 
-  protected task?: Task<void, Error>;
+  protected task?: Task<void, Error>
 
   public readonly blockInfo: BlockInfo
   // public readonly bb: AABB
@@ -65,7 +65,6 @@ export abstract class InteractHandler {
   public get bb (): AABB {
     return AABB.fromBlock(this.vec)
   }
-  
 
   constructor (
     public readonly x: number,
@@ -124,7 +123,7 @@ export abstract class InteractHandler {
       this._done = true
       this.performing = false
 
-      if (this.task && this.task.canceled) return
+      if (this.task?.canceled != null) return
       // this.task.cancel(err);
       throw new CancelError(`Failed to perform ${this.constructor.name}`, err)
     })
@@ -529,7 +528,7 @@ export class PlaceHandler extends InteractHandler {
   }
 
   async abort (bot: Bot): Promise<void> {
-    if (this.task && !this.task.done) {
+    if ((this.task != null) && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
     }
@@ -630,7 +629,7 @@ export class BreakHandler extends InteractHandler {
         this._breakTask = bot.dig(block, 'ignore', 'raycast')
 
         await this._breakTask
-        this.task!.finish()
+        if (this.task != null) this.task.finish()
         break
       }
 
@@ -656,7 +655,7 @@ export class BreakHandler extends InteractHandler {
   }
 
   async abort (bot: Bot): Promise<void> {
-    if (this.task && !this.task.done) {
+    if ((this.task != null) && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
     }

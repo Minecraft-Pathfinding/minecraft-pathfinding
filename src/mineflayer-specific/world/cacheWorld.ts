@@ -11,7 +11,9 @@ import { RayType } from '../movements/interactionUtils'
 import { Movement } from '../movements'
 import { fasterGetBlock } from './utils'
 
-const pBlock = require('prismarine-block')
+import pBlock from 'prismarine-block'
+// uncomment below for no interop
+// import * as pBlock from 'prismarine-block'
 
 export class BlockInfo {
   static initialized = false
@@ -78,7 +80,6 @@ export class BlockInfo {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
-    console.log(pBlock)
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
@@ -173,7 +174,6 @@ export class BlockInfo {
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.dirt.id)
     BlockInfo.scaffoldingBlockItems.add(registry.itemsByName.cobblestone.id)
 
-    // this code is stolen from original pathfinder and it makes no sense.
     registry.blocksArray
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       .filter((x) => x.minStateId !== undefined)
@@ -207,12 +207,13 @@ export class BlockInfo {
     if (b === null) return BlockInfo.INVALID
 
     if (b.boundingBox === 'block') {
-   
       let height = b.position.y
-      
+
       if (b.shapes.length === 1) height = b.position.y + b.shapes[0][4]
-      else for (const shape of b.shapes) {
-        if (shape[4] !== 0 && height < b.position.y + shape[4]) height = b.position.y + shape[4] 
+      else {
+        for (const shape of b.shapes) {
+          if (shape[4] !== 0 && height < b.position.y + shape[4]) height = b.position.y + shape[4]
+        }
       }
       const climbable = BlockInfo.climbables.has(b.type)
       return new BlockInfo(
@@ -242,66 +243,63 @@ export class BlockInfo {
         b.type,
         b
       )
-    } 
-    //else {
-      // throw new Error('lmao' + b.boundingBox)
-      // const physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
-      // const climbable = BlockInfo.climbables.has(b.type)
-      // let height = b.position.y
-  
-      // for (const shape of b.shapes) {
-      //   height = Math.max(height, b.position.y + shape[4])
-      // }
-  
-  
-      // return new BlockInfo(
-      //   BlockInfo.replaceables.has(b.type) && physical,
-      //   BlockInfo.gravityBlocks.has(b.type),
-      //   (b.boundingBox === 'empty' || climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type),
-      //   physical,
-      //   BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty'),
-      //   climbable,
-      //   height,
-      //   BlockInfo.openable.has(b.type),
-      //   b.position,
-      //   b.type,
-      //   b
-      // )
-      // const b1 = {} as any // trick compiler into not doing pseudo class.
-      // b1.climbable = BlockInfo.climbables.has(b.type)
-  
-      // // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
-      // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-      // b1.safe = (b.boundingBox === 'empty' || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type)
-      // b1.physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
-  
-      // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-      // b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
-      // b1.liquid = BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty')
-      // b1.height = b.position.y
-      // b1.canFall = BlockInfo.gravityBlocks.has(b.type)
-      // b1.openable = BlockInfo.openable.has(b.type)
-  
-      // for (const shape of b.shapes) {
-      //   b1.height = Math.max(b1.height, b.position.y + shape[4])
-      // }
-  
-      // return new BlockInfo(
-      //   b1.replaceable,
-      //   b1.canFall,
-      //   b1.safe,
-      //   b1.physical,
-      //   b1.liquid,
-      //   b1.climbable,
-      //   b1.height,
-      //   b1.openable,
-      //   b.position,
-      //   b.type,
-      //   b
-      // )
+    }
+    // else {
+    // throw new Error('lmao' + b.boundingBox)
+    // const physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
+    // const climbable = BlockInfo.climbables.has(b.type)
+    // let height = b.position.y
+
+    // for (const shape of b.shapes) {
+    //   height = Math.max(height, b.position.y + shape[4])
     // }
-   
-   
+
+    // return new BlockInfo(
+    //   BlockInfo.replaceables.has(b.type) && physical,
+    //   BlockInfo.gravityBlocks.has(b.type),
+    //   (b.boundingBox === 'empty' || climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type),
+    //   physical,
+    //   BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty'),
+    //   climbable,
+    //   height,
+    //   BlockInfo.openable.has(b.type),
+    //   b.position,
+    //   b.type,
+    //   b
+    // )
+    // const b1 = {} as any // trick compiler into not doing pseudo class.
+    // b1.climbable = BlockInfo.climbables.has(b.type)
+
+    // // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
+    // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    // b1.safe = (b.boundingBox === 'empty' || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type)
+    // b1.physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
+
+    // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    // b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
+    // b1.liquid = BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty')
+    // b1.height = b.position.y
+    // b1.canFall = BlockInfo.gravityBlocks.has(b.type)
+    // b1.openable = BlockInfo.openable.has(b.type)
+
+    // for (const shape of b.shapes) {
+    //   b1.height = Math.max(b1.height, b.position.y + shape[4])
+    // }
+
+    // return new BlockInfo(
+    //   b1.replaceable,
+    //   b1.canFall,
+    //   b1.safe,
+    //   b1.physical,
+    //   b1.liquid,
+    //   b1.climbable,
+    //   b1.height,
+    //   b1.openable,
+    //   b.position,
+    //   b.type,
+    //   b
+    // )
+    // }
 
     // return new BlockInfo(
     //   b1.replaceable,
@@ -438,9 +436,8 @@ export class CacheSyncWorld implements WorldType {
   cacheCalls = 0
   enabled = true
 
-  minY: number;
+  minY: number
   constructor (bot: Bot, referenceWorld: Bot['world']) {
-    console.log(bot.game)
     this.minY = (bot.game as any).minY
     // this.posCache = {};
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
@@ -459,7 +456,7 @@ export class CacheSyncWorld implements WorldType {
       }
     })
 
-    this.world.getBlock = fasterGetBlock.bind(this.world, this.minY)
+    this.world.getBlock = fasterGetBlock.bind(this.world)
   }
 
   private makeLRUCache (size: number): LRUCache<string, BlockInfo, unknown> {
@@ -509,7 +506,7 @@ export class CacheSyncWorld implements WorldType {
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
-      return BlockInfo.fromBlock(this.world.getBlock(pos) as unknown as Block);
+      return BlockInfo.fromBlock(this.world.getBlock(pos) as unknown as Block)
     }
     this.cacheCalls++
     pos = pos.floored()
@@ -567,7 +564,7 @@ export class CacheSyncWorld implements WorldType {
     this.enabled = enabled
   }
 
-  cleanup(): void {
-    this.clearCache();
+  cleanup (): void {
+    this.clearCache()
   }
 }
