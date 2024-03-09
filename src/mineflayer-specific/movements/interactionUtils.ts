@@ -41,22 +41,31 @@ export interface InteractOpts {
 export abstract class InteractHandler {
   protected performing = false
   public cancelled = false
-  public readonly vec: Vec3
+  // public readonly vec: Vec3
 
   protected _done = false
 
   protected _internalLock = true
 
-  protected task = new Task<void, Error>()
+  protected task?: Task<void, Error>;
 
   public readonly blockInfo: BlockInfo
-  public readonly bb: AABB
+  // public readonly bb: AABB
 
   protected readonly move!: MovementExecutor
 
   protected get settings (): MovementOptions {
     return this.move.settings
   }
+
+  public get vec (): Vec3 {
+    return new Vec3(this.x, this.y, this.z)
+  }
+
+  public get bb (): AABB {
+    return AABB.fromBlock(this.vec)
+  }
+  
 
   constructor (
     public readonly x: number,
@@ -65,8 +74,8 @@ export abstract class InteractHandler {
     public readonly type: InteractType,
     public readonly offhand = false
   ) {
-    this.vec = new Vec3(x, y, z)
-    this.bb = AABB.fromBlock(this.vec)
+    // this.vec = new Vec3(x, y, z)
+    // this.bb = AABB.fromBlock(this.vec)
     this.blockInfo = this.toBlockInfo()
   }
 
@@ -107,6 +116,7 @@ export abstract class InteractHandler {
     if (this.performing) throw new Error('Already performing')
     this.performing = true
     this._internalLock = true
+    this.task = new Task()
 
     // icky code.
     const ret = await this.perform(bot, item, opts).catch((err) => {
@@ -114,7 +124,7 @@ export abstract class InteractHandler {
       this._done = true
       this.performing = false
 
-      if (this.task.canceled) return
+      if (this.task && this.task.canceled) return
       // this.task.cancel(err);
       throw new CancelError(`Failed to perform ${this.constructor.name}`, err)
     })
@@ -496,7 +506,7 @@ export class PlaceHandler extends InteractHandler {
         if (sneaking) bot.setControlState('sneak', false)
         if (works.shiftTick !== Infinity) bot.setControlState('sneak', false)
 
-        this.task.finish()
+        this.task?.finish()
         break
       }
       case 'replaceable':
@@ -519,7 +529,7 @@ export class PlaceHandler extends InteractHandler {
   }
 
   async abort (bot: Bot): Promise<void> {
-    if (!this.task.done) {
+    if (this.task && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
     }
@@ -620,7 +630,7 @@ export class BreakHandler extends InteractHandler {
         this._breakTask = bot.dig(block, 'ignore', 'raycast')
 
         await this._breakTask
-        this.task.finish()
+        this.task!.finish()
         break
       }
 
@@ -646,7 +656,7 @@ export class BreakHandler extends InteractHandler {
   }
 
   async abort (bot: Bot): Promise<void> {
-    if (!this.task.done) {
+    if (this.task && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
     }

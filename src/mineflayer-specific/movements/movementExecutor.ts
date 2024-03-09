@@ -23,12 +23,6 @@ export interface CompleteOpts {
 }
 
 export abstract class MovementExecutor extends Movement {
-  /**
-   * Current move being executed.
-   *
-   * This move is the same as the thisMove argument provided to functions.
-   */
-  protected currentMove!: Move
 
   /**
    * Physics engine, baby.

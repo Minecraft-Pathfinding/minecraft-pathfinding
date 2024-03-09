@@ -1070,7 +1070,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const early = await new Promise<boolean>((resolve, reject) => {
       let leave = false
       const listener = (): void => {
-        if (++counter > ticks) {
+        if (counter++ > ticks) {
           this.bot.off('physicsTick', listener)
           counter--
           resolve(false)
@@ -1243,7 +1243,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
         this.stepAmt = 1
         delete this.backUpTarget
         this.reachedBackup = false
-        throw new Error('ParkourExecutor: will not make this jump!')
+        throw new CancelError('ParkourExecutor: will not make this jump!')
       }
     } else if (!this.reachedBackup && this.backUpTarget != null) {
       const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)

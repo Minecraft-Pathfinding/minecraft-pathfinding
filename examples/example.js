@@ -9,9 +9,10 @@ const { default: loader, EntityState, EPhysicsCtx, EntityPhysics } = require("@n
 const bot = createBot({
   username: "testing1",
   auth: "offline",
-  host: "node2.meowbot.de",
-  port: 5000,
-  version: "1.20.1",
+
+  // host: "node2.meowbot.de",
+  // port: 5000,
+  version: "1.19.4",
 });
 const pathfinder = createPlugin();
 
@@ -124,6 +125,10 @@ bot.once("spawn", async () => {
       process.exit();
     }
 
+
+    const username = bot.nearestEntity((e) => e.type === "player" && e !== bot.entity)?.username ?? "unknown";
+    cmdHandler(username, line);
+
     bot.chat(line);
   });
 
@@ -137,6 +142,7 @@ let lastStart = null;
 async function cmdHandler(username, msg) {
   // console.log(msg)
   if (username === bot.username) return;
+  console.log('msg!', msg)
 
   const [cmd1, ...args] = msg.split(" ");
   const author = bot.nearestEntity((e) => e.username === username);
@@ -489,6 +495,7 @@ async function cmdHandler(username, msg) {
       );
 
       bot.whisper(username, bot.pathfinder.world.getCacheSize());
+      bot.whisper(username, `cost: ${test1.value.result.cost}`);
       console.log(test2.length);
       break;
     }

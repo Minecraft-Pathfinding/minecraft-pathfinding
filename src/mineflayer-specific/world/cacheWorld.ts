@@ -3,13 +3,15 @@ import type { World as WorldType } from './worldInterface'
 import { Bot } from 'mineflayer'
 import { LRUCache } from 'lru-cache'
 
-import interactables from './interactable.json'
+import interactables from './interactable'
 import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { RayType } from '../movements/interactionUtils'
 
-import pBlock from 'prismarine-block'
 import { Movement } from '../movements'
+import { fasterGetBlock } from './utils'
+
+const pBlock = require('prismarine-block')
 
 export class BlockInfo {
   static initialized = false
@@ -51,7 +53,7 @@ export class BlockInfo {
   }
 
   public readonly solidFull: boolean
-  public readonly isInvalid = this.type === -1
+  public readonly isInvalid: boolean
 
   constructor (
     public readonly replaceable: boolean,
@@ -69,12 +71,14 @@ export class BlockInfo {
   ) {
     // this.solidFull = physical
     this.solidFull = this.height - this.position.y >= 1 && this.physical
+    this.isInvalid = this.type === -1
   }
 
   static init (registry: MCData): void {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
+    console.log(pBlock)
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
@@ -202,38 +206,116 @@ export class BlockInfo {
   static fromBlock (b: Block | null): BlockInfo {
     if (b === null) return BlockInfo.INVALID
 
-    const b1 = {} as any // trick compiler into not doing pseudo class.
-    b1.climbable = BlockInfo.climbables.has(b.type)
+    if (b.boundingBox === 'block') {
+   
+      let height = b.position.y
+      
+      if (b.shapes.length === 1) height = b.position.y + b.shapes[0][4]
+      else for (const shape of b.shapes) {
+        if (shape[4] !== 0 && height < b.position.y + shape[4]) height = b.position.y + shape[4] 
+      }
+      const climbable = BlockInfo.climbables.has(b.type)
+      return new BlockInfo(
+        BlockInfo.replaceables.has(b.type),
+        BlockInfo.gravityBlocks.has(b.type),
+        (climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type),
+        true,
+        false,
+        climbable,
+        height,
+        BlockInfo.openable.has(b.type),
+        b.position,
+        b.type,
+        b
+      )
+    } else {
+      return new BlockInfo(
+        false,
+        false,
+        true,
+        false,
+        BlockInfo.liquids.has(b.type) || Boolean((b as any)._properties?.waterlogged),
+        false,
+        b.position.y,
+        false,
+        b.position,
+        b.type,
+        b
+      )
+    } 
+    //else {
+      // throw new Error('lmao' + b.boundingBox)
+      // const physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
+      // const climbable = BlockInfo.climbables.has(b.type)
+      // let height = b.position.y
+  
+      // for (const shape of b.shapes) {
+      //   height = Math.max(height, b.position.y + shape[4])
+      // }
+  
+  
+      // return new BlockInfo(
+      //   BlockInfo.replaceables.has(b.type) && physical,
+      //   BlockInfo.gravityBlocks.has(b.type),
+      //   (b.boundingBox === 'empty' || climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type),
+      //   physical,
+      //   BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty'),
+      //   climbable,
+      //   height,
+      //   BlockInfo.openable.has(b.type),
+      //   b.position,
+      //   b.type,
+      //   b
+      // )
+      // const b1 = {} as any // trick compiler into not doing pseudo class.
+      // b1.climbable = BlockInfo.climbables.has(b.type)
+  
+      // // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
+      // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+      // b1.safe = (b.boundingBox === 'empty' || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type)
+      // b1.physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
+  
+      // // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+      // b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
+      // b1.liquid = BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty')
+      // b1.height = b.position.y
+      // b1.canFall = BlockInfo.gravityBlocks.has(b.type)
+      // b1.openable = BlockInfo.openable.has(b.type)
+  
+      // for (const shape of b.shapes) {
+      //   b1.height = Math.max(b1.height, b.position.y + shape[4])
+      // }
+  
+      // return new BlockInfo(
+      //   b1.replaceable,
+      //   b1.canFall,
+      //   b1.safe,
+      //   b1.physical,
+      //   b1.liquid,
+      //   b1.climbable,
+      //   b1.height,
+      //   b1.openable,
+      //   b.position,
+      //   b.type,
+      //   b
+      // )
+    // }
+   
+   
 
-    // bug here, safe is not correct. Breaking climbables (ladders) is not cost of zero.
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    b1.safe = (b.boundingBox === 'empty' || b1.climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type)
-    b1.physical = b.boundingBox === 'block' && !BlockInfo.fences.has(b.type)
-
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    b1.replaceable = BlockInfo.replaceables.has(b.type) && !b1.physical
-    b1.liquid = BlockInfo.liquids.has(b.type) || (Boolean((b as any)._properties?.waterlogged) && b.boundingBox === 'empty')
-    b1.height = b.position.y
-    b1.canFall = BlockInfo.gravityBlocks.has(b.type)
-    b1.openable = BlockInfo.openable.has(b.type)
-
-    for (const shape of b.shapes) {
-      b1.height = Math.max(b1.height, b.position.y + shape[4])
-    }
-
-    return new BlockInfo(
-      b1.replaceable,
-      b1.canFall,
-      b1.safe,
-      b1.physical,
-      b1.liquid,
-      b1.climbable,
-      b1.height,
-      b1.openable,
-      b.position,
-      b.type,
-      b
-    )
+    // return new BlockInfo(
+    //   b1.replaceable,
+    //   b1.canFall,
+    //   b1.safe,
+    //   b1.physical,
+    //   b1.liquid,
+    //   b1.climbable,
+    //   b1.height,
+    //   b1.openable,
+    //   b.position,
+    //   b.type,
+    //   b
+    // )
   }
 
   // static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0, 0, 0), -1)
@@ -356,7 +438,10 @@ export class CacheSyncWorld implements WorldType {
   cacheCalls = 0
   enabled = true
 
+  minY: number;
   constructor (bot: Bot, referenceWorld: Bot['world']) {
+    console.log(bot.game)
+    this.minY = (bot.game as any).minY
     // this.posCache = {};
     this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
     this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
@@ -373,6 +458,8 @@ export class CacheSyncWorld implements WorldType {
         this.blockInfos.set(`${pos.x}:${pos.y}:${pos.z}`, BlockInfo.fromBlock(newBlock))
       }
     })
+
+    this.world.getBlock = fasterGetBlock.bind(this.world, this.minY)
   }
 
   private makeLRUCache (size: number): LRUCache<string, BlockInfo, unknown> {
@@ -402,9 +489,9 @@ export class CacheSyncWorld implements WorldType {
   }
 
   getBlock (pos: Vec3): Block | null {
-    // if (!this.enabled) {
-    //   return this.world.getBlock(pos) as unknown as Block
-    // }
+    if (!this.enabled) {
+      return this.world.getBlock(pos) as unknown as Block
+    }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
@@ -421,9 +508,9 @@ export class CacheSyncWorld implements WorldType {
     // this.cacheCalls++
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
-    // if (!this.enabled) {
-    //   return BlockInfo.fromBlock(this.world.getBlock(pos))
-    // }
+    if (!this.enabled) {
+      return BlockInfo.fromBlock(this.world.getBlock(pos) as unknown as Block);
+    }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
@@ -478,5 +565,9 @@ export class CacheSyncWorld implements WorldType {
 
   setEnabled (enabled: boolean): void {
     this.enabled = enabled
+  }
+
+  cleanup(): void {
+    this.clearCache();
   }
 }

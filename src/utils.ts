@@ -3,13 +3,13 @@ import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 
 export function printBotControls (bot: Bot): void {
-  console.trace('forward', bot.getControlState('forward'))
-  console.trace('back', bot.getControlState('back'))
-  console.trace('left', bot.getControlState('left'))
-  console.trace('right', bot.getControlState('right'))
-  console.trace('jump', bot.getControlState('jump'))
-  console.trace('sprint', bot.getControlState('sprint'))
-  console.trace('sneak', bot.getControlState('sneak'))
+  console.log('forward', bot.getControlState('forward'))
+  console.log('back', bot.getControlState('back'))
+  console.log('left', bot.getControlState('left'))
+  console.log('right', bot.getControlState('right'))
+  console.log('jump', bot.getControlState('jump'))
+  console.log('sprint', bot.getControlState('sprint'))
+  console.log('sneak', bot.getControlState('sneak'))
 }
 
 export const debug = (bot: Bot | undefined, ...args: any[]): void => {
@@ -145,6 +145,6 @@ export function getViewDir (info: { yaw: number, pitch: number }): Vec3 {
 //   const data = task0.promise
 //   task0.finish(1);
 
-// console.trace(await data)
+// console.log(await data)
 
 // })()

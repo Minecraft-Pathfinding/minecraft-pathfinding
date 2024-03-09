@@ -115,6 +115,11 @@ export abstract class Movement {
   public readonly world: World
   public settings: MovementOptions
 
+   /**
+   * Current move being executed.
+   *
+   * This move is the same as the thisMove argument provided to functions.
+   */
   protected currentMove!: Move
 
   /**
