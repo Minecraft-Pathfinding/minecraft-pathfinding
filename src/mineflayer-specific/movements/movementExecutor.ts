@@ -74,7 +74,7 @@ export abstract class MovementExecutor extends Movement {
    * TODO: Implement.
    */
   public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
-    if (this.aborted || this.resetReason != null) return
+    // if (this.aborted || this.resetReason != null) return
 
     const resetting = settings.reason
 
@@ -292,7 +292,7 @@ export abstract class MovementExecutor extends Movement {
       this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
     if (aboveWater) {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
-      bbCheckCond = bb1bl.safe
+      bbCheckCond = bb1bl.walkthrough
       const bb1s = AABB.fromBlockPos(bb1bl.position)
       weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
     } else if (ectx.state.isInWater) {

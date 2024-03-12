@@ -36,7 +36,7 @@ import {
   StraightUpExecutor,
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
-import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
+import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, HandlerOpts, ResetReason } from './types'
@@ -89,8 +89,8 @@ DEFAULT_PROVIDER_EXECUTORS.reverse()
  * They can reveal patterns at calculation time otherwise not noticeable at execution time.
  */
 const DEFAULT_OPTIMIZERS = [
-  [Forward, StraightAheadOpt],
-  [Diagonal, StraightAheadOpt],
+  [Forward, LandStraightAheadOpt],
+  [Diagonal, LandStraightAheadOpt],
   [ForwardDropDown, DropDownOpt],
   [ForwardJump, ForwardJumpUpOpt]
 ] as Array<[BuildableMoveProvider, BuildableOptimizer]>
@@ -639,7 +639,6 @@ export class ThePathfinder {
 
             if (this.resetReason == null) {
               console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
-              if (this.currentExecutor != null) await goal.onFinish(this.currentExecutor)
               await this.cleanupBot()
               manualCleanup()
               setupWait()
@@ -864,12 +863,16 @@ export class ThePathfinder {
     delete this.currentExecutor
   }
 
-  async cleanupAll (goal: goals.Goal): Promise<void> {
+  async cleanupAll (goal: goals.Goal, executor = this.currentExecutor): Promise<void> {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
       goal.cleanup?.()
     }
 
     await this.cleanupBot()
+    if (executor != null) {
+      await goal.onFinish(executor)
+      await this.cleanupBot()
+    }
     // this.bot.chat(this.world.getCacheSize())
     this.world.cleanup?.()
 

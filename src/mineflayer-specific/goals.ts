@@ -331,7 +331,7 @@ export class GoalNearXZ extends Goal {
  * A goal to look at a specific coordinate within a certain distance.
  */
 export class GoalLookAt extends Goal {
-  private readonly bb: AABB
+  protected readonly bb: AABB
 
   public x: number
   public y: number
@@ -447,7 +447,9 @@ export class GoalPlaceBlock extends GoalLookAt {
    * Prevent overlap.
    */
   isEnd (node: Move): boolean {
-    return super.isEnd(node) && node.x !== this.x && node.y !== this.y && node.z !== this.z
+    if (!super.isEnd(node)) return false
+    const bb = AABB.fromBlock(node).extend(0, 1, 0)
+    return !bb.collides(this.bb)
   }
 
   override async onFinish (node: MovementExecutor): Promise<void> {

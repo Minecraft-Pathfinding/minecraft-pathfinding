@@ -841,12 +841,12 @@ export class ForwardDropDownExecutor extends MovementExecutor {
   getLandingBlock (node: Move, dir: Vec3): BlockInfo | null {
     let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z)
     while (blockLand.position.y > (this.bot.game as any).minY) {
-      if (blockLand.liquid && blockLand.safe) return blockLand
+      if (blockLand.liquid && blockLand.walkthrough) return blockLand
       if (blockLand.physical) {
         if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlockInfo(blockLand.position, 0, 1, 0)
         return null
       }
-      if (!blockLand.safe) return null
+      if (!blockLand.walkthrough) return null
       blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0)
     }
     return null
@@ -942,7 +942,7 @@ export class StraightUpExecutor extends MovementExecutor {
 
         const bb2bl = this.getBlockInfo(target, 0, 0, 0)
         bb2 = [AABB.fromBlock(bb2bl.position)]
-        bb2Good = bb2bl.safe || bb2bl.liquid
+        bb2Good = bb2bl.walkthrough || bb2bl.liquid
       } else {
         const bb1bl = this.getBlockInfo(target, 0, -1, 0)
         bb1 = bb1bl.getBBs()

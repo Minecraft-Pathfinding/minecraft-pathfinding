@@ -53,8 +53,13 @@ export abstract class MovementProvider extends Movement {
     // console.log(this.halfway)
   }
 
-  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
+  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
+    return this.getBlockInfoRaw(yes)
+  }
+
+  getBlockInfoRaw (yes: Vec3): BlockInfo {
+    // 
     // let move: Move | undefined = this.currentMove
 
     // let i = 0
@@ -106,7 +111,9 @@ export abstract class MovementProvider extends Movement {
       wantedDz >= this.boundaries[1] ||
       wantedDy < 0 ||
       wantedDy >= this.boundaries[2]
-    ) { return this.world.getBlockInfo(yes) }
+    ) {
+      return this.world.getBlockInfo(yes)
+    }
     // return super.getBlockInfo(pos, dx, dy, dz)
     // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
     // }
@@ -117,29 +124,31 @@ export abstract class MovementProvider extends Movement {
     const data = this.localData[idx]
 
     if (data !== null) {
+      // console.log('goddamnbit', data.block?.position.equals(yes), data.position.equals(yes), data.block?.position, data.position, yes, dx, dy, dz, new Vec3(pos.x, pos.y, pos.z))
       // this.toClear.add(packed)
       // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
-      if (!data.block?.position.equals(target) && data.position.x !== 0 && data.block?.position.y !== 0 && data.position.z !== 0) {
-      console.trace(
-          'crap',
-          pos,
-          dx,
-          dy,
-          dz,
-          data.position,
-          '\n\n',
-          this.orgPos,
-          wantedDx,
-          wantedDy,
-          wantedDz,
-          target,
-          this.halfway,
-          this.boundaries,
+      // if (!data.position.equals(yes)) {
+      // console.trace(
+      //     'crap',
+      //     pos,
+      //     dx,
+      //     dy,
+      //     dz,
+      //     data.position,
+      //     '\n\n',
+      //     this.orgPos,
+      //     wantedDx,
+      //     wantedDy,
+      //     wantedDz,
+      //     target,
+      //     this.halfway,
+      //     this.boundaries,
+      //     data.block,
 
-          this.localData[idx]
-        )
-        throw new Error('dang')
-      }
+      //     this.localData[idx]
+      //   )
+      //   throw new Error('dang')
+      // }
 
       return data
     }
@@ -243,22 +252,26 @@ export class MovementHandler implements AMovementProvider<Move> {
     MovementHandler.totCount++
   }
 
-  preloadInteractData (move: Move): void {
+  preloadInteractData (orgPos: Vec3, move: Move): void {
     // data has already been shifted, no need to worry.
     let move1: Move | undefined = move
     let exit = false
-    let i = 0;
 
     const seen = new Set<number>()
-    const orgPos = move.entryPos.floored()
+
     // theoretically, this is incorrect. Newest iteration should occur, not oldest.
     // reverse by starting at root then traversing down.
     // or keep track of changes.
-    while (move1 !== undefined && !exit && i++ < 3) {
+    while (move1 !== undefined && !exit) {
+      const wantedDx = move1.x - orgPos.x + this.halfway[0]
+      const wantedDz = move1.z - orgPos.z + this.halfway[1]
+      const wantedDy = move1.y - orgPos.y + this.halfway[2]
+
+      if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+        exit = true
+      }
+
       for (const m of move1.toPlace) {
-     
-        // idx is the index of the block in the localData array
-        // idx is offset from current position
         const wantedDx = m.x - orgPos.x + this.halfway[0]
         const wantedDz = m.z - orgPos.z + this.halfway[1]
         const wantedDy = m.y - orgPos.y + this.halfway[2]
@@ -270,7 +283,7 @@ export class MovementHandler implements AMovementProvider<Move> {
           if (!seen.has(idx)) {
             this.localData[idx] = m.blockInfo
             seen.add(idx)
-          } else break
+          }
         }
       }
 
@@ -285,15 +298,20 @@ export class MovementHandler implements AMovementProvider<Move> {
           exit = true
         } else {
           const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
-           if (!seen.has(idx)) {
+          if (!seen.has(idx)) {
             this.localData[idx] = m.blockInfo
             seen.add(idx)
-          } else break
+          }
         }
       }
       move1 = move1.parent
     }
-    // if (i > 1) console.log('i', i)
+    // console.log('i', i, seen.size)
+    // let move2: Move | undefined = move
+    // for (let j =0; j < i; j++) {
+    //   console.log(move2?.vec)
+    //   move2 = move2?.parent
+    // }
   }
 
   private lastPos?: Vec3
@@ -302,10 +320,10 @@ export class MovementHandler implements AMovementProvider<Move> {
 
     // console.log('hi')
     const pos = currentMove.entryPos.floored()
-    this.shiftLocalData(this.lastPos ?? pos, pos)
+    const old = this.lastPos ?? pos
+    this.shiftLocalData(old, pos)
+    this.preloadInteractData(pos, currentMove)
     this.lastPos = pos
-
-    this.preloadInteractData(currentMove)
 
     // const arr = new Array(this.maxBound).fill(null);
 

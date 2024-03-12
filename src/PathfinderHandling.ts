@@ -38,7 +38,7 @@ import {
   StraightUpExecutor,
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
-import { DropDownOpt, ForwardJumpUpOpt, StraightAheadOpt } from './mineflayer-specific/post/optimizers'
+import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, ResetReason } from './types'
@@ -91,8 +91,8 @@ DEFAULT_PROVIDER_EXECUTORS.reverse()
  * They can reveal patterns at calculation time otherwise not noticeable at execution time.
  */
 const DEFAULT_OPTIMIZERS = [
-  [Forward, StraightAheadOpt],
-  [Diagonal, StraightAheadOpt],
+  [Forward, LandStraightAheadOpt],
+  [Diagonal, LandStraightAheadOpt],
   [ForwardDropDown, DropDownOpt],
   [ForwardJump, ForwardJumpUpOpt]
 ] as Array<[BuildableMoveProvider, BuildableOptimizer]>

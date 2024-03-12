@@ -32,7 +32,7 @@ export class BlockInfo {
   static readonly scaffoldingBlockItems = new Set<number>()
   static readonly mlgItems = new Set<number>()
 
-  static readonly INVALID: BlockInfo = new BlockInfo(false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
+  static readonly INVALID: BlockInfo = new BlockInfo(false, false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static PBlock: BlockType
 
   static _waterBlock: Block
@@ -40,7 +40,8 @@ export class BlockInfo {
   static _airBlock: Block
   static _replaceableBlock: Block
 
-  public static readonly substituteBlockStateId: number = 1
+  static soulsandId: number
+  static readonly substituteBlockStateId: number = 1
 
   public additionalLoaded = false
   private _waterAround = false
@@ -54,12 +55,17 @@ export class BlockInfo {
     return this._fallBlockOver
   }
 
+  public get dY(): number {
+    return this.height - this.position.y
+  }
+
   public readonly solidFull: boolean
   public readonly isInvalid: boolean
 
   constructor (
     public readonly replaceable: boolean,
     public readonly canFall: boolean,
+    public readonly walkthrough: boolean,
     public readonly safe: boolean,
     public readonly physical: boolean,
     public readonly liquid: boolean,
@@ -80,6 +86,8 @@ export class BlockInfo {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
+    BlockInfo.soulsandId = registry.blocksByName.soul_sand.id // might be broke, who knows
+
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
@@ -90,12 +98,6 @@ export class BlockInfo {
     BlockInfo._airBlock.position = new Vec3(0, 0, 0)
     BlockInfo._replaceableBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId as number, 0) // also replaceable
     BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0)
-
-    // console.log(BlockInfo._waterBlock)
-    // BlockInfo.WATER1 = BlockInfo.fromBlock(BlockInfo._waterBlock)
-    // BlockInfo.SOLID1 = BlockInfo.fromBlock(BlockInfo._solidBlock)
-    // BlockInfo.AIR1 = BlockInfo.fromBlock(BlockInfo._airBlock)
-    // BlockInfo.REPLACEABLE1 = BlockInfo.fromBlock(BlockInfo._replaceableBlock)
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b))
 
@@ -216,10 +218,12 @@ export class BlockInfo {
         }
       }
       const climbable = BlockInfo.climbables.has(b.type)
+      const safe = !BlockInfo.blocksToAvoid.has(b.type)
       return new BlockInfo(
         BlockInfo.replaceables.has(b.type),
         BlockInfo.gravityBlocks.has(b.type),
-        (climbable || BlockInfo.carpets.has(b.type)) && !BlockInfo.blocksToAvoid.has(b.type),
+        (climbable || BlockInfo.carpets.has(b.type)) && safe,
+        safe,
         true,
         false,
         climbable,
@@ -233,6 +237,7 @@ export class BlockInfo {
       return new BlockInfo(
         false,
         false,
+        true,
         true,
         false,
         BlockInfo.liquids.has(b.type) || Boolean((b as any)._properties?.waterlogged),
@@ -318,12 +323,12 @@ export class BlockInfo {
 
   // static SOLID1: BlockInfo = new BlockInfo(false, false, false, true, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static SOLID (pos: Vec3): BlockInfo {
-    return new BlockInfo(false, false, false, true, false, false, pos.y + 1, false, pos, BlockInfo._solidBlock.type, BlockInfo._solidBlock)
+    return new BlockInfo(false, false, false, true, true, false, false, pos.y + 1, false, pos, BlockInfo._solidBlock.type, BlockInfo._solidBlock)
   }
 
   // static AIR1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
   static AIR (pos: Vec3): BlockInfo {
-    return new BlockInfo(true, false, true, false, false, false, 0, false, pos, BlockInfo._airBlock.type, BlockInfo._airBlock)
+    return new BlockInfo(true, false, true, true, false, false, false, 0, false, pos, BlockInfo._airBlock.type, BlockInfo._airBlock)
   }
 
   // static REPLACEABLE1: BlockInfo = new BlockInfo(true, false, true, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
@@ -331,6 +336,7 @@ export class BlockInfo {
     return new BlockInfo(
       true,
       false,
+      true,
       true,
       false,
       false,
@@ -345,7 +351,7 @@ export class BlockInfo {
 
   // static WATER1: BlockInfo = new BlockInfo(false, false, false, false, true, false, 0, false, new Vec3(0, 0, 0), -1)
   static WATER (pos: Vec3): BlockInfo {
-    return new BlockInfo(false, false, false, false, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock)
+    return new BlockInfo(false, false, false, false, true, true, false, pos.y + 1, false, pos, BlockInfo._waterBlock.type, BlockInfo._waterBlock)
   }
 
   public getBBs (): AABB[] {

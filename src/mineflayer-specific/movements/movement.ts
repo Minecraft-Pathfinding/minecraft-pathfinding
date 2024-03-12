@@ -6,6 +6,7 @@ import { World } from '../world/worldInterface'
 import { BlockInfo } from '../world/cacheWorld'
 import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './interactionUtils'
 import { Block, Vec3Properties } from '../../types'
+import { COST_INF } from './costs'
 
 export interface MovementOptions {
   allowDiagonalBridging: boolean
@@ -158,18 +159,12 @@ export abstract class Movement {
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-    const yes = new Vec3(pos.x + dx, pos.y + dy, pos.z + dz)
-
-    // if (move) {
-    //   const key = yes.toString();
-    //   if (move.interactMap.has(key)) {
-    //     const handler = move.interactMap.get(key)!;
-    //     return handler.toBlockInfo();
-    //   }
-    // }
-
-    // console.log('not found', yes)
+    const yes = new Vec3(Math.floor(pos.x + dx), Math.floor(pos.y + dy), Math.floor(pos.z + dz))
     return this.world.getBlockInfo(yes)
+  }
+
+  getBlockInfoRaw (pos: Vec3): BlockInfo {
+    return this.world.getBlockInfo(pos);
   }
 
   /**
@@ -179,7 +174,7 @@ export abstract class Movement {
    */
   safe (pos: Vec3Properties): number {
     const block = this.world.getBlockInfo(new Vec3(pos.x, pos.y, pos.z))
-    return block.physical ? 0 : 100
+    return block.physical ? 0 : COST_INF
   }
 
   /**
@@ -208,11 +203,11 @@ export abstract class Movement {
     }
 
     // console.log('block type:', this.bot.registry.blocks[block.type], block.position, !BlockInfo.blocksCantBreak.has(block.type))
-    return BlockInfo.replaceables.has(block.type) || !BlockInfo.blocksCantBreak.has(block.type) // && this.exclusionBreak(block) < 100
+    return BlockInfo.replaceables.has(block.type) || !BlockInfo.blocksCantBreak.has(block.type) // && this.exclusionBreak(block) < COST_INF
   }
 
   /**
-   * Takes into account if the block is within the stepExclusionAreas. And returns 100 if a block to be broken is within break exclusion areas.
+   * Takes into account if the block is within the stepExclusionAreas. And returns COST_INF if a block to be broken is within break exclusion areas.
    * @param {import('prismarine-block').Block} block block
    * @param {[]} toBreak
    * @returns {number}
@@ -223,20 +218,20 @@ export abstract class Movement {
 
     // if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
 
-    if (block.safe) {
+    if (block.walkthrough) {
       // if (!block.replaceable) toBreak.push(BreakHandler.fromVec(block.position, "solid"));
       return 0 // TODO: block is a carpet or a climbable (BUG)
     }
 
-    if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
+    if (block.block === null) return COST_INF // Don't know its type, but that's only replaceables so just return.
 
-    if (!this.safeToBreak(block)) return 100 // Can't break, so can't move
+    if (!this.safeToBreak(block)) return COST_INF // Can't break, so can't move
 
     const cost = this.breakCost(block)
 
     // console.log('cost for:', block.position, cost)
 
-    if (cost >= 100) return cost
+    if (cost >= COST_INF) return cost
 
     // TODO: Calculate cost of breaking block
     // if (block.physical) cost += this.getNumEntitiesAt(block.position, 0, 1, 0) * this.entityCost // Add entity cost if there is an entity above (a breakable block) that will fall
@@ -246,7 +241,7 @@ export abstract class Movement {
   }
 
   breakCost (block: BlockInfo): number {
-    if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
+    if (block.block === null) return COST_INF // Don't know its type, but that's only replaceables so just return.
 
     // const tool = this.bot.pathfinder.bestHarvestTool(block)
 
@@ -260,15 +255,15 @@ export abstract class Movement {
   }
 
   safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {
-    if (!this.settings.canPlace) return 100
-    if (this.currentMove.remainingBlocks <= 0) return 100
+    if (!this.settings.canPlace) return COST_INF
+    if (this.currentMove.remainingBlocks <= 0) return COST_INF
 
-    if (block.block === null) return 100 // Don't know its type, but that's only replaceables so just return.
+    if (block.block === null) return COST_INF // Don't know its type, but that's only replaceables so just return.
     if (block.solidFull) return 0 // block is already physical at location.
 
     const cost = this.placeCost(block)
 
-    if (cost >= 100) return cost
+    if (cost >= COST_INF) return cost
     toPlace.push(PlaceHandler.fromVec(block.position, type))
 
     return cost

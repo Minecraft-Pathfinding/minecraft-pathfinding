@@ -117,7 +117,8 @@ export class AStarNeighbor extends AStar {
       return
     }
 
-    let bestLocal = node
+    const test = node
+    let bestLocal = test
     // if (node.f < this.bestNode.f - 50) return;
 
     // allow specific implementations to access visited and closed data.
@@ -150,7 +151,7 @@ export class AStarNeighbor extends AStar {
         const neighbor = new CPathNode(gFromThisNode, heuristic, neighborData, node)
         this.assignBestNodes(neighbor)
         // if (neighbor.h < this.bestNode.h) this.bestNode = neighbor
-        if (neighbor.h < node.h) {
+        if (neighbor.h < test.h) {
           bestLocal = neighbor
           // bestLocal = neighbor;
           // oldBestCost = pastNeighborNode.f;
@@ -164,14 +165,14 @@ export class AStarNeighbor extends AStar {
         this.assignBestNodes(pastNeighbor)
         this.openHeap.update(pastNeighbor)
         // if (pastNeighbor.h < this.bestNode.h) this.bestNode = pastNeighbor
-        if (pastNeighbor.h < node.h) {
+        if (pastNeighbor.h < test.h) {
           bestLocal = pastNeighbor
           // this.test(pastNeighbor, maxDepth, depth + 1, seen)
           // bestLocal = pastNeighborNode;
         }
       }
     }
-    if (bestLocal !== node) {
+    if (bestLocal !== test) {
       this.test(bestLocal, maxDepth, depth + 1, seen)
     }
   }

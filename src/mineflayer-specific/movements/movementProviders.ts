@@ -6,6 +6,7 @@ import { BreakHandler, PlaceHandler } from './interactionUtils'
 import { emptyVec } from '@nxg-org/mineflayer-physics-util/dist/physics/settings'
 import { MovementProvider } from './movementProvider'
 import { BlockInfo } from '../world/cacheWorld'
+import { COST_INF } from './costs'
 
 // technically, the offsets are slow. Yeah, I know.
 // However, removing those breaks the code. So I won't fix that for the time being. -Gen
@@ -40,6 +41,8 @@ export class Forward extends MovementProvider {
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z)
     if (blockC.isInvalid) return // out of range.
 
+    if (!blockC.walkthrough) return
+
     const blockB = this.getBlockInfo(pos, dir.x, 1, dir.z)
     const blockD = this.getBlockInfo(pos, dir.x, -1, dir.z)
 
@@ -51,16 +54,16 @@ export class Forward extends MovementProvider {
 
       // if (this.getNumEntitiesAt(blockD.position, 0, 0, 0) > 0) return // D intersects an entity hitbox
       if (!blockD.replaceable) {
-        if ((cost += this.safeOrBreak(blockD, toBreak)) > 100) return
+        if ((cost += this.safeOrBreak(blockD, toBreak)) > COST_INF) return
       }
 
-      if ((cost += this.safeOrPlace(blockD, toPlace, 'solid')) > 100) return
+      if ((cost += this.safeOrPlace(blockD, toPlace, 'solid')) > COST_INF) return
     }
 
     // console.log('yay!')
     // console.log('hello?', cost, blockC.block, blockB.block, this.breakCost(blockC), this.breakCost(blockB))
-    if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return
+    if ((cost += this.safeOrBreak(blockB, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockC, toBreak)) > COST_INF) return
 
     // set cachedVec to center of wanted block
     neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), start, this, toPlace, toBreak))
@@ -87,7 +90,9 @@ export class Diagonal extends MovementProvider {
 
     if (block0.isInvalid) return // out of range.
 
-    if (this.getBlockInfo(node.cachedVec, 0, 0, 0).liquid) cost += this.settings.liquidCost
+    if (!block0.walkthrough) return
+
+    if (this.getBlockInfo(node, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
@@ -107,12 +112,12 @@ export class Diagonal extends MovementProvider {
 
         const wanted = blockCheck0
         if (!wanted.replaceable) {
-          if ((cost += this.safeOrBreak(wanted, toBreak)) > 100) return
+          if ((cost += this.safeOrBreak(wanted, toBreak)) > COST_INF) return
         }
-        if ((cost += this.safeOrPlace(wanted, toPlace, 'solid')) > 100) return
+        if ((cost += this.safeOrPlace(wanted, toPlace, 'solid')) > COST_INF) return
       }
 
-      if ((cost += this.safeOrPlace(blockN1, toPlace, 'solid')) > 100) return
+      if ((cost += this.safeOrPlace(blockN1, toPlace, 'solid')) > COST_INF) return
     }
 
     if (toPlace.length > 1 && !this.settings.allowDiagonalBridging) return
@@ -124,7 +129,7 @@ export class Diagonal extends MovementProvider {
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 0, dir.z), toBreak)
     cost += this.safeOrBreak(this.getBlockInfo(node, dir.x, 1, 0), toBreak)
     cost += this.safeOrBreak(this.getBlockInfo(node, 0, 1, dir.z), toBreak)
-    if (cost > 100) return
+    if (cost > COST_INF) return
 
     neighbors.push(Move.fromPrevious(cost, block0.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
   }
@@ -188,20 +193,20 @@ export class ForwardJump extends MovementProvider {
         // if (this.getNumEntitiesAt(blockD.position, 0, 0, 0) > 0) return // Check for any entities in the way of a block placement
 
         if (!blockD.replaceable) {
-          if ((cost += this.breakCost(blockD)) > 100) return
+          if ((cost += this.breakCost(blockD)) > COST_INF) return
           toBreak.push(BreakHandler.fromVec(blockD.position, 'solid'))
         }
         // cost += this.exclusionPlace(blockD)
 
-        if ((cost += this.safeOrPlace(blockD, toPlace, 'solid')) > 100) return
+        if ((cost += this.safeOrPlace(blockD, toPlace, 'solid')) > COST_INF) return
       }
 
       if (!blockC.replaceable) {
-        if ((cost += this.breakCost(blockC)) > 100) return
+        if ((cost += this.breakCost(blockC)) > COST_INF) return
         toBreak.push(BreakHandler.fromVec(blockC.position, 'solid'))
       }
 
-      if ((cost += this.safeOrPlace(blockC, toPlace, 'solid')) > 100) return
+      if ((cost += this.safeOrPlace(blockC, toPlace, 'solid')) > COST_INF) return
 
       cHeight += 1
     }
@@ -209,9 +214,9 @@ export class ForwardJump extends MovementProvider {
     const block1 = this.getBlockInfo(pos, 0, -1, 0)
     if (cHeight - block1.height > 1.2) return // Too high to jump
 
-    if ((cost += this.safeOrBreak(blockA, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockH, toBreak)) > 100) return
+    if ((cost += this.safeOrBreak(blockA, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockB, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockH, toBreak)) > COST_INF) return
     if (toPlace.length > 0) return
 
     // set cachedVec to center of block we want.
@@ -245,7 +250,7 @@ abstract class DropDownProvider extends MovementProvider {
     // min = node.y - this.settings.maxDropDown
 
     while (blockLand.position.y >= min) {
-      if (blockLand.liquid && blockLand.safe) {
+      if (blockLand.liquid && blockLand.walkthrough) {
         return blockLand
       }
       if (blockLand.physical) {
@@ -254,7 +259,7 @@ abstract class DropDownProvider extends MovementProvider {
         }
         // return null;
       }
-      if (!blockLand.safe) return null
+      if (!blockLand.walkthrough) return null
       // console.log("before drop:", blockLand.position)
       blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0)
       // console.log("after drop:", blockLand.position)if (node.y - blockLand.position.y <= this.settings.maxDropDown)
@@ -302,12 +307,12 @@ export class ForwardDropDown extends DropDownProvider {
     const blockCheck0 = this.getBlockInfo(blockLand.position, dir.x, 1, dir.z)
     const blockCheck1 = this.getBlockInfo(blockLand.position, dir.x, 2, dir.z)
 
-    if ((cost += this.safeOrBreak(blockCheck0, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockCheck1, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockA, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockB, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockC, toBreak)) > 100) return
-    if ((cost += this.safeOrBreak(blockD, toBreak)) > 100) return
+    if ((cost += this.safeOrBreak(blockCheck0, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockCheck1, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockA, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockB, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockC, toBreak)) > COST_INF) return
+    if ((cost += this.safeOrBreak(blockD, toBreak)) > COST_INF) return
 
     // cost += this.getNumEntitiesAt(blockLand.position, 0, 0, 0) * this.entityCost // add cost for entities
     neighbors.push(Move.fromPrevious(cost, blockLand.position.offset(0.5, 0, 0.5), node, this, toPlace, toBreak))
@@ -342,7 +347,7 @@ export class StraightDown extends DropDownProvider {
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
 
-    if ((cost += this.safeOrBreak(block1, toBreak)) > 100) return
+    if ((cost += this.safeOrBreak(block1, toBreak)) > COST_INF) return
 
     // cost += this.getNumEntitiesAt(blockLand.position, 0, 0, 0) * this.entityCost // add cost for entities
 
@@ -374,7 +379,7 @@ export class StraightUp extends MovementProvider {
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
 
-    if ((cost += this.safeOrBreak(block2, toBreak)) > 100) return
+    if ((cost += this.safeOrBreak(block2, toBreak)) > COST_INF) return
 
     if (!block1.climbable) {
       const block3 = this.getBlockInfo(node, 0, 1, 0)
@@ -382,11 +387,11 @@ export class StraightUp extends MovementProvider {
         if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return // not enough blocks to place
 
         if (!block1.replaceable) {
-          if ((cost += this.breakCost(block1)) > 100) return
+          if ((cost += this.breakCost(block1)) > COST_INF) return
           toBreak.push(BreakHandler.fromVec(block1.position, 'solid'))
         }
 
-        if ((cost += this.safeOrPlace(block1, toPlace, 'solid')) > 100) return
+        if ((cost += this.safeOrPlace(block1, toPlace, 'solid')) > COST_INF) return
 
         const block0 = this.getBlockInfo(node, 0, -1, 0)
 
@@ -420,8 +425,8 @@ export class ParkourForward extends MovementProvider {
     const block1 = this.getBlockInfo(node, dir.x, -1, dir.z)
     if (
       (block1.physical && block1.height >= block0.height) ||
-      !this.getBlockInfo(node, dir.x, 0, dir.z).safe ||
-      !this.getBlockInfo(node, dir.x, 1, dir.z).safe
+      !this.getBlockInfo(node, dir.x, 0, dir.z).walkthrough ||
+      !this.getBlockInfo(node, dir.x, 1, dir.z).walkthrough
     ) {
       return
     }
@@ -432,7 +437,7 @@ export class ParkourForward extends MovementProvider {
     // cost += this.getNumEntitiesAt(node, dir.x, 0, dir.z) * this.entityCost
 
     // If we have a block on the ceiling, we cannot jump but we can still fall
-    let ceilingClear = this.getBlockInfo(node, 0, 2, 0).safe && this.getBlockInfo(node, dir.x, 2, dir.z).safe
+    let ceilingClear = this.getBlockInfo(node, 0, 2, 0).walkthrough && this.getBlockInfo(node, dir.x, 2, dir.z).walkthrough
 
     // Similarly for the down path
     let floorCleared = !this.getBlockInfo(node, dir.x, -2, dir.z).physical
@@ -459,7 +464,7 @@ export class ParkourForward extends MovementProvider {
 
       // if (blockC.safe) cost += this.getNumEntitiesAt(blockC.position, 0, 0, 0) * this.entityCost
 
-      if (flag0 && (ceilingClear || d === 2) && blockB.safe && blockC.safe && blockD.safe && floorCleared) {
+      if (flag0 && (ceilingClear || d === 2) && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && floorCleared) {
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)
         if (blockE.physical) { // TODO: support jumping into liquid.
@@ -469,7 +474,7 @@ export class ParkourForward extends MovementProvider {
           // neighbors.push(new Move(blockD.position.x, blockD.position.y, blockD.position.z, node.remainingBlocks, cost, [], [], true))
         }
         floorCleared = floorCleared && !blockE.physical
-      } else if (flag1 && ceilingClear && blockB.safe && blockC.safe && blockD.physical) {
+      } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
         if (d === 5) continue
         const cost1 = cost + 3 // potential slowdown (will fix later.)
         // cost += this.exclusionStep(blockB)
@@ -478,7 +483,7 @@ export class ParkourForward extends MovementProvider {
         neighbors.push(Move.fromPrevious(cost1, blockC.position.offset(0.5, 0, 0.5), node, this))
         // neighbors.push(new Move(blockC.position.x, blockC.position.y, blockC.position.z, node.remainingBlocks, cost, [], [], true))
         break
-      } else if (flag2 && ceilingClear && blockA.safe && blockB.safe && blockC.physical) {
+      } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical) {
         // Up
         if (d === 5) continue
 
@@ -490,11 +495,11 @@ export class ParkourForward extends MovementProvider {
         // neighbors.push(new Move(blockB.position.x, blockB.position.y, blockB.position.z, node.remainingBlocks, cost, [], [], true))
         break
         // }
-      } else if (!blockB.safe || !blockC.safe) {
+      } else if (!blockB.walkthrough || !blockC.walkthrough) {
         break
       }
 
-      ceilingClear = ceilingClear && blockA.safe
+      ceilingClear = ceilingClear && blockA.walkthrough
     }
   }
 }
