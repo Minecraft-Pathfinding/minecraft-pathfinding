@@ -7,9 +7,6 @@ import interactables from './interactable'
 import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { RayType } from '../movements/interactionUtils'
-
-import * as fuck from '../../customHashmap/Int64Map/src/new/Int64Map'
-
 import { Movement } from '../movements'
 import { fasterGetBlock } from './utils'
 

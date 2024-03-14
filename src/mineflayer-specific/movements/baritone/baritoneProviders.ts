@@ -76,7 +76,8 @@ export class MovementAscend extends MovementProvider {
         walk = WALK_ONE_BLOCK_COST
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion for speed
+      // for speed
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (blPlace.block!.type === BlockInfo.soulsandId) {
         walk = WALK_ONE_OVER_SOUL_SAND_COST
       } else {
@@ -93,6 +94,8 @@ export class MovementAscend extends MovementProvider {
 
     const target2 = this.getBlockInfo(node, dir.x, 2, dir.z)
     if ((cost += getMiningDurationTicks(this, target2)) >= COST_INF) return
+
+    cost += 1
   }
 }
 
@@ -130,12 +133,14 @@ export class MovementDescend extends MovementProvider {
     if ((cost += getMiningDurationTicks(this, dest1, true)) >= COST_INF) return
 
     let walk = WALK_OFF_BLOCK_COST
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (srcN1.block!.type === BlockInfo.soulsandId) {
       walk = WALK_ONE_OVER_SOUL_SAND_COST / WALK_ONE_BLOCK_COST
     }
 
     cost += walk
-    cost + Math.max(FALL_N_BLOCKS_COST[1], CENTER_AFTER_FALL_COST)
+    cost += Math.max(FALL_N_BLOCKS_COST[1], CENTER_AFTER_FALL_COST)
   }
 
   // TODO: implement mutables

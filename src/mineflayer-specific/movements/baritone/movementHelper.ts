@@ -1,6 +1,5 @@
 import { Vec3 } from 'vec3'
 import { BlockInfo } from '../../world/cacheWorld'
-import { World } from '../../world/worldInterface'
 import { Movement } from '../movement'
 import { Vec3Properties } from '../../../types'
 
