@@ -164,7 +164,7 @@ export abstract class Movement {
   }
 
   getBlockInfoRaw (pos: Vec3): BlockInfo {
-    return this.world.getBlockInfo(pos);
+    return this.world.getBlockInfo(pos)
   }
 
   /**

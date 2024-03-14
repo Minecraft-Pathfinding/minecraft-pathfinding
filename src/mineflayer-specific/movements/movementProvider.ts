@@ -53,13 +53,13 @@ export abstract class MovementProvider extends Movement {
     // console.log(this.halfway)
   }
 
-  getBlockInfo(pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
+  getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
     return this.getBlockInfoRaw(yes)
   }
 
   getBlockInfoRaw (yes: Vec3): BlockInfo {
-    // 
+    //
     // let move: Move | undefined = this.currentMove
 
     // let i = 0

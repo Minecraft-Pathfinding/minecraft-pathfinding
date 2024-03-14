@@ -8,6 +8,8 @@ import { Block, BlockType, MCData } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { RayType } from '../movements/interactionUtils'
 
+import * as fuck from '../../customHashmap/Int64Map/src/new/Int64Map'
+
 import { Movement } from '../movements'
 import { fasterGetBlock } from './utils'
 
@@ -55,7 +57,7 @@ export class BlockInfo {
     return this._fallBlockOver
   }
 
-  public get dY(): number {
+  public get dY (): number {
     return this.height - this.position.y
   }
 
@@ -465,7 +467,7 @@ export class CacheSyncWorld implements WorldType {
     this.world.getBlock = fasterGetBlock.bind(this.world)
   }
 
-  private makeLRUCache (size: number): LRUCache<string, BlockInfo, unknown> {
+  private makeLRUCache (size: number): CacheSyncWorld['blockInfos'] {
     // return new Fuck(size);
 
     let count = 0
