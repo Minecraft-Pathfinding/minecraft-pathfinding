@@ -230,10 +230,10 @@ export class ThePathfinder {
 
   async cancel (): Promise<void> {
     this.userAborted = true
-    await this.interrupt(1000, true)
+    await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true)
   }
 
-  async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
+  async interrupt (timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
     console.log('INTERRUPT CALLED')
     if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
@@ -262,7 +262,7 @@ export class ThePathfinder {
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
-  async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
+  async reset (reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
     this.bot.emit('resetPath', reason)
     await this.interrupt(cancelTimeout, true, reason)
   }

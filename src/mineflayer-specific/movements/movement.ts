@@ -28,6 +28,8 @@ export interface MovementOptions {
   infiniteLiquidDropdownDistance: boolean
   allowSprinting: boolean
   careAboutLookAlignment: boolean
+
+  movementTimeoutMs: number
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
@@ -48,7 +50,8 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   velocityKillCost: 2, // implement at a later date.
   forceLook: true,
   careAboutLookAlignment: true,
-  allowDiagonalBridging: true
+  allowDiagonalBridging: true,
+  movementTimeoutMs: 1000
 }
 
 const cardinalVec3s: Vec3[] = [
