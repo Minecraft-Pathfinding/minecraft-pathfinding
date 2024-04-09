@@ -37,6 +37,9 @@ export class Move implements PathData {
 
     this.cachedVec = new Vec3(this.x, this.y, this.z)
     Object.freeze(this.cachedVec)
+
+    Object.freeze(toBreak)
+    Object.freeze(toPlace)
     // this.x = x;
     // this.y = y;
     // this.z = z;

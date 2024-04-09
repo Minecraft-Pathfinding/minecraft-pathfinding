@@ -222,7 +222,9 @@ export abstract class Movement {
     // if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
 
     if (block.walkthrough) {
-      // if (!block.replaceable) toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+      if (!block.replaceable) {
+        toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+      }
       return 0 // TODO: block is a carpet or a climbable (BUG)
     }
 
@@ -262,7 +264,9 @@ export abstract class Movement {
     if (this.currentMove.remainingBlocks <= 0) return COST_INF
 
     if (block.block === null) return COST_INF // Don't know its type, but that's only replaceables so just return.
-    if (block.solidFull) return 0 // block is already physical at location.
+    if (block.solidFull) {
+      return 0 // block is already physical at location.
+    }
 
     const cost = this.placeCost(block)
 

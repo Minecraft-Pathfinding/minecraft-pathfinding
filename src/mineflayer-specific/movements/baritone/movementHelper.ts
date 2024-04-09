@@ -2,6 +2,7 @@ import { Vec3 } from 'vec3'
 import { BlockInfo } from '../../world/cacheWorld'
 import { Movement } from '../movement'
 import { Vec3Properties } from '../../../types'
+import { BreakHandler } from '../interactionUtils'
 
 export function canWalkOn (info: BlockInfo): boolean {
   if (info.block == null) return false
@@ -22,9 +23,6 @@ const ALL_DIRS_BUT_UP = [
 ]
 export function findPlaceOpts (move: Movement, orgPos: Vec3Properties, pos: Vec3Properties): BlockInfo | null {
   for (const dir of ALL_DIRS_BUT_UP) {
-    const nX = pos.x + dir.x
-    const nZ = pos.z + dir.z
-    if (nX === orgPos.x && nZ === orgPos.z) continue
     const info = move.getBlockInfo(pos, dir.x, dir.y, dir.z)
     if (canPlaceAgainst(info)) return info
   }
@@ -40,17 +38,30 @@ export function isBottomSlab (info: BlockInfo): boolean {
   return info.dY === 0.5
 }
 
-export function getMiningDurationTicks (move: Movement, info: BlockInfo, includeFalling = false): number {
-  if (!includeFalling) return move.breakCost(info)
+export function getMiningDurationTicks (move: Movement, info: BlockInfo, toBreak: BreakHandler[], includeFalling = false): number {
+  if (!includeFalling) return move.safeOrBreak(info, toBreak)
 
   const above = move.getBlockInfo(info.position, 0, 1, 0)
-  return move.breakCost(info) + getMiningDurationTicks(move, above, true) // recurse upwards. potentially slow.
+  return move.safeOrBreak(info, toBreak) + getMiningDurationTicks(move, above, toBreak, true) // recurse upwards. potentially slow.
 }
 
-export function getMiningDurationTicksCoords (move: Movement, pos: Vec3, includeFalling = false): number {
-  return getMiningDurationTicks(move, move.getBlockInfoRaw(pos), includeFalling)
+export function getMiningDurationTicksCoords (move: Movement, pos: Vec3, toBreak: BreakHandler[], includeFalling = false): number {
+  return getMiningDurationTicks(move, move.getBlockInfoRaw(pos), toBreak, includeFalling)
 }
 
 export function canUseFrostWalker (move: Movement, info: BlockInfo): boolean {
   return info.liquid && false // TODO: frostwalker.
+}
+
+
+export function mustBeSolidToWalkOn(info: BlockInfo) {
+  if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
+
+  if (info.block == null) return false
+
+  if (info.block.type === BlockInfo.registry.blocksByName.ladder.id) return false
+  if (info.block.type === BlockInfo.registry.blocksByName.vine.id) return false
+
+  // TODO: check waterlogging
+  return true
 }

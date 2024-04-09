@@ -16,6 +16,9 @@ import pBlock from 'prismarine-block'
 
 export class BlockInfo {
   static initialized = false
+  static PBlock: BlockType
+  static registry: MCData
+  
   static readonly interactableBlocks = new Set()
   static readonly blocksCantBreak = new Set<number>()
   static readonly blocksToAvoid = new Set()
@@ -32,7 +35,7 @@ export class BlockInfo {
   static readonly mlgItems = new Set<number>()
 
   static readonly INVALID: BlockInfo = new BlockInfo(false, false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
-  static PBlock: BlockType
+
 
   static _waterBlock: Block
   static _solidBlock: Block
@@ -84,6 +87,7 @@ export class BlockInfo {
   static init (registry: MCData): void {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
+    BlockInfo.registry = registry
 
     BlockInfo.soulsandId = registry.blocksByName.soul_sand.id // might be broke, who knows
 
@@ -234,7 +238,7 @@ export class BlockInfo {
       )
     } else {
       return new BlockInfo(
-        false,
+        BlockInfo.replaceables.has(b.type),
         false,
         true,
         true,

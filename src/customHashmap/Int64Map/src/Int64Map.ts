@@ -1,15 +1,15 @@
 
 type primitive = boolean | number | string | bigint | symbol | object | null
 
-interface Node {
+interface Node<P extends primitive = primitive> {
   intLow: number
   intHigh: number
-  value: primitive
-  next?: Node
+  value: P
+  next?: Node<P>
 }
 
-interface Bucket {
-  head?: Node
+interface Bucket<P extends primitive> {
+  head?: Node<P>
 }
 
 const DEFAULT_SIZE = 1024
@@ -17,9 +17,9 @@ const LOAD_FACTOR = 0.5
 
 console.log('running with load factor', LOAD_FACTOR)
 
-class Int64Map {
+class Int64Map<P extends primitive> {
   constructor (initialSize = DEFAULT_SIZE) {
-    this.values = new Array<Bucket>(initialSize)
+    this.values = new Array<Bucket<P>>(initialSize)
     for (let i = 0; i < initialSize; i++) {
       this.values[i] = { }
     }
@@ -27,7 +27,7 @@ class Int64Map {
     this.size = initialSize
   }
 
-  private readonly values: Bucket[]
+  private readonly values: Bucket<P>[]
 
   private readonly INTIAL_SIZE: number = DEFAULT_SIZE
 
@@ -43,7 +43,7 @@ class Int64Map {
     return this.length
   }
 
-  get (intLow: number, intHigh: number): primitive {
+  get (intLow: number, intHigh: number): P | null {
     const index = intLow & (this.size - 1)
     const bucket = this.values[index]
     let node = bucket.head
@@ -56,7 +56,7 @@ class Int64Map {
     return null
   }
 
-  set (intLow: number, intHigh: number, value: primitive): primitive {
+  set (intLow: number, intHigh: number, value: P): P | boolean {
     if (this.length > this.size * LOAD_FACTOR) {
       this.grow()
     }

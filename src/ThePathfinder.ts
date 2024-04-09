@@ -27,6 +27,12 @@ import {
   StraightUp
 } from './mineflayer-specific/movements/movementProviders'
 
+
+import {
+  MovementAscend,
+  MovementDescend
+} from './mineflayer-specific/movements/baritone/baritoneProviders'
+
 import {
   ParkourForwardExecutor,
   ForwardDropDownExecutor,
@@ -62,13 +68,15 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
  * These are the default movement types and their respective executors.
  */
 const DEFAULT_PROVIDER_EXECUTORS = [
-  [Forward, NewForwardExecutor],
-  [ForwardJump, NewForwardJumpExecutor],
-  [ForwardDropDown, ForwardDropDownExecutor],
-  [Diagonal, NewForwardExecutor],
-  [StraightDown, StraightDownExecutor],
-  [StraightUp, StraightUpExecutor],
-  [ParkourForward, ParkourForwardExecutor]
+  // [Forward, NewForwardExecutor],
+  // [ForwardJump, NewForwardJumpExecutor],
+  // [ForwardDropDown, ForwardDropDownExecutor],
+  // [Diagonal, NewForwardExecutor],
+  // [StraightDown, StraightDownExecutor],
+  // [StraightUp, StraightUpExecutor],
+  // [ParkourForward, ParkourForwardExecutor]
+  [MovementAscend, StraightUpExecutor],
+  [MovementDescend, StraightDownExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
 /**
@@ -579,9 +587,9 @@ export class ThePathfinder {
       }
     }
 
-    do {
+    outer0: do {
       let madeIt = false
-      do {
+      outer1: do {
         setupWait()
 
         console.log('reset I believe', doForever)
@@ -592,7 +600,7 @@ export class ThePathfinder {
           if (res.result.status !== 'success') {
             if (res.result.status === 'noPath' || res.result.status === 'timeout' || res.result.status === 'canceled') {
               if (task !== null && res1 !== null) res1.path.length = 0
-              break
+              break outer1
             }
 
             if (res.result.status === 'partialSuccess') {
@@ -665,16 +673,17 @@ export class ThePathfinder {
   }
 
   private async postProcess (pathInfo: Path): Promise<Path> {
-    const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+    return pathInfo
+    // const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
-    optimizer.loadPath(pathInfo.path)
+    // optimizer.loadPath(pathInfo.path)
 
-    const res = await optimizer.compute()
+    // const res = await optimizer.compute()
 
-    const ret = { ...pathInfo }
+    // const ret = { ...pathInfo }
 
-    ret.path = res
-    return ret
+    // ret.path = res
+    // return ret
   }
 
   private check (): void {
