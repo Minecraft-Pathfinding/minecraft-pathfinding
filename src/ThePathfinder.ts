@@ -27,7 +27,6 @@ import {
   StraightUp
 } from './mineflayer-specific/movements/movementProviders'
 
-
 import {
   MovementAscend,
   MovementDescend
@@ -68,13 +67,13 @@ const EMPTY_VEC = new Vec3(0, 0, 0)
  * These are the default movement types and their respective executors.
  */
 const DEFAULT_PROVIDER_EXECUTORS = [
-  // [Forward, NewForwardExecutor],
-  // [ForwardJump, NewForwardJumpExecutor],
-  // [ForwardDropDown, ForwardDropDownExecutor],
-  // [Diagonal, NewForwardExecutor],
-  // [StraightDown, StraightDownExecutor],
-  // [StraightUp, StraightUpExecutor],
-  // [ParkourForward, ParkourForwardExecutor]
+  [Forward, NewForwardExecutor],
+  [ForwardJump, NewForwardJumpExecutor],
+  [ForwardDropDown, ForwardDropDownExecutor],
+  [Diagonal, NewForwardExecutor],
+  [StraightDown, StraightDownExecutor],
+  [StraightUp, StraightUpExecutor],
+  [ParkourForward, ParkourForwardExecutor],
   [MovementAscend, StraightUpExecutor],
   [MovementDescend, StraightDownExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>

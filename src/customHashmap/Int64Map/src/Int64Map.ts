@@ -27,7 +27,7 @@ class Int64Map<P extends primitive> {
     this.size = initialSize
   }
 
-  private readonly values: Bucket<P>[]
+  private readonly values: Array<Bucket<P>>
 
   private readonly INTIAL_SIZE: number = DEFAULT_SIZE
 

@@ -18,7 +18,7 @@ export class BlockInfo {
   static initialized = false
   static PBlock: BlockType
   static registry: MCData
-  
+
   static readonly interactableBlocks = new Set()
   static readonly blocksCantBreak = new Set<number>()
   static readonly blocksToAvoid = new Set()
@@ -35,7 +35,6 @@ export class BlockInfo {
   static readonly mlgItems = new Set<number>()
 
   static readonly INVALID: BlockInfo = new BlockInfo(false, false, false, false, false, false, false, 0, false, new Vec3(0, 0, 0), -1)
-
 
   static _waterBlock: Block
   static _solidBlock: Block

@@ -223,7 +223,7 @@ export abstract class Movement {
 
     if (block.walkthrough) {
       if (!block.replaceable) {
-        toBreak.push(BreakHandler.fromVec(block.position, "solid"));
+        toBreak.push(BreakHandler.fromVec(block.position, 'solid'))
       }
       return 0 // TODO: block is a carpet or a climbable (BUG)
     }

@@ -53,8 +53,7 @@ export function canUseFrostWalker (move: Movement, info: BlockInfo): boolean {
   return info.liquid && false // TODO: frostwalker.
 }
 
-
-export function mustBeSolidToWalkOn(info: BlockInfo) {
+export function mustBeSolidToWalkOn (info: BlockInfo) {
   if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
 
   if (info.block == null) return false

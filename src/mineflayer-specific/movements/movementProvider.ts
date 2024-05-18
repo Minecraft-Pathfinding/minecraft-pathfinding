@@ -64,7 +64,6 @@ export abstract class MovementProvider extends Movement {
 
     let i = 0
     while (move !== undefined && i++ < 5) { // 5 levels
-      
       for (const m of move.toPlace) {
         if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
           return m.blockInfo
