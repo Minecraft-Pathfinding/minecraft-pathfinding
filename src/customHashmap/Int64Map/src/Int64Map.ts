@@ -150,11 +150,11 @@ class Int64Map {
     }
 
     const time = performance.now() - start
-    console.log(`Took \x1B[32m${time.toFixed(0)}\x1B[0m ms to resize hashmap to \x1B[32m${newSize}\x1B[0m.`)
+    // console.log(`Took \x1B[32m${time.toFixed(0)}\x1B[0m ms to resize hashmap to \x1B[32m${newSize}\x1B[0m.`)
   }
 
   private shrink (): void {
-    console.log('Shrink not implemented yet. (Not tested!)')
+    // console.log('Shrink not implemented yet. (Not tested!)')
     // TODO
     const oldSize = this.size
     const newSize = oldSize / 2

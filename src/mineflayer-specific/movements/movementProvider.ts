@@ -309,7 +309,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     // console.log('i', i, seen.size)
     // let move2: Move | undefined = move
     // for (let j =0; j < i; j++) {
-    //   console.log(move2?.vec)
+    //   // console.log(move2?.vec)
     //   move2 = move2?.parent
     // }
   }
@@ -337,7 +337,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     //   const bl = move.moveType.getBlockInfo(move, 0, 0, 0)
     //   if (bl.liquid && move.toPlace.length > 0) {
     //     const blocksAtPoses = move.toPlace.map((p) => move.moveType.getBlockInfo(p, 0, 0, 0))
-    //   console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
+    //   // console.log(blocksAtPoses.map(i => [i, i.block?.getProperties(), (i.block as any)?._properties]))
 
     //     // throw new Error(`Liquid detected in toPlace: ${move.moveType.constructor.name} with placements ${move.toPlace.map((p) => p.vec).join(', ')} at pos ${move.vec.toString()} `)
     //   }

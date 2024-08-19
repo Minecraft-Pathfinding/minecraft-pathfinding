@@ -6,6 +6,9 @@ import { Move } from './move'
 import { PathNode } from './node'
 
 export interface Path extends APath<Move, AStar> {}
+export interface OptPath extends Path {
+  optPath: Move[]
+}
 
 export interface PathProducer {
   // constructor(start: Data, goal: goals.Goal, settings: Settings): PathProducer

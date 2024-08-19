@@ -23,7 +23,7 @@ for (let i = 0; i < size; i++) {
   const int = ints[i % ints.length]
   const v1 = hashMap.get(int[0], int[1])
   if (v1 !== i) {
-    console.log('Hashmap failed', v1, i)
+    // console.log('Hashmap failed', v1, i)
   }
 }
 

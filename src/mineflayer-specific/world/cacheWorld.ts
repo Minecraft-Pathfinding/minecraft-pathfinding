@@ -85,8 +85,12 @@ export class BlockInfo {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
-    BlockInfo.soulsandId = registry.blocksByName.soul_sand.id // might be broke, who knows
-
+    if (!!registry.blocksByName.soul_sand?.id) {
+      BlockInfo.soulsandId = registry.blocksByName.soul_sand.id // might be broke, who knows
+    } else {
+      throw new Error('soul sand not found in registry')
+    }
+      
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
@@ -100,10 +104,13 @@ export class BlockInfo {
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b))
 
-    BlockInfo.blocksCantBreak.add(registry.blocksByName.chest.id)
+    if (!!registry.blocksByName.chest) BlockInfo.interactableBlocks.add(registry.blocksByName.chest.id)
+    if (!!registry.blocksByName.ender_chest) BlockInfo.interactableBlocks.add(registry.blocksByName.ender_chest.id)
+
 
     registry.blocksArray.forEach((block) => {
       if (block.diggable) return
+      if (!block.id) return
       BlockInfo.blocksCantBreak.add(block.id)
     })
 
@@ -196,6 +203,7 @@ export class BlockInfo {
     registry.blocksArray.forEach((block) => {
       if (
         BlockInfo.interactableBlocks.has(block.name) &&
+        block.name && 
         block.name.toLowerCase().includes('gate') &&
         !block.name.toLowerCase().includes('iron')
       ) {
@@ -424,7 +432,7 @@ export class BlockInfo {
 //   }
 
 //   clear () {
-//   console.log('resetting')
+//   // console.log('resetting')
 //     this.keyMap = {}
 //     this._size = 0
 //   }
@@ -475,10 +483,10 @@ export class CacheSyncWorld implements WorldType {
       updateAgeOnGet: true,
       dispose: (key, value, reason) => {
         if (reason === 'set') {
-          console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
+          // console.log(`${count++} disposed ${key.position.toString()} ${reason}`, this.blockInfos.size)
           this.blockInfos.clear()
         } else if (reason === 'evict') {
-          console.log('resetting', this.blockInfos.size)
+          // console.log('resetting', this.blockInfos.size)
           this.blockInfos.clear()
           this.blockInfos = this.makeLRUCache(size)
         }

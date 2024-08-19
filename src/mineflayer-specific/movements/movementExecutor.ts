@@ -383,20 +383,20 @@ export abstract class MovementExecutor extends Movement {
     if (bb2.length === 0) bb2.push(AABB.fromBlock(bb2bl.position))
     const bb2good = bb2bl.physical || bb2bl.liquid
 
-    console.log(
-      this.toPlaceLen(),
-      bb1bl.block?.name,
-      bb1,
-      bb2bl.block?.name,
-      bb2,
-      'test',
-      bb0,
-      bb1.some((b) => b.collides(bb0)),
-      bb1good,
-      bb2.some((b) => b.collides(bb0)),
-      bb2good,
-      bb2bl
-    )
+    // console.log(
+    //   this.toPlaceLen(),
+    //   bb1bl.block?.name,
+    //   bb1,
+    //   bb2bl.block?.name,
+    //   bb2,
+    //   'test',
+    //   bb0,
+    //   bb1.some((b) => b.collides(bb0)),
+    //   bb1good,
+    //   bb2.some((b) => b.collides(bb0)),
+    //   bb2good,
+    //   bb2bl
+    // )
     // console.log(bb0.collides(bb1), bb0, bb1, this.bot.entity.position.distanceTo(thisMove.entryPos))
     if ((bb1.some((b) => b.collides(bb0)) && bb1good) || (bb2.some((b) => b.collides(bb0)) && bb2good)) {
       // console.log('yay', similarDirection, this.bot.entity.position.xzDistanceTo(target))

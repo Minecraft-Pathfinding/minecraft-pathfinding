@@ -24,7 +24,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width: hW, height: 1.8 })
     const verts = bb.expand(0, -0.1, 0).toVertices()
-    console.log(orgPos, verts)
+    // console.log(orgPos, verts)
 
     const verts1 = [
       orgPos.offset(-uW / 2, -0.6, -uW / 2),

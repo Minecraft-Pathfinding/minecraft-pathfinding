@@ -490,7 +490,7 @@ export class ParkourJumpHelper {
 
     const reached0 = JumpSim.getReachedAABB(goalBBs)
     const reached: SimulationGoal = (state, ticks) => state.onGround && reached0(state, ticks)
-    console.log('fall off edge init', orgPos)
+    // console.log('fall off edge init', orgPos)
     const state = this.sim.simulateUntil(
       reached,
       () => {},

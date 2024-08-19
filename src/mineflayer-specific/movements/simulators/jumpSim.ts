@@ -115,7 +115,7 @@ export class JumpSim extends BaseSimulator {
     let jump = false
     let changed = false
 
-    console.log('edge jump init', ctx.state.pos)
+    // console.log('edge jump init', ctx.state.pos)
     return this.simulateUntil(
       JumpSim.getReachedAABB(goalBlock),
       JumpSim.getCleanupPosition(goalCorner),

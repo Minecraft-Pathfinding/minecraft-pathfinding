@@ -70,21 +70,21 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   // for debugging.
   private lastAmt: number = 0
   makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, AStar<Data>> {
-    console.log(
-      status,
-      // this.goal,
-      performance.now() - this.startTime,
-      node.g,
-      this.closedDataSet.size,
-      this.closedDataSet.size + this.openHeap.size(),
-      reconstructPath(node).length,
-      `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`,
-      // reconstructPath(node)
+    // console.log(
+    //   status,
+    //   // this.goal,
+    //   performance.now() - this.startTime,
+    //   node.g,
+    //   this.closedDataSet.size,
+    //   this.closedDataSet.size + this.openHeap.size(),
+    //   reconstructPath(node).length,
+    //   `${this.closedDataSet.size - this.lastAmt} nodes visited in this tick.`,
+    //   // reconstructPath(node)
 
-      // used heap memory
-      Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 10) / 10,
-      'MB'
-    )
+    //   // used heap memory
+    //   Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 10) / 10,
+    //   'MB'
+    // )
 
     this.lastAmt = this.closedDataSet.size
 

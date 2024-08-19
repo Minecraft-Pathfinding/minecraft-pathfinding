@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
+import { PathProducer, AStar } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
 import { Move } from '../move'
 import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
@@ -83,7 +83,7 @@ export class PartialPathProducer implements PathProducer {
     }
 
     // const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
-    const ret = new AStarNeighbor(start, moveHandler, this.goal, -1, 40, -1, 0)
+    const ret = new AStar(start, moveHandler, this.goal, -1, 40, -1, 0)
 
     // ret.closedDataSet = lastClosedSet
     return ret
@@ -136,17 +136,17 @@ export class PartialPathProducer implements PathProducer {
       console.info('Partial Path cost increased by', cost, 'to', this.latestCost, 'total', this.latestMove?.vec)
 
       const time1 = performance.now() - this.lastStartTime
-      console.log('\nthis iter:', time1)
-      console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
-      console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
-      console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
+      // console.log('\nthis iter:', time1)
+      // console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
+      // console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
+      // console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
 
       this.lastStartTime = performance.now()
       const time = performance.now() - this.startTime
-      console.log('\ntotal', time, 'ms')
-      console.log('total considered nodes', this.consideredNodeCount, time, (this.consideredNodeCount / time) * 1000, 'nodes/s')
-      console.log('total seen size', this.latestClosedNodeCount, time, (this.latestClosedNodeCount / time) * 1000, 'nodes/s')
-      console.log('total move considered', this.latestMoveCount, time, (this.latestMoveCount / time) * 1000, 'nodes/s')
+      // console.log('\ntotal', time, 'ms')
+      // console.log('total considered nodes', this.consideredNodeCount, time, (this.consideredNodeCount / time) * 1000, 'nodes/s')
+      // console.log('total seen size', this.latestClosedNodeCount, time, (this.latestClosedNodeCount / time) * 1000, 'nodes/s')
+      // console.log('total move considered', this.latestMoveCount, time, (this.latestMoveCount / time) * 1000, 'nodes/s')
     }
 
     // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)

@@ -13,10 +13,10 @@ const bot = createBot({
   auth: "offline",
   // host: 'it-mil-1.halex.gg',
   // port: 25046
-  version: '1.19.4',
+  version: '1.18.2',
 
   // host: "node2.endelon-hosting.de", port: 5000
-  host: 'Ic3TankD2HO.aternos.me',
+  host: '36569.spain2.firecloudllc.info',
   // port: 44656
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,

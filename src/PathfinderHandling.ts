@@ -239,7 +239,7 @@ export class PathfinderHandler {
   }
 
   async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-    console.log('INTERRUPT CALLED')
+    // console.log('INTERRUPT CALLED')
     if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
@@ -486,7 +486,7 @@ export class PathfinderHandler {
       if (result.status === 'success') {
         cleanup()
         this.bot.emit('pathGenerated', result)
-        console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
+        // console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
         MovementHandler.count = 0
         MovementHandler.totCount = 0
         yield { result, astarContext }
@@ -570,7 +570,7 @@ export class PathfinderHandler {
     await this.cleanupBot()
     this.world.cleanup?.()
 
-    console.log('CLEANUP CALLED')
+    // console.log('CLEANUP CALLED')
 
     if (this.userAborted) this.bot.emit('goalAborted', goal)
     else this.bot.emit('goalFinished', goal)

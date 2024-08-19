@@ -47,7 +47,7 @@ export class ContinuousPathProducer implements PathProducer {
     const result = this.astarContext.compute()
     this._currentPath = result.path
 
-    console.log('advancing!')
+    // console.log('advancing!')
 
     if (global.gc != null && ++this.lastGc % this.gcInterval === 0) {
       // const starttime = performance.now()
@@ -73,14 +73,14 @@ export class ContinuousPathProducer implements PathProducer {
 
     const time1 = performance.now() - this.lastStartTime
 
-    console.log('\nthis iter:', time1)
-    console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
-    console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
-    console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
+    // console.log('\nthis iter:', time1)
+    // console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
+    // console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
+    // console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
 
-    console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
-    console.log('cost', cost)
-    console.log('path length', result.path.length)
+    // console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
+    // console.log('cost', cost)
+    // console.log('path length', result.path.length)
     // this.lastStartTime = performance.now()
     // const time = performance.now() - this.startTime
     // console.log('\ntotal', time, 'ms')

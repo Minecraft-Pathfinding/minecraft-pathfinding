@@ -472,7 +472,7 @@ export class PlaceHandler extends InteractHandler {
 
         const invalidPlacement = botBB.intersects(posBl)
         if (invalidPlacement) {
-          console.log('invalid placement', bot.entity.position, invalidPlacement, botBB, posBl)
+          // console.log('invalid placement', bot.entity.position, invalidPlacement, botBB, posBl)
           // console.log(botBB, posBl);
           await bot.lookAt(rayRes.intersect, this.settings.forceLook)
           throw new CancelError('Invalid placement')
@@ -524,7 +524,7 @@ export class PlaceHandler extends InteractHandler {
     this._done = true
     this.performing = false
     delete this._placeTask
-    console.log('done in ', performance.now() - start, 'ms')
+    // console.log('done in ', performance.now() - start, 'ms')
   }
 
   async abort (bot: Bot): Promise<void> {
