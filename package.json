@@ -1,6 +1,6 @@
 {
   "name": "@nxg-org/mineflayer-pathfinder",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Pathfinder using A* for mineflayer",
   "main": "dist/index.js",
   "repository": "https://github.com/Minecraft-Pathfinding/minecraft-pathfinding.git",
