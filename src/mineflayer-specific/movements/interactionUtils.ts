@@ -388,7 +388,7 @@ export class PlaceHandler extends InteractHandler {
 
     if (item === null) throw new Error('Invalid item')
 
-    let start = performance.now()
+    // const start = performance.now()
     switch (this.type) {
       case 'water': {
         if (item.name !== 'water_bucket') throw new Error('Invalid item')
@@ -482,7 +482,7 @@ export class PlaceHandler extends InteractHandler {
         let sneaking = false
         const direction = this.faceToVec(rayRes.face)
         // console.log("looking at", rayRes.intersect);
-        start = performance.now()
+        // start = performance.now()
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
         if (predictBlock) {
           // console.log('predicting block')

@@ -100,7 +100,7 @@ class Int64Map {
   }
 
   private grow (): void {
-    const start = performance.now()
+    // const start = performance.now()
     const oldSize = this.size
     const newSize = oldSize * 2
     this.size = newSize
@@ -123,7 +123,7 @@ class Int64Map {
         node = next
       }
     }
-    const time = performance.now() - start
+    // const time = performance.now() - start
     // console.log(`Took \x1B[32m${time.toFixed(0)}\x1B[0m ms to resize hashmap to \x1B[32m${newSize}\x1B[0m.`)
   }
 

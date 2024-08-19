@@ -85,32 +85,31 @@ export class BlockInfo {
     if (BlockInfo.initialized) return
     BlockInfo.initialized = true
 
-    if (!!registry.blocksByName.soul_sand?.id) {
+    if (registry.blocksByName.soul_sand?.id != null) {
       BlockInfo.soulsandId = registry.blocksByName.soul_sand.id // might be broke, who knows
     } else {
       throw new Error('soul sand not found in registry')
     }
-      
+
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
 
-    BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId as number, 0)
+    BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId, 0)
     BlockInfo._waterBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._solidBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.dirt.minStateId as number, 0)
+    BlockInfo._solidBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.dirt.minStateId, 0)
     BlockInfo._solidBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._airBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId as number, 0)
+    BlockInfo._airBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId, 0)
     BlockInfo._airBlock.position = new Vec3(0, 0, 0)
-    BlockInfo._replaceableBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId as number, 0) // also replaceable
+    BlockInfo._replaceableBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.air.minStateId, 0) // also replaceable
     BlockInfo._replaceableBlock.position = new Vec3(0, 0, 0)
 
     interactables.forEach((b) => BlockInfo.interactableBlocks.add(b))
 
-    if (!!registry.blocksByName.chest) BlockInfo.interactableBlocks.add(registry.blocksByName.chest.id)
-    if (!!registry.blocksByName.ender_chest) BlockInfo.interactableBlocks.add(registry.blocksByName.ender_chest.id)
-
+    if (registry.blocksByName.chest != null) BlockInfo.interactableBlocks.add(registry.blocksByName.chest.id)
+    if (registry.blocksByName.ender_chest != null) BlockInfo.interactableBlocks.add(registry.blocksByName.ender_chest.id)
 
     registry.blocksArray.forEach((block) => {
-      if (block.diggable) return
-      if (!block.id) return
+      if (block.diggable == null || block.diggable) return
+      if (block.id == null) return
       BlockInfo.blocksCantBreak.add(block.id)
     })
 
@@ -187,7 +186,7 @@ export class BlockInfo {
       .filter((x) => x.minStateId !== undefined)
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      .map((x) => BlockInfo.PBlock.fromStateId(x.minStateId!, 0))
+      .map((x) => BlockInfo.PBlock.fromStateId(x.minStateId, 0))
       .forEach((block) => {
         if (block.shapes.length > 0) {
           // Fences or any block taller than 1, they will be considered as non-physical to avoid
@@ -203,7 +202,7 @@ export class BlockInfo {
     registry.blocksArray.forEach((block) => {
       if (
         BlockInfo.interactableBlocks.has(block.name) &&
-        block.name && 
+        block.name != null &&
         block.name.toLowerCase().includes('gate') &&
         !block.name.toLowerCase().includes('iron')
       ) {
@@ -475,7 +474,7 @@ export class CacheSyncWorld implements WorldType {
   private makeLRUCache (size: number): CacheSyncWorld['blockInfos'] {
     // return new Fuck(size);
 
-    let count = 0
+    // const count = 0
     return new LRUCache<string, BlockInfo, unknown>({
       max: size,
       ttl: 10000,

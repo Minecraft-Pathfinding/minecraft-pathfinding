@@ -1067,7 +1067,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   private async cheatCode (ticks = this.stepAmt): Promise<number> {
     let counter = 0
-    const early = await new Promise<boolean>((resolve, reject) => {
+    await new Promise<boolean>((resolve, reject) => {
       let leave = false
       const listener = (): void => {
         if (counter++ > ticks) {
@@ -1171,7 +1171,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     if (!goingToFall && this.backUpTarget != null && bb.containsVec(this.backUpTarget)) {
       this.reachedBackup = true
-      const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
+      // const dist = this.bot.entity.position.xzDistanceTo(this.backUpTarget)
       // console.log('here1', this.bot.entity.position, this.backUpTarget, dist)
       await this.lookAtPathPos(targetEyeVec)
 
@@ -1190,7 +1190,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
       const oldY = this.bot.entity.position.y
 
-      const early = await this.cheatCode(2)
+      await this.cheatCode(2)
 
       const currentY = this.bot.entity.position.y
       // console.log('new pos', this.bot.entity.position, early)
@@ -1217,7 +1217,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       const oldY = this.bot.entity.position.y
 
       // console.log('here5', this.bot.entity.position)
-      const early = await this.cheatCode()
+      await this.cheatCode()
 
       const currentY = this.bot.entity.position.y
       // console.log('new pos', this.bot.entity.position, early)

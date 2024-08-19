@@ -66,12 +66,12 @@ export class ContinuousPathProducer implements PathProducer {
 
     // debug all same info in partialPathProducer
 
-    const cost = this.astarContext?.bestNode?.g ?? 0
-    const nodecount = this.astarContext?.nodeConsiderCount ?? 0
-    const seensize = this.astarContext?.closedDataSet.size ?? 0
-    const movecount = this.astarContext?.moveConsiderCount ?? 0
+    // const cost = this.astarContext?.bestNode?.g ?? 0
+    // const nodecount = this.astarContext?.nodeConsiderCount ?? 0
+    // const seensize = this.astarContext?.closedDataSet.size ?? 0
+    // const movecount = this.astarContext?.moveConsiderCount ?? 0
 
-    const time1 = performance.now() - this.lastStartTime
+    // const time1 = performance.now() - this.lastStartTime
 
     // console.log('\nthis iter:', time1)
     // console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
