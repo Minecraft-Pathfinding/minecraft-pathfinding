@@ -93,7 +93,7 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1, ectx?: EPh
 
   const bad = ctx.state.pos.y < bot.entity.position.y
 
-  console.trace(minY, minY1, bot.entity.position, ctx.state.pos)
+  // console.trace(minY, minY1, bot.entity.position, ctx.state.pos)
   if ((minY === Infinity || minY1 === Infinity) || bad) {
     return true
   }
