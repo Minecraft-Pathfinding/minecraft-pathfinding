@@ -8,7 +8,7 @@ import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { CompleteOpts, MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
-import { debug, printBotControls } from '../../utils'
+import { printBotControls } from '../../utils'
 
 export class IdleMovementExecutor extends MovementExecutor {
   provideMovements (start: Move, storage: Move[]): void {}
