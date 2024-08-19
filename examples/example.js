@@ -10,9 +10,9 @@ const bot = createBot({
   username: "testing1",
   auth: "offline",
 
-  host: "node2.meowbot.de",
-  port: 5000,
-  version: "1.19.4",
+  host: "36569.spain2.firecloudllc.info",
+  // port: 5000,
+  version: "1.18.2",
 });
 const pathfinder = createPlugin();
 

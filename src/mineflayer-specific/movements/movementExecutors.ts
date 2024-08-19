@@ -647,7 +647,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
 
     // console.log('jump info', this.jumpInfo)
     if (this.jumpInfo === null) {
-      debug(this.bot, 'no jump info')
+      // debug(this.bot, 'no jump info')
       this.bot.setControlState('forward', true)
       this.bot.setControlState('jump', true)
       this.bot.setControlState('sprint', true)
