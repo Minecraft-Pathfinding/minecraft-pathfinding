@@ -60,25 +60,25 @@ export abstract class MovementProvider extends Movement {
 
   getBlockInfoRaw (yes: Vec3): BlockInfo {
     //
-    let move: Move | undefined = this.currentMove
+    // let move: Move | undefined = this.currentMove
 
-    let i = 0
-    while (move !== undefined && i++ < 3) { // 5 levels
+    // let i = 0
+    // while (move !== undefined && i++ < 3) { // 5 levels
 
-      for (const m of move.toPlace) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
+    //   for (const m of move.toPlace) {
+    //     if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+    //       return m.blockInfo
+    //     }
+    //   }
 
-      for (const m of move.toBreak) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
+    //   for (const m of move.toBreak) {
+    //     if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
+    //       return m.blockInfo
+    //     }
+    //   }
 
-      move = move.parent
-    }
+    //   move = move.parent
+    // }
 
     // if (i > 0) console.log('i', i)
     // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]

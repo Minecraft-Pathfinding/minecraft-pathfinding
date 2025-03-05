@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { Bot, BotEvents } from 'mineflayer'
-import { AStar as AAStar } from './abstract/algorithms/astar'
-import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
+import { AStarBackOff as AAStar } from './abstract/algorithms/astar'
+import { AStar, OptPath, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
@@ -12,7 +11,6 @@ import {
   BuildableMoveProvider,
   MovementHandler,
   MovementOptions,
-  MovementSetup,
   ExecutorMap,
   MovementExecutor,
   DEFAULT_MOVEMENT_OPTS
@@ -39,13 +37,13 @@ import {
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
-import { BuildableOptimizer, OptimizationSetup, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
+import { BuildableOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
-import { Block, ResetReason } from './types'
+import { Block, HandlerOpts, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 import { reconstructPath } from './abstract/algorithms'
-import { closestPointOnLineSegment, getScaffoldCount } from './utils'
+import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 
 export interface PathfinderOptions {
@@ -54,11 +52,11 @@ export interface PathfinderOptions {
 }
 
 const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
-  partialPathProducer: false,
+  partialPathProducer: true,
   partialPathLength: 50
 }
 
-// const EMPTY_VEC = new Vec3(0, 0, 0)
+const EMPTY_VEC = new Vec3(0, 0, 0)
 
 /**
  * These are the default movement types and their respective executors.
@@ -109,23 +107,22 @@ interface PathGeneratorResult {
   astarContext: AAStar<Move>
 }
 
-// interface PerformOpts {
-//   errorOnReset?: boolean
-//   errorOnAbort?: boolean
-// }
-
-interface HandlerOpts {
-  world?: CacheSyncWorld
-  movements?: MovementSetup
-  optimizers?: OptimizationSetup
-  moveSettings?: MovementOptions
-  pathfinderSettings?: PathfinderOptions
+interface PerformOpts {
+  errorOnReset?: boolean
+  errorOnAbort?: boolean
 }
 
 /**
- * Per-bot specific pathfinder handling.
+ * Eventually, I want all pathfinder logic entirely off thread.
+ *
+ * This means that the pathfinder will be able to calculate paths while the bot is doing other things.
+ *
+ * However, this is not the case right now, as prismarine-world needs a rewrite
+ * and eventually, this pathfinder code will too.
+ *
+ * That will be a while, but remember to code this with that in mind.
  */
-export class PathfinderHandler {
+export class ThePathfinder {
   astar: AStar | null
   world: World
   movements: ExecutorMap
@@ -134,8 +131,8 @@ export class PathfinderHandler {
   pathfinderSettings: PathfinderOptions
 
   private readonly currentIndex = 0
-  private readonly executeTask: Task<void, void> = Task.createDoneTask()
-  private readonly wantedGoal?: goals.Goal
+  private executeTask: Task<void, void> = Task.createDoneTask()
+  private wantedGoal?: goals.Goal
   public abortCalculation = false
   private userAborted = false
 
@@ -168,8 +165,6 @@ export class PathfinderHandler {
 
     const optimizers = opts.optimizers ?? DEFAULT_OPTIMIZATION
     const moveSetup = opts.movements ?? DEFAULT_SETUP
-
-    this.world = new CacheSyncWorld(bot, this.bot.world)
 
     // set up executors, map them to providers.
     const moves = new Map<BuildableMoveProvider, MovementExecutor>()
@@ -235,11 +230,11 @@ export class PathfinderHandler {
 
   async cancel (): Promise<void> {
     this.userAborted = true
-    await this.interrupt(1000, true)
+    await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true)
   }
 
-  async interrupt (timeout = 1000, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-    // console.log('INTERRUPT CALLED')
+  async interrupt (timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
+    // console.trace('INTERRUPT CALLED', reasonStr)
     if (this._currentProducer == null) return console.log('no producer')
     this.abortCalculation = cancelCalculation
 
@@ -267,7 +262,7 @@ export class PathfinderHandler {
     // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
-  async reset (reason: ResetReason, cancelTimeout = 1000): Promise<void> {
+  async reset (reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
     this.bot.emit('resetPath', reason)
     await this.interrupt(cancelTimeout, true, reason)
   }
@@ -344,7 +339,8 @@ export class PathfinderHandler {
 
     if (pos == null || path == null) return false
 
-    for (const move of path) {
+    for (let i = this.currentIndex; i < path.length; i++) {
+      const move = path[i]
       let comparisonPoint: Vec3 | null = null
 
       comparisonPoint = closestPointOnLineSegment(pos, move.entryPos, move.exitPos)
@@ -435,10 +431,6 @@ export class PathfinderHandler {
     return cleanup
   }
 
-  // utility for identifying where partial paths merge
-
-  async perform (): Promise<void> {}
-
   // path getting utilities
 
   getPathTo (goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
@@ -448,6 +440,8 @@ export class PathfinderHandler {
   async * getPathFromTo (startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     this.abortCalculation = false
     delete this.resetReason
+
+    startPos = getNormalizedPos(this.bot, startPos)
 
     this.currentMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
@@ -480,6 +474,11 @@ export class PathfinderHandler {
 
     do {
       const res = this._currentProducer.advance()
+
+      if (res.result.status === 'partialSuccess') {
+        this.splicePaths(result!, res.result)
+      }
+
       result = res.result
       astarContext = res.astarContext
 
@@ -495,7 +494,7 @@ export class PathfinderHandler {
 
       if (this.abortCalculation) {
         cleanup()
-        result.status = 'canceled'
+        result.status = 'cancelled'
         yield { result, astarContext }
         return { result, astarContext }
       }
@@ -515,6 +514,29 @@ export class PathfinderHandler {
     }
   }
 
+  private splicePaths(org: Path, newSegment: Path): Path {
+    // logic here is as follows:
+    // 1. first path is the original start point
+    // 2. each sequential path has a start point based on the path before it. (NOT THE EXIT POS OF THE LAST PATH, SOMEWHERE ALONG IT)
+    // 3. the last path has the current wanted end point at the end of it.
+
+    // We need to build a new path that has: original start point -> current end point
+
+    console.log('splicing paths')
+    console.log(org.path.map(m=>m.exitPos))
+    console.log(newSegment.path.map(m=>m.exitPos))
+    for (let i = org.path.length; i > 0; i--) {
+      if (org.path[i].exitPos.equals(newSegment.path[0].entryPos)) {
+        // splice in the new segment
+        org.path.splice(i, 0, ...newSegment.path)
+        break
+      }
+    }
+
+    console.log(org.path.map(m=>m.exitPos))
+    return org
+  }
+
   async getPathFromToRaw (startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<PathInfo | null> {
     for await (const res of this.getPathFromTo(startPos, startVel, goal)) {
       if (res.result.status !== 'success') {
@@ -526,17 +548,349 @@ export class PathfinderHandler {
     return null
   }
 
-  private async postProcess (pathInfo: Path): Promise<Path> {
+  /**
+   * @param {goals.Goal | null} goal
+   */
+  async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
+    // console.log('GOTO CALLED')
+    if (goal == null) {
+      await this.cancel()
+      await this.executeTask.promise
+      await this.cleanupAll(goal)
+      return
+    }
+
+    if (!this.executeTask.done) {
+      // console.log('cancelling others')
+      this.wantedGoal = goal
+      await this.cancel()
+      await this.executeTask.promise
+      if (this.wantedGoal !== goal) return
+      delete this.wantedGoal
+    }
+
+    this.cleanupClient()
+    this.executeTask = new Task()
+    this.currentGotoGoal = goal
+    this.bot.emit('goalSet', goal)
+
+    await this._goto(goal, performOpts)
+
+    await this.cleanupAll(goal)
+  }
+
+ /**
+ * Internal call.
+ */
+private async _goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
+  const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
+
+  let toWaitOn = Promise.resolve()
+  let manualCleanup = (): void => {}
+
+  const setupWait = (): void => {
+    if (goal instanceof goals.GoalDynamic && goal.dynamic) {
+      toWaitOn = new Promise((resolve) => {
+        manualCleanup = this.registerAll(goal, {
+          onHasUpdate: () => {
+            void this.reset('goalUpdated')
+          },
+          onInvalid: () => {
+            void this.cancel()
+          },
+          forAll: () => {
+            // console.log('cleaned up')
+            resolve()
+          }
+        })
+      })
+    }
+  }
+
+  do {
+    let madeIt = false
+    do {
+      setupWait()
+
+      // console.log('reset I believe', doForever)
+      let task: Promise<void> | null = null
+      // Track both unoptimized and optimized paths
+      let unoptimizedPath: Path | null = null
+      let optimizedPath: OptPath | null = null
+
+      for await (const res of this.getPathTo(goal)) {
+        if (res.result.status !== 'success') {
+          if (res.result.status === 'noPath' || res.result.status === 'timeout' || res.result.status === 'cancelled') {
+            if (task !== null && optimizedPath !== null) {
+              optimizedPath.path.length = 0
+            }
+            break
+          }
+
+          if (res.result.status === 'partialSuccess') {
+            // Store or update the unoptimized path
+            if (unoptimizedPath === null) {
+              // First partial path
+              unoptimizedPath = { ...res.result };
+              // Optimize it for execution
+              optimizedPath = await this.postProcess(unoptimizedPath);
+            } else {
+              // Update the unoptimized path by splicing
+              // This maintains the correct structure for future optimization
+              unoptimizedPath.path.length = res.result.path.length;
+              console.log('sup gang')
+              console.log(unoptimizedPath.path.map(m=>m.exitPos))
+              console.log(res.result.path.map(m=>m.exitPos))
+              for (let i = 0; i < res.result.path.length; i++) {
+                unoptimizedPath.path[i] = res.result.path[i];
+              }
+              
+              // Now reoptimize the updated path
+              optimizedPath = await this.postProcess(unoptimizedPath);
+            }
+            
+            if (task === null) {
+              // Start executing the optimized path
+              task = this.perform(optimizedPath, goal).then(() => {
+                task = null
+                // console.log('cleared task!')
+              })
+            }
+          }
+        } else {
+          console.log('hey there guys')
+          // We have a complete path
+          // Store the full unoptimized path
+          const fullUnoptimizedPath = { ...res.result };
+          
+          if (unoptimizedPath === null || task === null) {
+            // No partial path exists or no execution in progress
+            // Just optimize and execute the full path
+            const fullOptimizedPath = await this.postProcess(fullUnoptimizedPath);
+            await this.perform(fullOptimizedPath, goal);
+          } else {
+            // We need to wait for the current execution to finish
+            await task;
+            task = null;
+            
+            // Now optimize and execute the full path
+            const fullOptimizedPath = await this.postProcess(fullUnoptimizedPath);
+            await this.perform(fullOptimizedPath, goal);
+          }
+
+          if (performOpts.errorOnAbort != null && performOpts.errorOnAbort && this.abortCalculation) {
+            throw new Error('Goto: Goal was canceled.')
+          }
+
+          if (performOpts.errorOnReset != null && performOpts.errorOnReset && this.resetReason != null) {
+            throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
+          }
+
+          if (this.resetReason == null) {
+            // console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
+            await this.cleanupBot()
+            manualCleanup()
+            setupWait()
+
+            madeIt = true
+            break
+          }
+
+          // console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
+          await this.cleanupBot()
+          manualCleanup()
+        }
+      }
+    } while (!this.userAborted && !madeIt)
+
+    await this.cleanupBot()
+    if (doForever) {
+      if (this.resetReason == null && !this.userAborted) {
+        await toWaitOn
+      }
+    }
+    // eslint-disable-next-line no-unmodified-loop-condition
+  } while (doForever && !this.userAborted)
+}
+
+
+  private async postProcess (pathInfo: Path): Promise<OptPath> {
     const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
 
     optimizer.loadPath(pathInfo.path)
 
     const res = await optimizer.compute()
 
-    const ret = { ...pathInfo }
+    const ret = { ...pathInfo, optPath: res }
 
-    ret.path = res
     return ret
+  }
+
+  private check (): void {
+    if (this.userAborted) {
+      throw new AbortError('User cancelled.')
+    }
+
+    if (this.resetReason != null) {
+      throw new ResetError(this.resetReason)
+    }
+  }
+
+  /**
+   * Do not mind the absolutely horrendous code here right now.
+   * It will be fixed, just very busy right now.
+   * @param path
+   * @param goal
+   * @param entry
+   */
+  async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
+    if (entry > 10) throw new Error('Too many failures, exiting performing.')
+
+    console.trace('ENTER PERFORM')
+    let currentIndex = 0
+    const movementHandler = path.context.movementProvider as MovementHandler
+    const movements = movementHandler.getMovements()
+
+    const pathEx = Object.hasOwnProperty.call(path, 'optPath') ? (path as OptPath).optPath : path.path
+
+    while (currentIndex < pathEx.length) {
+      const move = pathEx[currentIndex]
+      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
+      if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
+
+      this.curPath = pathEx
+      this.currentMove = move
+      this.currentExecutor = executor
+
+      let tickCount = 0
+
+      // TODO: could move this to physicsTick to be performant, but meh who cares.
+
+      // reset bot.
+      await this.cleanupBot()
+
+      // provide current move to executor as a reference.
+      executor.loadMove(move)
+
+      // if the movement has already been completed (another movement has already completed it), skip it.
+      if (executor.isAlreadyCompleted(move, tickCount, goal)) {
+        // console.log('skipping', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
+
+        currentIndex++
+        continue
+      }
+
+      // console.log('performing', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
+      // console.log(
+      //   'toPlace',
+      //   move.toPlace.map((p) => p.vec),
+      //   'toBreak',
+      //   move.toBreak.map((b) => b.vec),
+      //   'entryPos',
+      //   move.entryPos,
+      //   'asVec',
+      //   move.vec,
+      //   'exitPos',
+      //   move.exitPos
+      // )
+
+      // wrap this code in a try-catch as we intentionally throw errors.
+      try {
+        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
+          this.check()
+          await this.bot.waitForTicks(1)
+        }
+
+        tickCount = 0
+
+        // allow the initial execution of this code.
+        await executor._performInit(move, currentIndex, path.path)
+
+        this.check()
+        let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
+
+        while (!(adding as boolean) && tickCount < 999) {
+          this.check()
+          await this.bot.waitForTicks(1)
+          adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
+        }
+
+        currentIndex += adding as number
+        // console.log('done with move', move.exitPos, this.bot.entity.position, this.bot.entity.position.distanceTo(move.exitPos))
+      } catch (err) {
+        // immediately exit since we want to abort the entire path.
+        if (err instanceof AbortError) {
+          executor.reset()
+          // await this.cleanupBot()
+          delete this.resetReason
+          break
+        } else if (err instanceof ResetError) {
+          executor.reset()
+          // await this.cleanupBot()
+          break
+        } else if (err instanceof CancelError) {
+          // console.log('cancelled')
+          // await this.cleanupBot()
+          // allow recovery if movement intentionall cancelled.
+          await this.recovery(move, path, goal, entry)
+          break
+        } else throw err
+      }
+    }
+
+    await this.cleanupBot()
+    // console.log('FINISHED PERFORM')
+  }
+
+  // TODO: implement recovery for any movement and goal.
+  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    this.bot.emit('enteredRecovery', entry)
+    await this.cleanupBot()
+    this.cleanupClient()
+
+    const ind = path.path.indexOf(move)
+    if (ind === -1) {
+      return // done
+    }
+
+    let newGoal
+
+    const pos = this.bot.entity.position
+    let bad = false
+    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
+    if (nextMove == null || path.path.indexOf(nextMove) < ind) {
+      bad = true
+    } else if (path.path.indexOf(nextMove) === ind) {
+      nextMove = path.path[ind + 1]
+    }
+
+    const no = entry > 5 || bad
+    if (no || nextMove == null) {
+      newGoal = goal
+    } else {
+      newGoal = goals.GoalBlock.fromVec(nextMove.vec)
+    }
+
+    let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
+
+    if (path1 === null) {
+      // done
+      this.bot.emit('exitedRecovery', entry)
+    } else if (no) {
+      path1 = await this.postProcess(path1)
+
+      // execution of past recoveries failed or not easily saveable, so full recovery needed.
+      this.bot.emit('exitedRecovery', entry)
+      await this.perform(path1, goal, entry + 1)
+    } else {
+      path1 = await this.postProcess(path1)
+      // attempt recovery to nearby node.
+      await this.perform(path1, newGoal, entry + 1)
+      path.path.splice(0, ind + 1)
+
+      this.bot.emit('exitedRecovery', entry)
+      await this.perform(path, goal, 0)
+    }
   }
 
   async cleanupBot (): Promise<void> {
@@ -560,14 +914,17 @@ export class PathfinderHandler {
     delete this.currentExecutor
   }
 
-  async cleanupAll (goal: goals.Goal, lastMove?: MovementExecutor): Promise<void> {
+  async cleanupAll (goal: goals.Goal, executor = this.currentExecutor): Promise<void> {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
       goal.cleanup?.()
     }
 
     await this.cleanupBot()
-    if (lastMove != null && !this.abortCalculation) await goal.onFinish(lastMove)
-    await this.cleanupBot()
+    if (executor != null) {
+      await goal.onFinish(executor)
+      await this.cleanupBot()
+    }
+    // this.bot.chat(this.world.getCacheSize())
     this.world.cleanup?.()
 
     // console.log('CLEANUP CALLED')
@@ -580,72 +937,5 @@ export class PathfinderHandler {
     this.executeTask.finish()
 
     this.cleanupClient()
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-class Perform {
-  public currentIndex = 0
-  public curPath: Move[] = []
-
-  constructor (private readonly bot: Bot, private readonly handler: PathfinderHandler, public readonly goal: goals.Goal) {}
-
-  async perform (): Promise<void> {
-    while (this.currentIndex < this.curPath.length) {
-      const move = this.curPath[this.currentIndex]
-      const executor = this.handler.movements.get(move.moveType.constructor as BuildableMoveProvider)
-      if (executor == null) throw new Error('No executor for move type.')
-
-      // this.handler.currentMove = move
-      // this.handler.currentExecutor = executor
-
-      try {
-        await executor.perform(move, this.currentIndex, this.curPath)
-      } catch (err) {
-        if (err instanceof AbortError) {
-          return
-        } else if (err instanceof ResetError) {
-          return
-        } else if (err instanceof CancelError) {
-          void this.identRecover()
-          return
-        } else {
-          throw err
-        }
-      }
-    }
-  }
-
-  async identRecover (): Promise<void> {}
-
-  /**
-   * Given that the current path is partial and not a whole path,
-   * We may want to extend said path to have better execution.
-   * However, the overlap may not be clean.
-   *
-   * This function must update the global path and the current index to match the new path.
-   */
-  updatePerformPath (newPath: Move[]): void {
-    if (this.curPath == null) return
-
-    // due to the nature of our partial paths, all new paths must be longer than the current path.
-    if (newPath.length < this.curPath.length) throw new Error('new path is shorter than current path')
-
-    for (let i = this.curPath.length - 1; i >= 0; i--) {
-      const move = this.curPath[i]
-
-      // we want the overlap to be the first move of the new path.
-      if (!move.entryPos.equals(newPath[0].entryPos)) continue
-
-      // if i is greater than current index, then merge is clean as we have not passed the overlap index.
-      if (i > this.currentIndex) {
-        // include current node
-        this.curPath = this.curPath.slice(0, i + 1).concat(newPath.slice(1))
-      } else if (i === this.currentIndex) {
-        // we are already perfoming the move where overlap occurs.
-        if (this.curPath[i].exitPos.equals(newPath[0].entryPos)) this.curPath = this.curPath.slice(0, i).concat(newPath)
-        else throw new Error('overlap is not clean')
-      } else if (i < this.currentIndex) throw new Error('overlap is not clean')
-    }
   }
 }

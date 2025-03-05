@@ -1,11 +1,10 @@
-const { createBot } = require("mineflayer");
+import { createBot } from "mineflayer";
 import { createPlugin, goals, custom } from "../src";
 const { GoalBlock, GoalLookAt } = goals;
 const { MovementExecutor, MovementOptimizer } = custom;
-const { Vec3 } = require("vec3");
-const rl = require('readline')
-const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-util");
-
+import {Vec3} from 'vec3'
+import * as rl from 'readline'
+import loader, {  EntityState } from "@nxg-org/mineflayer-physics-util";
 
 
 
@@ -14,10 +13,10 @@ const bot = createBot({
   auth: "offline",
   // host: 'it-mil-1.halex.gg',
   // port: 25046
-  version: '1.19.4',
+  version: '1.21.1',
 
   // host: "node2.endelon-hosting.de", port: 5000
-  host: 'Ic3TankD2HO.aternos.me',
+  host: 'localhost',
   // port: 44656
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
@@ -26,7 +25,7 @@ const pathfinder = createPlugin();
 
 const validTypes = ["block" , "lookat"]
 let type = "block"
-function getGoal(world, x, y, z) {
+function getGoal(world: any, x: number, y: number, z: number) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
   switch (type) {
@@ -54,7 +53,7 @@ bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
-  bot.physics.autojumpCooldown = 0;
+  (bot.physics as any).autojumpCooldown = 0;
 
   const rlline = rl.createInterface({
     input: process.stdin,
@@ -76,7 +75,7 @@ bot.once("spawn", async () => {
 });
 
 
-async function cmdHandler(username, msg) {
+async function cmdHandler(username: string, msg: string) {
   if (username === bot.username) return;
 
   const [cmd1, ...args] = msg.split(" ");
@@ -128,4 +127,5 @@ console.trace('Bot error', err)
 })
 bot.on('kicked', (reason) => {
 console.trace('Bot kicked', reason)
+console.log('Bot kicked', JSON.stringify(reason))
 })

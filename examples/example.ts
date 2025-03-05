@@ -82,6 +82,7 @@ bot.on("chat", async (username, msg) => {
       while ((test = await res.next()).done === false) {
       console.log(test);
       }
+      console.log('finished')
       break;
     }
 

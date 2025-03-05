@@ -12,7 +12,7 @@ const bot = createBot({
 
   host: "localhost",
   // port: 5000,
-  version: "1.19.4",
+  version: "1.21.1",
 });
 const pathfinder = createPlugin();
 

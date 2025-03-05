@@ -97,7 +97,7 @@ export async function onceWithCleanup<T> (
 
 export class Task<Res, Rej> {
   done: boolean = false
-  canceled: boolean = false
+  cancelled: boolean = false
   promise: Promise<Res>
   cancel!: (err: Rej) => void
   finish!: (result: Res) => void
@@ -107,7 +107,7 @@ export class Task<Res, Rej> {
       this.cancel = (err) => {
         if (!this.done) {
           this.done = true
-          this.canceled = true
+          this.cancelled = true
           reject(err)
           // throw err;
         }

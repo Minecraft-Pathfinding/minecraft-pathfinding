@@ -123,7 +123,7 @@ export abstract class InteractHandler {
       this._done = true
       this.performing = false
 
-      if (this.task?.canceled != null) return
+      if (this.task?.cancelled != null) return
       // this.task.cancel(err);
       throw new CancelError(`Failed to perform ${this.constructor.name}`, err)
     })
@@ -530,7 +530,7 @@ export class PlaceHandler extends InteractHandler {
   async abort (bot: Bot): Promise<void> {
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
-      this.task.canceled = true
+      this.task.cancelled = true
     }
 
     if (this._placeTask != null) {
@@ -657,7 +657,7 @@ export class BreakHandler extends InteractHandler {
   async abort (bot: Bot): Promise<void> {
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
-      this.task.canceled = true
+      this.task.cancelled = true
     }
 
     if (this._breakTask != null) {
