@@ -142,19 +142,19 @@ export abstract class Movement {
   }
 
   toBreak (): BreakHandler[] {
-    return this.currentMove.toBreak.filter((b) => !b.allowExit)
+    return this.currentMove.toBreak?.filter((b) => !b.allowExit) ?? []
   }
 
   toBreakLen (): number {
-    return this.currentMove.toBreak.filter((b) => !b.allowExit).length
+    return this.currentMove.toBreak?.filter((b) => !b.allowExit).length ?? 0
   }
 
   toPlace (): PlaceHandler[] {
-    return this.currentMove.toPlace.filter((b) => !b.allowExit)
+    return this.currentMove.toPlace?.filter((b) => !b.allowExit) ?? []
   }
 
   toPlaceLen (): number {
-    return this.currentMove.toPlace.filter((b) => !b.allowExit).length
+    return this.currentMove.toPlace?.filter((b) => !b.allowExit).length ?? 0
   }
 
   getBlock (pos: Vec3Properties, dx: number, dy: number, dz: number): Block | null {

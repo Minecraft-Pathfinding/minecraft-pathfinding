@@ -1019,10 +1019,13 @@ export class StraightUpExecutor extends MovementExecutor {
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    for (const breakH of thisMove.toBreak) {
-      await this.lookAt(breakH.vec.offset(0.5, 0, 0.5))
-      await this.performInteraction(breakH)
+    if (thisMove.toBreak) {
+      for (const breakH of thisMove.toBreak) {
+        await this.lookAt(breakH.vec.offset(0.5, 0, 0.5))
+        await this.performInteraction(breakH)
+      }
     }
+    
 
     if (thisMove.toPlace.length > 1) throw new CancelError('StraightUp: toPlace.length > 1')
     // console.log(thisMove.toPlace.length)
