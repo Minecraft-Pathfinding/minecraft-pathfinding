@@ -11,8 +11,8 @@ const bot = createBot({ username: "testing1", auth: "offline",
 // host: "Ic3TankD2HO.aternos.me", 
 // port: 44656 
 
-host: "us1.node.minecraft.sneakyhub.com",
-port: 25607
+host: "localhost",
+port: 25565
 });
 const pathfinder = createPlugin();
 
@@ -217,6 +217,7 @@ bot._client.on('animation', (data) => {
   if (!entity || entity.type !== 'player') return
   if (!entity.heldItem || entity.heldItem.name !== 'stick') return
   const block = rayTraceEntitySight({ entity: entity });
+  console.log('saw block', block?.position)
   if (!block) return
   bot.pathfinder.goto(GoalBlock.fromVec(block.position.offset(0.5, 1, 0.5)));
 })

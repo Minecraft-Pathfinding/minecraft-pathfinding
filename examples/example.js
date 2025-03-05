@@ -10,9 +10,9 @@ const bot = createBot({
   username: "testing1",
   auth: "offline",
 
-  host: "36569.spain2.firecloudllc.info",
+  host: "localhost",
   // port: 5000,
-  version: "1.18.2",
+  version: "1.19.4",
 });
 const pathfinder = createPlugin();
 
@@ -202,6 +202,7 @@ async function cmdHandler(username, msg) {
 
     case "set":
     case "setting": {
+      console.log(cmd, args)
       const stuff = Object.entries(bot.pathfinder.defaultMoveSettings);
       const stuff1 = Object.entries(bot.pathfinder.pathfinderSettings);
       const stuff2 = Object.entries(bot.physics);
@@ -348,6 +349,7 @@ async function cmdHandler(username, msg) {
         test = await res1.next();
         if (!test.done) test1 = test;
         // console.log(test1)
+        // console.log('doing')
         if (test1.value) test2.push(...test1.value.result.path);
       } while (test.done === false);
 

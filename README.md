@@ -30,8 +30,8 @@ Examples will be added as the project undergoes more development.
 
 - [X] Proper breaking of blocks (Cost + Execution)
 - [X] Water movement
-- [ ] Parkour
-- [ ] Proper jump sprinting
+- [X] Parkour
+- [X] Proper jump sprinting
 - [ ] Offloading the world thread
 
 

@@ -1,5 +1,5 @@
 import { Bot, BotEvents } from 'mineflayer'
-import { AStar as AAStar } from './abstract/algorithms/astar'
+import { AStarBackOff as AAStar } from './abstract/algorithms/astar'
 import { AStar, OptPath, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
