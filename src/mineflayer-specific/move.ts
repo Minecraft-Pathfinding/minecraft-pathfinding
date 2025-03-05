@@ -5,8 +5,8 @@ import { EntityState } from '@nxg-org/mineflayer-physics-util'
 import { BreakHandler, PlaceHandler } from './movements/interactionUtils'
 const emptyVec = new Vec3(0, 0, 0)
 
-const TOPLACE: PlaceHandler[] = []
-const TOBREAK: BreakHandler[] = []
+// const TOPLACE: PlaceHandler[] = []
+// const TOBREAK: BreakHandler[] = []
 
 export class Move implements PathData {
   hash: string
@@ -23,8 +23,8 @@ export class Move implements PathData {
     public readonly x: number,
     public readonly y: number,
     public readonly z: number,
-    // toPlace: PlaceHandler[],
-    // toBreak: BreakHandler[],
+    toPlace: PlaceHandler[],
+    toBreak: BreakHandler[],
     public readonly remainingBlocks: number,
     public readonly cost: number,
     public readonly moveType: MovementProvider,
@@ -44,8 +44,10 @@ export class Move implements PathData {
     this.cachedVec = new Vec3(this.x, this.y, this.z)
     Object.freeze(this.cachedVec)
 
-    this.toPlace = TOPLACE
-    this.toBreak = TOBREAK
+    // this.toPlace = TOPLACE
+    // this.toBreak = TOBREAK
+    this.toPlace = toPlace
+    this.toBreak = toBreak
     // this.x = x;
     // this.y = y;
     // this.z = z;
@@ -53,7 +55,7 @@ export class Move implements PathData {
   }
 
   static startMove (type: MovementProvider, pos: Vec3, vel: Vec3, remainingBlocks: number): Move {
-    return new Move(pos.x, pos.y, pos.z, remainingBlocks, 0, type, pos, vel, pos, vel)
+    return new Move(pos.x, pos.y, pos.z, [], [], remainingBlocks, 0, type, pos, vel, pos, vel)
     // new Map());
   }
 
@@ -62,8 +64,8 @@ export class Move implements PathData {
     state: EntityState,
     prevMove: Move,
     type: MovementProvider,
-    // toPlace: PlaceHandler[] = [],
-    // toBreak: BreakHandler[] = []
+    toPlace: PlaceHandler[] = [],
+    toBreak: BreakHandler[] = []
   ): Move {
     // const p = new Map(prevMove.interactMap);
     // for (const breakH of toBreak) {
@@ -76,8 +78,8 @@ export class Move implements PathData {
       state.pos.x,
       state.pos.y,
       state.pos.z,
-      // toPlace,
-      // toBreak,
+      toPlace,
+      toBreak,
       prevMove.remainingBlocks - 0, //toPlace.length,
       cost,
       type,
@@ -96,8 +98,8 @@ export class Move implements PathData {
     pos: Vec3,
     prevMove: Move,
     type: MovementProvider,
-    // toPlace: PlaceHandler[] = [],
-    // toBreak: BreakHandler[] = []
+    toPlace: PlaceHandler[] = [],
+    toBreak: BreakHandler[] = []
   ): Move {
     // const p = new Map(prevMove.interactMap);
     // for (const place of toPlace) {
@@ -110,8 +112,8 @@ export class Move implements PathData {
       pos.x,
       pos.y,
       pos.z,
-      // toPlace,
-      // toBreak,
+      toPlace,
+      toBreak,
       prevMove.remainingBlocks -  0,//toPlace.length,
       cost,
       type,
