@@ -185,7 +185,7 @@ export class NewForwardExecutor extends MovementExecutor {
 
         if (this.settings.bridgeOptions.sneakPreplacement) {
           this.bot.setControlState('sneak', true)
-          void this.performInteraction(test).then(() => this.bot.setControlState('sneak', false))
+          void this.performInteraction(test, {predictBlock: false}).then(() => this.bot.setControlState('sneak', false))
         } else {
           void this.performInteraction(test)
         }

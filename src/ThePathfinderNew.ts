@@ -476,7 +476,7 @@ export class ThePathfinder {
       const res = this._currentProducer.advance()
 
       if (res.result.status === 'partialSuccess') {
-        this.splicePaths(result, res.result)
+        this.splicePaths(result as Path, res.result)
       }
 
       result = res.result

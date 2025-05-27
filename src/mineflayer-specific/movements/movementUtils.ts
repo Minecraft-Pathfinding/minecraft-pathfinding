@@ -3,7 +3,6 @@ import {
   ControlStateHandler,
   EPhysicsCtx,
   EntityPhysics,
-  EntityState,
   SimulationGoal
 } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
@@ -13,6 +12,7 @@ import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { JumpSim } from './simulators/jumpSim'
 import { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
+import { IEntityState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 
 interface JumpInfo {
   jumpTick: number
@@ -20,7 +20,7 @@ interface JumpInfo {
   backTick: number
 }
 
-export function stateLookAt (state: EntityState, point: Vec3): void {
+export function stateLookAt (state: IEntityState, point: Vec3): void {
   const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0))
   const yaw = Math.atan2(-delta.x, -delta.z)
   const groundDistance = Math.sqrt(delta.x * delta.x + delta.z * delta.z)
@@ -166,7 +166,7 @@ export class JumpCalculator {
     return null
   }
 
-  protected resetState (): EntityState {
+  protected resetState (): IEntityState {
     this.ctx = EPhysicsCtx.FROM_BOT(this.engine.ctx, this.bot)
     this.ctx.state.age = 0
     this.ctx.state.control = ControlStateHandler.DEFAULT()
@@ -214,7 +214,7 @@ export class JumpCalculator {
     return false
   }
 
-  protected simJump (state: EntityState, maxTicks = 20): EntityState {
+  protected simJump (state: IEntityState, maxTicks = 20): IEntityState {
     state.control.set('forward', true)
     state.control.set('jump', true)
     state.control.set('sprint', true)
@@ -230,7 +230,7 @@ export class JumpCalculator {
   }
 
   protected simJumpAdvanced (
-    state: EntityState,
+    state: IEntityState,
     goal: Vec3,
     opts: {
       firstTicks?: number
@@ -239,7 +239,7 @@ export class JumpCalculator {
       sprintAfterJump?: boolean
       maxTicks?: number
     } = {}
-  ): EntityState {
+  ): IEntityState {
     // goddamnit ts-standard.
     const { firstTicks, secondTicks, backTicks, sprintAfterJump, maxTicks } = opts
     const ft = firstTicks ?? 0

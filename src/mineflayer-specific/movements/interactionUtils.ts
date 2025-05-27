@@ -12,6 +12,7 @@ import { MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
 import { Block } from '../../types'
 import { Task } from '../../utils'
+import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 
 export type InteractType = 'water' | 'solid' | 'replaceable'
 export type RayType = {
@@ -297,7 +298,7 @@ export class PlaceHandler extends InteractHandler {
         for (; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
 
-          const state = ectx.state
+          const state = ectx.state as PlayerState
 
           state.control.set('sneak', shiftTick < Infinity)
           for (let j = 0; j < i; j++) {
@@ -305,7 +306,7 @@ export class PlaceHandler extends InteractHandler {
             bot.physicsUtil.engine.simulate(ectx, bot.world)
           }
 
-          const eyePos = state.pos.offset(0, 1.62, 0)
+          const eyePos = state.pos.offset(0, state.eyeHeight, 0)
           // const bb0 = AABB.fromBlock(this.vec)
           const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 })
 
@@ -384,6 +385,10 @@ export class PlaceHandler extends InteractHandler {
    * @param opts
    */
   async perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
+    const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
+    const state = ectx.state as PlayerState
+
+
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
 
     if (item === null) throw new Error('Invalid item')
@@ -417,7 +422,7 @@ export class PlaceHandler extends InteractHandler {
           // console.log("info took", end - start, "ms");
         }
 
-        const stateEyePos = bot.entity.position.offset(0, 1.62, 0)
+        const stateEyePos = bot.entity.position.offset(0, state.eyeHeight, 0)
         const lookDir = bot.util.getViewDir()
         // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
         // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
@@ -436,10 +441,10 @@ export class PlaceHandler extends InteractHandler {
         for (; i < works.ticks; i++) {
           if (i === works.shiftTick) bot.setControlState('sneak', true)
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
-          const state = ectx.state
+          const state = ectx.state as PlayerState
           bot.physicsUtil.engine.simulate(ectx, bot.world)
           // console.log(bb.pos, bot.entity.position)
-          const sPos = state.pos.offset(0, 1.62, 0)
+          const sPos = state.pos.offset(0, state.eyeHeight, 0)
           const testCheck = (await bot.world.raycast(
             sPos,
             rayRes.intersect.minus(sPos).normalize().scale(0.5),
@@ -450,7 +455,7 @@ export class PlaceHandler extends InteractHandler {
 
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
-          if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
+          if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getBB().intersects(pos1Bl)) {
             // console.log("skipping on tick", i, state.getAABB(), state.pos, pos1Bl);
             if (i < works.ticks - 1 && works.ticks !== 0) {
               await bot.waitForTicks(1)
@@ -599,7 +604,7 @@ export class BreakHandler extends InteractHandler {
 
   async performInfo (bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {
     const bb = AABB.fromBlock(this.vec)
-
+    
     return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach + 5
       ? { ticks: 0, tickAllowance: 0, shiftTick: 0, raycasts: [] }
       : { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: [] }

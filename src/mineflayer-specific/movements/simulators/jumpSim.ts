@@ -1,5 +1,5 @@
 import { EntityPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
-import { EntityState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { IEntityState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
@@ -49,7 +49,7 @@ export class JumpSim extends BaseSimulator {
     return new JumpSim(this.physics, this.world)
   }
 
-  simulateUntilNextTick (ctx: EPhysicsCtx): EntityState {
+  simulateUntilNextTick (ctx: EPhysicsCtx): IEntityState {
     return this.simulateUntil(
       () => false,
       () => {},
@@ -60,7 +60,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateUntilOnGround (ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false): EntityState {
+  simulateUntilOnGround (ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false): IEntityState {
     const state = this.simulateUntil(
       JumpSim.buildAnyGoal(goal, (state, ticks) => ticks > 0 && state.onGround),
       () => {},
@@ -77,7 +77,7 @@ export class JumpSim extends BaseSimulator {
     return state
   }
 
-  simulateSmartAim (goal: AABB[], goalVec: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): EntityState {
+  simulateSmartAim (goal: AABB[], goalVec: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): IEntityState {
     return this.simulateUntil(
       JumpSim.getReachedAABB(goal),
       JumpSim.getCleanupPosition(goalVec),
@@ -96,7 +96,7 @@ export class JumpSim extends BaseSimulator {
   /**
    * Assume we know the correct back-up position.
    */
-  simulateBackUpBeforeJump (ctx: EPhysicsCtx, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): EntityState {
+  simulateBackUpBeforeJump (ctx: EPhysicsCtx, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): IEntityState {
     const aim = strafe ? JumpSim.getControllerStrafeAim(goal) : JumpSim.getControllerStraightAim(goal)
     return this.simulateUntil(
       (state) => state.pos.xzDistanceTo(goal) < 0.1,
@@ -111,7 +111,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): EntityState {
+  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): IEntityState {
     let jump = false
     let changed = false
 
@@ -127,7 +127,7 @@ export class JumpSim extends BaseSimulator {
           // console.log('jump edge', state.age, state.pos)
           state.control.sneak = false
           // check if player is leaving src block collision
-          const playerBB = state.getAABB()
+          const playerBB = state.getBB()
           playerBB.expand(0, 1e-6, 0)
           if (jump && state.pos.xzDistanceTo(goalCorner) < 0.5 && !changed) {
             // goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z)
