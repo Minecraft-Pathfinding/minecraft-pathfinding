@@ -658,7 +658,7 @@ private async _goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<vo
             }
           }
         } else {
-          console.log('hey there guys')
+          // console.log('hey there guys')
           // We have a complete path
           // Store the full unoptimized path
           const fullUnoptimizedPath = { ...res.result };
@@ -746,7 +746,7 @@ private async _goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<vo
   async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
-    console.trace('ENTER PERFORM')
+    // console.trace('ENTER PERFORM')
     let currentIndex = 0
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()

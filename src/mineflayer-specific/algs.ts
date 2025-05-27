@@ -12,7 +12,7 @@ export interface OptPath extends Path {
 
 export interface PathProducer {
   // constructor(start: Data, goal: goals.Goal, settings: Settings): PathProducer
-
+  
   getCurrentPath: () => Move[]
   getAstarContext: () => AStar | undefined
   advance: () => { result: Path, astarContext: AStar }
