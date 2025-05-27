@@ -19,16 +19,32 @@ export class IdleMovementExecutor extends MovementExecutor {
 }
 
 export class NewForwardExecutor extends MovementExecutor {
+  private hadPlacements = false
+
   private async faceForward (): Promise<boolean> {
     // console.log('called faceForward!')
     if (this.doWaterLogic()) return true
     const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
-    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec))
-    const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
 
-    // console.log('this.currentMove?.toPlace.length === 0 || !near', this.currentMove?.toPlace.length === 0 || !near)
-    // console.log(this.currentMove.toPlace.length, this.toPlace().length, placementVecs.map((p) => p.distanceToVec(eyePos)), near, this.currentMove?.toPlace.length === 0 && !near)
-    return this.currentMove?.toPlace.length === 0 || !near
+    const toPlace = this.toPlace()
+    const remainingPlacements = toPlace.length > 0
+    const placementVecs = toPlace.map((p) => AABB.fromBlock(p.vec))
+    const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
+    const groundNear = placementVecs.some((p) => p.distanceToVec(this.bot.entity.position) < PlaceHandler.reach + 2)
+
+    if (this.hadPlacements) {
+      if (remainingPlacements && !groundNear) {
+        return true
+      }
+      // we need to abide by potential legit speed bridging.
+      if (this.settings.bridgeOptions.humanistic) {
+        return false // even if we finish placing, we assume that we don't want to rotate forward.
+      } else {
+        return !(this.settings.bridgeOptions.preRotate && remainingPlacements) // we're out of placements
+      }
+    }
+    // if we didn't have placements, just face forward.
+    return true
   }
 
   override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
@@ -81,6 +97,8 @@ export class NewForwardExecutor extends MovementExecutor {
     // console.log('ForwardMove', thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length)
 
     this.bot.clearControlStates()
+
+    this.hadPlacements = thisMove.toPlace.length > 0
 
     const faceForward = await this.faceForward()
 
@@ -164,7 +182,14 @@ export class NewForwardExecutor extends MovementExecutor {
       const test = await this.interactNeeded(5)
       if (test != null) {
         // console.log('performing interaction')
-        void this.performInteraction(test)
+
+        if (this.settings.bridgeOptions.sneakPreplacement) {
+          this.bot.setControlState('sneak', true)
+          void this.performInteraction(test).then(() => this.bot.setControlState('sneak', false))
+        } else {
+          void this.performInteraction(test)
+        }
+
         return false
       }
     }
@@ -1025,7 +1050,6 @@ export class StraightUpExecutor extends MovementExecutor {
         await this.performInteraction(breakH)
       }
     }
-    
 
     if (thisMove.toPlace.length > 1) throw new CancelError('StraightUp: toPlace.length > 1')
     // console.log(thisMove.toPlace.length)

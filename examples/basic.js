@@ -13,7 +13,7 @@ const bot = createBot({
   auth: "offline",
   // host: 'it-mil-1.halex.gg',
   // port: 25046
-  version: '1.21.1',
+  version: '1.21.4',
 
   // host: "node2.endelon-hosting.de", port: 5000
   host: 'localhost',
@@ -95,6 +95,20 @@ async function cmdHandler(username, msg) {
     case "pos": {
       bot.whisper(username, `I am at ${bot.entity.position}`);
       console.log(`/tp ${bot.username} ${bot.entity.position.x} ${bot.entity.position.y} ${bot.entity.position.z}`);
+      break;
+    }
+
+    case "come": {
+      const player = bot.players[username];
+      if (!player) {
+        bot.whisper(username, "I can't see you!");
+        return;
+      }
+
+      const goal = GoalLookAt.fromEntity(bot.pathfinder.world, player.entity, 2);
+      bot.whisper(username, `Coming to you ${username}`);
+      await bot.pathfinder.goto(goal);
+      bot.whisper(username, `Arrived, ${username}`);
       break;
     }
 

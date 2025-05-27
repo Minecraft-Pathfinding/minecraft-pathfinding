@@ -105,7 +105,7 @@ async function cmdHandler(username: string, msg: string) {
         return;
       }
 
-      const goal = GoalLookAt.fromEntity(bot.pathfinder.world, player.entity, 2);
+      const goal = GoalBlock.fromVec(player.entity.position)
       bot.whisper(username, `Coming to you ${username}`);
       await bot.pathfinder.goto(goal);
       bot.whisper(username, `Arrived, ${username}`);

@@ -8,6 +8,15 @@ import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './int
 import { Block, Vec3Properties } from '../../types'
 import { COST_INF } from './costs'
 
+export type  BridgingOptions = {
+  sneakPreplacement: boolean
+} & ({
+  humanistic: true
+} | {
+  humanistic: false
+  preRotate: boolean
+})
+
 export interface MovementOptions {
   allowDiagonalBridging: boolean
   allowJumpSprint: boolean
@@ -30,6 +39,8 @@ export interface MovementOptions {
   careAboutLookAlignment: boolean
 
   movementTimeoutMs: number
+
+  bridgeOptions: BridgingOptions
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
@@ -51,7 +62,12 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   forceLook: true,
   careAboutLookAlignment: true,
   allowDiagonalBridging: true,
-  movementTimeoutMs: 1000
+  movementTimeoutMs: 1000,
+  bridgeOptions: {
+    humanistic: true,
+    // preRotate: true,
+    sneakPreplacement: true
+  }
 }
 
 const cardinalVec3s: Vec3[] = [

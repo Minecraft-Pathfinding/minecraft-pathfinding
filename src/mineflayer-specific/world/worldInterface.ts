@@ -2,8 +2,6 @@ import { Vec3 } from 'vec3'
 import type { BlockInfo } from './cacheWorld'
 import { Block } from '../../types'
 import { RayType } from '../movements/interactionUtils'
-import {world} from 'prismarine-world'
-
 
 export interface World {
   // minY: number
