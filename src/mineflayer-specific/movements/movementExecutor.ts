@@ -7,9 +7,10 @@ import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } fr
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
-import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
 import { getNormalizedPos } from '../../utils'
+import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 
 // temp typing
 interface AbortOpts {
@@ -26,12 +27,12 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Physics engine, baby.
    */
-  protected sim: BaseSimulator
+  protected sim: BaseSimulator<PlayerState>
 
   /**
    * Entity state of bot
    */
-  protected simCtx: EPhysicsCtx
+  protected simCtx: EPhysicsCtx<PlayerState>
 
   /** */
   protected engine: EntityPhysics
@@ -569,18 +570,18 @@ export abstract class MovementExecutor extends Movement {
     // return Math.abs(pitch - this.bot.entity.pitch) < limit && Math.abs(yaw - this.bot.entity.yaw) < limit
   }
 
-  protected resetState (): EntityState {
-    this.simCtx.state.updateFromBot(this.bot)
+  protected resetState (): PlayerState {
+    this.simCtx.state.update(this.bot)
     return this.simCtx.state
   }
 
-  protected simUntil (...args: Parameters<BaseSimulator['simulateUntil']>): ReturnType<BaseSimulator['simulateUntil']> {
-    this.simCtx.state.updateFromBot(this.bot)
+  protected simUntil (...args: Parameters<BaseSimulator<PlayerState>['simulateUntil']>): ReturnType<BaseSimulator['simulateUntil']> {
+    this.simCtx.state.update(this.bot)
     return this.sim.simulateUntil(...args)
   }
 
-  protected simUntilGrounded (controller: Controller, maxTicks = 1000): EntityState {
-    this.simCtx.state.updateFromBot(this.bot)
+  protected simUntilGrounded (controller: Controller, maxTicks = 1000): PlayerState {
+    this.simCtx.state.update(this.bot)
     return this.sim.simulateUntil(
       (state) => state.onGround,
       () => {},
@@ -591,8 +592,8 @@ export abstract class MovementExecutor extends Movement {
     )
   }
 
-  protected simJump ({ goal, controller }: { goal?: SimulationGoal, controller?: Controller } = {}, maxTicks = 1000): EntityState {
-    this.simCtx.state.updateFromBot(this.bot)
+  protected simJump ({ goal, controller }: { goal?: SimulationGoal, controller?: Controller } = {}, maxTicks = 1000): PlayerState {
+    this.simCtx.state.update(this.bot)
     goal = goal ?? ((state) => state.onGround)
     controller =
       controller ??

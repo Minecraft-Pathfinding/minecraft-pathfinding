@@ -1,5 +1,5 @@
 import { EntityPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
-import { IEntityState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { IEntityState, PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
@@ -37,7 +37,7 @@ const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
  *
  * Provide state that will serve as a base. The state itself will not be modified/consumed unless called for.
  */
-export class JumpSim extends BaseSimulator {
+export class JumpSim extends BaseSimulator<PlayerState> {
   public readonly world: World
 
   constructor (public readonly physics: EntityPhysics, world: World) {
@@ -49,7 +49,7 @@ export class JumpSim extends BaseSimulator {
     return new JumpSim(this.physics, this.world)
   }
 
-  simulateUntilNextTick (ctx: EPhysicsCtx): IEntityState {
+  simulateUntilNextTick (ctx: EPhysicsCtx<PlayerState>): PlayerState {
     return this.simulateUntil(
       () => false,
       () => {},
@@ -60,7 +60,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateUntilOnGround (ctx: EPhysicsCtx, ticks = 5, goal: SimulationGoal = () => false): IEntityState {
+  simulateUntilOnGround (ctx: EPhysicsCtx<PlayerState>, ticks = 5, goal: SimulationGoal = () => false): PlayerState {
     const state = this.simulateUntil(
       JumpSim.buildAnyGoal(goal, (state, ticks) => ticks > 0 && state.onGround),
       () => {},
@@ -77,7 +77,7 @@ export class JumpSim extends BaseSimulator {
     return state
   }
 
-  simulateSmartAim (goal: AABB[], goalVec: Vec3, ctx: EPhysicsCtx, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): IEntityState {
+  simulateSmartAim (goal: AABB[], goalVec: Vec3, ctx: EPhysicsCtx<PlayerState>, sprint: boolean, jump: boolean, jumpAfter = 0, ticks = 20): PlayerState {
     return this.simulateUntil(
       JumpSim.getReachedAABB(goal),
       JumpSim.getCleanupPosition(goalVec),
@@ -96,7 +96,7 @@ export class JumpSim extends BaseSimulator {
   /**
    * Assume we know the correct back-up position.
    */
-  simulateBackUpBeforeJump (ctx: EPhysicsCtx, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): IEntityState {
+  simulateBackUpBeforeJump (ctx: EPhysicsCtx<PlayerState>, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): PlayerState {
     const aim = strafe ? JumpSim.getControllerStrafeAim(goal) : JumpSim.getControllerStraightAim(goal)
     return this.simulateUntil(
       (state) => state.pos.xzDistanceTo(goal) < 0.1,
@@ -111,7 +111,7 @@ export class JumpSim extends BaseSimulator {
     )
   }
 
-  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): IEntityState {
+  simulateJumpFromEdgeOfBlock (ctx: EPhysicsCtx<PlayerState>, srcAABBs: AABB[], goalCorner: Vec3, goalBlock: AABB[], sprint: boolean, ticks = 20): PlayerState {
     let jump = false
     let changed = false
 
@@ -164,13 +164,14 @@ export class JumpSim extends BaseSimulator {
     }
   }
 
-  static getCleanupPosition (...path: Vec3[]): OnGoalReachFunction {
-    return (state) => {
-      state.clearControlStates()
-    }
-  }
+  // static getCleanupPosition<State extends PlayerState> (...path: Vec3[]): OnGoalReachFunction<State> {
+  //   return (state) => {
+  //     state.control.reset();
+  //     // state.clearControlStates()
+  //   }
+  // }
 
-  static getControllerStraightAim (nextPoint: Vec3): Controller {
+  static getControllerStraightAim<State extends PlayerState> (nextPoint: Vec3): Controller<PlayerState> {
     return (state, ticks) => {
       const dx = nextPoint.x - state.pos.x
       const dz = nextPoint.z - state.pos.z
@@ -180,7 +181,7 @@ export class JumpSim extends BaseSimulator {
 
   // right should be positiive,
   // left should be negative.
-  static getControllerStrafeAim (nextPoint: Vec3): Controller {
+  static getControllerStrafeAim (nextPoint: Vec3): Controller<PlayerState> {
     return (state, ticks) => strafeMovement(state, nextPoint)
 
     // commented out for testing.
@@ -208,7 +209,7 @@ export class JumpSim extends BaseSimulator {
     }
   }
 
-  static getControllerJumpSprint (jump: boolean, sprint: boolean, jumpAfter = 0): Controller {
+  static getControllerJumpSprint (jump: boolean, sprint: boolean, jumpAfter = 0): Controller<PlayerState> {
     return (state, ticks) => {
       state.control.jump = state.onGround && jump && ticks >= jumpAfter
       state.control.sprint = sprint
@@ -217,7 +218,7 @@ export class JumpSim extends BaseSimulator {
 
   // forward should be any value that abs. val to below pi / 2
   // backward is any value that abs. val to above pi / 2
-  static getControllerSmartMovement (goal: Vec3, sprint: boolean): Controller {
+  static getControllerSmartMovement (goal: Vec3, sprint: boolean): Controller<PlayerState> {
     return (state, ticks) => smartMovement(state, goal, sprint)
 
     // commented out for testing.
@@ -246,9 +247,9 @@ export class JumpSim extends BaseSimulator {
     }
   }
 
-  static buildFullController (...controllers: Controller[]): Controller {
-    return (state, ticks) => {
-      controllers.forEach((control) => control(state, ticks))
-    }
-  }
+  // static buildFullController (...controllers: Controller<PlayerState>[]): Controller<PlayerState> {
+  //   return (state, ticks) => {
+  //     controllers.forEach((control) => control(state, ticks))
+  //   }
+  // }
 }
