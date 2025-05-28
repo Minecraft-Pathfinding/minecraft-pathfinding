@@ -1,11 +1,11 @@
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { Move } from '../move'
-import { RayType } from '../movements/interactionUtils'
 import { BlockInfo } from '../world/cacheWorld'
 import { MovementOptimizer } from './optimizer'
 
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { stateLookAt } from '../movements/movementUtils'
+import { RayType } from '../../types'
 
 export class LandStraightAheadOpt extends MovementOptimizer {
   async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {

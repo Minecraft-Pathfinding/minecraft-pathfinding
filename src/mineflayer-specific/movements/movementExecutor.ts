@@ -1,16 +1,17 @@
-import { Bot } from 'mineflayer'
+import { Bot, ControlState, ControlStateStatus } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import * as goals from '../goals'
 import { World } from '../world/worldInterface'
-import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
+import { BreakHandler, InteractHandler, PlaceHandler } from './interactionUtils'
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
 import { getNormalizedPos } from '../../utils'
-import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { ControlStateHandler, PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { InteractOpts, InteractionPerformInfo, RayType } from '../../types'
 
 // temp typing
 interface AbortOpts {
@@ -424,22 +425,23 @@ export abstract class MovementExecutor extends Movement {
    * Return breaks first as they will not interfere with placements,
    * whereas placements will almost always interfere with breaks (LOS failure).
    */
-  async interactNeeded (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
+  async interactNeeded (ticks = 1, controls?: ControlStateHandler): Promise<{info: InteractionPerformInfo, handler: PlaceHandler | BreakHandler} | undefined> {
     for (const breakTarget of this.currentMove.toBreak) {
+      this.bot.controlState
       if (breakTarget !== this._cI && !breakTarget.done) {
         if (!breakTarget.needToPerform(this.bot)) continue
         const res = await breakTarget.performInfo(this.bot, ticks)
         // console.log("break", res, res.raycasts.length > 0);
-        if (res.ticks < Infinity) return breakTarget
+        if (res.ticks < Infinity) return {info: res, handler:  breakTarget}
       }
     }
 
     for (const place of this.currentMove.toPlace) {
       if (place !== this._cI && !place.done) {
         if (!place.needToPerform(this.bot)) continue
-        const res = await place.performInfo(this.bot, ticks)
+        const res = await place.performInfo(this.bot, ticks, controls)
         // console.log("place", res, res.raycasts.length > 0);
-        if (res.ticks < Infinity) return place
+        if (res.ticks < Infinity) return {info: res, handler:  place}
       }
     }
   }
@@ -479,7 +481,7 @@ export abstract class MovementExecutor extends Movement {
     // const dx = vec3.x - this.bot.entity.position.x
     // const dz = vec3.z - this.bot.entity.position.z
 
-    return await this.lookAt(vec3.offset(0, -vec3.y + this.bot.entity.position.y + 1.62, 0), force)
+    return await this.lookAt(vec3.offset(0, -vec3.y + this.bot.entity.position.y + this.bot.ectx.state.eyeHeight, 0), force)
   }
 
   public async lookAt (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
@@ -510,7 +512,7 @@ export abstract class MovementExecutor extends Movement {
     // console.log(bl)
     if (bl == null) return false
 
-    const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
+    const eyePos = this.bot.entity.position.offset(0, this.bot.ectx.state.eyeHeight, 0)
     // console.log(bl.intersect, vec3, bl.intersect.minus(eyePos).normalize().dot(vec3.minus(eyePos).normalize()), 1 - limit);
 
     return bl.intersect.minus(eyePos).normalize().dot(vec3.minus(eyePos).normalize()) > 1 - limit
@@ -546,7 +548,8 @@ export abstract class MovementExecutor extends Movement {
     // const vec3XZ = vec3.offset(0, -vec3.y, 0)
 
     const inter = this.bot.util.getViewDir()
-    const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
+    const height = this.bot.ectx.state.eyeHeight
+    const eyePos = this.bot.entity.position.offset(0, height, 0)
     // const inter = bl.intersect.minus(eyePos);
     // inter.translate(0, -inter.y, 0);
 

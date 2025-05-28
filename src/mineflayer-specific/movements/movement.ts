@@ -59,7 +59,7 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   digCost: 1,
   jumpCost: 0.5,
   velocityKillCost: 2, // implement at a later date.
-  forceLook: true,
+  forceLook: false,
   careAboutLookAlignment: true,
   allowDiagonalBridging: true,
   movementTimeoutMs: 1000,

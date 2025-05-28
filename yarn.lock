@@ -91,14 +91,14 @@
 "@nxg-org/mineflayer-pathfinder@file:.":
   version "0.0.24"
   dependencies:
-    "@nxg-org/mineflayer-physics-util" "1.5.8"
+    "@nxg-org/mineflayer-physics-util" "^1.8.14"
     "@nxg-org/mineflayer-util-plugin" "^1.8.3"
     lru-cache "^10.1.0"
 
-"@nxg-org/mineflayer-physics-util@1.5.8":
-  version "1.5.8"
-  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.8.tgz#f57ad00d1591cb8abf8fe6c4a541333b481bd491"
-  integrity sha512-KmCkAqpUo8BbuRdIBs6+V2hWHehz++PRz3lRwIsb47CuG0u4sgLYh37RY3ifAznC6uWvmPK+q3B4ZXwJzPy1MQ==
+"@nxg-org/mineflayer-physics-util@^1.8.14":
+  version "1.8.14"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.8.14.tgz#21a6c52500ece88ff15cdaa9c72d5b81af0b1937"
+  integrity sha512-8G4r78PQt+v31nRCiy4qaWgcyDcLLHY+We5gqt9z4JNAFtszOOul64mMFsDDvzV+zMFCJr53rwf0kviaPAln1Q==
   dependencies:
     "@nxg-org/mineflayer-util-plugin" "^1.8.2"
 
@@ -2125,9 +2125,9 @@ minecraft-protocol@^1.51.0:
     yggdrasil "^1.4.0"
 
 mineflayer@^4.10.1:
-  version "4.26.0"
-  resolved "https://registry.yarnpkg.com/mineflayer/-/mineflayer-4.26.0.tgz#6aaeb52f235ca427bc2b60b95270af4b682028b8"
-  integrity sha512-1mCuyqIJUieq/ul7s7UUvcUvycYEMN7GFL5iCUB8DraDsJhj1waP74WkaMUMOKmNukv72T8+6S9O0Jaxer1QHw==
+  version "4.29.0"
+  resolved "https://registry.yarnpkg.com/mineflayer/-/mineflayer-4.29.0.tgz#4b9454bb7a03d6f5af3fa4c6a806d280f5edee9c"
+  integrity sha512-NMH+1EiQi4inLKhnt2HCpqSAcK0cYc5dGOYrzoewTUoNZQ7w3BZ6tnmq3bpzyubn717IwJ/OfS8n+BKXFE13tQ==
   dependencies:
     minecraft-data "^3.76.0"
     minecraft-protocol "^1.51.0"

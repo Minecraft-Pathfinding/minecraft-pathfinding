@@ -3,12 +3,13 @@ import * as goals from '../goals'
 import { Move } from '../move'
 import { CancelError } from '../exceptions'
 import { BlockInfo } from '../world/cacheWorld'
-import { PlaceHandler, RayType } from './interactionUtils'
+import { PlaceHandler } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { CompleteOpts, MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
-import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
+import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
+import { RayType } from '../../types'
 
 export class IdleMovementExecutor extends MovementExecutor {
   provideMovements (start: Move, storage: Move[]): void {}
@@ -18,209 +19,153 @@ export class IdleMovementExecutor extends MovementExecutor {
   }
 }
 
+
 export class NewForwardExecutor extends MovementExecutor {
-  private hadPlacements = false
+  private hadPlacements = false;
 
-  private async faceForward (): Promise<boolean> {
-    // console.log('called faceForward!')
-    if (this.doWaterLogic()) return true
-    const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
+  private async shouldFaceForward(): Promise<boolean> {
+    if (this.isInWater()) return true;
 
-    const toPlace = this.toPlace()
-    const remainingPlacements = toPlace.length > 0
-    const placementVecs = toPlace.map((p) => AABB.fromBlock(p.vec))
-    const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
-    const groundNear = placementVecs.some((p) => p.distanceToVec(this.bot.entity.position) < PlaceHandler.reach + 2)
+    const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0);
+    const placements = this.toPlace();
+    const hasPlacements = placements.length > 0;
+    const reachBuffer = PlaceHandler.reach + 2;
 
-    if (this.hadPlacements) {
-      if (remainingPlacements && !groundNear) {
-        return true
-      }
-      // we need to abide by potential legit speed bridging.
-      if (this.settings.bridgeOptions.humanistic) {
-        return false // even if we finish placing, we assume that we don't want to rotate forward.
-      } else {
-        return !(this.settings.bridgeOptions.preRotate && remainingPlacements) // we're out of placements
-      }
+    const vecs = placements.map(p => AABB.fromBlock(p.vec));
+    const nearEye = vecs.some(bb => bb.distanceToVec(eyePos) < reachBuffer);
+    const nearGround = vecs.some(bb => bb.distanceToVec(this.bot.entity.position) < reachBuffer);
+
+    if (!this.hadPlacements) return true;
+    if (hasPlacements && !nearGround) return true;
+
+    if (this.settings.bridgeOptions.humanistic) {
+      return false;
     }
-    // if we didn't have placements, just face forward.
-    return true
+
+    return !(this.settings.bridgeOptions.preRotate && hasPlacements);
   }
 
-  override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    if (this.doWaterLogic()) {
-      await super.align(thisMove, tickCount, goal)
-      // this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.entryPos.y)
+  override async align(move: Move, tick: number, goal: goals.Goal): Promise<boolean> {
+    if (this.isInWater()) {
+      await super.align(move, tick, goal);
     }
 
-    const faceForward = await this.faceForward()
-    let target
-    if (faceForward) {
-      target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
-    } else {
-      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
-      target = offset
-    }
+    const faceForward = await this.shouldFaceForward();
+    const target = faceForward
+      ? move.entryPos.floored().translate(0.5, 0, 0.5)
+      : this.bot.entity.position.minus(move.exitPos).plus(this.bot.entity.position);
 
-    await this.landAlign(thisMove, tickCount, goal)
-    // await this.postInitAlignToPath(thisMove, { lookAtYaw: target })
-    return this.isInitAligned(thisMove, target)
+    await this.landAlign(move);
+    return this.isInitAligned(move, target);
   }
 
-  async landAlign (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    const faceForward = await this.faceForward()
-
-    const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
-    if (faceForward) {
-      // await this.postInitAlignToPath(thisMove)
-      // void this.lookAt(target);
-      this.bot.setControlState('forward', true)
-      if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
-      else this.bot.setControlState('sprint', true)
-    } else {
-      const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
-      // await this.postInitAlignToPath(thisMove, { lookAt: offset })
-      void this.lookAt(offset)
-      this.bot.setControlState('forward', false)
-      this.bot.setControlState('sprint', false)
-      this.bot.setControlState('back', true)
-    }
-
-    // return this.isComplete(thisMove, thisMove, {entry: true})
-    // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
-    // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
-
-    return this.isInitAligned(thisMove, target)
-  }
-
-  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    // console.log('ForwardMove', thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length)
-
-    this.bot.clearControlStates()
-
-    this.hadPlacements = thisMove.toPlace.length > 0
-
-    const faceForward = await this.faceForward()
+  private async landAlign(move: Move): Promise<boolean> {
+    const faceForward = await this.shouldFaceForward();
+    const entryTarget = move.entryPos.floored().translate(0.5, 0, 0.5);
 
     if (faceForward) {
-      await this.postInitAlignToPath(thisMove)
+      this.bot.setControlState('forward', true);
+      this.bot.setControlState('sprint', this.bot.food > 6);
     } else {
-      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
-      // console.log('here!', thisMove.exitPos, this.bot.entity.position, offset)
-      await this.postInitAlignToPath(thisMove, { lookAt: offset })
-    }
-  }
-
-  private doWaterLogic (): boolean {
-    if ((this.bot.entity as any).isInWater as boolean) return true
-
-    if (this.bot.entity.onGround) return false
-
-    const bl = this.getBlockInfo(this.bot.entity.position, 0, -0.6, 0)
-    return bl.liquid
-  }
-
-  // TODO: clean this up.
-  private canJump (thisMove: Move, currentIndex: number, path: Move[]): boolean {
-    if (this.doWaterLogic()) {
-      if (this.bot.entity.position.y < thisMove.exitPos.y) {
-        return true
-      } else {
-        return false
-      }
+      const offset = this.bot.entity.position.minus(entryTarget).plus(this.bot.entity.position);
+      await this.lookAt(offset);
+      this.bot.setControlState('back', true);
     }
 
-    if (!this.settings.allowJumpSprint) return false
-    if (!this.bot.entity.onGround) return false
-    if (this.toBreakLen() > 0 || this.toPlaceLen() > 0) return false
+    return this.isInitAligned(move, entryTarget);
+  }
 
-    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
-    if (xzVel.norm() < 0.14) return false
+  override async performInit(move: Move): Promise<void> {
+    this.bot.clearControlStates();
+    this.hadPlacements = move.toPlace.length > 0;
 
-    // console.log("hey");
-    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
+    const faceForward = await this.shouldFaceForward();
+    const lookTarget = faceForward
+      ? undefined
+      : this.bot.entity.position.minus(move.exitPos).plus(this.bot.entity.position);
+
+    await this.postInitAlignToPath(move, lookTarget ? { lookAt: lookTarget } : undefined);
+  }
+
+  private isInWater(): boolean {
+    const inWater = (this.bot.entity as any).isInWater;
+    const aboveLiquid = !this.bot.entity.onGround && this.getBlockInfo(this.bot.entity.position, 0, -0.6, 0).liquid;
+    return Boolean(inWater || aboveLiquid);
+  }
+
+  private canJump(move: Move, index: number, path: Move[]): boolean {
+    if (this.isInWater()) {
+      return this.bot.entity.position.y < move.exitPos.y;
+    }
+    if (!this.settings.allowJumpSprint || !this.bot.entity.onGround) return false;
+    if (this.toBreakLen() || this.toPlaceLen()) return false;
+
+    const horizVel = this.bot.entity.velocity.clone().offset(0, -this.bot.entity.velocity.y, 0);
+    if (horizVel.norm() < 0.14) return false;
+
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
     this.sim.simulateUntil(
       (state, ticks) => (ticks > 0 && state.onGround) || state.isCollidedHorizontally,
       () => {},
-      (state) => {
-        state.control.set('jump', true)
-      },
+      state => state.control.set('jump', true),
       ctx,
       this.world,
       20
-    )
+    );
 
-    if (ctx.state.pos.y > thisMove.entryPos.y) return false
+    if (ctx.state.pos.y > move.entryPos.y) return false;
 
-    const nextPos = path[++currentIndex]
-    let offset = 0.4
-    if (currentIndex < path.length) {
-      if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8
+    const next = path[index + 1];
+    const needsOffset = next && (next.toPlace.length || next.toBreak.length || next.exitPos.y > move.entryPos.y + 2);
+    const offsetLimit = needsOffset ? 0.8 : 0.4;
 
-      // handle potential collisions here.
-      if (nextPos.exitPos.y > thisMove.entryPos.y) {
-        offset = 0.8
-      }
-
-      if (nextPos.exitPos.y - thisMove.entryPos.y > 2) {
-        offset = 0.8
-      }
-    }
-
-    if (thisMove.entryPos.xzDistanceTo(ctx.state.pos) > thisMove.entryPos.xzDistanceTo(thisMove.exitPos) - offset) {
-      return false
-    }
-
-    if (ctx.state.isCollidedHorizontally) return false
-    return ctx.state.onGround
+    const distAfterJump = move.entryPos.xzDistanceTo(ctx.state.pos);
+    const distBeforeJump = move.entryPos.xzDistanceTo(move.exitPos);
+    if (distAfterJump > distBeforeJump - offsetLimit) return false;
+    return ctx.state.onGround && !ctx.state.isCollidedHorizontally;
   }
 
-  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
-    if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
-      return false
-    } else if (this.cI == null) {
-      const test = await this.interactNeeded(5)
-      if (test != null) {
-        // console.log('performing interaction')
+  override async performPerTick(move: Move, tick: number, index: number, path: Move[]): Promise<boolean | number> {
+    const ci = this.cI;
+    if (ci && !(await ci.allowExternalInfluence(this.bot))) return false;
 
+    if (!ci) {
+      // if (this.settings.bridgeOptions.humanistic)
+      // this.bot.setControlState('sneak', true);
+      const interaction = await this.interactNeeded(3)
+      // if (this.settings.bridgeOptions.humanistic)
+      // this.bot.setControlState('sneak', false);
+
+      if (interaction) {
+        const {info, handler} = interaction;
         if (this.settings.bridgeOptions.sneakPreplacement) {
-          this.bot.setControlState('sneak', true)
-          void this.performInteraction(test, {predictBlock: false}).then(() => this.bot.setControlState('sneak', false))
+          this.bot.setControlState('sneak', true);
+          this.performInteraction(handler, { info, predictBlock: false}).finally(() => this.bot.setControlState('sneak', false));
         } else {
-          void this.performInteraction(test)
+          this.performInteraction(handler, {info});
         }
-
-        return false
+        return false;
       }
     }
 
-    // if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
-
-    if (
-      (!this.bot.entity.onGround &&
-        !this.bot.getControlState('jump') &&
-        !this.doWaterLogic() &&
-        this.canJump(thisMove, currentIndex, path)) ||
-      this.bot.entity.position.y < Math.round(thisMove.entryPos.y) - 1
-    ) {
-      // console.log(this.bot.entity.position, thisMove.entryPos)
-      throw new CancelError('ForwardMove: not on ground')
+    if (!this.bot.entity.onGround && !this.bot.getControlState('jump') && !this.isInWater() && this.canJump(move, index, path)
+        || this.bot.entity.position.y < Math.round(move.entryPos.y) - 1) {
+      throw new CancelError('ForwardMove: not on ground');
     }
 
-    const faceForward = await this.faceForward()
-
+    const faceForward = await this.shouldFaceForward();
     if (faceForward) {
-      const jump = this.canJump(thisMove, currentIndex, path)
-      this.bot.setControlState('jump', jump)
-      void this.postInitAlignToPath(thisMove)
-      return this.isComplete(thisMove)
-    } else {
-      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
-      void this.postInitAlignToPath(thisMove, { lookAt: offset })
-      return this.isComplete(thisMove)
+      this.bot.setControlState('jump', this.canJump(move, index, path));
+      void this.postInitAlignToPath(move);
+      return this.isComplete(move);
     }
+
+    const offset = this.bot.entity.position.minus(move.exitPos).plus(this.bot.entity.position);
+    void this.postInitAlignToPath(move, { lookAt: offset });
+    return this.isComplete(move);
   }
 }
+
 
 export class ForwardExecutor extends MovementExecutor {
   private currentIndex!: number
@@ -478,7 +423,7 @@ export class ForwardExecutor extends MovementExecutor {
       // const start = performance.now()
       const test = await this.interactNeeded(15)
       if (test != null) {
-        void this.performInteraction(test)
+        void this.performInteraction(test.handler, { info: test.info })
         return false
       }
     }
@@ -701,7 +646,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
     } else if (this.cI == null) {
       const test = await this.interactNeeded()
       if (test != null) {
-        void this.performInteraction(test)
+        void this.performInteraction(test.handler, { info: test.info })
         return false
       }
     }
@@ -817,7 +762,7 @@ export class ForwardDropDownExecutor extends MovementExecutor {
     } else if (this.cI == null) {
       const test = await this.interactNeeded()
       if (test != null) {
-        void this.performInteraction(test)
+        void this.performInteraction(test.handler, { info: test.info })
         return false
       }
     }

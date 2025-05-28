@@ -4,9 +4,8 @@ import { Bot } from 'mineflayer'
 import { LRUCache } from 'lru-cache'
 
 import interactables from './interactable'
-import { Block, BlockType, MCData } from '../../types'
+import { Block, BlockType, MCData, RayType } from '../../types'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
-import { RayType } from '../movements/interactionUtils'
 import { Movement } from '../movements'
 import { fasterGetBlock } from './utils'
 

@@ -4,7 +4,7 @@ import { PathfinderOptions, ThePathfinder } from './ThePathfinder'
 import { Vec3 } from 'vec3'
 
 import utilPlugin from '@nxg-org/mineflayer-util-plugin'
-import physicsUtil, { initSetup } from '@nxg-org/mineflayer-physics-util'
+import physicsUtil, { EPhysicsCtx, PlayerState, initSetup } from '@nxg-org/mineflayer-physics-util'
 
 import { Block, PlaceBlockOptions, ResetReason } from './types'
 import { PathingUtil } from './PathingUtil'
@@ -27,6 +27,11 @@ export function createPlugin (opts?: {
     initSetup(bot.registry)
     bot.pathfinder = new ThePathfinder(bot, opts)
     bot.pathingUtil = new PathingUtil(bot)
+    bot.ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
+
+    bot.on('physicsTick', () => {
+      bot.ectx.state.update(bot)
+    })
   }
 }
 
@@ -34,6 +39,7 @@ declare module 'mineflayer' {
   interface Bot {
     pathfinder: ThePathfinder
     pathingUtil: PathingUtil
+    ectx: EPhysicsCtx<PlayerState>
 
     _placeBlockWithOptions: (referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions) => Promise<void>
   }

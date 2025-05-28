@@ -54,6 +54,8 @@ bot.once("spawn", async () => {
   bot.loadPlugin(loader);
 
   (bot.physics as any).autojumpCooldown = 0;
+  bot.physics.yawSpeed = 50;
+  (bot.physics as any).pitchSpeed = 50;
 
   const rlline = rl.createInterface({
     input: process.stdin,
@@ -105,7 +107,7 @@ async function cmdHandler(username: string, msg: string) {
         return;
       }
 
-      const goal = GoalBlock.fromVec(player.entity.position)
+      const goal = GoalBlock.fromVec(player.entity.position.offset(0,1,0))
       bot.whisper(username, `Coming to you ${username}`);
       await bot.pathfinder.goto(goal);
       bot.whisper(username, `Arrived, ${username}`);

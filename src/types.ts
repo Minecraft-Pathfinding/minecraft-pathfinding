@@ -1,7 +1,9 @@
+import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
 import { PathfinderOptions } from './ThePathfinder'
 import { MovementOptions, MovementSetup } from './mineflayer-specific/movements'
 import { OptimizationSetup } from './mineflayer-specific/post'
 import { World } from './mineflayer-specific/world/worldInterface'
+import { Vec3 } from 'vec3'
 
 export interface Vec3Properties {
   x: number
@@ -35,8 +37,24 @@ export interface PlaceBlockOptions {
   showHand?: boolean
 }
 
+export type RayType = {
+  intersect: Vec3
+  face: BlockFace
+} & Block
+
+
 export interface InteractionPerformInfo {
-  raycasts: any[]
   ticks: number
+  tickAllowance: number
   shiftTick: number
+  raycasts: RayType[]
+}
+
+
+export interface InteractOpts {
+  info?: InteractionPerformInfo
+  returnToStart?: boolean
+  returnToPos?: Vec3
+  predictBlock?: boolean
+  // precrouch?: boolean
 }
