@@ -16,7 +16,8 @@ const bot = createBot({
   version: '1.19.4',
 
   // host: "node2.endelon-hosting.de", port: 5000
-  host: 'grim.mcraft.fun',
+  host: 'de-fsn1.altare.cv',
+  port:25377,
   // port: 44656
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,

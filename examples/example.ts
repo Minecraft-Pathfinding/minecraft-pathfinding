@@ -11,8 +11,10 @@ const bot = createBot({ username: "testing1", auth: "offline",
 // host: "Ic3TankD2HO.aternos.me", 
 // port: 44656 
 
-host: "localhost",
-port: 25565
+// host: "localhost",
+// port: 25565
+host: 'de-fsn1.altare.cv',
+  port:25377,
 });
 const pathfinder = createPlugin();
 
