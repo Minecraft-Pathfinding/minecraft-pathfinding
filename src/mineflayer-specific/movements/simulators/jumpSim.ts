@@ -1,5 +1,5 @@
 import { EntityPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
-import { EntityState, IEntityState, PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
+import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { Vec3 } from 'vec3'
 import { World } from '../../world/worldInterface'
@@ -245,5 +245,4 @@ export class JumpSim extends BaseSimulator<PlayerState> {
       }
     }
   }
-
 }

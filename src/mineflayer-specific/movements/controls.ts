@@ -1,4 +1,4 @@
-import { EntityState, IEntityState } from '@nxg-org/mineflayer-physics-util'
+import { IEntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 

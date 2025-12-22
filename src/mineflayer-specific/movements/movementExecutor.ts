@@ -1,4 +1,4 @@
-import { Bot, Player } from 'mineflayer'
+import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import * as goals from '../goals'
@@ -7,7 +7,7 @@ import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } fr
 import { AbortError, CancelError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
-import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, EntityState, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, Controller, EPhysicsCtx, EntityPhysics, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
 import { getNormalizedPos } from '../../utils'
 

@@ -3,7 +3,6 @@ import {
   ControlStateHandler,
   EPhysicsCtx,
   EntityPhysics,
-  EntityState,
   IEntityState,
   PlayerState,
   SimulationGoal
