@@ -17,7 +17,7 @@
     "lint": "ts-standard -y --fix"
   },
   "dependencies": {
-    "@nxg-org/mineflayer-physics-util": "1.5.8",
+    "@nxg-org/mineflayer-physics-util": "^1.8.14",
     "@nxg-org/mineflayer-util-plugin": "^1.8.3",
     "lru-cache": "^10.1.0"
   },

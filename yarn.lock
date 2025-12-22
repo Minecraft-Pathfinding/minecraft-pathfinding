@@ -89,16 +89,15 @@
     fastq "^1.6.0"
 
 "@nxg-org/mineflayer-pathfinder@file:.":
-  version "0.0.24"
+  version "0.0.25"
   dependencies:
-    "@nxg-org/mineflayer-physics-util" "1.5.8"
     "@nxg-org/mineflayer-util-plugin" "^1.8.3"
     lru-cache "^10.1.0"
 
-"@nxg-org/mineflayer-physics-util@1.5.8":
-  version "1.5.8"
-  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.5.8.tgz#f57ad00d1591cb8abf8fe6c4a541333b481bd491"
-  integrity sha512-KmCkAqpUo8BbuRdIBs6+V2hWHehz++PRz3lRwIsb47CuG0u4sgLYh37RY3ifAznC6uWvmPK+q3B4ZXwJzPy1MQ==
+"@nxg-org/mineflayer-physics-util@^1.8.14":
+  version "1.8.14"
+  resolved "https://registry.yarnpkg.com/@nxg-org/mineflayer-physics-util/-/mineflayer-physics-util-1.8.14.tgz#21a6c52500ece88ff15cdaa9c72d5b81af0b1937"
+  integrity sha512-8G4r78PQt+v31nRCiy4qaWgcyDcLLHY+We5gqt9z4JNAFtszOOul64mMFsDDvzV+zMFCJr53rwf0kviaPAln1Q==
   dependencies:
     "@nxg-org/mineflayer-util-plugin" "^1.8.2"
 
