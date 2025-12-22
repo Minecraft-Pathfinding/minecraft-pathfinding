@@ -450,8 +450,8 @@ export class PlaceHandler extends InteractHandler {
 
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
-          if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getAABB().intersects(pos1Bl)) {
-            // console.log("skipping on tick", i, state.getAABB(), state.pos, pos1Bl);
+          if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getBB().intersects(pos1Bl)) {
+            // console.log("skipping on tick", i, state.getBB(), state.pos, pos1Bl);
             if (i < works.ticks - 1 && works.ticks !== 0) {
               await bot.waitForTicks(1)
             }

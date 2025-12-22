@@ -1,4 +1,4 @@
-import { EntityState } from '@nxg-org/mineflayer-physics-util'
+import { EntityState, IEntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
@@ -128,7 +128,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
  * @returns
  */
 // currentPoint: Vec3
-export function strafeMovement (ctx: EntityState, nextPoint: Vec3): void {
+export function strafeMovement (ctx: IEntityState, nextPoint: Vec3): void {
   // const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
   // ctx.pos.distanceTo(nextPoint) < 0.3
@@ -194,7 +194,7 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
  * @returns
  */
 // currentPoint,
-export function smartMovement (ctx: EntityState, nextPoint: Vec3, sprint = true): void {
+export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true): void {
   // console.log('hey!')
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 

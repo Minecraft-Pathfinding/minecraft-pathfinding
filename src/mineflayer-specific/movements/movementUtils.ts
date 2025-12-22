@@ -4,6 +4,8 @@ import {
   EPhysicsCtx,
   EntityPhysics,
   EntityState,
+  IEntityState,
+  PlayerState,
   SimulationGoal
 } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
@@ -20,7 +22,7 @@ interface JumpInfo {
   backTick: number
 }
 
-export function stateLookAt (state: EntityState, point: Vec3): void {
+export function stateLookAt (state: IEntityState, point: Vec3): void {
   const delta = point.minus(state.pos.offset(0, state.height - 0.18, 0))
   const yaw = Math.atan2(-delta.x, -delta.z)
   const groundDistance = Math.sqrt(delta.x * delta.x + delta.z * delta.z)
@@ -109,12 +111,12 @@ export function leavingBlockLevel (bot: Bot, world: World, ticks = 1, ectx?: EPh
 }
 
 export class JumpCalculator {
-  readonly engine: BaseSimulator
+  readonly engine: BaseSimulator<PlayerState>
   readonly bot: Bot
-  ctx: EPhysicsCtx
+  ctx: EPhysicsCtx<PlayerState>
   readonly world: World
 
-  constructor (sim: BaseSimulator, bot: Bot, world: World, ctx: EPhysicsCtx) {
+  constructor (sim: BaseSimulator<PlayerState>, bot: Bot, world: World, ctx: EPhysicsCtx<PlayerState>) {
     this.engine = sim
     this.bot = bot
     this.ctx = ctx
@@ -166,7 +168,7 @@ export class JumpCalculator {
     return null
   }
 
-  protected resetState (): EntityState {
+  protected resetState (): PlayerState {
     this.ctx = EPhysicsCtx.FROM_BOT(this.engine.ctx, this.bot)
     this.ctx.state.age = 0
     this.ctx.state.control = ControlStateHandler.DEFAULT()
@@ -214,7 +216,7 @@ export class JumpCalculator {
     return false
   }
 
-  protected simJump (state: EntityState, maxTicks = 20): EntityState {
+  protected simJump (state: PlayerState, maxTicks = 20): PlayerState {
     state.control.set('forward', true)
     state.control.set('jump', true)
     state.control.set('sprint', true)
@@ -230,7 +232,7 @@ export class JumpCalculator {
   }
 
   protected simJumpAdvanced (
-    state: EntityState,
+    state: PlayerState,
     goal: Vec3,
     opts: {
       firstTicks?: number
@@ -239,7 +241,7 @@ export class JumpCalculator {
       sprintAfterJump?: boolean
       maxTicks?: number
     } = {}
-  ): EntityState {
+  ): PlayerState {
     // goddamnit ts-standard.
     const { firstTicks, secondTicks, backTicks, sprintAfterJump, maxTicks } = opts
     const ft = firstTicks ?? 0
