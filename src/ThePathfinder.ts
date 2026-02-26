@@ -130,7 +130,7 @@ export class ThePathfinder {
   defaultMoveSettings: MovementOptions
   pathfinderSettings: PathfinderOptions
 
-  private readonly currentIndex = 0
+  private currentIndex = 0
   private executeTask: Task<void, void> = Task.createDoneTask()
   private wantedGoal?: goals.Goal
   public abortCalculation = false
@@ -551,7 +551,7 @@ export class ThePathfinder {
     await this.cleanupAll(goal)
   }
 
-  /**
+ /**
    * Internal call.
    */
   private async _goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
@@ -571,7 +571,6 @@ export class ThePathfinder {
               void this.cancel()
             },
             forAll: () => {
-              // console.log('cleaned up')
               resolve()
             }
           })
@@ -584,7 +583,6 @@ export class ThePathfinder {
       do {
         setupWait()
 
-        // console.log('reset I believe', doForever)
         let task: Promise<void> | null = null
         let res1: OptPath | null = null
 
@@ -596,37 +594,61 @@ export class ThePathfinder {
             }
 
             if (res.result.status === 'partialSuccess') {
-              // could potentially introduce a bug of movement count not matching entirely.
-              // Keep a lookout for that.
               if (res1 === null) {
-                const newPath = await this.postProcess(res.result)
-                res1 = newPath
+                res1 = await this.postProcess(res.result)
+                task = this.perform(res1, goal).then(() => {
+                  task = null
+                  res1 = null
+                })
               } else {
+                // Splicing UNOPTIMIZED paths in place
                 res1.path.length = res.result.path.length
                 for (let i = 0; i < res.result.path.length; i++) {
                   res1.path[i] = res.result.path[i]
                 }
-                res1 = await this.postProcess(res1)
-              }
-              if (task === null) {
-                // technically, perform should keep track of the current index. So this *should* be fine.
-                task = this.perform(res1, goal).then(() => {
-                  task = null
-                  res1 = null
-                  // console.log('cleared task!')
-                })
+                
+                // Re-optimize only the remaining unoptimized path from the end of the executing move
+                let sliceIdx = this.currentIndex
+                if (this.currentMove) {
+                  const endIdx = res1.path.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(this.currentMove!.exitPos))
+                  if (endIdx !== -1) {
+                    sliceIdx = endIdx + 1
+                  }
+                }
+                
+                const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+                optimizer.loadPath(res1.path.slice(sliceIdx))
+                const resOpt = await optimizer.compute()
+                
+                // Replace the optimized array. The perform loop dynamically picks up the next correct entryPos.
+                res1.optPath = resOpt
               }
             }
           } else {
-            const newPath = await this.postProcess(res.result)
             if (task === null) {
+              const newPath = await this.postProcess(res.result)
               await this.perform(newPath, goal)
             } else {
-              const res2 = res1 as Path
-              res2.path.length = newPath.path.length
-              for (let i = 0; i < newPath.path.length; i++) {
-                res2.path[i] = newPath.path[i]
+              // Splicing final unoptimized path
+              const res2 = res1 as OptPath
+              res2.path.length = res.result.path.length
+              for (let i = 0; i < res.result.path.length; i++) {
+                res2.path[i] = res.result.path[i]
               }
+              
+              let sliceIdx = this.currentIndex
+              if (this.currentMove) {
+                const endIdx = res2.path.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(this.currentMove!.exitPos))
+                if (endIdx !== -1) {
+                  sliceIdx = endIdx + 1
+                }
+              }
+              
+              const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+              optimizer.loadPath(res2.path.slice(sliceIdx))
+              const resOpt = await optimizer.compute()
+              res2.optPath = resOpt
+
               await task
               task = null
             }
@@ -640,7 +662,6 @@ export class ThePathfinder {
             }
 
             if (this.resetReason == null) {
-              // console.log('finished!', this.bot.entity.position, this.bot.listeners('entityMoved'), this.bot.listeners('entityGone'))
               await this.cleanupBot()
               manualCleanup()
               setupWait()
@@ -649,12 +670,11 @@ export class ThePathfinder {
               break
             }
 
-            // console.log('resetting!', this.resetReason, this.abortCalculation, this.userAborted)
             await this.cleanupBot()
             manualCleanup()
           }
         }
-      } while (!this.userAborted && !madeIt)
+      } while (!this.userAborted && madeIt === false)
 
       await this.cleanupBot()
       if (doForever) {
@@ -662,8 +682,142 @@ export class ThePathfinder {
           await toWaitOn
         }
       }
-      // eslint-disable-next-line no-unmodified-loop-condition
     } while (doForever && !this.userAborted)
+  }
+
+  /**
+   * Performs the generated path while strictly tracking indexing via the unoptimized path. 
+   */
+  async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
+    if (entry > 10) throw new Error('Too many failures, exiting performing.')
+
+    this.currentIndex = 0
+    this.curPath = path.path
+    const movementHandler = path.context.movementProvider as MovementHandler
+    const movements = movementHandler.getMovements()
+
+    while (this.currentIndex < this.curPath.length) {
+      const pathEx = Object.hasOwnProperty.call(path, 'optPath') ? (path as OptPath).optPath : path.path
+      
+      // Select the optimized move matching the start of our current unoptimized move segment
+      let move = pathEx.find(m => m.entryPos.equals(this.curPath![this.currentIndex].entryPos))
+      if (!move) {
+        move = this.curPath[this.currentIndex] // Fallback to unoptimized
+      }
+
+      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
+      if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
+
+      this.currentMove = move
+      this.currentExecutor = executor
+
+      let tickCount = 0
+
+      await this.cleanupBot()
+
+      executor.loadMove(move)
+
+      if (executor.isAlreadyCompleted(move, tickCount, goal)) {
+        const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
+        if (endIdx !== -1) {
+          this.currentIndex = endIdx + 1
+        } else {
+          this.currentIndex++
+        }
+        continue
+      }
+
+      try {
+        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
+          this.check()
+          await this.bot.waitForTicks(1)
+        }
+
+        tickCount = 0
+
+        await executor._performInit(move, this.currentIndex, this.curPath)
+
+        this.check()
+        let adding = await executor._performPerTick(move, tickCount++, this.currentIndex, this.curPath)
+
+        while (!(adding as boolean) && tickCount < 999) {
+          this.check()
+          await this.bot.waitForTicks(1)
+          adding = await executor._performPerTick(move, tickCount++, this.currentIndex, this.curPath)
+        }
+
+        // Accurately jump currentIndex to the end of the unoptimized move segments this execution consumed
+        const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
+        if (endIdx !== -1) {
+          this.currentIndex = endIdx + 1
+        } else {
+          this.currentIndex += adding as number
+        }
+      } catch (err) {
+        if (err instanceof AbortError) {
+          executor.reset()
+          delete this.resetReason
+          break
+        } else if (err instanceof ResetError) {
+          executor.reset()
+          break
+        } else if (err instanceof CancelError) {
+          await this.recovery(move, path as Path, goal, entry)
+          break
+        } else throw err
+      }
+    }
+
+    await this.cleanupBot()
+  }
+
+  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    this.bot.emit('enteredRecovery', entry)
+    await this.cleanupBot()
+    this.cleanupClient()
+
+    // Using `findIndex` mapping `entryPos` fixes a bug where indexOf evaluates to -1 due to an optimized Move object mapping.
+    const ind = path.path.findIndex(m => m.entryPos.equals(move.entryPos))
+    if (ind === -1) {
+      return // done
+    }
+
+    let newGoal
+
+    const pos = this.bot.entity.position
+    let bad = false
+    // Destructured array copy avoids mutating `path.path` with `.sort()`
+    let nextMove = [...path.path].sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
+    if (nextMove == null || path.path.indexOf(nextMove) < ind) {
+      bad = true
+    } else if (path.path.indexOf(nextMove) === ind) {
+      nextMove = path.path[ind + 1]
+    }
+
+    const no = entry > 5 || bad
+    if (no || nextMove == null) {
+      newGoal = goal
+    } else {
+      newGoal = goals.GoalBlock.fromVec(nextMove.vec)
+    }
+
+    let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
+
+    if (path1 === null) {
+      this.bot.emit('exitedRecovery', entry)
+    } else if (no) {
+      const optPath1 = await this.postProcess(path1)
+
+      this.bot.emit('exitedRecovery', entry)
+      await this.perform(optPath1, goal, entry + 1)
+    } else {
+      const optPath1 = await this.postProcess(path1)
+      await this.perform(optPath1, newGoal, entry + 1)
+      path.path.splice(0, ind + 1)
+
+      this.bot.emit('exitedRecovery', entry)
+      await this.perform(path, goal, 0)
+    }
   }
 
   private async postProcess (pathInfo: Path): Promise<OptPath> {
@@ -685,163 +839,6 @@ export class ThePathfinder {
 
     if (this.resetReason != null) {
       throw new ResetError(this.resetReason)
-    }
-  }
-
-  /**
-   * Do not mind the absolutely horrendous code here right now.
-   * It will be fixed, just very busy right now.
-   * @param path
-   * @param goal
-   * @param entry
-   */
-  async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
-    if (entry > 10) throw new Error('Too many failures, exiting performing.')
-
-    // console.log('ENTER PERFORM')
-    let currentIndex = 0
-    const movementHandler = path.context.movementProvider as MovementHandler
-    const movements = movementHandler.getMovements()
-
-    const pathEx = Object.hasOwnProperty.call(path, 'optPath') ? (path as OptPath).optPath : path.path
-
-    while (currentIndex < pathEx.length) {
-      const move = pathEx[currentIndex]
-      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
-      if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
-
-      this.curPath = pathEx
-      this.currentMove = move
-      this.currentExecutor = executor
-
-      let tickCount = 0
-
-      // TODO: could move this to physicsTick to be performant, but meh who cares.
-
-      // reset bot.
-      await this.cleanupBot()
-
-      // provide current move to executor as a reference.
-      executor.loadMove(move)
-
-      // if the movement has already been completed (another movement has already completed it), skip it.
-      if (executor.isAlreadyCompleted(move, tickCount, goal)) {
-        // console.log('skipping', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
-
-        currentIndex++
-        continue
-      }
-
-      // console.log('performing', move.moveType.constructor.name, 'at index', currentIndex + 1, 'of', path.path.length)
-      // console.log(
-      //   'toPlace',
-      //   move.toPlace.map((p) => p.vec),
-      //   'toBreak',
-      //   move.toBreak.map((b) => b.vec),
-      //   'entryPos',
-      //   move.entryPos,
-      //   'asVec',
-      //   move.vec,
-      //   'exitPos',
-      //   move.exitPos
-      // )
-
-      // wrap this code in a try-catch as we intentionally throw errors.
-      try {
-        while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
-          this.check()
-          await this.bot.waitForTicks(1)
-        }
-
-        tickCount = 0
-
-        // allow the initial execution of this code.
-        await executor._performInit(move, currentIndex, path.path)
-
-        this.check()
-        let adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
-
-        while (!(adding as boolean) && tickCount < 999) {
-          this.check()
-          await this.bot.waitForTicks(1)
-          adding = await executor._performPerTick(move, tickCount++, currentIndex, path.path)
-        }
-
-        currentIndex += adding as number
-        // console.log('done with move', move.exitPos, this.bot.entity.position, this.bot.entity.position.distanceTo(move.exitPos))
-      } catch (err) {
-        // immediately exit since we want to abort the entire path.
-        if (err instanceof AbortError) {
-          executor.reset()
-          // await this.cleanupBot()
-          delete this.resetReason
-          break
-        } else if (err instanceof ResetError) {
-          executor.reset()
-          // await this.cleanupBot()
-          break
-        } else if (err instanceof CancelError) {
-          // console.log('canceled')
-          // await this.cleanupBot()
-          // allow recovery if movement intentionall canceled.
-          await this.recovery(move, path, goal, entry)
-          break
-        } else throw err
-      }
-    }
-
-    await this.cleanupBot()
-    // console.log('FINISHED PERFORM')
-  }
-
-  // TODO: implement recovery for any movement and goal.
-  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    this.bot.emit('enteredRecovery', entry)
-    await this.cleanupBot()
-    this.cleanupClient()
-
-    const ind = path.path.indexOf(move)
-    if (ind === -1) {
-      return // done
-    }
-
-    let newGoal
-
-    const pos = this.bot.entity.position
-    let bad = false
-    let nextMove = path.path.sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
-    if (nextMove == null || path.path.indexOf(nextMove) < ind) {
-      bad = true
-    } else if (path.path.indexOf(nextMove) === ind) {
-      nextMove = path.path[ind + 1]
-    }
-
-    const no = entry > 5 || bad
-    if (no || nextMove == null) {
-      newGoal = goal
-    } else {
-      newGoal = goals.GoalBlock.fromVec(nextMove.vec)
-    }
-
-    let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
-
-    if (path1 === null) {
-      // done
-      this.bot.emit('exitedRecovery', entry)
-    } else if (no) {
-      path1 = await this.postProcess(path1)
-
-      // execution of past recoveries failed or not easily saveable, so full recovery needed.
-      this.bot.emit('exitedRecovery', entry)
-      await this.perform(path1, goal, entry + 1)
-    } else {
-      path1 = await this.postProcess(path1)
-      // attempt recovery to nearby node.
-      await this.perform(path1, newGoal, entry + 1)
-      path.path.splice(0, ind + 1)
-
-      this.bot.emit('exitedRecovery', entry)
-      await this.perform(path, goal, 0)
     }
   }
 

@@ -13,7 +13,7 @@ const bot = createBot({
   auth: "offline",
   // host: 'it-mil-1.halex.gg',
   // port: 25046
-  version: '1.21.1',
+  version: '1.21.4',
 
   // host: "node2.endelon-hosting.de", port: 5000
   host: 'localhost',
@@ -44,8 +44,8 @@ bot.on("inject_allowed", () => {});
 bot.once('login', () => {
   console.info('Bot logged in');
 });
-bot.on('messagestr', (message) => {
-  console.info('Chat:', message);
+bot.on('messagestr', (message, position, jsonMsg) => {
+  console.info('Chat:', message, position, jsonMsg.json["with"][1][""]);
 })
 bot.on('actionBar', (message) => {
   console.info('Action bar:', message);
@@ -76,10 +76,12 @@ bot.once("spawn", async () => {
 });
 
 
-async function cmdHandler(username, msg) {
+async function cmdHandler(username, msg, jsonMsg) {
   if (username === bot.username) return;
 
-  const [cmd1, ...args] = msg.split(" ");
+  let msgStr = !!msg ? msg : jsonMsg.json["with"][1][""];
+
+  const [cmd1, ...args] = msgStr.split(" ");
 
   const cmd = cmd1.toLowerCase().replace(prefix, "");
 
@@ -110,17 +112,28 @@ async function cmdHandler(username, msg) {
    
       break;
     }
+
+    case "come": {
+      const player = bot.players[username];
+      if (!player || !player.entity) {
+        
+        return bot.whisper(username, "I don't see you");
+      }
+      const pos = player.entity;
+      await bot.pathfinder.goto(GoalBlock.fromBlock(pos));
+      break;
+    }
   }
 }
 
 const prefix = "!";
-bot.on("chat", async (username, msg) => {
-  await cmdHandler(username, msg);
+bot.on("chat", async (username, msg, translate, jsonMsg) => {
+  await cmdHandler(username, msg, jsonMsg);
 });
 
 bot.on("messagestr", async (msg, pos, jsonMsg) => {
   const username = bot.nearestEntity((e) => e.type === "player" && e !== bot.entity)?.username ?? "unknown";
-  await cmdHandler(username, msg);
+  await cmdHandler(username, msg, jsonMsg);
 });
 
 bot.on('error', (err) => {
