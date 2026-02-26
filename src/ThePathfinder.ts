@@ -46,6 +46,10 @@ import { reconstructPath } from './abstract/algorithms'
 import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 
+const debug = require("debug")
+
+const log = debug('minecraft-pathfinding')
+
 export interface PathfinderOptions {
   partialPathProducer: boolean
   partialPathLength: number
@@ -58,9 +62,6 @@ const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
 
 const EMPTY_VEC = new Vec3(0, 0, 0)
 
-/**
- * These are the default movement types and their respective executors.
- */
 const DEFAULT_PROVIDER_EXECUTORS = [
   [Forward, NewForwardExecutor],
   [ForwardJump, NewForwardJumpExecutor],
@@ -71,23 +72,8 @@ const DEFAULT_PROVIDER_EXECUTORS = [
   [ParkourForward, ParkourForwardExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
-/**
- * Due to locality caching of blocks being implemented,
- * We want the most complicated movements to be called first,
- * as they load more blocks.
- *
- * Human logic keeps simple at front, complicated at back,
- * So for simplicity I reverse the array.
- */
 DEFAULT_PROVIDER_EXECUTORS.reverse()
 
-/**
- * This is the default optimization setup.
- *
- * Optimizers are used to optimize the path produced by the A* algorithm.
- *
- * They can reveal patterns at calculation time otherwise not noticeable at execution time.
- */
 const DEFAULT_OPTIMIZERS = [
   [Forward, LandStraightAheadOpt],
   [Diagonal, LandStraightAheadOpt],
@@ -96,10 +82,8 @@ const DEFAULT_OPTIMIZERS = [
 ] as Array<[BuildableMoveProvider, BuildableOptimizer]>
 
 const DEFAULT_SETUP = new Map(DEFAULT_PROVIDER_EXECUTORS)
-
 const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
 
-// Temp typing.
 type PathInfo = Path
 type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult | null, unknown>
 interface PathGeneratorResult {
@@ -112,16 +96,6 @@ interface PerformOpts {
   errorOnAbort?: boolean
 }
 
-/**
- * Eventually, I want all pathfinder logic entirely off thread.
- *
- * This means that the pathfinder will be able to calculate paths while the bot is doing other things.
- *
- * However, this is not the case right now, as prismarine-world needs a rewrite
- * and eventually, this pathfinder code will too.
- *
- * That will be a while, but remember to code this with that in mind.
- */
 export class ThePathfinder {
   astar: AStar | null
   world: World
@@ -166,13 +140,11 @@ export class ThePathfinder {
     const optimizers = opts.optimizers ?? DEFAULT_OPTIMIZATION
     const moveSetup = opts.movements ?? DEFAULT_SETUP
 
-    // set up executors, map them to providers.
     const moves = new Map<BuildableMoveProvider, MovementExecutor>()
     for (const [providerType, ExecutorType] of moveSetup) {
       moves.set(providerType, new ExecutorType(bot, this.world, moveSettings))
     }
 
-    // set up optimizers, map them to providers.
     const opts2 = new Map<BuildableMoveProvider, MovementOptimizer>()
     for (const [providerType, ExecutorType] of optimizers) {
       opts2.set(providerType, new ExecutorType(bot, this.world))
@@ -184,9 +156,8 @@ export class ThePathfinder {
     this.astar = null
 
     this.setupListeners()
+    log('Pathfinder initialized.')
   }
-
-  // setters
 
   setExecutor (provider: BuildableMoveProvider, Executor: BuildableMoveExecutor | MovementExecutor): void {
     if (Executor instanceof MovementExecutor) {
@@ -217,29 +188,24 @@ export class ThePathfinder {
 
   dropMovment (provider: BuildableMoveProvider): void {
     this.movements.delete(provider)
-
-    // will keep in optimizers as that has no effect.
-    // this.optimizers.delete(provider);
   }
 
   dropAllMovements (): void {
     this.movements.clear()
   }
 
-  // util functions
-
   async cancel (): Promise<void> {
+    log('User canceled pathfinding.')
     this.userAborted = true
     await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true)
   }
 
   async interrupt (timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-    // console.log('INTERRUPT CALLED')
-    if (this._currentProducer == null) return console.log('no producer')
+    log('Interrupt called. Cancel Calculation: %s, Reason: %s', cancelCalculation, reasonStr)
+    if (this._currentProducer == null) return log('Interrupt ignored: no producer')
     this.abortCalculation = cancelCalculation
 
-    if (this.currentExecutor == null) return console.log('no executor')
-    // if (this.currentExecutor.aborted) return console.trace('already aborted')
+    if (this.currentExecutor == null) return log('Interrupt ignored: no executor')
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
     let reason
@@ -258,28 +224,22 @@ export class ThePathfinder {
     }
     this.resetReason = reasonStr
     await this.currentExecutor.abort(this.currentMove, { timeout, reason })
-
-    // calling cleanupAll is not necessary as the end of goto already calls it.
   }
 
   async reset (reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
+    log('Reset triggered due to: %s', reason)
     this.bot.emit('resetPath', reason)
     await this.interrupt(cancelTimeout, true, reason)
   }
 
-  // Listener setup
-
   setupListeners (): void {
-    // this can be done once.
     this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
       if (oldblock == null || newBlock == null) return
-
-      // TODO: sync to calculation phase as well. Not just execution time.
       if (this.curPath == null) return
-
-      if (this.updateMatchesWanted(newBlock)) return // ignore due to matching
+      if (this.updateMatchesWanted(newBlock)) return 
 
       if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
+        log('Block update near path detected, resetting...')
         void this.reset('blockUpdate')
       }
     })
@@ -295,6 +255,7 @@ export class ThePathfinder {
         astarContext.visitedChunks.has(`${cx + 1},${cz}`) ||
         astarContext.visitedChunks.has(`${cx},${cz + 1}`)
       ) {
+        log('Chunk column loaded near path, resetting...')
         void this.reset('chunkLoad')
       }
     })
@@ -314,7 +275,6 @@ export class ThePathfinder {
             case 'water':
               return BlockInfo.waters.has(block.type)
             case 'replaceable':
-              // should never happen.
               return BlockInfo.replaceables.has(block.type)
           }
         }
@@ -330,13 +290,7 @@ export class ThePathfinder {
     return false
   }
 
-  /**
-   * Gen here, I don't like this code. this is temporary.
-   * Taken from: https://github.com/PrismarineJS/mineflayer-pathfinder/blob/d69a02904bc83f4c36598ae90d470a009a130105/index.js#L237
-   */
   isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.curPath): boolean {
-    // console.log('pos:', pos, 'path:', path?.length)
-
     if (pos == null || path == null) return false
 
     for (let i = this.currentIndex; i < path.length; i++) {
@@ -349,7 +303,6 @@ export class ThePathfinder {
       const dy = Math.abs(comparisonPoint.y - pos.y - 0.5)
       const dz = Math.abs(comparisonPoint.z - pos.z - 0.5)
 
-      // console.log(comparisonPoint, dx, dy, dz, pos)
       if (dx <= 1 && dy <= 2 && dz <= 1) {
         return true
       }
@@ -357,8 +310,6 @@ export class ThePathfinder {
 
     return false
   }
-
-  // register all appropiate listeners for a dynamic goal.
 
   private registerAll (
     goal: goals.GoalDynamic,
@@ -376,8 +327,6 @@ export class ThePathfinder {
       for (const [key, val] of fuckEvent) {
         this.bot.off(key, val)
       }
-
-      // clear other listeners as well.
       for (const [key, val] of fuckValid) {
         this.bot.off(key, val)
       }
@@ -388,8 +337,6 @@ export class ThePathfinder {
       for (const [key, val] of fuckValid) {
         this.bot.off(key, val)
       }
-
-      // clear other listeners as well.
       for (const [key, val] of fuckEvent) {
         this.bot.off(key, val)
       }
@@ -401,7 +348,6 @@ export class ThePathfinder {
       for (const [key, val] of fuckValid) {
         this.bot.off(key, val)
       }
-
       for (const [key, val] of fuckEvent) {
         this.bot.off(key, val)
       }
@@ -425,13 +371,10 @@ export class ThePathfinder {
       fuckValid.push([key, listener1])
     }
 
-    // potential bug fixed with this.
     goal.cleanup = cleanup
 
     return cleanup
   }
-
-  // path getting utilities
 
   getPathTo (goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings)
@@ -442,6 +385,7 @@ export class ThePathfinder {
     delete this.resetReason
 
     startPos = getNormalizedPos(this.bot, startPos)
+    log('Generating path from %O', startPos)
 
     this.currentMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
@@ -451,7 +395,6 @@ export class ThePathfinder {
     )
     this.currentExecutor = new IdleMovementExecutor(this.bot, this.world, this.defaultMoveSettings)
 
-    // technically introducing a bug here, where resetting the pathingUtil fucks up.
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
@@ -480,9 +423,9 @@ export class ThePathfinder {
       if (result.status === 'success') {
         cleanup()
         this.bot.emit('pathGenerated', result)
-        // console.log('locality %', (MovementHandler.count / MovementHandler.totCount) * 100)
         MovementHandler.count = 0
         MovementHandler.totCount = 0
+        log('Path generation successful. Length: %d', result.path.length)
         yield { result, astarContext }
         return { result, astarContext }
       }
@@ -490,10 +433,12 @@ export class ThePathfinder {
       if (this.abortCalculation) {
         cleanup()
         result.status = 'canceled'
+        log('Path generation canceled.')
         yield { result, astarContext }
         return { result, astarContext }
       }
 
+      log('Path generation status: %s, Open Set Size: %d, Visited Nodes: %d', result.status, astarContext.openHeap.size(), astarContext.closedDataSet.size)
       yield { result, astarContext }
 
       if (!ticked) {
@@ -503,6 +448,7 @@ export class ThePathfinder {
     } while (result.status === 'partial' || result.status === 'partialSuccess')
 
     cleanup()
+    log('Path generation ended with status: %s', result.status)
     return {
       result,
       astarContext
@@ -520,11 +466,8 @@ export class ThePathfinder {
     return null
   }
 
-  /**
-   * @param {goals.Goal | null} goal
-   */
   async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
-    // console.log('GOTO CALLED')
+    log('goto called')
     if (goal == null) {
       await this.cancel()
       await this.executeTask.promise
@@ -533,7 +476,7 @@ export class ThePathfinder {
     }
 
     if (!this.executeTask.done) {
-      // console.log('cancelling others')
+      log('Canceling previous goto task to start new one.')
       this.wantedGoal = goal
       await this.cancel()
       await this.executeTask.promise
@@ -551,9 +494,6 @@ export class ThePathfinder {
     await this.cleanupAll(goal)
   }
 
- /**
-   * Internal call.
-   */
   private async _goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
 
@@ -589,6 +529,7 @@ export class ThePathfinder {
         for await (const res of this.getPathTo(goal)) {
           if (res.result.status !== 'success') {
             if (res.result.status === 'noPath' || res.result.status === 'timeout' || res.result.status === 'canceled') {
+              log('_goto path finding ended early: %s', res.result.status)
               if (task !== null && res1 !== null) res1.path.length = 0
               break
             }
@@ -601,13 +542,11 @@ export class ThePathfinder {
                   res1 = null
                 })
               } else {
-                // Splicing UNOPTIMIZED paths in place
                 res1.path.length = res.result.path.length
                 for (let i = 0; i < res.result.path.length; i++) {
                   res1.path[i] = res.result.path[i]
                 }
                 
-                // Re-optimize only the remaining unoptimized path from the end of the executing move
                 let sliceIdx = this.currentIndex
                 if (this.currentMove) {
                   const endIdx = res1.path.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(this.currentMove!.exitPos))
@@ -620,7 +559,6 @@ export class ThePathfinder {
                 optimizer.loadPath(res1.path.slice(sliceIdx))
                 const resOpt = await optimizer.compute()
                 
-                // Replace the optimized array. The perform loop dynamically picks up the next correct entryPos.
                 res1.optPath = resOpt
               }
             }
@@ -629,7 +567,6 @@ export class ThePathfinder {
               const newPath = await this.postProcess(res.result)
               await this.perform(newPath, goal)
             } else {
-              // Splicing final unoptimized path
               const res2 = res1 as OptPath
               res2.path.length = res.result.path.length
               for (let i = 0; i < res.result.path.length; i++) {
@@ -654,14 +591,17 @@ export class ThePathfinder {
             }
 
             if (performOpts.errorOnAbort != null && performOpts.errorOnAbort && this.abortCalculation) {
+              log('Goto aborted internally.')
               throw new Error('Goto: Goal was canceled.')
             }
 
             if (performOpts.errorOnReset != null && performOpts.errorOnReset && this.resetReason != null) {
+              log('Goto reset internally. Reason: %s', this.resetReason)
               throw new Error('Goto: Purposefully cancelled due to recalculation of path occurring.')
             }
 
             if (this.resetReason == null) {
+              log('Goto reached the goal!')
               await this.cleanupBot()
               manualCleanup()
               setupWait()
@@ -670,6 +610,7 @@ export class ThePathfinder {
               break
             }
 
+            log('Goto reset detected. Cleaning up and retrying...')
             await this.cleanupBot()
             manualCleanup()
           }
@@ -685,9 +626,6 @@ export class ThePathfinder {
     } while (doForever && !this.userAborted)
   }
 
-  /**
-   * Performs the generated path while strictly tracking indexing via the unoptimized path. 
-   */
   async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
@@ -696,13 +634,14 @@ export class ThePathfinder {
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
+    log('Perform started. Entry: %d, Path Length: %d', entry, this.curPath.length)
+
     while (this.currentIndex < this.curPath.length) {
       const pathEx = Object.hasOwnProperty.call(path, 'optPath') ? (path as OptPath).optPath : path.path
       
-      // Select the optimized move matching the start of our current unoptimized move segment
       let move = pathEx.find(m => m.entryPos.equals(this.curPath![this.currentIndex].entryPos))
       if (!move) {
-        move = this.curPath[this.currentIndex] // Fallback to unoptimized
+        move = this.curPath[this.currentIndex] 
       }
 
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
@@ -714,10 +653,10 @@ export class ThePathfinder {
       let tickCount = 0
 
       await this.cleanupBot()
-
       executor.loadMove(move)
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
+        log('Skipping move %s at index %d (already completed)', move.moveType.constructor.name, this.currentIndex)
         const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
         if (endIdx !== -1) {
           this.currentIndex = endIdx + 1
@@ -727,6 +666,8 @@ export class ThePathfinder {
         continue
       }
 
+      log('Executing move: %s at index %d', move.moveType.constructor.name, this.currentIndex)
+
       try {
         while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
           this.check()
@@ -734,7 +675,6 @@ export class ThePathfinder {
         }
 
         tickCount = 0
-
         await executor._performInit(move, this.currentIndex, this.curPath)
 
         this.check()
@@ -746,7 +686,8 @@ export class ThePathfinder {
           adding = await executor._performPerTick(move, tickCount++, this.currentIndex, this.curPath)
         }
 
-        // Accurately jump currentIndex to the end of the unoptimized move segments this execution consumed
+        log('Finished move: %s', move.moveType.constructor.name)
+
         const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
         if (endIdx !== -1) {
           this.currentIndex = endIdx + 1
@@ -754,39 +695,47 @@ export class ThePathfinder {
           this.currentIndex += adding as number
         }
       } catch (err) {
+        log('Exception caught during perform at index %d: %O', this.currentIndex, err)
         if (err instanceof AbortError) {
+          log('AbortError handled. Halting executor.')
           executor.reset()
           delete this.resetReason
           break
         } else if (err instanceof ResetError) {
+          log('ResetError handled. Halting executor to restart.')
           executor.reset()
           break
         } else if (err instanceof CancelError) {
+          log('CancelError handled. Triggering recovery.')
           await this.recovery(move, path as Path, goal, entry)
           break
-        } else throw err
+        } else {
+          log('Unknown error thrown! Bubble up.')
+          throw err
+        }
       }
     }
 
+    log('Perform loop ended.')
     await this.cleanupBot()
   }
 
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    log('Entering recovery %d for move %s from %O to %O', entry, move.moveType.constructor.name, move.entryPos, move.exitPos)
     this.bot.emit('enteredRecovery', entry)
     await this.cleanupBot()
     this.cleanupClient()
 
-    // Using `findIndex` mapping `entryPos` fixes a bug where indexOf evaluates to -1 due to an optimized Move object mapping.
     const ind = path.path.findIndex(m => m.entryPos.equals(move.entryPos))
     if (ind === -1) {
-      return // done
+      log('Recovery failed: could not find move in path.')
+      return 
     }
 
     let newGoal
-
     const pos = this.bot.entity.position
     let bad = false
-    // Destructured array copy avoids mutating `path.path` with `.sort()`
+    
     let nextMove = [...path.path].sort((a, b) => a.entryPos.distanceTo(pos) - b.entryPos.distanceTo(pos))[0] as Move | undefined
     if (nextMove == null || path.path.indexOf(nextMove) < ind) {
       bad = true
@@ -796,39 +745,42 @@ export class ThePathfinder {
 
     const no = entry > 5 || bad
     if (no || nextMove == null) {
+      log('Full recovery needed. Bad: %s, NextMove Null: %s', bad, nextMove == null)
       newGoal = goal
     } else {
+      log('Partial recovery to block %O', nextMove.vec)
       newGoal = goals.GoalBlock.fromVec(nextMove.vec)
     }
 
     let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
 
     if (path1 === null) {
+      log('Recovery pathfinding returned null.')
       this.bot.emit('exitedRecovery', entry)
     } else if (no) {
+      log('Executing full recovery path.')
       const optPath1 = await this.postProcess(path1)
 
       this.bot.emit('exitedRecovery', entry)
       await this.perform(optPath1, goal, entry + 1)
     } else {
+      log('Executing partial recovery path.')
       const optPath1 = await this.postProcess(path1)
       await this.perform(optPath1, newGoal, entry + 1)
       path.path.splice(0, ind + 1)
 
+      log('Continuing original goal after partial recovery.')
       this.bot.emit('exitedRecovery', entry)
       await this.perform(path, goal, 0)
     }
   }
 
   private async postProcess (pathInfo: Path): Promise<OptPath> {
+    log('Post-processing path...')
     const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
-
     optimizer.loadPath(pathInfo.path)
-
     const res = await optimizer.compute()
-
     const ret = { ...pathInfo, optPath: res }
-
     return ret
   }
 
@@ -844,19 +796,15 @@ export class ThePathfinder {
 
   async cleanupBot (): Promise<void> {
     this.bot.clearControlStates()
-
     for (const [, executor] of this.movements) {
       executor.reset()
     }
-    // await this.bot.waitForTicks(1);
   }
 
   cleanupClient (): void {
     this.abortCalculation = false
     this.userAborted = false
-
     delete this.resetReason
-
     delete this.currentGotoGoal
     delete this.curPath
     delete this.currentMove
@@ -873,13 +821,15 @@ export class ThePathfinder {
       await goal.onFinish(executor)
       await this.cleanupBot()
     }
-    // this.bot.chat(this.world.getCacheSize())
     this.world.cleanup?.()
 
-    // console.log('CLEANUP CALLED')
-
-    if (this.userAborted) this.bot.emit('goalAborted', goal)
-    else this.bot.emit('goalFinished', goal)
+    if (this.userAborted) {
+      log('Cleanup: Goal aborted.')
+      this.bot.emit('goalAborted', goal)
+    } else {
+      log('Cleanup: Goal finished.')
+      this.bot.emit('goalFinished', goal)
+    }
 
     this.abortCalculation = false
     this.userAborted = false
