@@ -1014,8 +1014,8 @@ export class StraightUpExecutor extends MovementExecutor {
 
     // Replaced brittle 3D AABB containment with robust 2D radius math.
     // If bot center is within 0.2 blocks of target center, it is fully over the block.
-    if (xzDist < 0.2) {
-      log('align1() complete! Bot is horizontally centered. Returning true.')
+    if (xzDist < 0.2 && Math.abs(pos.y - thisMove.entryPos.y) < 0.5) {
+      // StraightUpExecutor.log('align1() complete! Bot is horizontally centered. Returning true.')
       return true;
     }
 
