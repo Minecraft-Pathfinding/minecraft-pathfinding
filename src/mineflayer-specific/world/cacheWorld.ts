@@ -40,7 +40,7 @@ export class BlockInfo {
   static _replaceableBlock: Block
 
   static soulsandId: number
-  static readonly substituteBlockStateId: number = 1
+  static substituteBlockStateId: number
 
   public additionalLoaded = false
   private _waterAround = false
@@ -92,6 +92,7 @@ export class BlockInfo {
     }
 
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
+    BlockInfo.substituteBlockStateId = registry.blocksByName.dirt.minStateId;
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId, 0)
     BlockInfo._waterBlock.position = new Vec3(0, 0, 0)

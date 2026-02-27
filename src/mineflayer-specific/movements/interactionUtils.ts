@@ -270,12 +270,11 @@ export class PlaceHandler extends InteractHandler {
       }
     }
 
-    logPlace(`needToPerform at ${this.vec}? ${needs} (Type: ${this.type})`)
+    // logPlace(`needToPerform at ${this.vec}? ${needs} (Type: ${this.type})`)
     return needs
   }
 
-  async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
-    logPlace(`Calculating performInfo for ${this.vec} (ticks: ${ticks})`)
+ async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
     switch (this.type) {
       case 'water': {
         throw new Error('Not implemented')
@@ -283,39 +282,47 @@ export class PlaceHandler extends InteractHandler {
 
       case 'solid': {
         const works = []
-        let startTick = 0
         
         for (let i = 0; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
           const state = ectx.state
 
-          // Lightweight physics simulation: Just carry forward the executor's current control states
+          // Lightweight physics simulation
           for (let j = 0; j < i; j++) {
             bot.physicsUtil.engine.simulate(ectx, bot.world)
           }
 
-          const eyePos = state.pos.offset(0, 1.62, 0)
-          const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 })
-
-          const dx = state.pos.x - (this.vec.x + 0.5)
-          const dy = state.pos.y + bot.entity.height - (this.vec.y + 0.5)
-          const dz = state.pos.z - (this.vec.z + 0.5)
+          const bb1 = state.getBB()
+          const eyePos = state.pos.offset(0, state.eyeHeight, 0)
           
-          const visibleFaces: any = {
-            y: Math.sign(Math.abs(dy) >= 0 ? dy : 0),
-            x: Math.sign(Math.abs(dx) >= 0 ? dx : 0),
-            z: Math.sign(Math.abs(dz) >= 0 ? dz : 0)
+          const dx = eyePos.x - (this.vec.x + 0.5)
+          const dy = eyePos.y - (this.vec.y + 0.5)
+          const dz = eyePos.z - (this.vec.z + 0.5)
+          
+          const verts: Vec3[] = []
+          const m = 0.05 // Tiny margin
+          const M = 0.95
+
+          // Top / Bottom Face (Center + 4 Corners)
+          if (dy > 0) {
+            verts.push(this.vec.offset(0.5, 1, 0.5), this.vec.offset(m, 1, m), this.vec.offset(M, 1, m), this.vec.offset(m, 1, M), this.vec.offset(M, 1, M))
+          } else {
+            verts.push(this.vec.offset(0.5, 0, 0.5), this.vec.offset(m, 0, m), this.vec.offset(M, 0, m), this.vec.offset(m, 0, M), this.vec.offset(M, 0, M))
           }
 
-          const verts = Object.entries(visibleFaces).flatMap(([k, v]) => {
-            return [
-              this.vec.offset(
-                0.5 + (k === 'x' ? visibleFaces[k] * 0.49 : 0),
-                0.5 + (k === 'y' ? visibleFaces[k] * 0.49 : 0),
-                0.5 + (k === 'z' ? visibleFaces[k] * 0.49 : 0)
-              )
-            ]
-          })
+          // East / West Face (Center + 4 Corners)
+          if (dx > 0) {
+            verts.push(this.vec.offset(1, 0.5, 0.5), this.vec.offset(1, m, m), this.vec.offset(1, M, m), this.vec.offset(1, m, M), this.vec.offset(1, M, M))
+          } else {
+            verts.push(this.vec.offset(0, 0.5, 0.5), this.vec.offset(0, m, m), this.vec.offset(0, M, m), this.vec.offset(0, m, M), this.vec.offset(0, M, M))
+          }
+
+          // South / North Face (Center + 4 Corners)
+          if (dz > 0) {
+            verts.push(this.vec.offset(0.5, 0.5, 1), this.vec.offset(m, m, 1), this.vec.offset(M, m, 1), this.vec.offset(m, M, 1), this.vec.offset(M, M, 1))
+          } else {
+            verts.push(this.vec.offset(0.5, 0.5, 0), this.vec.offset(m, m, 0), this.vec.offset(M, m, 0), this.vec.offset(m, M, 0), this.vec.offset(M, M, 0))
+          }
 
           let good = 0
           for (const vert of verts) {
@@ -333,16 +340,14 @@ export class PlaceHandler extends InteractHandler {
               if (AABB.fromBlock(pos).intersects(bb1)) continue
               
               good++
-              if (startTick === 0) startTick = i
               works.push(rayRes as unknown as RayType)
             }
           }
           
-          if (works.length !== 0) {
-            if (good === 0) {
-              logPlace(`performInfo calculated. ticks: ${Math.floor((i + startTick) / 2)}, raycasts: ${works.length}`)
-              return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick: Infinity, raycasts: works }
-            }
+          // INSTANT EXIT: The moment we find a valid placement frame, return it!
+          if (good > 0) {
+            logPlace(`performInfo calculated. ticks: ${i}, raycasts: ${good}`)
+            return { ticks: i, tickAllowance: 0, shiftTick: Infinity, raycasts: works }
           }
         }
         
@@ -398,7 +403,7 @@ export class PlaceHandler extends InteractHandler {
           works = await this.performInfo(bot)
         }
         if (waitTicks > 0) logPlace(`Waited ${waitTicks} ticks for valid raycast intersections.`)
-
+        
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0)
         const lookDir = bot.util.getViewDir()
         works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir))
@@ -553,7 +558,7 @@ export class BreakHandler extends InteractHandler {
     }
 
     const needs = !(blockInfo.block?.boundingBox === 'empty' && !BlockInfo.liquids.has(blockInfo.type))
-    logBreak(`needToPerform at ${this.vec}? ${needs}`)
+    // logBreak(`needToPerform at ${this.vec}? ${needs}`)
     return needs
   }
 

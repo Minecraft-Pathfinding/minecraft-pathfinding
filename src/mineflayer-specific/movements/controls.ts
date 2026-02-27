@@ -169,6 +169,7 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
   // console.log('stopping since near goal')
     bot.setControlState('left', false)
     bot.setControlState('right', false)
+    return
   }
 
   if (FOURTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_TWO_PI_OVER_TWELVE) {
