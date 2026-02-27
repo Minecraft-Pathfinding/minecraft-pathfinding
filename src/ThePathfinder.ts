@@ -608,7 +608,7 @@ export class ThePathfinder {
     this.currentExecutionId++
     const myExecutionId = this.currentExecutionId
 
-    let currentIndex = 0
+   let currentIndex = 0
     const localPath = path.path
     
     this.currentIndex = currentIndex
@@ -619,27 +619,35 @@ export class ThePathfinder {
 
     log('[ExecID: %d] Perform started. Entry: %d, Initial Path Length: %d', myExecutionId, entry, localPath.length)
 
+    // NEW: Track the length of the path and cache the optimized sequence
+    let lastPathLength = -1
+    let optSequence: Move[] = []
+
     while (currentIndex < localPath.length) {
       if (this.currentExecutionId !== myExecutionId) {
         log('[ExecID: %d] Execution superseded before move start.', myExecutionId)
         return
       }
 
-      // ON-THE-FLY OPTIMIZATION
-      // Calculate the absolute best optimized route for the remaining path right now.
-      const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
-      optimizer.loadPath(localPath.slice(currentIndex))
-      const optSequence = await optimizer.compute()
+      // ACTIVE MONITOR: Only re-optimize if the path was edited in-place (or if it's the first run)
+      if (localPath.length !== lastPathLength) {
+        log('[ExecID: %d] Path modification detected (Length %d -> %d). Optimizing remaining slice...', myExecutionId, Math.max(0, lastPathLength), localPath.length)
+        const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+        optimizer.loadPath(localPath.slice(currentIndex))
+        optSequence = await optimizer.compute()
+        lastPathLength = localPath.length // Update monitor
+      }
       
-      // Grab the very first move of our freshly optimized slice
-      let move = optSequence[0]
+      // Grab the optimized move that matches our current unoptimized position
+      let move = optSequence.find(m => m.entryPos.distanceTo(localPath[currentIndex].entryPos) < 0.1)
       if (!move) {
+        log('[ExecID: %d] Warning: Optimized move not found for index %d. Falling back to unoptimized.', myExecutionId, currentIndex)
         move = localPath[currentIndex] 
       }
 
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
-
+        
       this.currentMove = move
       this.currentExecutor = executor
 
