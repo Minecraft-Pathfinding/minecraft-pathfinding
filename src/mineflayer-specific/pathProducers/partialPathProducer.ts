@@ -6,6 +6,9 @@ import { ExecutorMap, MovementHandler, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
 import { AdvanceRes } from '.'
 
+const debug = require('debug')
+const log = debug('minecraft-pathfindng:pathProducer')
+
 export class PartialPathProducer implements PathProducer {
   private readonly start: Move
   private readonly goal: goals.Goal
@@ -16,23 +19,19 @@ export class PartialPathProducer implements PathProducer {
   private latestMove: Move | undefined
   private readonly latestMoves: Move[] = []
 
-  private latestClosedNodeCount: number = 0
   private latestCost: number = 0
   private lastPath: Move[] = []
-
-  private readonly gcInterval: number = 10
-  private readonly lastGc: number = 0
 
   private readonly startTime = performance.now()
   private lastStartTime = performance.now()
   consideredNodeCount: number = 0
+  latestClosedNodeCount: number = 0
   latestMoveCount: number = 0
-  // private readonly maxPathLen: number = 30
 
   private _lastContext: AStar | undefined
 
   public get maxPathLength (): number {
-    return this.bot.pathfinder.pathfinderSettings.partialPathLength
+    return Math.min(this.bot.pathfinder.pathfinderSettings.partialPathLength, this.goal.distHeuristic(this.start))
   }
 
   public get lastAstarContext (): AStar | undefined {
@@ -61,13 +60,9 @@ export class PartialPathProducer implements PathProducer {
   }
 
   private handleAstarContext (foundPathLen: number, maxPathLen = this.maxPathLength): AStar | undefined {
-    // if the path length is less than 50, return the previous astar context.
-    // otherwise, return a new one.
-
     if (this._lastContext != null && foundPathLen <= maxPathLen) {
       return this._lastContext
     }
-
     return this.generateAstarContext()
   }
 
@@ -82,10 +77,7 @@ export class PartialPathProducer implements PathProducer {
       start = this.start
     }
 
-    // const lastClosedSet = this.lastAstarContext != null ? this.lastAstarContext.closedDataSet : new Set<string>()
     const ret = new AStar(start, moveHandler, this.goal, -1, 40, -1, 0)
-
-    // ret.closedDataSet = lastClosedSet
     return ret
   }
 
@@ -93,13 +85,16 @@ export class PartialPathProducer implements PathProducer {
     if (this._lastContext == null) this._lastContext = this.generateAstarContext()
 
     const result = this._lastContext.compute()
-
     let status = result.status
 
+    log('AStar compute returned status: %s, Path length: %d (Max: %d)', status, result.path.length, this.maxPathLength)
+
     if (result.status === 'noPath') {
+      log('No path found. Popping latest move.')
       this.latestMoves.pop()
 
       if (this.latestMoves.length === 0) {
+        log('Latest moves empty, returning noPath definitively.')
         const astarContext = this._lastContext
         delete this._lastContext
         return {
@@ -116,8 +111,8 @@ export class PartialPathProducer implements PathProducer {
 
     if (result.path.length > this.maxPathLength || result.status === 'success') {
       status = status === 'success' ? 'success' : 'partialSuccess'
+      log('Threshold met! Upgrading status to: %s', status)
 
-      // const val = result.path.length - 1
       const val = this.getSliceLen(result.path.length)
       this.latestMove = result.path[val]
       const toTake = result.path.slice(0, val + 1)
@@ -133,23 +128,25 @@ export class PartialPathProducer implements PathProducer {
       this.consideredNodeCount += nodecount
       this.latestClosedNodeCount += seensize
       this.latestMoveCount += movecount
-      console.info('Partial Path cost increased by', cost, 'to', this.latestCost, 'total', this.latestMove?.vec)
 
       const time1 = performance.now() - this.lastStartTime
-      console.log('\nthis iter:', time1)
-      console.log('itered considered nodes', nodecount, 'nodes/s', (nodecount / time1) * 1000)
-      console.log('itered seen size', seensize, 'nodes/s', (seensize / time1) * 1000)
-      console.log('itered move considered', movecount, 'nodes/s', (movecount / time1) * 1000)
+      const totalTime = performance.now() - this.startTime
+      
+      log('Partial Path cost increased by %d to %d. Target Vec: %O', cost, this.latestCost, this.latestMove?.vec)
+      log('ITERATION METRICS | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)', 
+          time1.toFixed(2), nodecount, Math.round((nodecount / time1) * 1000), 
+          seensize, Math.round((seensize / time1) * 1000), 
+          movecount, Math.round((movecount / time1) * 1000))
+      log('TOTAL METRICS     | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)', 
+          totalTime.toFixed(2), this.consideredNodeCount, Math.round((this.consideredNodeCount / totalTime) * 1000), 
+          this.latestClosedNodeCount, Math.round((this.latestClosedNodeCount / totalTime) * 1000), 
+          this.latestMoveCount, Math.round((this.latestMoveCount / totalTime) * 1000))
 
       this.lastStartTime = performance.now()
-      const time = performance.now() - this.startTime
-      console.log('\ntotal', time, 'ms')
-      console.log('total considered nodes', this.consideredNodeCount, time, (this.consideredNodeCount / time) * 1000, 'nodes/s')
-      console.log('total seen size', this.latestClosedNodeCount, time, (this.latestClosedNodeCount / time) * 1000, 'nodes/s')
-      console.log('total move considered', this.latestMoveCount, time, (this.latestMoveCount / time) * 1000, 'nodes/s')
+    } else {
+      log('Threshold NOT met. Remaining in status: %s', status)
     }
 
-    // console.log(result.path.length, 'found path length', this.lastPath.length, 'total length', this.lastPath.map(p => p.entryPos.toString()), this.lastPath[this.lastPath.length - 1].entryPos)
     const ret = {
       result: {
         ...result,

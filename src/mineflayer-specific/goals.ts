@@ -15,7 +15,8 @@ import type { Entity } from 'prismarine-entity'
  */
 export abstract class Goal implements AGoal<Move> {
   abstract isEnd (node: Move): boolean
-  abstract heuristic (node: Move): number
+  abstract heuristic (node: Move): number // TODO: move this to the movement providers instead of being on the goal.
+  abstract distHeuristic (node: Move): number
   async onFinish (node: MovementExecutor): Promise<void> {}
 }
 
@@ -117,6 +118,10 @@ export class GoalInvert<G extends Goal | GoalDynamic = Goal> extends GoalDynamic
   heuristic (node: Move): number {
     return -this.goal.heuristic(node)
   }
+
+  distHeuristic (node: Move): number {
+    return -this.goal.distHeuristic(node)
+  }
 }
 
 export abstract class GoalComposite<Gls extends readonly Goal[]> extends GoalDynamic<any, any> {
@@ -205,6 +210,15 @@ export class GoalCompositeAny<Gls extends readonly Goal[]> extends GoalComposite
     }
     return ret
   }
+
+  distHeuristic (node: Move): number {
+    let ret = Number.MAX_VALUE
+    for (const goal of this.goals) {
+      const h = goal.distHeuristic(node)
+      if (h < ret) ret = h
+    }
+    return ret
+  }
 }
 
 export class GoalCompositeAll<Gls extends readonly Goal[]> extends GoalComposite<Gls> {
@@ -225,6 +239,16 @@ export class GoalCompositeAll<Gls extends readonly Goal[]> extends GoalComposite
       const h = goal.heuristic(node)
       if (h > ret) ret = h
     }
+    return ret
+  }
+
+  distHeuristic (node: Move): number {
+    let ret = 0
+    for (const goal of this.goals) {
+      const h = goal.distHeuristic(node)
+      if (h > ret) ret = h
+    }
+    if (ret < 0) return ret
     return ret
   }
 }
@@ -258,9 +282,17 @@ export class GoalBlock extends Goal {
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy)
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317); // from baritone.
     // return (Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))
     // return distanceXZ(dx, dz) + Math.abs(dy)
+  }
+
+  distHeuristic (node: Move): number {
+    const dx = this.x - node.x
+    const dy = this.y - node.y
+    const dz = this.z - node.z
+    const distance = Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317); // from baritone.
+    return distance
   }
 
   isEnd (node: Move): boolean {
@@ -300,7 +332,15 @@ export class GoalNear extends Goal {
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy)
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317); // from baritone.
+  }
+
+  distHeuristic (node: Move): number {
+    const dx = this.x - node.x
+    const dy = this.y - node.y
+    const dz = this.z - node.z
+    const distance = Math.sqrt(dx * dx + dz * dz + dy * dy)
+    return distance
   }
 }
 
@@ -321,6 +361,12 @@ export class GoalNearXZ extends Goal {
   }
 
   heuristic (node: Move): number {
+    const dx = this.x - node.x
+    const dz = this.z - node.z
+    return Math.sqrt(dx * dx + dz * dz) * (20 / 4.317); // from baritone.
+  }
+
+  distHeuristic (node: Move): number {
     const dx = this.x - node.x
     const dz = this.z - node.z
     return Math.sqrt(dx * dx + dz * dz)
@@ -372,7 +418,15 @@ export class GoalLookAt extends Goal {
     const dx = this.x - node.x
     const dy = this.y - (node.y + this.eyeHeight) // eye level
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy)
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317); // from baritone.
+  }
+
+  distHeuristic (node: Move): number {
+      const dx = this.x - node.x
+      const dy = this.y - (node.y + this.eyeHeight) // eye level
+      const dz = this.z - node.z
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      return distance
   }
 
   /**
@@ -505,7 +559,16 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     const dy = this.y - node.y
     const dz = this.z - node.z
 
-    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+    return Math.sqrt(dx * dx + dy * dy + dz * dz) * (20 / 4.317); // from baritone.
+  }
+
+
+  distHeuristic (node: Move): number {
+    const dx = this.x - node.x
+    const dy = this.y - node.y
+    const dz = this.z - node.z
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    return distance
   }
 
   hasChanged (event: 'entityMoved', e: Entity): boolean {

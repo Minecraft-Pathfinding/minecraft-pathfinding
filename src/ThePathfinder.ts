@@ -1,6 +1,6 @@
 import { Bot, BotEvents } from 'mineflayer'
 import { AStarBackOff as AAStar } from './abstract/algorithms/astar'
-import { AStar, OptPath, Path, PathProducer } from './mineflayer-specific/algs'
+import { AStar, Path, PathProducer } from './mineflayer-specific/algs' // OptPath removed
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
@@ -46,9 +46,8 @@ import { reconstructPath } from './abstract/algorithms'
 import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 
-const debug = require("debug")
-
-const log = debug('minecraft-pathfinding')
+const debug = require('debug')
+const log = debug('minecraft-pathfinding:main')
 
 export interface PathfinderOptions {
   partialPathProducer: boolean
@@ -104,6 +103,7 @@ export class ThePathfinder {
   defaultMoveSettings: MovementOptions
   pathfinderSettings: PathfinderOptions
 
+  public currentExecutionId = 0
   private currentIndex = 0
   private executeTask: Task<void, void> = Task.createDoneTask()
   private wantedGoal?: goals.Goal
@@ -134,11 +134,13 @@ export class ThePathfinder {
 
   constructor (private readonly bot: Bot, opts: HandlerOpts = {}) {
     this.world = opts.world ?? new CacheSyncWorld(bot, bot.world)
-    const moveSettings = opts.moveSettings ?? DEFAULT_MOVEMENT_OPTS
-    const pathfinderSettings = opts.pathfinderSettings ?? DEFAULT_PATHFINDER_OPTS
-
+    const moveSettings: MovementOptions = {} as MovementOptions
+    const pathfinderSettings: PathfinderOptions = {}  as PathfinderOptions
     const optimizers = opts.optimizers ?? DEFAULT_OPTIMIZATION
     const moveSetup = opts.movements ?? DEFAULT_SETUP
+
+    Object.assign(moveSettings, { ...DEFAULT_MOVEMENT_OPTS, ...opts.moveSettings })
+    Object.assign(pathfinderSettings, { ...DEFAULT_PATHFINDER_OPTS, ...opts.pathfinderSettings })
 
     const moves = new Map<BuildableMoveProvider, MovementExecutor>()
     for (const [providerType, ExecutorType] of moveSetup) {
@@ -402,6 +404,7 @@ export class ThePathfinder {
     } else {
       this._currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
     }
+    log('Path producer initialized: %s', this._currentProducer.constructor.name) 
 
     let ticked = false
 
@@ -438,7 +441,6 @@ export class ThePathfinder {
         return { result, astarContext }
       }
 
-      log('Path generation status: %s, Open Set Size: %d, Visited Nodes: %d', result.status, astarContext.openHeap.size(), astarContext.closedDataSet.size)
       yield { result, astarContext }
 
       if (!ticked) {
@@ -524,7 +526,7 @@ export class ThePathfinder {
         setupWait()
 
         let task: Promise<void> | null = null
-        let res1: OptPath | null = null
+        let res1: Path | null = null // Strictly tracking unoptimized Path now!
 
         for await (const res of this.getPathTo(goal)) {
           if (res.result.status !== 'success') {
@@ -536,55 +538,29 @@ export class ThePathfinder {
 
             if (res.result.status === 'partialSuccess') {
               if (res1 === null) {
-                res1 = await this.postProcess(res.result)
+                res1 = res.result
                 task = this.perform(res1, goal).then(() => {
                   task = null
                   res1 = null
                 })
               } else {
+                // Update the unoptimized path in place! 
+                // perform() will automatically catch the newly added tail.
                 res1.path.length = res.result.path.length
                 for (let i = 0; i < res.result.path.length; i++) {
                   res1.path[i] = res.result.path[i]
                 }
-                
-                let sliceIdx = this.currentIndex
-                if (this.currentMove) {
-                  const endIdx = res1.path.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(this.currentMove!.exitPos))
-                  if (endIdx !== -1) {
-                    sliceIdx = endIdx + 1
-                  }
-                }
-                
-                const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
-                optimizer.loadPath(res1.path.slice(sliceIdx))
-                const resOpt = await optimizer.compute()
-                
-                res1.optPath = resOpt
               }
             }
           } else {
             if (task === null) {
-              const newPath = await this.postProcess(res.result)
-              await this.perform(newPath, goal)
+              await this.perform(res.result, goal)
             } else {
-              const res2 = res1 as OptPath
+              const res2 = res1 as Path
               res2.path.length = res.result.path.length
               for (let i = 0; i < res.result.path.length; i++) {
                 res2.path[i] = res.result.path[i]
               }
-              
-              let sliceIdx = this.currentIndex
-              if (this.currentMove) {
-                const endIdx = res2.path.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(this.currentMove!.exitPos))
-                if (endIdx !== -1) {
-                  sliceIdx = endIdx + 1
-                }
-              }
-              
-              const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
-              optimizer.loadPath(res2.path.slice(sliceIdx))
-              const resOpt = await optimizer.compute()
-              res2.optPath = resOpt
 
               await task
               task = null
@@ -626,22 +602,39 @@ export class ThePathfinder {
     } while (doForever && !this.userAborted)
   }
 
-  async perform (path: Path | OptPath, goal: goals.Goal, entry = 0): Promise<void> {
+  async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     if (entry > 10) throw new Error('Too many failures, exiting performing.')
 
-    this.currentIndex = 0
-    this.curPath = path.path
+    this.currentExecutionId++
+    const myExecutionId = this.currentExecutionId
+
+    let currentIndex = 0
+    const localPath = path.path
+    
+    this.currentIndex = currentIndex
+    this.curPath = localPath
+    
     const movementHandler = path.context.movementProvider as MovementHandler
     const movements = movementHandler.getMovements()
 
-    log('Perform started. Entry: %d, Path Length: %d', entry, this.curPath.length)
+    log('[ExecID: %d] Perform started. Entry: %d, Initial Path Length: %d', myExecutionId, entry, localPath.length)
 
-    while (this.currentIndex < this.curPath.length) {
-      const pathEx = Object.hasOwnProperty.call(path, 'optPath') ? (path as OptPath).optPath : path.path
+    while (currentIndex < localPath.length) {
+      if (this.currentExecutionId !== myExecutionId) {
+        log('[ExecID: %d] Execution superseded before move start.', myExecutionId)
+        return
+      }
+
+      // ON-THE-FLY OPTIMIZATION
+      // Calculate the absolute best optimized route for the remaining path right now.
+      const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+      optimizer.loadPath(localPath.slice(currentIndex))
+      const optSequence = await optimizer.compute()
       
-      let move = pathEx.find(m => m.entryPos.equals(this.curPath![this.currentIndex].entryPos))
+      // Grab the very first move of our freshly optimized slice
+      let move = optSequence[0]
       if (!move) {
-        move = this.curPath[this.currentIndex] 
+        move = localPath[currentIndex] 
       }
 
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
@@ -656,77 +649,104 @@ export class ThePathfinder {
       executor.loadMove(move)
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
-        log('Skipping move %s at index %d (already completed)', move.moveType.constructor.name, this.currentIndex)
-        const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
+        log('[ExecID: %d] Skipping move %s at index %d (already completed)', myExecutionId, move.moveType.constructor.name, currentIndex)
+        const endIdx = localPath.findIndex((m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1)
         if (endIdx !== -1) {
-          this.currentIndex = endIdx + 1
+          currentIndex = endIdx + 1
         } else {
-          this.currentIndex++
+          currentIndex++
         }
+        this.currentIndex = currentIndex
         continue
       }
 
-      log('Executing move: %s at index %d', move.moveType.constructor.name, this.currentIndex)
+      log('[ExecID: %d] Executing move: %s aligned to unoptimized index %d', myExecutionId, move.moveType.constructor.name, currentIndex)
 
       try {
+        log('[ExecID: %d] Aligning for move: %s...', myExecutionId, move.moveType.constructor.name)
         while (!(await executor.align(move, tickCount++, goal)) && tickCount < 999) {
+          if (this.currentExecutionId !== myExecutionId) {
+             throw new CancelError('Execution superseded during align')
+          }
+          if (tickCount % 20 === 0) log('[ExecID: %d] ...still aligning (%d ticks)', myExecutionId, tickCount)
           this.check()
           await this.bot.waitForTicks(1)
         }
 
+        if (tickCount >= 999) {
+          throw new CancelError(`Alignment timed out for ${move.moveType.constructor.name}`)
+        }
+
+        log('[ExecID: %d] Alignment complete. Initializing perform loop...', myExecutionId)
         tickCount = 0
-        await executor._performInit(move, this.currentIndex, this.curPath)
+        await executor._performInit(move, currentIndex, localPath)
 
         this.check()
-        let adding = await executor._performPerTick(move, tickCount++, this.currentIndex, this.curPath)
+        let adding = await executor._performPerTick(move, tickCount++, currentIndex, localPath)
 
-        while (!(adding as boolean) && tickCount < 999) {
+        while (!(adding as boolean) && tickCount < 99999) {
+          if (this.currentExecutionId !== myExecutionId) {
+             throw new CancelError('Execution superseded during performTick')
+          }
+          if (tickCount % 40 === 0) log('[ExecID: %d] ...still performing tick loop (%d ticks)', myExecutionId, tickCount)
           this.check()
           await this.bot.waitForTicks(1)
-          adding = await executor._performPerTick(move, tickCount++, this.currentIndex, this.curPath)
+          adding = await executor._performPerTick(move, tickCount++, currentIndex, localPath)
         }
 
-        log('Finished move: %s', move.moveType.constructor.name)
+        if (tickCount >= 999) {
+            throw new CancelError(`Execution tick loop timed out for ${move.moveType.constructor.name}`)
+        }
 
-        const endIdx = this.curPath.findIndex((m, i) => i >= this.currentIndex && m.exitPos.equals(move!.exitPos))
+        log('[ExecID: %d] Finished move: %s', myExecutionId, move.moveType.constructor.name)
+
+        // Advance currentIndex cleanly along the unoptimized path based on where this optimized move dropped us off
+        const endIdx = localPath.findIndex((m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1)
         if (endIdx !== -1) {
-          this.currentIndex = endIdx + 1
+          currentIndex = endIdx + 1
         } else {
-          this.currentIndex += adding as number
+          currentIndex += adding as number
         }
+        this.currentIndex = currentIndex
       } catch (err) {
-        log('Exception caught during perform at index %d: %O', this.currentIndex, err)
+        log('[ExecID: %d] Exception caught during perform at index %d: %O', myExecutionId, currentIndex, err)
         if (err instanceof AbortError) {
-          log('AbortError handled. Halting executor.')
+          log('[ExecID: %d] AbortError handled. Halting executor.', myExecutionId)
           executor.reset()
           delete this.resetReason
           break
         } else if (err instanceof ResetError) {
-          log('ResetError handled. Halting executor to restart.')
+          log('[ExecID: %d] ResetError handled. Halting executor to restart.', myExecutionId)
           executor.reset()
           break
         } else if (err instanceof CancelError) {
-          log('CancelError handled. Triggering recovery.')
+          if (err.message.includes('superseded')) {
+            log('[ExecID: %d] Superseded CancelError handled. Executor reset cleanly.', myExecutionId)
+            executor.reset()
+            return
+          }
+          log('[ExecID: %d] CancelError handled. Triggering recovery.', myExecutionId)
           await this.recovery(move, path as Path, goal, entry)
           break
         } else {
-          log('Unknown error thrown! Bubble up.')
+          log('[ExecID: %d] Unknown error thrown! Bubble up.', myExecutionId)
           throw err
         }
       }
     }
 
-    log('Perform loop ended.')
-    await this.cleanupBot()
+    if (this.currentExecutionId === myExecutionId) {
+      log('[ExecID: %d] Perform loop ended naturally.', myExecutionId)
+      await this.cleanupBot()
+    }
   }
-
+  
   async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     log('Entering recovery %d for move %s from %O to %O', entry, move.moveType.constructor.name, move.entryPos, move.exitPos)
     this.bot.emit('enteredRecovery', entry)
     await this.cleanupBot()
-    this.cleanupClient()
 
-    const ind = path.path.findIndex(m => m.entryPos.equals(move.entryPos))
+    const ind = path.path.findIndex(m => m.entryPos.distanceTo(move.entryPos) < 0.1)
     if (ind === -1) {
       log('Recovery failed: could not find move in path.')
       return 
@@ -759,29 +779,19 @@ export class ThePathfinder {
       this.bot.emit('exitedRecovery', entry)
     } else if (no) {
       log('Executing full recovery path.')
-      const optPath1 = await this.postProcess(path1)
-
       this.bot.emit('exitedRecovery', entry)
-      await this.perform(optPath1, goal, entry + 1)
+      await this.perform(path1, goal, entry + 1)
     } else {
       log('Executing partial recovery path.')
-      const optPath1 = await this.postProcess(path1)
-      await this.perform(optPath1, newGoal, entry + 1)
+      await this.perform(path1, newGoal, entry + 1)
+      
+      // We only need to splice the unoptimized path directly!
       path.path.splice(0, ind + 1)
 
       log('Continuing original goal after partial recovery.')
       this.bot.emit('exitedRecovery', entry)
       await this.perform(path, goal, 0)
     }
-  }
-
-  private async postProcess (pathInfo: Path): Promise<OptPath> {
-    log('Post-processing path...')
-    const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
-    optimizer.loadPath(pathInfo.path)
-    const res = await optimizer.compute()
-    const ret = { ...pathInfo, optPath: res }
-    return ret
   }
 
   private check (): void {
