@@ -912,24 +912,22 @@ export class StraightDownExecutor extends MovementExecutor {
 }
 
 export class StraightUpExecutor extends MovementExecutor {
-
- static log = debug('minecraft-pathfinding:movementExecutors:StraightUp')
-
-
   isAlreadyCompleted (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     const isCompleted = this.bot.entity.position.y >= thisMove.exitPos.y
-    // StraightUpExecutor.log(`[Tick ${tickCount}] isAlreadyCompleted checked: ${isCompleted} (Bot Y: ${this.bot.entity.position.y}, Exit Y: ${thisMove.exitPos.y})`)
     return isCompleted
   }
 
   override async align (thisMove: Move): Promise<boolean> {
+
+    if (this.bot.entity.position.y < thisMove.entryPos.y - 0.5) {
+      log(`Bot Y (${this.bot.entity.position.y.toFixed(2)}) is too far below entry Y (${thisMove.entryPos.y}). Aborting.`)
+      throw new CancelError(`StraightUp: Bot is too low to begin move`)
+    }
+
     const onGround = this.bot.entity.onGround
     const inWater = (this.bot.entity as any).isInWater as boolean
-    
-    // StraightUpExecutor.log(`align() called. onGround: ${onGround}, inWater: ${inWater}`)
 
     if (!onGround || inWater) {
-      // StraightUpExecutor.log('Bot is airborne or in water. Executing airborne alignment logic.')
       this.bot.setControlState('jump', true)
 
       const target = thisMove.exitPos.floored().translate(0.5, 0, 0.5)
@@ -942,9 +940,6 @@ export class StraightUpExecutor extends MovementExecutor {
       off1.translate(0, -off1.y, 0)
 
       const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
-      // StraightUpExecutor.log(`Airborne math - Target: ${target}, Off0: ${off0}, Off1: ${off1}`)
-      // StraightUpExecutor.log(`Similar direction calculation (dot > 0.95): ${similarDirection}`)
-
       const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
 
       let bb1: AABB[]
@@ -953,7 +948,6 @@ export class StraightUpExecutor extends MovementExecutor {
       let bb2Good: boolean
 
       if (inWater) {
-        // StraightUpExecutor.log('Calculating AABBs for water environment.')
         const bb1bl = this.getBlockInfo(thisMove.entryPos, 0, 0, 0)
         bb1 = [AABB.fromBlockPos(thisMove.entryPos)]
         bb1Good = bb1bl.liquid
@@ -962,7 +956,6 @@ export class StraightUpExecutor extends MovementExecutor {
         bb2 = [AABB.fromBlock(bb2bl.position)]
         bb2Good = bb2bl.walkthrough || bb2bl.liquid
       } else {
-        // StraightUpExecutor.log('Calculating AABBs for airborne environment.')
         const bb1bl = this.getBlockInfo(target, 0, -1, 0)
         bb1 = bb1bl.getBBs()
         if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
@@ -976,101 +969,92 @@ export class StraightUpExecutor extends MovementExecutor {
 
       const collidesBb1 = bb1.some((b) => b.collides(bb0))
       const collidesBb2 = bb2.some((b) => b.collides(bb0))
-      
-      // StraightUpExecutor.log(`AABB Collision Results -> bb1Good: ${bb1Good}, bb2Good: ${bb2Good}`)
-      // StraightUpExecutor.log(`Bot AABB collides with bb1: ${collidesBb1}, bb2: ${collidesBb2}`)
 
       if ((collidesBb1 && bb1Good) || (collidesBb2 && bb2Good)) {
         const xzDist = this.bot.entity.position.xzDistanceTo(target)
-        // StraightUpExecutor.log(`Collision threshold met! similarDirection: ${similarDirection}, xzDistance: ${xzDist}`)
-        
-        if (similarDirection) {
-          // StraightUpExecutor.log('Airborne alignment complete (similar direction). Returning true.')
+        if (similarDirection || xzDist < 0.2) {
           return true
-        } else if (xzDist < 0.2) {
-          // StraightUpExecutor.log('Airborne alignment complete (xzDistance < 0.2). Returning true.')
-          return true 
         }
-        // StraightUpExecutor.log('Collision threshold met, but neither direction nor distance satisfied. Continuing.')
       }
 
-      // StraightUpExecutor.log('Airborne alignment incomplete. Returning false.')
       return false
     } else {
-      // StraightUpExecutor.log('Bot is on ground. Deferring to align1() logic.')
       return await this.align1(thisMove)
     }
   }
 
   async align1 (thisMove: Move): Promise<boolean> {
     const target = thisMove.entryPos.floored().offset(0.5, 0, 0.5)
-    const pos = this.bot.entity.position
-    const xzDist = pos.xzDistanceTo(target)
-    
-    // StraightUpExecutor.log(`align1() called. Target: ${target}, Bot Pos: ${pos}, xzDistance: ${xzDist.toFixed(3)}`)
     this.bot.clearControlStates()
 
     void this.lookAt(target)
 
-    // Replaced brittle 3D AABB containment with robust 2D radius math.
-    // If bot center is within 0.2 blocks of target center, it is fully over the block.
-    if (xzDist < 0.2 && Math.abs(pos.y - thisMove.entryPos.y) < 0.5) {
-      // StraightUpExecutor.log('align1() complete! Bot is horizontally centered. Returning true.')
-      return true;
+    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
+    const bb1bl = this.getBlockInfo(target, 0, -1, 0)
+
+    // Create fresh clones of the block AABBs so we don't accidentally mutate the cached registry shape
+    const rawBBs = bb1bl.getBBs()
+    const bb1 = rawBBs.length > 0 
+      ? rawBBs.map(b => b.clone()) 
+      : [AABB.fromBlock(bb1bl.position)]
+
+    bb1.forEach((b) => b.extend(0, 10, 0))
+
+    const isContained = bb1.some((b) => b.contains(bb0))
+
+    // High-precision debug logging for geometric planes
+    log(`align1() Check -> Bot: [X: ${bb0.minX.toFixed(3)} to ${bb0.maxX.toFixed(3)}, Z: ${bb0.minZ.toFixed(3)} to ${bb0.maxZ.toFixed(3)}]`)
+    bb1.forEach((b, i) => {
+      log(`align1() Check -> Block[${i}]: [X: ${b.minX.toFixed(3)} to ${b.maxX.toFixed(3)}, Z: ${b.minZ.toFixed(3)} to ${b.maxZ.toFixed(3)}]`)
+      
+      // Log exactly why it failed containment
+      if (!b.contains(bb0)) {
+        log(`Fail Reason: minX: ${bb0.minX >= b.minX}, maxX: ${bb0.maxX <= b.maxX}, minZ: ${bb0.minZ >= b.minZ}, maxZ: ${bb0.maxZ <= b.maxZ}`)
+      }
+    })
+
+    if (isContained) {
+      return true
     }
 
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
     const dotProd = xzVel.normalize().dot(this.bot.util.getViewDir())
-    
-    log(`Bot xzVelocity: ${xzVel}, Dot Product (Velocity vs View): ${dotProd.toFixed(3)}`)
+    const xzDist = this.bot.entity.position.xzDistanceTo(target)
 
     if (dotProd <= -0.2 || xzDist > 0.8) {
-      log(`Path A: Dot <= -0.2 or Dist > 0.8. Sprinting towards target.`)
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', true)
       this.bot.setControlState('sneak', false)
     } else {
-      log(`Path B: Close to target (Dist <= 0.8). Braking with sneak.`)
       this.bot.setControlState('forward', true)
       this.bot.setControlState('sprint', false)
       this.bot.setControlState('sneak', true)
     }
 
-    log('align1() incomplete. Returning false.')
     return false
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    // StraightUpExecutor.log(`performInit() called. Blocks to break: ${thisMove.toBreak.length}, Blocks to place: ${thisMove.toPlace.length}`)
-    
     if (thisMove.toBreak.length > 0) {
       for (const breakH of thisMove.toBreak) {
-        // StraightUpExecutor.log(`Breaking block at ${breakH.vec}...`)
         await this.lookAt(breakH.vec.offset(0.5, 0, 0.5))
         await this.performInteraction(breakH)
       }
     }
 
     if (thisMove.toPlace.length > 1) {
-      // StraightUpExecutor.log('Error: Too many blocks to place for StraightUp!')
       throw new CancelError('StraightUp: toPlace.length > 1')
     }
 
     for (const place of thisMove.toPlace) {
-      // StraightUpExecutor.log(`Looking at and jumping to place block at ${place.vec}...`)
       await this.lookAt(place.vec.offset(0.5, 0, 0.5))
       this.bot.setControlState('jump', true)
       void this.performInteraction(place)
     }
-    
-    // StraightUpExecutor.log('performInit() finished.')
   }
 
   performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
-    // StraightUpExecutor.log(`performPerTick() called [Tick ${tickCount}]. Bot Y: ${this.bot.entity.position.y}, Entry Y: ${thisMove.entryPos.y}, Exit Y: ${thisMove.exitPos.y}`)
-    
     if (this.bot.entity.position.y < thisMove.entryPos.y) {
-      // StraightUpExecutor.log('Bot fell below entry point! Throwing CancelError.')
       throw new CancelError('StraightUp: too low')
     }
 
@@ -1078,23 +1062,16 @@ export class StraightUpExecutor extends MovementExecutor {
 
     const needsToJump = this.bot.entity.position.y < thisMove.exitPos.y
     this.bot.setControlState('jump', needsToJump)
-    // StraightUpExecutor.log(`Setting control state 'jump': ${needsToJump}`)
 
     const inWater = (this.bot.entity as any).isInWater as boolean
     
     if (inWater) {
-      const waterComplete = tickCount > 0 && this.bot.entity.position.y >= thisMove.exitPos.y
-      // StraightUpExecutor.log(`In water. Completion check: ${waterComplete}`)
-      return waterComplete
+      return tickCount > 0 && this.bot.entity.position.y >= thisMove.exitPos.y
     }
 
-    const groundComplete = tickCount > 0 && this.bot.entity.onGround && this.bot.entity.position.y >= thisMove.exitPos.y
-    // StraightUpExecutor.log(`On ground. Completion check (ticks > 0 && onGround && Y >= exitY): ${groundComplete} (onGround: ${this.bot.entity.onGround})`)
-    
-    return groundComplete
+    return tickCount > 0 && this.bot.entity.onGround && this.bot.entity.position.y >= thisMove.exitPos.y
   }
 }
-
 export class ParkourForwardExecutor extends MovementExecutor {
   private readonly shitterTwo: ParkourJumpHelper = new ParkourJumpHelper(this.bot, this.world)
 

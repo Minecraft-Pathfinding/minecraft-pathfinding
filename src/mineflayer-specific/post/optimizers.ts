@@ -7,14 +7,23 @@ import { MovementOptimizer } from './optimizer'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { stateLookAt } from '../movements/movementUtils'
 
+const debug = require('debug')
+const log = debug('minecraft-pathfinding:optimizers')
+
 export class LandStraightAheadOpt extends MovementOptimizer {
   async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {
+    const startIndex = currentIndex
     const thisMove = path[currentIndex] // starting move
 
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
 
-    if (nextMove === undefined) return --currentIndex
+    log(`[LandStraightAhead] Optimizing from index ${startIndex} (${thisMove.moveType.constructor.name})`)
+
+    if (nextMove === undefined) {
+      log(`[LandStraightAhead] nextMove is undefined, aborting.`)
+      return --currentIndex
+    }
 
     const orgY = thisMove.entryPos.y
 
@@ -24,7 +33,6 @@ export class LandStraightAheadOpt extends MovementOptimizer {
 
     const bb = AABBUtils.getEntityAABBRaw({ position: orgPos, width: hW, height: 1.8 })
     const verts = bb.expand(0, -0.1, 0).toVertices()
-    // console.log(orgPos, verts)
 
     const verts1 = [
       orgPos.offset(-uW / 2, -0.6, -uW / 2),
@@ -35,36 +43,32 @@ export class LandStraightAheadOpt extends MovementOptimizer {
 
     while (lastMove.exitPos.y === orgY && nextMove.exitPos.y === orgY) {
       if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) {
+        log(`[LandStraightAhead] Index ${currentIndex}: AABB collision failed between entry and exit.`)
         return --currentIndex
       }
 
-      if (nextMove === undefined) return --currentIndex
+      if (nextMove === undefined) {
+        log(`[LandStraightAhead] Index ${currentIndex}: nextMove became undefined.`)
+        return --currentIndex
+      }
+      
       for (const vert of verts) {
         const offset = vert.minus(orgPos)
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
+        
         const raycast0 = this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
           dist,
-          (block) => !BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || BlockInfo.blocksToAvoid.has(block.type)
+          (block) => (!BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || BlockInfo.blocksToAvoid.has(block.type)) && block.shapes.length > 0
         ) as unknown as RayType | null
+        
         const valid0 = (raycast0 == null) || raycast0.position.distanceTo(orgPos) > dist
 
-        // console.log('\n\nBLOCK CHECK')
-        // console.log('offset', offset)
-        // console.log('vert', vert)
-        // console.log('orgPos', orgPos)
-        // console.log('test1', test1)
-        // console.log('test', test)
-        // console.log('raycast0', raycast0)
-        // console.log('valid0', valid0)
-        // console.log('test.minus(vert).normalize()', test.minus(vert).normalize())
-        // console.log('raycast0.position.distanceTo(orgPos)', raycast0?.position.distanceTo(orgPos))
-        // console.log('dist', dist)
-
         if (!valid0) {
+          log(`[LandStraightAhead] Index ${currentIndex}: Block check raycast hit an obstacle at ${raycast0.position}.`)
           return --currentIndex
         }
       }
@@ -75,6 +79,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
+        
         const raycast0 = (await this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
@@ -84,43 +89,38 @@ export class LandStraightAheadOpt extends MovementOptimizer {
 
         const valid0 = (raycast0 == null) || raycast0.shapes.length > 0 || raycast0.position.distanceTo(orgPos) > dist
 
-        // console.log('\n\nAIR CHECK')
-        // console.log('offset', offset)
-        // console.log('vert', vert)
-        // console.log('orgPos', orgPos)
-        // console.log('test1', test1)
-        // console.log('test', test)
-        // console.log('raycast0', raycast0)
-        // console.log('valid0', valid0)
-        // console.log('test.minus(vert).normalize()', test.minus(vert).normalize())
-        // console.log('raycast0.position.distanceTo(orgPos)', raycast0?.position.distanceTo(orgPos))
-        // console.log('dist', dist)
-
         if (!valid0) {
           counter--
         }
       }
 
-      if (counter === 0) return --currentIndex
+      if (counter === 0) {
+        log(`[LandStraightAhead] Index ${currentIndex}: Air check raycast failed (counter reached 0).`)
+        return --currentIndex
+      }
 
-      if (++currentIndex >= path.length) return --currentIndex
+      if (++currentIndex >= path.length) {
+        log(`[LandStraightAhead] Reached end of path.`)
+        return --currentIndex
+      }
       lastMove = nextMove
       nextMove = path[currentIndex]
     }
+    
+    log(`[LandStraightAhead] Y-level changed or loop ended naturally. Returning index ${currentIndex - 1}.`)
     return --currentIndex
   }
 }
 
 export class DropDownOpt extends MovementOptimizer {
-  // TODO: Add fall damage checks and whatnot.
-
-  // TODO: Fix bugs. (e.g. if bot is on a block that is not a full block, it will not be able to drop down)
   readonly mergeInteracts = false
 
   identEndOpt (currentIndex: number, path: Move[]): number | Promise<number> {
-    // const thisMove = path[currentIndex] // starting move
+    const startIndex = currentIndex
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
+
+    log(`[DropDownOpt] Optimizing from index ${startIndex} (${lastMove.moveType.constructor.name})`)
 
     if (nextMove === undefined) return --currentIndex
 
@@ -129,20 +129,28 @@ export class DropDownOpt extends MovementOptimizer {
     let flag0 = false
     let flag1 = false
     while (currentIndex < path.length) {
-      if (nextMove.exitPos.y > lastMove.exitPos.y) return --currentIndex
-      if (nextMove.toPlace.length > 0 || nextMove.toBreak.length > 0) return --currentIndex
+      if (nextMove.exitPos.y > lastMove.exitPos.y) {
+        log(`[DropDownOpt] Index ${currentIndex}: nextMove goes UP. Aborting.`)
+        return --currentIndex
+      }
+      if (nextMove.toPlace.length > 0 || nextMove.toBreak.length > 0) {
+        log(`[DropDownOpt] Index ${currentIndex}: nextMove requires block placement/breaking. Aborting.`)
+        return --currentIndex
+      }
 
-      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) {
+        log(`[DropDownOpt] Index ${currentIndex}: AABB collision failed.`)
+        return --currentIndex
+      }
 
-      // rough fix.
-      if (nextMove.exitPos.xzDistanceTo(firstPos) < lastMove.exitPos.xzDistanceTo(firstPos)) return --currentIndex
+      if (nextMove.exitPos.xzDistanceTo(firstPos) < lastMove.exitPos.xzDistanceTo(firstPos)) {
+        log(`[DropDownOpt] Index ${currentIndex}: Bot is moving closer to start position (looping). Aborting.`)
+        return --currentIndex
+      }
 
       const ctx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
-      // ctx.position.set(firstPos.x, firstPos.y, firstPos.z);
       ctx.velocity.set(0, 0, 0)
-      // ctx.position.set(lastMove.exitPos.x, lastMove.exitPos.y, lastMove.exitPos.z);
       ctx.position.set(lastMove.entryPos.x, lastMove.entryPos.y, lastMove.entryPos.z)
-      // ctx.velocity.set(lastMove.entryVel.x, lastMove.entryVel.y, lastMove.entryVel.z); // 0,0,0
       stateLookAt(ctx.state, nextMove.entryPos)
       ctx.state.control = ControlStateHandler.DEFAULT()
       ctx.state.control.forward = true
@@ -156,13 +164,13 @@ export class DropDownOpt extends MovementOptimizer {
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0))
       let flag = false
       let good = false
+      
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 })
           const collided =
             (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid && (state.onGround || state.isInWater))
-          // console.log(pBB, blockBB0, bb0solid, blockBB1, bb1solid);
-          // console.log(state.onGround, state.isCollidedHorizontally, collided, flag);
+          
           if (collided) {
             good = true
             return true
@@ -170,7 +178,6 @@ export class DropDownOpt extends MovementOptimizer {
 
           if (state.pos.y < nextMove.entryPos.y && state.pos.y < nextMove.exitPos.y) flag = true
 
-          // if (state.pos.y < lastMove.entryPos.y || state.pos.y < lastMove.exitPos.y) flag = true;
           if (flag) return (ticks > 0 && state.onGround) || state.isCollidedHorizontally
           else return false
         },
@@ -181,14 +188,26 @@ export class DropDownOpt extends MovementOptimizer {
         1000
       )
 
-      if (!good) return --currentIndex
+      if (!good) {
+        log(`[DropDownOpt] Index ${currentIndex}: Physics simulation failed to reach target safely.`)
+        return --currentIndex
+      }
 
       if (ctx.state.isInWater) flag1 = true
-      else if (flag1) return --currentIndex
+      else if (flag1) {
+        log(`[DropDownOpt] Index ${currentIndex}: Bot left water during drop. Aborting.`)
+        return --currentIndex
+      }
 
       if (nextMove.exitPos.y === nextMove.entryPos.y) {
-        if (!bb1solid) return --currentIndex
-        if (flag0) return currentIndex
+        if (!bb1solid) {
+          log(`[DropDownOpt] Index ${currentIndex}: Landing block is not solid.`)
+          return --currentIndex
+        }
+        if (flag0) {
+          log(`[DropDownOpt] Index ${currentIndex}: Flag0 triggered. Returning.`)
+          return currentIndex
+        }
         else flag0 = true
       }
 
@@ -202,13 +221,17 @@ export class DropDownOpt extends MovementOptimizer {
 }
 
 export class ForwardJumpUpOpt extends MovementOptimizer {
-  // TODO: Add fall damage checks and whatnot.
-
   identEndOpt (currentIndex: number, path: Move[]): number | Promise<number> {
+    const startIndex = currentIndex
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
 
-    if (lastMove.toPlace.length > 0) return --currentIndex
+    log(`[ForwardJumpUpOpt] Optimizing from index ${startIndex} (${lastMove.moveType.constructor.name})`)
+
+    if (lastMove.toPlace.length > 0) {
+      log(`[ForwardJumpUpOpt] Initial move places a block. Aborting.`)
+      return --currentIndex
+    }
 
     if (nextMove === undefined) return --currentIndex
 
@@ -218,9 +241,16 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
-      if (lastMove.toPlace.length > 1) return --currentIndex
+      if (lastMove.toPlace.length > 1) {
+        log(`[ForwardJumpUpOpt] Index ${currentIndex}: Places >1 blocks. Aborting.`)
+        return --currentIndex
+      }
 
-      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) return --currentIndex
+      if (!AABB.fromBlockPos(nextMove.entryPos).collides(AABB.fromBlockPos(nextMove.exitPos))) {
+        log(`[ForwardJumpUpOpt] Index ${currentIndex}: AABB collision failed.`)
+        return --currentIndex
+      }
+      
       if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
       nextMove = path[currentIndex]
@@ -230,16 +260,20 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     while (
       lastMove.exitPos.y === nextMove.exitPos.y &&
-      nextMove.exitPos.distanceTo(firstPos) <= 2 && // remove for more aggressive opt.
+      nextMove.exitPos.distanceTo(firstPos) <= 2 && 
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
-      if (nextMove.exitPos.y > firstPos.y) return --currentIndex
+      if (nextMove.exitPos.y > firstPos.y) {
+        log(`[ForwardJumpUpOpt] Index ${currentIndex}: nextMove Y is higher than firstPos Y. Aborting.`)
+        return --currentIndex
+      }
       if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
       nextMove = path[currentIndex]
     }
 
+    log(`[ForwardJumpUpOpt] Optimized up to index ${currentIndex - 1}`)
     return --currentIndex
   }
 }

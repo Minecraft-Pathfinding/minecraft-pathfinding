@@ -603,7 +603,7 @@ export class ThePathfinder {
   }
 
   async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    if (entry > 10) throw new Error('Too many failures, exiting performing.')
+    if (entry > 1) throw new Error('Too many failures, exiting performing.')
 
     this.currentExecutionId++
     const myExecutionId = this.currentExecutionId
@@ -647,7 +647,7 @@ export class ThePathfinder {
 
       const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) throw new Error('No executor for movement type ' + move.moveType.constructor.name)
-        
+
       this.currentMove = move
       this.currentExecutor = executor
 

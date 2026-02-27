@@ -13,6 +13,11 @@ import { MovementExecutor } from './movementExecutor'
 import { Block } from '../../types'
 import { Task } from '../../utils'
 
+const debug = require('debug')
+const logBase = debug('minecraft-pathfinding:InteractHandler')
+const logPlace = debug('minecraft-pathfinding:PlaceHandler')
+const logBreak = debug('minecraft-pathfinding:BreakHandler')
+
 export type InteractType = 'water' | 'solid' | 'replaceable'
 export type RayType = {
   intersect: Vec3
@@ -31,6 +36,7 @@ export interface InteractOpts {
   returnToStart?: boolean
   returnToPos?: Vec3
   predictBlock?: boolean
+  noAwait?: boolean
 }
 
 /**
@@ -41,16 +47,12 @@ export interface InteractOpts {
 export abstract class InteractHandler {
   protected performing = false
   public cancelled = false
-  // public readonly vec: Vec3
 
   protected _done = false
-
   protected _internalLock = true
-
   protected task?: Task<void, Error>
 
   public readonly blockInfo: BlockInfo
-  // public readonly bb: AABB
 
   protected readonly move!: MovementExecutor
 
@@ -73,8 +75,6 @@ export abstract class InteractHandler {
     public readonly type: InteractType,
     public readonly offhand = false
   ) {
-    // this.vec = new Vec3(x, y, z)
-    // this.bb = AABB.fromBlock(this.vec)
     this.blockInfo = this.toBlockInfo()
   }
 
@@ -105,6 +105,7 @@ export abstract class InteractHandler {
 
   public async _abort (bot: Bot): Promise<void> {
     if (this.performing && !this.cancelled) {
+      logBase(`Aborting interaction at ${this.vec}`)
       await this.abort(bot)
       this.performing = false
       this.cancelled = true
@@ -112,22 +113,27 @@ export abstract class InteractHandler {
   }
 
   public async _perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
-    if (this.performing) throw new Error('Already performing')
+    if (this.performing) {
+      logBase(`Error: Already performing interaction at ${this.vec}`)
+      throw new Error('Already performing')
+    }
+    
+    logBase(`Starting interaction at ${this.vec} (Type: ${this.type}, Offhand: ${this.offhand})`)
     this.performing = true
     this._internalLock = true
     this.task = new Task()
 
-    // icky code.
     const ret = await this.perform(bot, item, opts).catch((err) => {
+      logBase(`Interaction failed at ${this.vec}: %O`, err)
       this._internalLock = false
       this._done = true
       this.performing = false
 
       if (this.task?.canceled != null) return
-      // this.task.cancel(err);
       throw new CancelError(`Failed to perform ${this.constructor.name}`, err)
     })
 
+    logBase(`Successfully completed interaction at ${this.vec}`)
     this._internalLock = false
     this._done = true
     this.performing = false
@@ -135,25 +141,25 @@ export abstract class InteractHandler {
   }
 
   getCurrentItem (bot: Bot): Item | null {
-    if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')] // could be wrong lol
+    if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]
     return bot.inventory.slots[bot.getEquipmentDestSlot('hand')]
   }
 
   async equipItem (bot: Bot, item: Item | null): Promise<void> {
     if (item === null) {
+      logBase(`Unequipping ${this.offhand ? 'off-hand' : 'hand'}`)
       await bot.unequip(this.offhand ? 'off-hand' : 'hand')
     } else if (this.offhand) {
+      logBase(`Equipping ${item.name} to off-hand`)
       await bot.equip(item, 'off-hand')
     } else {
+      logBase(`Equipping ${item.name} to hand`)
       await bot.equip(item, 'hand')
     }
     bot.updateHeldItem()
     await bot.waitForTicks(2)
   }
 
-  /**
-   * TODO: FUCK
-   */
   async allowExternalInfluence (bot: Bot, ticks = 1, sneak = false): Promise<boolean> {
     if (!this.performing) return true
     if (!this._internalLock) return true
@@ -164,8 +170,6 @@ export abstract class InteractHandler {
     const ectx = new EntityPhysics(bot.registry)
     const state = EPhysicsCtx.FROM_BOT(ectx, bot)
 
-    // state.state.control.set('sneak', sneak)
-
     const flag0 = bot.entity.onGround
     for (let i = 0; i < ticks; i++) {
       ectx.simulate(state, bot.pathfinder.world)
@@ -173,10 +177,8 @@ export abstract class InteractHandler {
 
     if (flag0) if (state.position.y < bot.entity.position.y) return false
 
-    // TODO: add raycast check to see if block is still visible.
     if (state.state.pos.y < bot.entity.position.y) return false
     return this.bb.distanceToVec(state.state.pos) < PlaceHandler.reach
-    // return this.vec.distanceTo(state.position) < PlaceHandler.reach;
   }
 }
 
@@ -206,11 +208,6 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  /**
-   * TODO: Move block static info to its own class.
-   * @param bot
-   * @param blockInfo
-   */
   getItem (bot: Bot): Item | null {
     switch (this.type) {
       case 'water': {
@@ -240,49 +237,45 @@ export class PlaceHandler extends InteractHandler {
 
   faceToVec (face: BlockFace): Vec3 {
     switch (face) {
-      case BlockFace.BOTTOM:
-        return new Vec3(0, -1, 0)
-      case BlockFace.TOP:
-        return new Vec3(0, 1, 0)
-
-      case BlockFace.NORTH:
-        return new Vec3(0, 0, -1)
-      case BlockFace.SOUTH:
-        return new Vec3(0, 0, 1)
-      case BlockFace.WEST:
-        return new Vec3(-1, 0, 0)
-      case BlockFace.EAST:
-        return new Vec3(1, 0, 0)
-
-      default:
-        throw new Error('Invalid face')
+      case BlockFace.BOTTOM: return new Vec3(0, -1, 0)
+      case BlockFace.TOP: return new Vec3(0, 1, 0)
+      case BlockFace.NORTH: return new Vec3(0, 0, -1)
+      case BlockFace.SOUTH: return new Vec3(0, 0, 1)
+      case BlockFace.WEST: return new Vec3(-1, 0, 0)
+      case BlockFace.EAST: return new Vec3(1, 0, 0)
+      default: throw new Error('Invalid face')
     }
   }
 
   needToPerform (bot: Bot): boolean {
-    // check if block at position is already what we want it to be
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
-    if (blockInfo.isInvalid) return true
+    if (blockInfo.isInvalid) {
+      logPlace(`Block at ${this.vec} is invalid. needsToPerform: true`)
+      return true
+    }
 
+    let needs = true
     switch (this.type) {
       case 'water': {
-        return !(blockInfo.liquid && BlockInfo.waters.has(blockInfo.type))
+        needs = !(blockInfo.liquid && BlockInfo.waters.has(blockInfo.type))
+        break
       }
       case 'solid': {
-        return !blockInfo.physical
+        needs = !blockInfo.physical
+        break
       }
       case 'replaceable': {
-        return !(blockInfo.replaceable)
+        needs = !(blockInfo.replaceable)
+        break
       }
     }
 
-    return true
+    logPlace(`needToPerform at ${this.vec}? ${needs} (Type: ${this.type})`)
+    return needs
   }
 
   async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
-    // bot.chat(`/particle flame ${this.vec.x} ${this.vec.y} ${this.vec.z} 0 0 0 0 1 force`);
-    // bot.chat(`pointed to: ${this.vec}`);
-    // console.log(this.vec)
+    logPlace(`Calculating performInfo for ${this.vec} (ticks: ${ticks})`)
     switch (this.type) {
       case 'water': {
         throw new Error('Not implemented')
@@ -290,37 +283,30 @@ export class PlaceHandler extends InteractHandler {
 
       case 'solid': {
         const works = []
-
         let startTick = 0
-        let shiftTick = Infinity
-        let i = 0
-        for (; i <= ticks; i++) {
+        
+        for (let i = 0; i <= ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
-
           const state = ectx.state
 
-          state.control.set('sneak', shiftTick < Infinity)
+          // Lightweight physics simulation: Just carry forward the executor's current control states
           for (let j = 0; j < i; j++) {
-            // inaccurate, should reset physics sim, but whatever.
             bot.physicsUtil.engine.simulate(ectx, bot.world)
           }
 
           const eyePos = state.pos.offset(0, 1.62, 0)
-          // const bb0 = AABB.fromBlock(this.vec)
           const bb1 = AABBUtils.getEntityAABBRaw({ position: state.pos, width: 0.6, height: 1.8 })
 
           const dx = state.pos.x - (this.vec.x + 0.5)
           const dy = state.pos.y + bot.entity.height - (this.vec.y + 0.5)
           const dz = state.pos.z - (this.vec.z + 0.5)
-          // Check y first then x and z
+          
           const visibleFaces: any = {
             y: Math.sign(Math.abs(dy) >= 0 ? dy : 0),
             x: Math.sign(Math.abs(dx) >= 0 ? dx : 0),
             z: Math.sign(Math.abs(dz) >= 0 ? dz : 0)
           }
 
-          // i need these to be perfect, but they're not lmao
-          // I don't have logic for these to be perfect, otherwise I believe this would be working fully
           const verts = Object.entries(visibleFaces).flatMap(([k, v]) => {
             return [
               this.vec.offset(
@@ -331,10 +317,6 @@ export class PlaceHandler extends InteractHandler {
             ]
           })
 
-          // verts.push(...bb0.expand(-0.01, -0.01, -0.01).toVertices())
-          // verts.push(this.vec.offset(0.5, 0.1, 0.5));
-
-          // console.log(state.pos, this.vec, verts)
           let good = 0
           for (const vert of verts) {
             const rayRes: RayType | null = (await bot.world.raycast(
@@ -342,28 +324,29 @@ export class PlaceHandler extends InteractHandler {
               vert.minus(eyePos).normalize().scale(scale),
               PlaceHandler.reach / scale
             )) as unknown as RayType
+            
             if (rayRes === null) continue
+            
             const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
             if (pos.equals(this.vec)) {
               if (bb1.containsVec(rayRes.intersect)) continue
-              if (AABB.fromBlock(pos).intersects(bb1)) {
-                if (shiftTick === Infinity) {
-                  shiftTick = i
-                  i--
-                }
-
-                continue
-              }
+              if (AABB.fromBlock(pos).intersects(bb1)) continue
+              
               good++
               if (startTick === 0) startTick = i
               works.push(rayRes as unknown as RayType)
             }
           }
+          
           if (works.length !== 0) {
-            if (good === 0) return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick, raycasts: works }
+            if (good === 0) {
+              logPlace(`performInfo calculated. ticks: ${Math.floor((i + startTick) / 2)}, raycasts: ${works.length}`)
+              return { ticks: Math.floor((i + startTick) / 2), tickAllowance: i - startTick, shiftTick: Infinity, raycasts: works }
+            }
           }
         }
-        // console.log('RAN I', i)
+        
+        logPlace(`performInfo failed to find placement path. Returning Infinity.`)
         return { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: works }
       }
 
@@ -376,27 +359,26 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  /**
-   * Assumes that the bot is already at the position and that item is correct
-   * item.
-   * @param bot
-   * @param item
-   * @param opts
-   */
   async perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
 
-    if (item === null) throw new Error('Invalid item')
+    if (item === null) {
+      logPlace('Error: Cannot perform placement with null item')
+      throw new Error('Invalid item')
+    }
 
-    // const start = performance.now()
+    logPlace(`Starting perform sequence at ${this.vec} with ${item.name}`)
+
     switch (this.type) {
       case 'water': {
         if (item.name !== 'water_bucket') throw new Error('Invalid item')
         if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item)
 
+        logPlace(`Looking at ${this.vec} to place water.`)
         await bot.lookAt(this.vec, this.settings.forceLook)
         bot.activateItem(this.offhand)
-        break // not necessary.
+        logPlace(`Water placed.`)
+        break 
       }
 
       case 'solid': {
@@ -409,36 +391,34 @@ export class PlaceHandler extends InteractHandler {
           works = await this.performInfo(bot)
         } else works = opts.info
 
+        let waitTicks = 0
         while (works.raycasts.length === 0) {
+          waitTicks++
           await bot.waitForTicks(1)
-          // const start = performance.now()
           works = await this.performInfo(bot)
-          // const end = performance.now()
-          // console.log("info took", end - start, "ms");
         }
+        if (waitTicks > 0) logPlace(`Waited ${waitTicks} ticks for valid raycast intersections.`)
 
         const stateEyePos = bot.entity.position.offset(0, 1.62, 0)
         const lookDir = bot.util.getViewDir()
-        // works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).norm() - a.intersect.minus(stateEyePos).norm());
-        // works.raycasts.sort((a, b) => a.intersect.distanceTo(stateEyePos) - b.intersect.distanceTo(stateEyePos));
         works.raycasts.sort((a, b) => b.intersect.minus(stateEyePos).dot(lookDir) - a.intersect.minus(stateEyePos).dot(lookDir))
 
         const rayRes = works.raycasts[0]
-        if (rayRes === undefined) throw new Error('Invalid block')
+        if (rayRes === undefined) {
+          logPlace('Error: Failed to find valid rayRes after filtering.')
+          throw new Error('Invalid block')
+        }
 
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
-        // const posBlRef = AABB.fromBlockPos(rayRes.position)
         const posBl = AABB.fromBlock(pos)
 
-        // const invalidPlacement1 = AABBUtils.getEntityAABB(bot.entity).intersects(AABB.fromBlock(pos))
-
+        logPlace(`Simulating movement ticks before placement (ticks needed: ${works.ticks})`)
         let i = 0
         for (; i < works.ticks; i++) {
-          if (i === works.shiftTick) bot.setControlState('sneak', true)
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
           const state = ectx.state
           bot.physicsUtil.engine.simulate(ectx, bot.world)
-          // console.log(bb.pos, bot.entity.position)
+          
           const sPos = state.pos.offset(0, 1.62, 0)
           const testCheck = (await bot.world.raycast(
             sPos,
@@ -451,59 +431,49 @@ export class PlaceHandler extends InteractHandler {
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getBB().intersects(pos1Bl)) {
-            // console.log("skipping on tick", i, state.getBB(), state.pos, pos1Bl);
             if (i < works.ticks - 1 && works.ticks !== 0) {
+              logPlace(`Early exit from pre-placement simulation at tick ${i + 1}/${works.ticks} due to favorable conditions. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
               await bot.waitForTicks(1)
             }
             break
           }
+          logPlace(`Simulating tick ${i + 1}/${works.ticks} before placement. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
           await bot.waitForTicks(1)
         }
 
         const botBB = AABBUtils.getEntityAABBRaw({ position: bot.entity.position, width: 0.6, height: 1.8 })
 
         if (!this.move.isLookingAt(rayRes.intersect)) {
-          await this.move.lookAt(rayRes.intersect)
-          await bot.lookAt(rayRes.intersect, this.settings.forceLook)
+          logPlace(`Adjusting look toward raycast intersection at ${rayRes.intersect}`)
+          void this.move.lookAt(rayRes.intersect)
+          void bot.lookAt(rayRes.intersect, this.settings.forceLook)
         }
-
-        // console.log(i, works.ticks, works.tickAllowance, works.shiftTick, rayRes.intersect, this.faceToVec(rayRes.face));
-        // console.log(bot.entity.position, bot.entity.velocity);
 
         const invalidPlacement = botBB.intersects(posBl)
         if (invalidPlacement) {
-          // console.log('invalid placement', bot.entity.position, invalidPlacement, botBB, posBl)
-          // console.log(botBB, posBl);
+          logPlace(`Error: Invalid placement! Bot AABB intersects target placement AABB at ${posBl.bottomMiddlePoint()}`)
           await bot.lookAt(rayRes.intersect, this.settings.forceLook)
           throw new CancelError('Invalid placement')
         }
 
-        let finished = false
-        let sneaking = false
         const direction = this.faceToVec(rayRes.face)
-        // console.log("looking at", rayRes.intersect);
-        // start = performance.now()
+        
+        logPlace(`Calling bot._placeBlockWithOptions at face ${rayRes.face}`)
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })
+        
         if (predictBlock) {
-          // console.log('predicting block')
+          logPlace(`Predicting block placement at ${rayRes.position.plus(direction)}`)
           bot.world.setBlock(rayRes.position.plus(direction), BlockInfo.PBlock.fromStateId(BlockInfo.substituteBlockStateId, 0))
-          // bot.world.setBlockStateId(rayRes.position.plus(direction), BlockInfo.substituteBlockStateId);
         }
 
         this._internalLock = false
 
-        // auto crouch if block does not update (this is outdated code, see predictBlock)
-        setTimeout(() => {
-          if (finished) return
-          sneaking = true
-          bot.setControlState('sneak', true)
-        }, Math.max(30 - bot._client.latency, 0))
-
-        await this._placeTask
-        finished = true
-
-        if (sneaking) bot.setControlState('sneak', false)
-        if (works.shiftTick !== Infinity) bot.setControlState('sneak', false)
+        if (opts.noAwait) {
+          this._placeTask.catch((err) => logPlace(`Background place task failed: %O`, err))
+        } else {
+          await this._placeTask
+          logPlace(`_placeTask resolved.`)
+        }
 
         this.task?.finish()
         break
@@ -511,7 +481,6 @@ export class PlaceHandler extends InteractHandler {
       case 'replaceable':
       default: {
         throw new Error('Not implemented')
-        // break // not necessary.
       }
     }
 
@@ -524,30 +493,20 @@ export class PlaceHandler extends InteractHandler {
     this._done = true
     this.performing = false
     delete this._placeTask
-    // console.log('done in ', performance.now() - start, 'ms')
+    logPlace(`Completed perform sequence at ${this.vec}`)
   }
 
   async abort (bot: Bot): Promise<void> {
+    logPlace(`Aborting placement at ${this.vec}`)
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
     }
 
     if (this._placeTask != null) {
-      switch (this.type) {
-        case 'water': {
-          break
-        }
-        case 'solid': {
-          // TODO: edit mineflayer to stop waiting for block updates at region.
-          // bot.stopDigging();
-          break
-        }
-        case 'replaceable': {
-          break
-        }
-      }
-      await this._placeTask.catch(() => {})
+      await this._placeTask.catch((err) => {
+        logPlace(`Caught error during _placeTask abort: %O`, err)
+      })
     }
   }
 }
@@ -586,61 +545,78 @@ export class BreakHandler extends InteractHandler {
   }
 
   needToPerform (bot: Bot): boolean {
-    // check if block at position is already what we want it to be
-
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
 
-    if (blockInfo.isInvalid) return true
+    if (blockInfo.isInvalid) {
+      logBreak(`Block at ${this.vec} is invalid. needsToPerform: true`)
+      return true
+    }
 
-    if (blockInfo.block?.boundingBox === 'empty' && !BlockInfo.liquids.has(blockInfo.type)) return false
-
-    return true
+    const needs = !(blockInfo.block?.boundingBox === 'empty' && !BlockInfo.liquids.has(blockInfo.type))
+    logBreak(`needToPerform at ${this.vec}? ${needs}`)
+    return needs
   }
 
   async performInfo (bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {
     const bb = AABB.fromBlock(this.vec)
+    const dist = bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0))
+    const reachable = dist < BreakHandler.reach + 5
+    
+    logBreak(`performInfo calculation. Distance: ${dist.toFixed(2)}, Reachable: ${reachable}`)
 
-    return bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0)) < BreakHandler.reach + 5
+    return reachable
       ? { ticks: 0, tickAllowance: 0, shiftTick: 0, raycasts: [] }
       : { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: [] }
   }
 
   async perform (bot: Bot, item: Item | null = null, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
+    logBreak(`Starting break sequence at ${this.vec}`)
 
     switch (this.type) {
       case 'water': {
         if (item === null) throw new Error('No item')
         if (item.name !== 'bucket') throw new Error('Invalid item')
         if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item)
+        
+        logBreak(`Looking at ${this.vec} to collect water.`)
         await bot.lookAt(this.vec, this.settings.forceLook)
         bot.activateItem(this.offhand)
-        break // not necessary.
+        logBreak(`Water collected.`)
+        break 
       }
 
       case 'solid': {
         if (item === null) {
           if (this.getCurrentItem(bot) !== null) await bot.unequip(this.offhand ? 'off-hand' : 'hand')
-        } else if (this.getCurrentItem(bot) !== item) await this.equipItem(bot, item)
+        } else if (this.getCurrentItem(bot) !== item) {
+          await this.equipItem(bot, item)
+        }
+        
         const block = await bot.world.getBlock(this.vec) as Block | null
-        if (block == null) throw new Error('Invalid block')
+        if (block == null) {
+          logBreak('Error: Block is null')
+          throw new Error('Invalid block')
+        }
+        
+        logBreak(`Looking at ${this.vec} to start digging.`)
         await bot.lookAt(this.vec, this.settings.forceLook)
 
+        logBreak(`Calling bot.dig on ${block.name}`)
         this._breakTask = bot.dig(block, 'ignore', 'raycast')
 
         await this._breakTask
+        logBreak(`Dig task resolved.`)
         if (this.task != null) this.task.finish()
         break
       }
 
       case 'replaceable': {
         throw new Error('Not implemented')
-        // break // not necessary.
       }
 
       default: {
         throw new Error('Not implemented')
-        // break // not necessary.
       }
     }
 
@@ -652,9 +628,11 @@ export class BreakHandler extends InteractHandler {
     }
 
     delete this._breakTask
+    logBreak(`Completed break sequence at ${this.vec}`)
   }
 
   async abort (bot: Bot): Promise<void> {
+    logBreak(`Aborting break at ${this.vec}`)
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
       this.task.canceled = true
@@ -666,6 +644,7 @@ export class BreakHandler extends InteractHandler {
           break
         }
         case 'solid': {
+          logBreak(`Calling bot.stopDigging()`)
           bot.stopDigging()
           break
         }
@@ -673,7 +652,9 @@ export class BreakHandler extends InteractHandler {
           break
         }
       }
-      await this._breakTask.catch(() => {})
+      await this._breakTask.catch((err) => {
+        logBreak(`Caught error during _breakTask abort: %O`, err)
+      })
     }
   }
 }

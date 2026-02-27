@@ -5,6 +5,10 @@ import { World } from '../world/worldInterface'
 import { Move } from '../move'
 import { BaseSimulator, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
 
+const debug = require('debug')
+const log = debug('minecraft-pathfinding:Optimizer')
+const logMerge = debug('minecraft-pathfinding:Optimizer:merge')
+
 export abstract class MovementOptimizer {
   bot: Bot
   world: World
@@ -21,12 +25,12 @@ export abstract class MovementOptimizer {
   abstract identEndOpt (currentIndex: number, path: Move[]): number | Promise<number>
 
   mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]): Move {
-    // console.log('merging', path[startIndex].moveType.constructor.name, path[endIndex].moveType.constructor.name, path.length)
     const startMove = path[startIndex]
     const endMove = path[endIndex]
 
-    // console.log('start', startMove.x, startMove.y, startMove.z, startMove.entryPos, startMove.moveType.constructor.name)
-    // console.log('end', endMove.x, endMove.y, endMove.z, endMove.exitPos, endMove.moveType.constructor.name)
+    logMerge(`Merging ${endIndex - startIndex + 1} moves: [Index ${startIndex}] ${startMove.moveType.constructor.name} -> [Index ${endIndex}] ${endMove.moveType.constructor.name}`)
+    logMerge(`Start Pos: ${startMove.entryPos}, End Pos: ${endMove.exitPos}`)
+
     const toBreak = [...startMove.toBreak]
     const toPlace = [...startMove.toPlace]
     let costSum = 0
@@ -37,9 +41,6 @@ export abstract class MovementOptimizer {
         toBreak.push(...intermediateMove.toBreak)
         toPlace.push(...intermediateMove.toPlace)
       }
-
-      // TODO: calculate semi-accurate cost by reversing C heuristic of algorithm,
-      // and then calculating the cost of the path from the start to the end.
       costSum += intermediateMove.cost
     }
 
@@ -48,7 +49,8 @@ export abstract class MovementOptimizer {
 
     costSum += endMove.cost
 
-    // console.log('fully merged', startMove.entryPos, endMove.exitPos, costSum)
+    logMerge(`Merge complete. Total Cost: ${costSum.toFixed(2)}, Breaks: ${toBreak.length}, Places: ${toPlace.length}`)
+
     return new Move(
       startMove.x,
       startMove.y,
@@ -79,7 +81,7 @@ export class Optimizer {
   }
 
   loadPath (path: Move[]): void {
-    // console.log('original path length', path.length)
+    log(`loadPath called. Initial path length: ${path.length}`)
     this.pathCopy = path
     this.currentIndex = 0
   }
@@ -92,10 +94,10 @@ export class Optimizer {
   private mergeMoves (startIndex: number, endIndex: number, optimizer: MovementOptimizer): void {
     const newMove = optimizer.mergeMoves(startIndex, endIndex, this.pathCopy)
 
-    // console.log("from\n\n", this.pathCopy.map((m, i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    // Splice the newly merged move into the array, replacing all intermediate moves
     this.pathCopy[startIndex] = newMove
     this.pathCopy.splice(startIndex + 1, endIndex - startIndex)
-    // console.log("to\n\n", this.pathCopy.map((m,i)=>[i,m.x,m.y,m.z, m.moveType.constructor.name]).join('\n'))
+    logMerge(`Spliced array. New path length: ${this.pathCopy.length}`)
   }
 
   async compute (): Promise<Move[]> {
@@ -103,27 +105,33 @@ export class Optimizer {
       throw new Error('Optimizer not sanitized')
     }
 
+    log(`compute() started. Iterating over path of length ${this.pathCopy.length}`)
+
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
       const opt = this.optMap.get(move.moveType.constructor as BuildableMoveProvider)
-      // console.log(opt?.constructor.name, this.currentIndex)
+      
       if (opt == null) {
+        log(`[Index ${this.currentIndex}] No optimizer mapped for ${move.moveType.constructor.name}. Skipping.`)
         this.currentIndex++
         continue
       }
-      const newEnd = await opt.identEndOpt(this.currentIndex, this.pathCopy)
-      // if (opt.mergeToEntry) newEnd--;
 
-      // console.log('found opt for:', opt?.constructor.name, this.currentIndex, ': here, newEnd', newEnd)
+      log(`[Index ${this.currentIndex}] Evaluating ${move.moveType.constructor.name} using ${opt.constructor.name}...`)
+      const newEnd = await opt.identEndOpt(this.currentIndex, this.pathCopy)
+
       if (newEnd !== this.currentIndex) {
+        log(`[Index ${this.currentIndex}] Optimizer identified mergable sequence ending at index ${newEnd}.`)
         this.mergeMoves(this.currentIndex, newEnd, opt)
+      } else {
+        log(`[Index ${this.currentIndex}] Optimizer returned identical index. No merge performed.`)
       }
 
-      // we simply move onto next movement, which will be the next movement after the merged movement.
+      // Move to the next movement (which will be the movement directly after our merged block)
       this.currentIndex++
     }
 
-    // console.log('optimized path length', this.pathCopy.length)
+    log(`compute() finished. Final optimized path length: ${this.pathCopy.length}`)
     return this.pathCopy
   }
 
