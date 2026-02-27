@@ -22,7 +22,9 @@ const bot = createBot({
   // host: "us1.node.minecraft.sneakyhub.com",
   // port: 25607,
 });
-const pathfinder = createPlugin();
+const pathfinder = createPlugin({
+  pathfinderSettings: { partialPathProducer: true },
+});
 
 const validTypes = ["block" , "lookat"]
 let type = "block"
