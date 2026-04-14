@@ -5,7 +5,7 @@ import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
-import { AbortError, CancelError, ResetError, TickAdvanceError } from './mineflayer-specific/exceptions'
+import { AbortError, CancelError, ManualResetError, ResetError, TickAdvanceError } from './mineflayer-specific/exceptions'
 import {
   BuildableMoveExecutor,
   BuildableMoveProvider,
@@ -198,9 +198,8 @@ export class ThePathfinder {
   }
 
   async cancel(): Promise<void> {
-    log('User canceled pathfinding.')
-    this.userAborted = true
-    await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true)
+    log('User cancelled pathfinding.')
+    await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true, 'goalReassignment')
   }
 
   async interrupt(timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
@@ -211,21 +210,7 @@ export class ThePathfinder {
     if (this.currentExecutor == null) return log('Interrupt ignored: no executor')
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
-    let reason
-    if (reasonStr != null) {
-      switch (reasonStr) {
-        case 'blockUpdate':
-          reason = new ResetError('blockUpdate')
-          break
-        case 'chunkLoad':
-          reason = new ResetError('chunkLoad')
-          break
-        case 'goalUpdated':
-          reason = new ResetError('goalUpdated')
-          break
-      }
-    }
-    this.resetReason = reasonStr
+    const reason = reasonStr ? ResetError.fromReason(reasonStr) : undefined;
     await this.currentExecutor.abort(this.currentMove, { timeout, reason })
   }
 
@@ -362,7 +347,7 @@ export class ThePathfinder {
 
     for (const key of goal._eventKeys) {
       const listener = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        if (this.userAborted) return cleanup()
+        if (this.resetReason === "goalReassignment") return cleanup()
         if (boundEvent(key, ...args)) newOnHasUpdate()
       }
       this.bot.on(key, listener)
@@ -371,7 +356,7 @@ export class ThePathfinder {
 
     for (const key of goal._validKeys) {
       const listener1 = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        if (this.userAborted) return cleanup()
+        if ((this.resetReason === "goalReassignment")) return cleanup()
         if (boundValid(key, ...args)) newOnInvalid()
       }
       this.bot.on(key, listener1)
@@ -596,15 +581,15 @@ export class ThePathfinder {
             manualCleanup()
           }
         }
-      } while (!this.userAborted && madeIt === false)
+      } while (!(this.resetReason === "goalReassignment") && madeIt === false)
 
       await this.cleanupBot()
       if (doForever) {
-        if (this.resetReason == null && !this.userAborted) {
+        if (this.resetReason == null && !(this.resetReason === "goalReassignment")) {
           await toWaitOn
         }
       }
-    } while (doForever && !this.userAborted)
+    } while (doForever && !(this.resetReason === "goalReassignment"))
   }
 
   private async awaitWithoutTickAdvance<T>(label: string, fn: () => Promise<T>): Promise<T> {
@@ -756,7 +741,7 @@ export class ThePathfinder {
 
         tickCount = 0
         await executor._performInit(move, currentIndex, localPath)
-        
+
         let adding: boolean | number = 0
 
         while (tickCount < PERFORM_TICK_LIMIT) {
@@ -814,6 +799,13 @@ export class ThePathfinder {
           break
         }
 
+        if (err instanceof ManualResetError) {
+          log(`[ExecID: %d] ManualResetERror handlded. Assume player intervention.`, myExecutionId)
+          executor.reset()
+          delete this.resetReason
+          break
+        }
+
         if (err instanceof ResetError) {
           log('[ExecID: %d] ResetError handled. Halting executor to restart.', myExecutionId)
           executor.reset()
@@ -832,7 +824,7 @@ export class ThePathfinder {
           await this.recovery(rawMove, path, goal, entry)
         }
 
-        log('[ExecID: %d] Unknown error thrown! Bubble up.', myExecutionId)
+        log('[ExecID: %d] Unknown error (type: %s) thrown! Bubble up.', myExecutionId, (err as any).constructor.name)
         throw err
       }
     }
@@ -897,10 +889,6 @@ export class ThePathfinder {
   }
 
   private check(): void {
-    if (this.userAborted) {
-      throw new AbortError('User cancelled.')
-    }
-
     if (this.resetReason != null) {
       throw new ResetError(this.resetReason)
     }
@@ -915,7 +903,6 @@ export class ThePathfinder {
 
   cleanupClient(): void {
     this.abortCalculation = false
-    this.userAborted = false
     delete this.resetReason
     delete this.currentGotoGoal
     delete this.curPath
@@ -935,7 +922,7 @@ export class ThePathfinder {
     }
     this.world.cleanup?.()
 
-    if (this.userAborted) {
+    if ((this.resetReason === "goalReassignment")) {
       log('Cleanup: Goal aborted.')
       this.bot.emit('goalAborted', goal)
     } else {
@@ -944,7 +931,6 @@ export class ThePathfinder {
     }
 
     this.abortCalculation = false
-    this.userAborted = false
     this.executeTask.finish()
 
     this.cleanupClient()

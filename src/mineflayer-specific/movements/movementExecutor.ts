@@ -4,12 +4,12 @@ import { Move } from '../move'
 import * as goals from '../goals'
 import { World } from '../world/worldInterface'
 import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler, RayType } from './interactionUtils'
-import { AbortError, CancelError, ResetError } from '../exceptions'
+import { AbortError, CancelError, ManualResetError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, BotcraftPhysics, Controller, EPhysicsCtx, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
-import { getNormalizedPos } from '../../utils'
+import { getNormalizedPos, posToYawPitchFromEye } from '../../utils'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 
 const debug = require('debug')
@@ -18,7 +18,7 @@ const log = debug('minecraft-pathfinding:movementExecutor')
 
 // temp typing
 interface AbortOpts {
-  reason?: ResetError | AbortError
+  reason?: ResetError | AbortError | ManualResetError
   timeout?: number
 }
 
@@ -70,7 +70,7 @@ export abstract class MovementExecutor extends Movement {
   }
 
   public reset (): void {
-    log('Resetting MovementExecutor')
+    // log('Resetting MovementExecutor')
     this.aborted = false
     delete this.resetReason
     this.task.finish()
@@ -142,8 +142,8 @@ export abstract class MovementExecutor extends Movement {
   public async perform (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     log('Performing move at index %d', currentIndex)
     this.currentMove = thisMove
-    if (this.aborted) throw new AbortError('Movement aborted.')
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
+    if (this.aborted) throw new AbortError('Movement aborted.')
 
     await this._performInit(thisMove, currentIndex, path)
 
@@ -564,9 +564,10 @@ export abstract class MovementExecutor extends Movement {
       if (!this.isLookingAt(target, 0.01)) return
     } else {
       await this.lookAtPathPos(target)
+      
+      const yawPitch = posToYawPitchFromEye(this.bot.entity.position, 1.62, target);
       if (!this.isLookingAtYaw(target, 0.01)) {
-        log('postInitAlignToPath: failed yaw check')
-        return
+        log(`postInitAlignToPath: failed yaw check (offset=${yawPitch.yaw - this.bot.entity.yaw})`)
       }
     }
 

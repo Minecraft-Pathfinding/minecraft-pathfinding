@@ -346,12 +346,12 @@ export class PlaceHandler extends InteractHandler {
           
           // INSTANT EXIT: The moment we find a valid placement frame, return it!
           if (good > 0) {
-            logPlace(`performInfo calculated. ticks: ${i}, raycasts: ${good}`)
+            logPlace(`performInfo calculated for pos ${this.blockInfo.position}. ticks: ${i}, raycasts: ${good}`)
             return { ticks: i, tickAllowance: 0, shiftTick: Infinity, raycasts: works }
           }
         }
         
-        logPlace(`performInfo failed to find placement path. Returning Infinity.`)
+        logPlace(`performInfo failed to find placement path for pos ${this.blockInfo.position}. Returning Infinity.`)
         return { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: works }
       }
 
@@ -411,15 +411,17 @@ export class PlaceHandler extends InteractHandler {
         const rayRes = works.raycasts[0]
         if (rayRes === undefined) {
           logPlace('Error: Failed to find valid rayRes after filtering.')
+
           throw new Error('Invalid block')
         }
 
         const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
         const posBl = AABB.fromBlock(pos)
 
+        console.log(bot.entity.position)
         logPlace(`Simulating movement ticks before placement (ticks needed: ${works.ticks})`)
-        let i = 0
-        for (; i < works.ticks; i++) {
+        let i = 1
+        for (; i <= works.ticks; i++) {
           const ectx = EPhysicsCtx.FROM_BOT(bot.physicsUtil.engine, bot)
           const state = ectx.state
           bot.physicsUtil.engine.simulate(ectx, bot.world)
@@ -431,18 +433,23 @@ export class PlaceHandler extends InteractHandler {
             PlaceHandler.reach * 2
           )) as unknown as RayType
 
-          if (testCheck === null) break
+
+          if (testCheck === null) {
+            logPlace('what the fuck?')
+            break;
+          }
 
           const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getBB().intersects(pos1Bl)) {
-            if (i < works.ticks - 1 && works.ticks !== 0) {
-              logPlace(`Early exit from pre-placement simulation at tick ${i + 1}/${works.ticks} due to favorable conditions. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
+            // if (i < works.ticks && works.ticks !== 0) {
+              logPlace(`Early exit from pre-placement simulation at tick ${i}/${works.ticks} due to favorable conditions. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
               await bot.waitForTicks(1)
-            }
+            // }
+            // logPlace('what teh fuck 2?')
             break
           }
-          logPlace(`Simulating tick ${i + 1}/${works.ticks} before placement. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
+          logPlace(`Simulating tick ${i}/${works.ticks} before placement. Current position: ${state.pos}, Ray intersect: ${rayRes.intersect}, Test check position: ${testCheck.position}, Test check face: ${testCheck.face}`)
           await bot.waitForTicks(1)
         }
 
@@ -456,7 +463,7 @@ export class PlaceHandler extends InteractHandler {
 
         const invalidPlacement = botBB.intersects(posBl)
         if (invalidPlacement) {
-          logPlace(`Error: Invalid placement! Bot AABB intersects target placement AABB at ${posBl.bottomMiddlePoint()}`)
+          logPlace(`Error: Invalid placement! Bot AABB intersects target placement AABB at ${posBl.bottomMiddlePoint()}. Age: ${i}, bot: ${bot.entity.position}, sim: ${botBB.bottomMiddlePoint()}`)
           await bot.lookAt(rayRes.intersect, this.settings.forceLook)
           throw new CancelError('Invalid placement')
         }

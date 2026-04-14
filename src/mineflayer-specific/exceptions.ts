@@ -15,11 +15,25 @@ export class AbortError extends Error {
 }
 
 export class ResetError extends Error {
+
+  static fromReason(reason: ResetReason, ...args: any[]) {
+    if (reason === "goalReassignment") return new ManualResetError(...args)
+    else return new ResetError(reason, ...args)
+  }
+
   constructor (public readonly reason: ResetReason, ...args: any[]) {
     // console.log('ResetError', reason, args)
     super('Movement timed out: ' + args.join(' '))
   }
 }
+
+export class ManualResetError extends ResetError {
+  constructor (...args: any[]) {
+    // console.log('ResetError', reason, args)
+    super('goalReassignment', 'Movement was manually reset: ' + args.join(' '))
+  }
+}
+
 
 
 export class TickAdvanceError extends Error {

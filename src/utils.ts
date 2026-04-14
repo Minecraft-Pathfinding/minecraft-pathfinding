@@ -136,6 +136,45 @@ export function getViewDir (info: { yaw: number, pitch: number }): Vec3 {
   return new Vec3(-Math.sin(info.yaw) * Math.cos(info.pitch), Math.sin(info.pitch), -Math.cos(info.yaw) * Math.cos(info.pitch))
 }
 
+export function dirToYawPitch (dir: Vec3): { yaw: number, pitch: number } {
+  const len = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z)
+  if (len === 0) throw new Error('Zero-length direction vector')
+
+  const x = dir.x / len
+  const y = dir.y / len
+  const z = dir.z / len
+
+  const pitch = Math.asin(y)
+
+  // matches your forward mapping exactly
+  const yaw = Math.atan2(-x, -z)
+
+  return { yaw, pitch }
+}
+
+export function posToYawPitchFromEye (
+  botPos: Vec3,
+  eyeHeight: number,
+  targetPos: Vec3
+): { yaw: number, pitch: number } {
+  const eyePos = botPos.offset(0, eyeHeight, 0)
+  const dx = targetPos.x - eyePos.x
+  const dy = targetPos.y - eyePos.y
+  const dz = targetPos.z - eyePos.z
+
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  if (len === 0) throw new Error('Target is exactly at eye position')
+
+  const x = dx / len
+  const y = dy / len
+  const z = dz / len
+
+  const pitch = Math.asin(y)
+  const yaw = Math.atan2(-x, -z)
+
+  return { yaw, pitch }
+}
+
 // (async () => {
 //   const task0 = new Task<number, Error>();
 //   const task1 = new Task<number, Error>();

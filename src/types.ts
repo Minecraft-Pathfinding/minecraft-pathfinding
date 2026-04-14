@@ -19,7 +19,7 @@ export interface HandlerOpts {
 
 export type PathStatus = 'noPath' | 'timeout' | 'partial' | 'success' | 'partialSuccess' | 'canceled'
 
-export type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated'
+export type ResetReason = 'blockUpdate' | 'chunkLoad' | 'goalUpdated' | 'goalReassignment'
 
 export type BlockType = ReturnType<typeof import('prismarine-block')>
 export type Block = import('prismarine-block').Block
