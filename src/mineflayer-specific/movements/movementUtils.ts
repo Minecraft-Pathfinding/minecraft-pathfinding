@@ -3,7 +3,6 @@ import {
   BotcraftPhysics,
   ControlStateHandler,
   EPhysicsCtx,
-  EntityPhysics,
   IEntityState,
   PlayerState,
   SimulationGoal

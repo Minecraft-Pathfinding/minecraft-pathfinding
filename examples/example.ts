@@ -5,7 +5,7 @@ import {createPlugin, goals} from '../src'
 const { GoalBlock } = goals;
 import { Vec3 } from 'vec3';
 
-import { default as loader, EntityPhysics, EPhysicsCtx, EntityState, ControlStateHandler } from "@nxg-org/mineflayer-physics-util";
+import { default as loader, EPhysicsCtx, EntityState, ControlStateHandler, BotcraftPhysics } from "@nxg-org/mineflayer-physics-util";
 
 const bot = createBot({ username: "testing1", auth: "offline", 
 // host: "Ic3TankD2HO.aternos.me", 
@@ -24,7 +24,7 @@ bot.once("spawn", () => {
   // bot.physics.yawSpeed = 5;
 
   // apply hot-fix to mineflayer's physics engine.
-  const val = new EntityPhysics(bot.registry);
+  const val = new BotcraftPhysics(bot.registry);
   EntityState.prototype.apply = function (bot) {
     this.applyToBot(bot);
   };

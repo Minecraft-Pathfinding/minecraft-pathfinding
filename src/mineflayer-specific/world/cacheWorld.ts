@@ -22,7 +22,7 @@ export class BlockInfo {
   static readonly climbables = new Set()
   static readonly carpets = new Set()
   static readonly fences = new Set()
-  static readonly replaceables = new Set()
+  static readonly replaceables = new Set<number>()
   static readonly liquids = new Set()
   static readonly waters = new Set()
   static readonly gravityBlocks = new Set()
@@ -224,6 +224,7 @@ export class BlockInfo {
           if (shape[4] !== 0 && height < b.position.y + shape[4]) height = b.position.y + shape[4]
         }
       }
+
       const climbable = BlockInfo.climbables.has(b.type)
       const safe = !BlockInfo.blocksToAvoid.has(b.type)
       return new BlockInfo(
@@ -242,7 +243,7 @@ export class BlockInfo {
       )
     } else {
       return new BlockInfo(
-        false,
+        BlockInfo.replaceables.has(b.type),
         false,
         true,
         true,

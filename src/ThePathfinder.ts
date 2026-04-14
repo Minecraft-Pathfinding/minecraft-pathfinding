@@ -829,11 +829,7 @@ export class ThePathfinder {
           }
 
           log('[ExecID: %d] CancelError handled. Triggering recovery.', myExecutionId)
-          await this.awaitWithoutTickAdvance(
-            'recovery',
-            async () => await this.recovery(rawMove, path, goal, entry)
-          )
-          break
+          await this.recovery(rawMove, path, goal, entry)
         }
 
         log('[ExecID: %d] Unknown error thrown! Bubble up.', myExecutionId)

@@ -3,7 +3,7 @@ import { Vec3 } from 'vec3'
 
 import type { Item } from 'prismarine-item'
 import { BlockInfo } from '../world/cacheWorld'
-import { EPhysicsCtx, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
+import { BotcraftPhysics, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { World } from '../world/worldInterface'
 import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
@@ -167,12 +167,12 @@ export abstract class InteractHandler {
     const res = await this.performInfo(bot, ticks)
     if (res.ticks < Infinity) return true
 
-    const ectx = new EntityPhysics(bot.registry)
+    const ectx = new BotcraftPhysics(bot.registry)
     const state = EPhysicsCtx.FROM_BOT(ectx, bot)
 
     const flag0 = bot.entity.onGround
     for (let i = 0; i < ticks; i++) {
-      ectx.simulate(state, bot.pathfinder.world)
+      ectx.simulate(state, bot.pathfinder.world as any)
     }
 
     if (flag0) if (state.position.y < bot.entity.position.y) return false

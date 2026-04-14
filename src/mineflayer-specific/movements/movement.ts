@@ -1,4 +1,4 @@
-import { BaseSimulator, EPhysicsCtx, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, BotcraftPhysics, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
@@ -285,7 +285,7 @@ export abstract class SimMovement extends Movement {
   sim: BaseSimulator
   constructor (bot: Bot, world: World, settings: Partial<MovementOptions>) {
     super(bot, world, settings)
-    this.sim = new BaseSimulator(new EntityPhysics(bot.registry))
+    this.sim = new BaseSimulator(new BotcraftPhysics(bot.registry))
     this.stateCtx = EPhysicsCtx.FROM_BOT(this.sim.ctx, bot)
   }
 

@@ -3,7 +3,7 @@ import { OptimizationMap } from '.'
 import { BuildableMoveProvider } from '../movements'
 import { World } from '../world/worldInterface'
 import { Move } from '../move'
-import { BaseSimulator, EntityPhysics } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, BotcraftPhysics } from '@nxg-org/mineflayer-physics-util'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:Optimizer')
@@ -19,7 +19,7 @@ export abstract class MovementOptimizer {
   constructor (bot: Bot, world: World) {
     this.bot = bot
     this.world = world
-    this.sim = new BaseSimulator(new EntityPhysics(bot.registry))
+    this.sim = new BaseSimulator(new BotcraftPhysics(bot.registry))
   }
 
   abstract identEndOpt (currentIndex: number, path: Move[]): number | Promise<number>

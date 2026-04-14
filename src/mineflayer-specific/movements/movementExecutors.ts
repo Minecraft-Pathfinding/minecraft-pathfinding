@@ -34,124 +34,97 @@ export class IdleMovementExecutor extends MovementExecutor {
 
 
 export class NewForwardExecutor extends MovementExecutor {
-  private getRemainingPlacements(): PlaceHandler[] {
-    if (!this.currentMove) return []
-    // Filter out blocks that have already been physically placed or predicted locally
-    return this.currentMove.toPlace.filter(p => p.needToPerform(this.bot))
-  }
-
-  private async faceForward(): Promise<boolean> {
+  private async faceForward (): Promise<boolean> {
+    // console.log('called faceForward!')
     if (this.doWaterLogic()) return true
-
-    const remainingPlacements = this.getRemainingPlacements()
-    if (remainingPlacements.length === 0) {
-      // logFwd('No remaining placements. Facing forward.')
-      return true // No blocks left, safe to face forward and walk
-    }
-
     const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
-    const placementVecs = remainingPlacements.map((p) => AABB.fromBlock(p.vec))
+    const placementVecs = this.toPlace().map((p) => AABB.fromBlock(p.vec))
     const near = placementVecs.some((p) => p.distanceToVec(eyePos) < PlaceHandler.reach + 2)
 
-    // logFwd(`Facing forward check: ${remainingPlacements.length} remaining placements, near: ${near}`)
-    return !near
+    // console.log('this.currentMove?.toPlace.length === 0 || !near', this.currentMove?.toPlace.length === 0 || !near)
+    // console.log(this.currentMove.toPlace.length, this.toPlace().length, placementVecs.map((p) => p.distanceToVec(eyePos)), near, this.currentMove?.toPlace.length === 0 && !near)
+    return this.currentMove?.toPlace.length === 0 || !near
   }
 
-  override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    const inWater = this.doWaterLogic()
-    const onGround = this.bot.entity.onGround
-
-    if (this.bot.entity.position.y < thisMove.entryPos.y - 1) {
-      logFwd(`Bot fell too far below entry Y (${thisMove.entryPos.y}). Aborting alignment.`)
-      throw new CancelError('ForwardMove: too low to align')
+  override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+    if (this.doWaterLogic()) {
+      await super.align(thisMove, tickCount, goal)
+      // this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.entryPos.y)
     }
 
-    const faceFwd = await this.faceForward()
+    const faceForward = await this.faceForward()
+    let target
+    if (faceForward) {
+      target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
+    } else {
+      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+      target = offset
+    }
+
+    await this.landAlign(thisMove, tickCount, goal)
+    // await this.postInitAlignToPath(thisMove, { lookAtYaw: target })
+    return this.isInitAligned(thisMove, target)
+  }
+
+  async landAlign (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+    const faceForward = await this.faceForward()
+
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
-
-    let lookTarget: import('vec3').Vec3
-    if (faceFwd) {
-      lookTarget = target
-      void this.lookAt(target)
-    } else {
-      lookTarget = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
-      void this.lookAt(lookTarget)
-    }
-
-    const bb0 = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
-    const bb1bl = this.getBlockInfo(target, 0, -1, 0)
-
-    const rawBBs = bb1bl.getBBs()
-    const bb1 = rawBBs.length > 0 ? rawBBs : [AABB.fromBlock(bb1bl.position)]
-
-    const isContainedXZ = bb1.some((b) => {
-      return bb0.minX >= b.minX &&
-        bb0.maxX <= b.maxX &&
-        bb0.minZ >= b.minZ &&
-        bb0.maxZ <= b.maxZ
-    })
-
-    const xzDist = this.bot.entity.position.xzDistanceTo(target)
-
-    const dirToTarget = lookTarget.minus(this.bot.entity.position)
-    dirToTarget.y = 0
-    let isLooking = true
-
-    if (dirToTarget.norm() > 0.01) {
-      dirToTarget.normalize()
-      const currentView = this.bot.util.getViewDir()
-      currentView.y = 0
-      currentView.normalize()
-      const dot = dirToTarget.x * currentView.x + dirToTarget.z * currentView.z
-      isLooking = dot > 0.95
-    }
-
-    if ((isContainedXZ || xzDist < 0.2) && isLooking) {
-      this.bot.clearControlStates()
-      return true
-    }
-
-    if (faceFwd) {
+    if (faceForward) {
+      // await this.postInitAlignToPath(thisMove)
+      // void this.lookAt(target);
       this.bot.setControlState('forward', true)
-      this.bot.setControlState('back', false)
-      const sprint = this.bot.food > 6 && (xzDist > 0.8 || inWater)
-      this.bot.setControlState('sprint', sprint)
-      this.bot.setControlState('sneak', !sprint && xzDist <= 0.8)
+      if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
+      else this.bot.setControlState('sprint', true)
     } else {
-      // CAREFUL BACKWARD ALIGNMENT
+      const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
+      // await this.postInitAlignToPath(thisMove, { lookAt: offset })
+      void this.lookAt(offset)
       this.bot.setControlState('forward', false)
-      this.bot.setControlState('back', true)
       this.bot.setControlState('sprint', false)
-      this.bot.setControlState('sneak', true) // Always sneak when backing up to edge!
+      this.bot.setControlState('back', true)
     }
 
-    return false
+    // return this.isComplete(thisMove, thisMove, {entry: true})
+    // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
+    // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
+
+    return this.isInitAligned(thisMove, target)
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+    // console.log('ForwardMove', thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length)
+
     this.bot.clearControlStates()
 
-    const faceFwd = await this.faceForward()
+    const faceForward = await this.faceForward()
 
-    if (faceFwd) {
+    if (faceForward) {
       await this.postInitAlignToPath(thisMove)
     } else {
       const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+      // console.log('here!', thisMove.exitPos, this.bot.entity.position, offset)
       await this.postInitAlignToPath(thisMove, { lookAt: offset })
     }
   }
 
-  private doWaterLogic(): boolean {
+  private doWaterLogic (): boolean {
     if ((this.bot.entity as any).isInWater as boolean) return true
+
     if (this.bot.entity.onGround) return false
 
     const bl = this.getBlockInfo(this.bot.entity.position, 0, -0.6, 0)
     return bl.liquid
   }
 
-  private canJump(thisMove: Move, currentIndex: number, path: Move[]): boolean {
+  // TODO: clean this up.
+  private canJump (thisMove: Move, currentIndex: number, path: Move[]): boolean {
     if (this.doWaterLogic()) {
-      return this.bot.entity.position.y < thisMove.exitPos.y
+      if (this.bot.entity.position.y < thisMove.exitPos.y) {
+        return true
+      } else {
+        return false
+      }
     }
 
     if (!this.settings.allowJumpSprint) return false
@@ -161,10 +134,11 @@ export class NewForwardExecutor extends MovementExecutor {
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
     if (xzVel.norm() < 0.14) return false
 
+    // console.log("hey");
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
     this.sim.simulateUntil(
       (state, ticks) => (ticks > 0 && state.onGround) || state.isCollidedHorizontally,
-      () => { },
+      () => {},
       (state) => {
         state.control.set('jump', true)
       },
@@ -179,8 +153,15 @@ export class NewForwardExecutor extends MovementExecutor {
     let offset = 0.4
     if (currentIndex < path.length) {
       if (nextPos.toPlace.length > 0 || nextPos.toBreak.length > 0) offset = 0.8
-      if (nextPos.exitPos.y > thisMove.entryPos.y) offset = 0.8
-      if (nextPos.exitPos.y - thisMove.entryPos.y > 2) offset = 0.8
+
+      // handle potential collisions here.
+      if (nextPos.exitPos.y > thisMove.entryPos.y) {
+        offset = 0.8
+      }
+
+      if (nextPos.exitPos.y - thisMove.entryPos.y > 2) {
+        offset = 0.8
+      }
     }
 
     if (thisMove.entryPos.xzDistanceTo(ctx.state.pos) > thisMove.entryPos.xzDistanceTo(thisMove.exitPos) - offset) {
@@ -191,43 +172,19 @@ export class NewForwardExecutor extends MovementExecutor {
     return ctx.state.onGround
   }
 
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
-      this.bot.clearControlStates()
-      this.bot.setControlState('sneak', true)
       return false
-    }
-
-    if (this.cI == null) {
-      const remaining = this.getRemainingPlacements()
-
-      if (remaining.length > 0) {
-        let batchExecuted = false
-
-        for (const p of remaining) {
-          const info = await p.performInfo(this.bot, 5)
-
-          if (info.ticks === 0) {
-            logFwd(`Block ${p.vec} is visible NOW. Rapid-placing.`)
-            this.bot.clearControlStates()
-            this.bot.setControlState('sneak', true)
-
-            await this.performInteraction(p, { info, predictBlock: true, noAwait: true }) // fire and forget, we just want to trigger the placement and get out of the way
-            batchExecuted = true
-          } else if (info.ticks < Infinity) {
-            if (!batchExecuted) {
-              logFwd(`Block ${p.vec} visible in ${info.ticks} ticks. Triggering background interaction.`)
-              void this.performInteraction(p, { info, predictBlock: true })
-            }
-            break // Wait for next tick to assess further blocks
-          } else {
-            break // Unreachable
-          }
-        }
-
-        if (batchExecuted) return false
+    } else if (this.cI == null) {
+      const test = await this.interactNeeded(5)
+      if (test != null) {
+        // console.log('performing interaction')
+        void this.performInteraction(test)
+        return false
       }
     }
+
+    // if (tickCount > 160) throw new CancelError("ForwardMove: tickCount > 160");
 
     if (
       (!this.bot.entity.onGround &&
@@ -236,42 +193,20 @@ export class NewForwardExecutor extends MovementExecutor {
         this.canJump(thisMove, currentIndex, path)) ||
       this.bot.entity.position.y < Math.round(thisMove.entryPos.y) - 1
     ) {
-      logFwd('Bot fell too low or is off-ground. Throwing CancelError.')
+      // console.log(this.bot.entity.position, thisMove.entryPos)
       throw new CancelError('ForwardMove: not on ground')
     }
 
-    const faceFwd = await this.faceForward()
+    const faceForward = await this.faceForward()
 
-    logFwd(`Per-tick check: faceFwd=${faceFwd}, onGround=${this.bot.entity.onGround}, inWater=${this.doWaterLogic()}, forward=${this.bot.getControlState('forward')}, back=${this.bot.getControlState('back')}, sprint=${this.bot.getControlState('sprint')}, sneak=${this.bot.getControlState('sneak')}`)
-
-    if (faceFwd) {
-      this.bot.clearControlStates()
+    if (faceForward) {
       const jump = this.canJump(thisMove, currentIndex, path)
       this.bot.setControlState('jump', jump)
       void this.postInitAlignToPath(thisMove)
-      this.bot.setControlState("forward", true)
-      this.bot.setControlState("sprint", true)
-      // this.bot.setControlState("sneak", false)
       return this.isComplete(thisMove)
     } else {
-      // CAREFULLY BACK UP TO THE EDGE (SCAFFOLDING)
-      // logFwd('Facing backward for careful edge alignment. Sneaking.')
-      const target = thisMove.exitPos.floored().translate(0.5, 0, 0.5)
-      const lookTarget = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
-
-      void this.lookAt(lookTarget)
-
-      this.bot.setControlState('forward', false)
-      this.bot.setControlState('back', true)
-      this.bot.setControlState('sprint', false)
-
-      const info = await this.cI?.performInfo(this.bot, 5);
-      const invalidPlacement = !info && this.getRemainingPlacements().length > 0
-      // logFwd(`Careful backing check: Bot Y: ${this.bot.entity.position.y.toFixed(2)}, Target Y: ${thisMove.exitPos.y.toFixed(2)}, OnGround: ${this.bot.entity.onGround}, TickCount: ${tickCount}, Block Info: ${info ? `ticks=${info.ticks}` : 'no cI'}`)
-      this.bot.setControlState('sneak', invalidPlacement || info?.ticks === 0 || info?.ticks === Infinity) // Only sneak if the next block is imminently placeable to avoid unnecessary slowdown
-      // logFwd(`Sneak state: ${this.bot.getControlState('sneak')}, based on block info: ${info ? `ticks=${info.ticks}` : 'no cI'}`)
-
-
+      const offset = this.bot.entity.position.minus(thisMove.exitPos).plus(this.bot.entity.position)
+      void this.postInitAlignToPath(thisMove, { lookAt: offset })
       return this.isComplete(thisMove)
     }
   }
@@ -1021,7 +956,7 @@ export class StraightUpExecutor extends MovementExecutor {
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.bot.clearControlStates()
 
-    for (const breakH of thisMove.toBreak) {
+    for (const breakH of this.toBreak()) {
       await this.lookAt(breakH.vec.offset(0.5, 0.5, 0.5))
       await this.performInteraction(breakH)
     }
