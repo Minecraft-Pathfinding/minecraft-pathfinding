@@ -11,8 +11,7 @@ const bot = createBot({
   auth: "offline",
 
   host: "localhost",
-  // port: 5000,
-  version: "1.19.4",
+  port: 51643,
 });
 const pathfinder = createPlugin();
 

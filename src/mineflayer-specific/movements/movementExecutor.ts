@@ -246,9 +246,7 @@ export abstract class MovementExecutor extends Movement {
    * and bounding box check (touching OR slightly above block).
    */
   protected isComplete (startMove: Move, endMove: Move = startMove, opts: CompleteOpts = {}): boolean {
-    if (this.toBreakLen() > 0) return false
-    if (this.toPlaceLen() > 0) return false
-
+  
     if (this.cI !== undefined) {
       if (!this.cI.allowExit) return false
     }
@@ -259,7 +257,7 @@ export abstract class MovementExecutor extends Movement {
     const offset = endMove.exitPos.minus(this.bot.entity.position)
     const dir = endMove.exitPos.minus(startMove.entryPos)
 
-    log('isComplete: offset=%O, dir=%O', offset, dir)
+    // console.log(offset, dir)
     offset.translate(0, -offset.y, 0) // xz only
     dir.translate(0, -dir.y, 0) // xz only
 
@@ -267,22 +265,26 @@ export abstract class MovementExecutor extends Movement {
     const xzVelDir = xzVel.normalize()
 
     const dist = offset.norm()
-    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5
 
     const ectx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
+    const history= [ectx.position.clone()];
     for (let i = 0; i < ticks; i++) {
+      ectx.state.control.set('jump', false) // we don't want to jump again.
+      ectx.state.jumpQueued = false;
       this.bot.physicsUtil.engine.simulate(ectx, this.world)
+      history.push(ectx.position.clone())
     }
 
     const pos = ectx.state.pos.clone()
 
-    this.bot.physicsUtil.engine.simulate(ectx, this.world) // needed for later.
-
-    log('isComplete: pos=%O, isCollidedHorizontally=%s, isCollidedVertically=%s', ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+    // console.log(ectx.state.pos, ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically);
 
     const normPos = getNormalizedPos(this.bot, pos)
 
+    // const pos = this.bot.entity.position
     const bb0 = AABBUtils.getPlayerAABB({ position: normPos, width: 0.599, height: 1.8 })
+    // bb0.extend(0, ticks === 0 ? -0.251 : -0.1, 0);
+    // bb0.expand(-0.0001, 0, -0.0001);
 
     let bb1bl
     let bbCheckCond = false
@@ -292,45 +294,60 @@ export abstract class MovementExecutor extends Movement {
       !ectx.state.isInWater &&
       !ectx.state.onGround &&
       this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
-    
+
+
     if (aboveWater) {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
       bbCheckCond = bb1bl.walkthrough
       const bb1s = AABB.fromBlockPos(bb1bl.position)
-      weGood = bb1s.collides(bb0) && bbCheckCond
-      log('isComplete: aboveWater check, weGood=%s', weGood)
+      weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
     } else if (ectx.state.isInWater) {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
       bbCheckCond = bb1bl.liquid
       const bb1s = AABB.fromBlock(bb1bl.position)
-      weGood = bb1s.collides(bb0) && bbCheckCond
-      log('isComplete: water check, blockType=%s, weGood=%s', bb1bl.block?.type, weGood)
+      weGood = bb1s.collides(bb0) && bbCheckCond // && !(this.bot.entity as any).isCollidedHorizontally;
+      // console.log('water check', bb1bl.block?.type, bb1s, bb0, bbCheckCond)
     } else {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored().translate(0, -1, 0))
       bbCheckCond = bb1bl.physical
       const bb1s = bb1bl.getBBs()
-      weGood = bb1s.some((b) => b.collides(bb0)) && bbCheckCond && pos.y >= bb1bl.height
-      log('isComplete: land check, weGood=%s', weGood)
+      weGood = bb1s.some((b) => b.collides(bb0)) && bbCheckCond && pos.y >= bb1bl.height // && !(this.bot.entity as any).isCollidedHorizontally;
+      // console.log(
+      //   "land check",
+      //   endMove.exitPos,
+      //   bb1bl.block?.name,
+      //   bb1s,
+      //   bb0,
+      //   bbCheckCond,
+      //   bb1s.some((b) => b.collides(bb0)),
+      //   pos.y >= bb1bl.height,
+      //   history
+      // );
     }
+    // const bbOff = new Vec3(0, ectx.state.isInWater ? 0 : -1, 0)
 
     const headingThatWay = xzVelDir.dot(dir.normalize()) > -2
-
+    const similarDirection = offset.normalize().dot(dir.normalize()) > 0.5
+    
     if (weGood) {
-      if (similarDirection && headingThatWay) {
-        log('isComplete: finished via similarDirection and headingThatWay')
-        return !ectx.state.isCollidedHorizontally
-      } else if (dist < 0.2) {
-        log('isComplete: finished via distance < 0.2')
-        return true
+      // console.log('we good checl', xzVelDir.normalize().dot(dir.normalize()), offset, headingThatWay,  similarDirection,  ectx.state.isCollidedHorizontally, ectx.state.isCollidedVertically)
+      if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally // in air check.
+      else if (dist < 0.2) return true
+      else {
+        return true;
       }
+
+      // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
     }
 
-    log('isComplete: fallback default check. dist=%d, y1=%d, y2=%d, onGround=%s', 
-      this.bot.entity.position.xzDistanceTo(endMove.exitPos), 
-      this.bot.entity.position.y, 
-      endMove.exitPos.y, 
-      this.bot.entity.onGround
-    )
+    // console.log(
+    //   "backup",
+    //   this.bot.entity.position.xzDistanceTo(endMove.exitPos),
+    //   this.bot.entity.position.y,
+    //   endMove.exitPos.y,
+    //   this.bot.entity.onGround,
+    //   this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm()
+    // );
 
     // default implementation of being at the center of the block.
     // Technically, this may be true when the bot overshoots, which is fine.

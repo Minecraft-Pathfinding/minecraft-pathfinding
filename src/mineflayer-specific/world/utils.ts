@@ -12,9 +12,10 @@ export function fasterGetBlock (this: Bot['world'], pos: Vec3): Block {
   if (col == null) {
     return null as unknown as Block
   }
-  const colPos = { x: pos.x & 0xf, y: pos.y, z: pos.z & 0xf }
 
-  const ret1 = col.getBlock(colPos as any)
+  const colPos = new Vec3(pos.x & 0xf, pos.y, pos.z & 0xf).floor();
+
+  const ret1 = col.getBlock(colPos)
   ret1.position = pos
   return ret1
 }

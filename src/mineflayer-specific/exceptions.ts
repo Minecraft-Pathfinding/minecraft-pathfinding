@@ -20,3 +20,11 @@ export class ResetError extends Error {
     super('Movement timed out: ' + args.join(' '))
   }
 }
+
+
+export class TickAdvanceError extends Error {
+  constructor(label: string, beforeTick: number, afterTick: number) {
+    super(`[tick-guard] Tick advanced during await for ${label}: ${beforeTick} -> ${afterTick}`)
+    this.name = 'TickAdvanceError'
+  }
+}

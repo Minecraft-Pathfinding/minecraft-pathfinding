@@ -1,5 +1,6 @@
 import {
   BaseSimulator,
+  BotcraftPhysics,
   ControlStateHandler,
   EPhysicsCtx,
   EntityPhysics,
@@ -14,6 +15,7 @@ import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { JumpSim } from './simulators/jumpSim'
 import { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
+import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 
 interface JumpInfo {
   jumpTick: number
@@ -305,13 +307,13 @@ export class JumpCalculator {
 }
 
 export class ParkourJumpHelper {
-  private readonly sim: JumpSim
+  public readonly sim: JumpSim
   private readonly bot: Bot
   private readonly world: World
 
   constructor (bot: Bot, world: World) {
     this.bot = bot
-    this.sim = new JumpSim(new EntityPhysics(bot.registry), world)
+    this.sim = new JumpSim(new BotcraftPhysics(bot.registry), world)
     this.world = world
   }
 
@@ -473,7 +475,7 @@ export class ParkourJumpHelper {
     return reached(state, 0) as boolean
   }
 
-  public simFallOffEdge (goal: Vec3): boolean {
+  public simFallOffEdge (goal: Vec3, target?: Vec3): boolean {
     const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
 
     // console.log('sim jump goals', goal, goalVert)
@@ -482,7 +484,7 @@ export class ParkourJumpHelper {
     const goalBBs = this.world.getBlockInfo(goal).getBBs()
 
     ctx.state.control = ControlStateHandler.DEFAULT()
-    stateLookAt(ctx.state, goal)
+    if (target) stateLookAt(ctx.state, target)
     ctx.state.control.set('forward', true)
     ctx.state.control.set('jump', false)
     ctx.state.control.set('sprint', true)
@@ -510,9 +512,8 @@ export class ParkourJumpHelper {
     return reached0(state, 0) as boolean
   }
 
-  public simForwardMove (goal: Vec3, jump = true, ...constraints: SimulationGoal[]): boolean {
-    const goalVert = this.findGoalVertex(AABB.fromBlockPos(goal))
-
+  public simForwardMove (goal: Vec3, eyeTarget?: Vec3, jump = true,  ...constraints: SimulationGoal[]): boolean {
+   
     // console.log('sim jump goals', goal, goalVert)
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
     // const goalCenter = goal.floored().offset(0.5, 0, 0.5)
@@ -520,7 +521,7 @@ export class ParkourJumpHelper {
     const goalBBs = this.world.getBlockInfo(goal).getBBs()
 
     ctx.state.control = ControlStateHandler.DEFAULT()
-    stateLookAt(ctx.state, goalVert)
+    if (eyeTarget) stateLookAt(ctx.state, eyeTarget)
     ctx.state.control.set('forward', true)
     ctx.state.control.set('jump', jump)
     ctx.state.control.set('sprint', true)

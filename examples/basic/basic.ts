@@ -1,9 +1,9 @@
-const { createBot } = require("mineflayer");
-import { createPlugin, goals, custom } from "../src";
+import{ createBot } from "mineflayer";
+import { createPlugin, goals, custom } from "../../src";
 const { GoalBlock, GoalLookAt } = goals;
 const { MovementExecutor, MovementOptimizer } = custom;
 const { Vec3 } = require("vec3");
-const rl = require('readline')
+import rl from "readline";
 const { default: loader, EntityState } = require("@nxg-org/mineflayer-physics-util");
 
 
@@ -26,7 +26,7 @@ const pathfinder = createPlugin();
 
 const validTypes = ["block" , "lookat"]
 let type = "block"
-function getGoal(world, x, y, z) {
+function getGoal(world: any, x: number, y: number, z: number) {
   const block = bot.blockAt(new Vec3(x, y, z));
   if (block === null) return new GoalBlock(x, y+1, z);
   switch (type) {
@@ -54,7 +54,7 @@ bot.once("spawn", async () => {
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(loader);
 
-  bot.physics.autojumpCooldown = 0;
+  (bot.physics as any).autojumpCooldown = 0;
 
   const rlline = rl.createInterface({
     input: process.stdin,
@@ -76,7 +76,7 @@ bot.once("spawn", async () => {
 });
 
 
-async function cmdHandler(username, msg) {
+async function cmdHandler(username: string, msg: string) {
   if (username === bot.username) return;
 
   const [cmd1, ...args] = msg.split(" ");
@@ -114,7 +114,7 @@ async function cmdHandler(username, msg) {
 }
 
 const prefix = "!";
-bot.on("chat", async (username, msg) => {
+bot.on("chat", async (username: string, msg: string) => {
   await cmdHandler(username, msg);
 });
 

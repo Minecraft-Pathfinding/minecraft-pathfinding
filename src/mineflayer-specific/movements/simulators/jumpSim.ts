@@ -1,4 +1,4 @@
-import { EntityPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
+import { EntityPhysics, IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/states'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { Vec3 } from 'vec3'
@@ -40,7 +40,7 @@ const TWENTY_THREE_PI_OVER_TWELVE = (23 * Math.PI) / 12
 export class JumpSim extends BaseSimulator<PlayerState> {
   public readonly world: World
 
-  constructor (public readonly physics: EntityPhysics, world: World) {
+  constructor (public readonly physics: IPhysics, world: World) {
     super(physics)
     this.world = world
   }
