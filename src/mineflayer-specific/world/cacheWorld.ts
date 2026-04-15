@@ -440,11 +440,6 @@ export class BlockInfo {
 // }
 
 export class CacheSyncWorld implements WorldType {
-  posCache: LRUCache<string, Block>
-  posCache1: LRUCache<string, number>
-  // blocks: LRUCache<number, Block>;
-  // posCache: Record<string, Block>;
-  blocks: LRUCache<number, Block>
   blockInfos: LRUCache<string, BlockInfo>
   world: Bot['world']
   cacheCalls = 0
@@ -454,9 +449,6 @@ export class CacheSyncWorld implements WorldType {
   constructor (bot: Bot, referenceWorld: Bot['world']) {
     this.minY = (bot.game as any).minY
     // this.posCache = {};
-    this.posCache = new LRUCache({ max: 10000, ttl: 2000 })
-    this.posCache1 = new LRUCache({ max: 10000, ttl: 2000 })
-    this.blocks = new LRUCache({ size: 10000, max: 2000 })
 
     this.blockInfos = this.makeLRUCache(100000)
 
@@ -470,7 +462,7 @@ export class CacheSyncWorld implements WorldType {
       }
     })
 
-    this.world.getBlock = fasterGetBlock.bind(this.world)
+    // this.world.getBlock = fasterGetBlock.bind(this.world)
   }
 
   private makeLRUCache (size: number): CacheSyncWorld['blockInfos'] {
@@ -509,9 +501,9 @@ export class CacheSyncWorld implements WorldType {
 
     // guaranteed behavior.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    if (this.posCache.has(key)) return this.posCache.get(key)!
-    const block = this.world.getBlock(pos) as unknown as Block
-    if (block !== null) this.posCache.set(key, block)
+    if (this.blockInfos.has(key)) return this.blockInfos.get(key)!.block
+    const block = this.world.getBlock(pos)
+    if (block !== null) this.blockInfos.set(key, BlockInfo.fromBlock(block))
     return block
   }
 
@@ -520,14 +512,14 @@ export class CacheSyncWorld implements WorldType {
     // return BlockInfo.fromBlock(this.world.getBlock(pos))
 
     if (!this.enabled) {
-      return BlockInfo.fromBlock(this.world.getBlock(pos) as unknown as Block)
+      return BlockInfo.fromBlock(this.world.getBlock(pos))
     }
     this.cacheCalls++
     pos = pos.floored()
     const key = `${pos.x}:${pos.y}:${pos.z}`
 
     if (!this.blockInfos.has(key)) {
-      const block = this.world.getBlock(pos) as unknown as Block
+      const block = this.world.getBlock(pos)
       if (block === null) return BlockInfo.INVALID
       const blockInfo = BlockInfo.fromBlock(block)
       this.blockInfos.set(key, blockInfo)
@@ -553,24 +545,22 @@ export class CacheSyncWorld implements WorldType {
     // const state1 = this.world.getBlockStateId(pos);
     // if (state1 !== undefined) this.posCache[key] = CacheSyncWorld.Block.fromStateId(state1, 0)
     // return state1
-    if (this.posCache.has(key)) return this.posCache1.get(key)
-    const state = this.world.getBlockStateId(pos) as unknown as number
-    if (state !== undefined) this.posCache1.set(key, state)
-    return state
+    if (this.blockInfos.has(key)) return this.blockInfos.get(key)!.block?.stateId
+    const state = this.world.getBlock(pos)
+    if (state !== undefined) this.blockInfos.set(key, BlockInfo.fromBlock(state))
+    return state.stateId
   }
 
   getCacheSize (): string {
     const calls = this.cacheCalls
     this.cacheCalls = 0
     // const used = Object.keys(this.posCache).length === 0 ?  this.blocks : this.posCache
-    const used = this.posCache.size !== 0 ? this.posCache : this.blocks.size !== 0 ? this.blocks : this.blockInfos
+    const used =  this.blockInfos
     return `size = ${used.size}; calls = ${calls}`
   }
 
   clearCache (): void {
-    // this.posCache = {};
-    this.posCache.clear()
-    this.blocks.clear()
+    this.blockInfos.clear()
     this.cacheCalls = 0
   }
 

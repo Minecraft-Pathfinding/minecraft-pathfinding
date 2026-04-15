@@ -45,6 +45,7 @@ import { Task } from '@nxg-org/mineflayer-util-plugin'
 import { reconstructPath } from './abstract/algorithms'
 import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
+import { handleBlockEvent, handleSettledBlockEvent } from './customBlockEvents'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:main')
@@ -203,7 +204,7 @@ export class ThePathfinder {
   }
 
   async interrupt(timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
-    log('Interrupt called. Cancel Calculation: %s, Reason: %s', cancelCalculation, reasonStr)
+    log('Interrupt called. Cancel Calculation: %s. %s', cancelCalculation, reasonStr)
     if (this._currentProducer == null) return log('Interrupt ignored: no producer')
     this.abortCalculation = cancelCalculation
 
@@ -221,16 +222,35 @@ export class ThePathfinder {
   }
 
   setupListeners(): void {
-    this.bot.on('blockUpdate', (oldblock, newBlock: Block | null) => {
-      if (oldblock == null || newBlock == null) return
-      if (this.curPath == null) return
-      if (this.updateMatchesWanted(newBlock)) return
 
-      if (this.isPositionNearPath(oldblock.position) && oldblock.type !== newBlock.type) {
+    const disposeBlockUpdateListener = handleSettledBlockEvent(
+      this.bot,
+      async (oldBlock: Block | null, newBlock: Block | null, settledBlock: Block | null) => {
+        log(
+          'settled block update',
+          oldBlock?.name,
+          oldBlock?.position,
+          newBlock?.name,
+          newBlock?.position,
+          settledBlock?.name,
+          settledBlock?.position
+        )
+
+        if (oldBlock == null || settledBlock == null) return
+        if (this.curPath == null) return
+        if (oldBlock.type === settledBlock.type) return // break in progress.
+        if (!this.isPositionNearPath(oldBlock.position)) return
+        if (settledBlock == null) return
+        if (this.updateMatchesWanted(settledBlock, this.curPath)) return
+
         log('Block update near path detected, resetting...')
-        void this.reset('blockUpdate')
+        await this.reset('blockUpdate')
+      },
+      {
+        settleMs: 75,
+        timeoutMs: 250
       }
-    })
+    )
 
     this.bot.on('chunkColumnLoad', (chunk) => {
       const astarContext = this.currentAStar
@@ -254,10 +274,11 @@ export class ThePathfinder {
   }
 
   public updateMatchesWanted(block: Block | null, path: Move[] | undefined = this.curPath): boolean {
+    log(`block: ${block?.name} pos: ${block?.position}, path: ${path?.length}, index: ${this.currentIndex}`)
     if (block == null || path == null) return false
 
     const pos = block.position.floored()
-    for (let i = this.currentIndex; i < path.length; i++) {
+    for (let i = Math.max(0, this.currentIndex - 2); i < path.length; i++) {
       const move = path[i]
       for (const place of move.toPlace) {
         if (place.vec.equals(pos)) {
@@ -273,6 +294,7 @@ export class ThePathfinder {
       }
 
       for (const br of move.toBreak) {
+        log(`[debug] check break position: ${br.vec}, ${pos}, ${block.boundingBox}`)
         if (br.vec.equals(pos)) {
           return block.boundingBox === 'empty' && !BlockInfo.liquids.has(block.type)
         }
@@ -377,7 +399,7 @@ export class ThePathfinder {
     delete this.resetReason
 
     startPos = getNormalizedPos(this.bot, startPos)
-    log('Generating path from %O', startPos)
+    log('Generating path from %O to %O', startPos, goal)
 
     this.currentMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
@@ -592,18 +614,41 @@ export class ThePathfinder {
     } while (doForever && !(this.resetReason === "goalReassignment"))
   }
 
-  private async awaitWithoutTickAdvance<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  private async awaitWithoutTickAdvance<T>(label: string, move: MovementExecutor, fn: () => Promise<T>): Promise<T> {
     const beforeTick = this.currentTick
     const result = await fn()
     const afterTick = this.currentTick
 
+    // don't throw tick advance error if the movement was aborted, since this can happen when waiting.
+    if (move.aborted) return result;
+
     if (afterTick !== beforeTick) {
+      console.trace('FUCK', move.aborted, move.cI)
       throw new TickAdvanceError(
         label, beforeTick, afterTick
       )
     }
 
     return result
+  }
+
+
+  private findNextCurrentIdx(execId: number, move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number) {
+    const endIdx = localPath.findIndex(
+      (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
+    ); // we just finished this move, so 
+    log(`[ExecID ${execId}] Finish info. start: ${currentIndex}. endIdx: ${endIdx}, info: ${adding}, path len: ${localPath.length}`)
+    log(`[ExecID ${execId}] extra info: ${localPath[endIdx].exitPos}`)
+
+    // if we add, we need to override the endIdx transfer. Rough ik, but that seems correct.
+    if (typeof adding === 'number') {
+      if (Number.isFinite(adding) && adding > 0) currentIndex += adding
+    } else {
+      currentIndex = endIdx !== -1 ? endIdx + 1 : currentIndex + 1;
+    }
+
+    // however, if the path is optimized this does not work.
+    return currentIndex;
   }
 
   async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
@@ -617,6 +662,9 @@ export class ThePathfinder {
 
     this.currentExecutionId++
     const myExecutionId = this.currentExecutionId
+
+    log('Entering ExecId %s', myExecutionId)
+
 
     let currentIndex = 0
     const localPath = path.path
@@ -656,10 +704,7 @@ export class ThePathfinder {
 
         const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
         optimizer.loadPath(localPath.slice(currentIndex))
-        optSequence = await this.awaitWithoutTickAdvance(
-          'optimizer.compute',
-          async () => await optimizer.compute()
-        )
+        optSequence = await optimizer.compute()
         lastPathLength = localPath.length
       }
 
@@ -697,6 +742,8 @@ export class ThePathfinder {
           (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
         )
 
+        currentIndex = this.findNextCurrentIdx(myExecutionId, move, localPath, currentIndex)
+
         currentIndex = endIdx !== -1 ? endIdx + 1 : currentIndex + 1
         this.currentIndex = currentIndex
         continue
@@ -721,6 +768,7 @@ export class ThePathfinder {
 
           const aligned = await this.awaitWithoutTickAdvance(
             `${move.moveType.constructor.name}.align`,
+            executor,
             async () => await executor.align(move, tickCount++, goal)
           )
 
@@ -753,6 +801,7 @@ export class ThePathfinder {
 
           adding = await this.awaitWithoutTickAdvance(
             `${move.moveType.constructor.name}._performPerTick`,
+            executor,
             async () => await executor._performPerTick(move, tickCount++, currentIndex, localPath)
           )
 
@@ -769,28 +818,18 @@ export class ThePathfinder {
           throw new CancelError(`Execution tick loop timed out for ${move.moveType.constructor.name}`)
         }
 
-        log('[ExecID: %d] Finished move: %s', myExecutionId, move.moveType.constructor.name)
 
-        const endIdx = localPath.findIndex(
-          (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
-        )
-
-        if (endIdx !== -1) {
-          currentIndex = endIdx + 1
-        } else if (typeof adding === 'number' && Number.isFinite(adding) && adding > 0) {
-          currentIndex += adding
-        } else {
-          currentIndex += 1
-        }
+        currentIndex = this.findNextCurrentIdx(myExecutionId, move, localPath, currentIndex, adding)
 
         this.currentIndex = currentIndex
+
       } catch (err) {
-        log(
-          '[ExecID: %d] Exception caught during perform at index %d: %O',
-          myExecutionId,
-          currentIndex,
-          err
-        )
+        // log(
+        //   '[ExecID: %d] Exception caught during perform at index %d: %O',
+        //   myExecutionId,
+        //   currentIndex,
+        //   err
+        // )
 
         if (err instanceof AbortError) {
           log('[ExecID: %d] AbortError handled. Halting executor.', myExecutionId)
@@ -829,9 +868,11 @@ export class ThePathfinder {
       }
     }
 
+    log(`[ExecId ${myExecutionId}] End pos: ${this.bot.entity.position}`)
+
     if (this.currentExecutionId === myExecutionId) {
       log('[ExecID: %d] Perform loop ended naturally.', myExecutionId)
-      await this.awaitWithoutTickAdvance('cleanupBot.final', async () => await this.cleanupBot())
+      await this.cleanupBot()
     }
   }
 

@@ -23,14 +23,15 @@ export class ResetError extends Error {
 
   constructor (public readonly reason: ResetReason, ...args: any[]) {
     // console.log('ResetError', reason, args)
-    super('Movement timed out: ' + args.join(' '))
+    const extra = args.length > 0 ? `: ${args.join(' ')}` : '.'
+    super(`Movement was reset${extra}`)
   }
 }
 
 export class ManualResetError extends ResetError {
   constructor (...args: any[]) {
     // console.log('ResetError', reason, args)
-    super('goalReassignment', 'Movement was manually reset: ' + args.join(' '))
+    super('goalReassignment', 'manual reset.')
   }
 }
 

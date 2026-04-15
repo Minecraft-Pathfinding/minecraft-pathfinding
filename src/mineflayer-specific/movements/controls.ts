@@ -269,3 +269,68 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
     bot.setControlState('back', false)
   }
 }
+
+
+export function botStrafeMovementStrict(bot: Bot, nextPoint: Vec3): void {
+  const pos = bot.entity.position
+  const vel = bot.entity.velocity
+  const yaw = bot.entity.yaw
+
+  const dx = nextPoint.x - pos.x
+  const dz = nextPoint.z - pos.z
+
+  const sin = Math.sin(yaw)
+  const cos = Math.cos(yaw)
+
+  const forwardError = -(dx * sin + dz * cos)
+  const sideError = dx * cos - dz * sin
+  const sideVel = vel.x * cos - vel.z * sin
+
+  const dist = pos.distanceTo(nextPoint)
+  if (dist < 0.1) {
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+    return
+  }
+
+  if (forwardError <= 0) {
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+    return
+  }
+
+  const startThresh = bot.entity.onGround ? 0.08 : 0.04
+  const stopThresh = bot.entity.onGround ? 0.03 : 0.02
+
+  const predictedSideError = sideError - sideVel * 3.0
+
+  const currentlyLeft = bot.getControlState('left')
+  const currentlyRight = bot.getControlState('right')
+
+  if (currentlyLeft) {
+    if (predictedSideError >= -stopThresh) {
+      bot.setControlState('left', false)
+    }
+    bot.setControlState('right', false)
+    return
+  }
+
+  if (currentlyRight) {
+    if (predictedSideError <= stopThresh) {
+      bot.setControlState('right', false)
+    }
+    bot.setControlState('left', false)
+    return
+  }
+
+  if (predictedSideError > startThresh) {
+    bot.setControlState('left', false)
+    bot.setControlState('right', true)
+  } else if (predictedSideError < -startThresh) {
+    bot.setControlState('left', true)
+    bot.setControlState('right', false)
+  } else {
+    bot.setControlState('left', false)
+    bot.setControlState('right', false)
+  }
+}

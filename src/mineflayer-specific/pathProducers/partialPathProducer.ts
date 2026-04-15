@@ -113,7 +113,7 @@ export class PartialPathProducer implements PathProducer {
       status = status === 'success' ? 'success' : 'partialSuccess'
       log('Threshold met! Upgrading status to: %s', status)
 
-      const val = this.getSliceLen(result.path.length)
+      const val = result.status === 'success' ? result.path.length : this.getSliceLen(result.path.length)
       this.latestMove = result.path[val]
       const toTake = result.path.slice(0, val + 1)
       this.latestMoves.push(this.latestMove)

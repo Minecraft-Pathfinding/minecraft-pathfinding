@@ -81,7 +81,7 @@ export class Optimizer {
   }
 
   loadPath (path: Move[]): void {
-    log(`loadPath called. Initial path length: ${path.length}`)
+    log(`loadPath called. Initial path length: ${path.length}. start: ${path[0].entryPos}. End: ${path[path.length - 1].exitPos}`)
     this.pathCopy = path
     this.currentIndex = 0
   }
@@ -105,7 +105,7 @@ export class Optimizer {
       throw new Error('Optimizer not sanitized')
     }
 
-    log(`compute() started. Iterating over path of length ${this.pathCopy.length}`)
+    log(`compute() started. Iterating over path of length ${this.pathCopy.length}.`)
 
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
@@ -131,7 +131,7 @@ export class Optimizer {
       this.currentIndex++
     }
 
-    log(`compute() finished. Final optimized path length: ${this.pathCopy.length}`)
+    log(`compute() finished. Final optimized path length: ${this.pathCopy.length}. End: ${this.pathCopy[this.pathCopy.length -1 ].exitPos}`)
     return this.pathCopy
   }
 

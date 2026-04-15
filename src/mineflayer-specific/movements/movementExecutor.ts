@@ -113,23 +113,25 @@ export abstract class MovementExecutor extends Movement {
     log('aborted places in %d ms', performance.now() - start)
     start = performance.now()
 
-    // TODO: handle bug (nextMove not included).
-    await new Promise<void>((resolve, reject) => {
-      const listener = (): void => {
-        if (this.safeToCancel(move)) {
+    if (!this.safeToCancel(move)) {
+      // TODO: handle bug (nextMove not included).
+      await new Promise<void>((resolve, reject) => {
+        const listener = (): void => {
+          if (this.safeToCancel(move)) {
+            this.bot.off('physicsTick', listener)
+            // task.finish()
+            resolve()
+          }
+        }
+        this.bot.on('physicsTick', listener)
+        setTimeout(() => {
           this.bot.off('physicsTick', listener)
           // task.finish()
-          resolve()
-        }
-      }
-      this.bot.on('physicsTick', listener)
-      setTimeout(() => {
-        this.bot.off('physicsTick', listener)
-        // task.finish()
-        reject(new Error('Movement failed to abort properly.'))
-      }, timeout)
-    })
-
+          reject(new Error('Movement failed to abort properly.'))
+        }, timeout)
+      })
+    }
+    
     log('aborted all in %d ms', performance.now() - start)
 
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
@@ -361,8 +363,8 @@ export abstract class MovementExecutor extends Movement {
 
   public isInitAligned (thisMove: Move, target: Vec3 = thisMove.entryPos): boolean {
     target = thisMove.entryPos
-    const off0 = thisMove.exitPos.minus(this.bot.entity.position)
-    const off1 = thisMove.exitPos.minus(target)
+    const off0 = thisMove.exitPos.minus(this.bot.entity.position).normalize()
+    const off1 = thisMove.exitPos.minus(target).normalize()
 
     if (this.bot.entity.position.y < thisMove.entryPos.y - 1) throw new CancelError('MovementExecutor: bot is too low.')
 
@@ -371,7 +373,7 @@ export abstract class MovementExecutor extends Movement {
     off0.translate(0, -off0.y, 0)
     off1.translate(0, -off1.y, 0)
 
-    const similarDirection = off0.normalize().dot(off1.normalize()) > 0.95
+    const similarDirection = off0.dot(off1) > 0.95
 
     const normPos = getNormalizedPos(this.bot)
 
@@ -388,7 +390,7 @@ export abstract class MovementExecutor extends Movement {
     const bb2good = bb2bl.physical || bb2bl.liquid
 
     if ((bb1.some((b) => b.collides(bb0)) && bb1good) || (bb2.some((b) => b.collides(bb0)) && bb2good)) {
-      log('isInitAligned: yay check passed. similarDirection=%s, dist=%d', similarDirection, this.bot.entity.position.xzDistanceTo(target))
+      log('isInitAligned: yaw check passed. similarDirection=%s, dist=%d', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
       else {
         if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true
@@ -396,6 +398,9 @@ export abstract class MovementExecutor extends Movement {
       }
     }
 
+    log(
+      `We are not aligned.`
+    )
     return false
   }
 
@@ -413,11 +418,12 @@ export abstract class MovementExecutor extends Movement {
    * whereas placements will almost always interfere with breaks (LOS failure).
    */
   async interactNeeded (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
+    const start = performance.now();
     for (const breakTarget of this.currentMove.toBreak) {
       if (breakTarget !== this._cI && !breakTarget.done) {
         if (!breakTarget.needToPerform(this.bot)) continue
         const res = await breakTarget.performInfo(this.bot, ticks)
-        log('interactNeeded: break ticks %d (raycasts: %s)', res.ticks, res.raycasts.length > 0)
+        log(`[${start - performance.now()}ms] interactNeeded: break ticks %d (raycasts: %s)`, res.ticks, res.raycasts.length > 0)
         if (res.ticks < Infinity) return breakTarget
       }
     }
@@ -426,7 +432,7 @@ export abstract class MovementExecutor extends Movement {
       if (place !== this._cI && !place.done) {
         if (!place.needToPerform(this.bot)) continue
         const res = await place.performInfo(this.bot, ticks)
-        log('interactNeeded: place ticks %d (raycasts: %s)', res.ticks, res.raycasts.length > 0)
+        log(`[${start - performance.now()}ms] interactNeeded: place ticks %d (raycasts: %s)`, res.ticks, res.raycasts.length > 0)
         if (res.ticks < Infinity) return place
       }
     }

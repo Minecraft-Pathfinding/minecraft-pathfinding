@@ -194,14 +194,14 @@ export class NewForwardExecutor extends MovementExecutor {
       this.bot.entity.position.y < Math.round(thisMove.entryPos.y) - 1
     ) {
       // console.log(this.bot.entity.position, thisMove.entryPos)
-      throw new CancelError('ForwardMove: not on ground')
+      throw new CancelError(`ForwardMove: not on ground. Target pos: ${thisMove.exitPos}, us: ${this.bot.entity.position}`)
     }
 
     const faceForward = await this.faceForward()
 
     if (faceForward) {
       const jump = this.canJump(thisMove, currentIndex, path)
-      this.bot.setControlState('jump', jump)
+      // this.bot.setControlState('jump', jump)
       void this.postInitAlignToPath(thisMove)
       return this.isComplete(thisMove)
     } else {
@@ -519,10 +519,14 @@ export class ForwardJumpExecutor extends MovementExecutor {
     this.flag = false
     this.bot.clearControlStates()
 
+    logJump(`performInit`)
+
     if (thisMove.toBreak.length > 0) {
       await this.bot.clearControlStates()
-      for (const breakH of thisMove.toBreak) {
+      for (const breakH of this.toBreak()) {
+        const start = performance.now()
         await this.performInteraction(breakH)
+        logJump(`[${performance.now() - start}ms] break block ${breakH.blockInfo.position} completed.`)
       }
     }
 
@@ -1005,7 +1009,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private lockedYaw: number | null = null
   private _lookAtInFlight: Promise<void> | null = null
   private _pendingLookTarget: Vec3 | null = null
-  private readonly debug = false;
 
   private static readonly APPROACH_YAW_EPS = 0.16 // ~3.4 deg
 
@@ -1015,7 +1018,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
   }
 
   private _debugLog (...args: any[]): void {
-    if (!this.debug) return
     logParkour(...args)
   }
 
@@ -1045,7 +1047,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
         while (this._pendingLookTarget != null) {
           const nextTarget = this._pendingLookTarget
           this._pendingLookTarget = null
-          await this.bot.lookAt(nextTarget)
+          await this.lookAt(nextTarget, true)
         }
       } finally {
         this._lookAtInFlight = null
@@ -1101,9 +1103,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
       fallOffEdge: boolean
     }
   ): void {
-    if (!this.debug) return
 
-    ;(this as any)._lastTime ??= 0
+    (this as any)._lastTime ??= 0
 
     this._debugLog(label, performance.now() - (this as any)._lastTime)
     this._debugLog(
@@ -1121,9 +1122,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._debugLog(
       'yaw delta:',
       this._yawDeltaAbs(this._desiredYawTo(jumpState.targetEyeVec))
-    )
+    );
 
-    ;(this as any)._lastTime = performance.now()
+    (this as any)._lastTime = performance.now()
   }
 
   private _setApproachControls (): void {

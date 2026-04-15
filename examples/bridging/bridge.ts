@@ -31,7 +31,7 @@ const bot = createBot({
   username: 'testing1',
   auth: 'offline',
   host: 'localhost',
-  port: 58313
+  port: 54175
 }) // Fixed: Added missing closing parenthesis here
 
 function applyBridgeMode (mode: BridgeMode): number {
@@ -56,6 +56,8 @@ bot.on('error', (err) => console.error('[bridge] Bot error:', err))
 bot.once('spawn', () => {
   bot.loadPlugin(pathfinder)
   bot.loadPlugin(loader)
+
+  bot.pathfinder.setOptions({ partialPathProducer: true })
 
   bot.physics.yawSpeed = 6000;
   bot.physics.pitchSpeed = 6000;
@@ -83,7 +85,7 @@ bot.once('spawn', () => {
   })
 
   bot.on('goalFinished', (goal) => {
-    dbg('goalFinished:', JSON.stringify(goal))
+    dbg('goalFinished:', JSON.stringify(goal), bot.entity.position)
   })
 
   bot.on('goalAborted', (goal) => {
