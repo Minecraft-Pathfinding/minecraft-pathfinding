@@ -10,8 +10,8 @@ import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 import { CancelError } from '../exceptions'
 import { MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
-import { Block } from '../../types'
-import { Task } from '../../utils'
+import { Block, RayType } from '../../types'
+import { faceToVec, Task } from '../../utils'
 import { handleBlockEvent, waitForSettledBlockPredicate, toBlockPositionEventName, waitForSettledBlockStateAtPosition } from '../../customBlockEvents'
 
 const debug = require('debug')
@@ -20,10 +20,7 @@ const logPlace = debug('minecraft-pathfinding:PlaceHandler')
 const logBreak = debug('minecraft-pathfinding:BreakHandler')
 
 export type InteractType = 'water' | 'solid' | 'replaceable'
-export type RayType = {
-  intersect: Vec3
-  face: BlockFace
-} & Block
+
 
 interface InteractionPerformInfo {
   ticks: number
@@ -49,6 +46,7 @@ export abstract class InteractHandler {
   protected performing = false
   public cancelled = false
 
+  protected _equipping = false
   protected _done = false
   protected _internalLock = true
   protected task?: Task<void, Error>
@@ -67,6 +65,10 @@ export abstract class InteractHandler {
 
   public get bb(): AABB {
     return AABB.fromBlock(this.vec)
+  }
+
+  public get equipping(): boolean {
+    return this._equipping
   }
 
   constructor(
@@ -147,6 +149,8 @@ export abstract class InteractHandler {
   }
 
   async equipItem(bot: Bot, item: Item | null): Promise<void> {
+    if (this._equipping) return // already equipping item, ignore silently.
+    this._equipping = true;
     if (item === null) {
       logBase(`Unequipping ${this.offhand ? 'off-hand' : 'hand'}`)
       await bot.unequip(this.offhand ? 'off-hand' : 'hand')
@@ -158,7 +162,8 @@ export abstract class InteractHandler {
       await bot.equip(item, 'hand')
     }
     bot.updateHeldItem()
-    await bot.waitForTicks(2)
+    // await bot.waitForTicks(2)
+    this._equipping = false;
   }
 
   async allowExternalInfluence(bot: Bot, ticks = 1, sneak = false): Promise<boolean> {
@@ -234,18 +239,6 @@ export class PlaceHandler extends InteractHandler {
       world.getBlockInfo(this.vec.offset(-1, 0, 0)),
       world.getBlockInfo(this.vec.offset(1, 0, 0))
     ]
-  }
-
-  faceToVec(face: BlockFace): Vec3 {
-    switch (face) {
-      case BlockFace.BOTTOM: return new Vec3(0, -1, 0)
-      case BlockFace.TOP: return new Vec3(0, 1, 0)
-      case BlockFace.NORTH: return new Vec3(0, 0, -1)
-      case BlockFace.SOUTH: return new Vec3(0, 0, 1)
-      case BlockFace.WEST: return new Vec3(-1, 0, 0)
-      case BlockFace.EAST: return new Vec3(1, 0, 0)
-      default: throw new Error('Invalid face')
-    }
   }
 
   needToPerform(bot: Bot): boolean {
@@ -335,7 +328,7 @@ export class PlaceHandler extends InteractHandler {
 
             if (rayRes === null) continue
 
-            const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
+            const pos = rayRes.position.plus(faceToVec(rayRes.face))
             if (pos.equals(this.vec)) {
               if (bb1.containsVec(rayRes.intersect)) continue
               if (AABB.fromBlock(pos).intersects(bb1)) continue
@@ -416,7 +409,7 @@ export class PlaceHandler extends InteractHandler {
           throw new Error('Invalid block')
         }
 
-        const pos = rayRes.position.plus(this.faceToVec(rayRes.face))
+        const pos = rayRes.position.plus(faceToVec(rayRes.face))
         const posBl = AABB.fromBlock(pos)
 
         console.log(bot.entity.position)
@@ -440,7 +433,7 @@ export class PlaceHandler extends InteractHandler {
             break;
           }
 
-          const pos1 = testCheck.position.plus(this.faceToVec(testCheck.face))
+          const pos1 = testCheck.position.plus(faceToVec(testCheck.face))
           const pos1Bl = AABB.fromBlock(pos1)
           if (testCheck.position.equals(rayRes.position) && testCheck.face === rayRes.face && !state.getBB().intersects(pos1Bl)) {
             // if (i < works.ticks && works.ticks !== 0) {
@@ -469,7 +462,7 @@ export class PlaceHandler extends InteractHandler {
           throw new CancelError('Invalid placement')
         }
 
-        const direction = this.faceToVec(rayRes.face)
+        const direction = faceToVec(rayRes.face)
 
         logPlace(`Calling bot._placeBlockWithOptions at face ${rayRes.face}`)
         this._placeTask = bot._placeBlockWithOptions(rayRes, direction, { forceLook: 'ignore', swingArm: 'right' })

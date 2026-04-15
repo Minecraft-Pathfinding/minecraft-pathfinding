@@ -37,7 +37,7 @@ import {
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
-import { BuildableOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
+import { BuildableMoveOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, HandlerOpts, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
@@ -79,7 +79,7 @@ const DEFAULT_OPTIMIZERS = [
   [Diagonal, LandStraightAheadOpt],
   [ForwardDropDown, DropDownOpt],
   [ForwardJump, ForwardJumpUpOpt]
-] as Array<[BuildableMoveProvider, BuildableOptimizer]>
+] as Array<[BuildableMoveProvider, BuildableMoveOptimizer]>
 
 const DEFAULT_SETUP = new Map(DEFAULT_PROVIDER_EXECUTORS)
 const DEFAULT_OPTIMIZATION = new Map(DEFAULT_OPTIMIZERS)
@@ -132,6 +132,10 @@ export class ThePathfinder {
     return this.executeTask.done
   }
 
+  public get currentGoal(): Readonly<goals.Goal> | undefined {
+    return this.currentGotoGoal;
+  }
+
   reconstructPath = reconstructPath
 
   constructor(private readonly bot: Bot, opts: HandlerOpts = {}) {
@@ -151,7 +155,7 @@ export class ThePathfinder {
 
     const opts2 = new Map<BuildableMoveProvider, MovementOptimizer>()
     for (const [providerType, ExecutorType] of optimizers) {
-      opts2.set(providerType, new ExecutorType(bot, this.world))
+      opts2.set(providerType, new ExecutorType(bot, this.world, moveSettings))
     }
     this.movements = moves
     this.optimizers = opts2
@@ -171,11 +175,12 @@ export class ThePathfinder {
     }
   }
 
-  setOptimizer(provider: BuildableMoveProvider, Optimizer: BuildableOptimizer | MovementOptimizer): void {
+
+  setOptimizer(provider: BuildableMoveProvider, Optimizer: BuildableMoveOptimizer | MovementOptimizer): void {
     if (Optimizer instanceof MovementOptimizer) {
       this.optimizers.set(provider, Optimizer)
     } else {
-      this.optimizers.set(provider, new Optimizer(this.bot, this.world))
+      this.optimizers.set(provider, new Optimizer(this.bot, this.world, this.defaultMoveSettings))
     }
   }
 
@@ -212,6 +217,7 @@ export class ThePathfinder {
     if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
 
     const reason = reasonStr ? ResetError.fromReason(reasonStr) : undefined;
+    this.resetReason = reasonStr;
     await this.currentExecutor.abort(this.currentMove, { timeout, reason })
   }
 
@@ -222,7 +228,6 @@ export class ThePathfinder {
   }
 
   setupListeners(): void {
-
     const disposeBlockUpdateListener = handleSettledBlockEvent(
       this.bot,
       async (oldBlock: Block | null, newBlock: Block | null, settledBlock: Block | null) => {
@@ -545,7 +550,8 @@ export class ThePathfinder {
             if (res.result.status === 'noPath' || res.result.status === 'timeout' || res.result.status === 'canceled') {
               log('_goto path finding ended early: %s', res.result.status)
               if (task !== null && res1 !== null) res1.path.length = 0
-              break
+              // think I just return? used to break before, but that's wrong.
+              return 
             }
 
             if (res.result.status === 'partialSuccess') {
@@ -623,7 +629,6 @@ export class ThePathfinder {
     if (move.aborted) return result;
 
     if (afterTick !== beforeTick) {
-      console.trace('FUCK', move.aborted, move.cI)
       throw new TickAdvanceError(
         label, beforeTick, afterTick
       )
@@ -775,7 +780,7 @@ export class ThePathfinder {
           if (aligned) break
 
           if (tickCount % 20 === 0) {
-            log('[ExecID: %d] ...still aligning (%d ticks)', myExecutionId, tickCount)
+            log('[ExecID: %d] ...still aligning for move %s. Entry pos: %O, (%d ticks)', myExecutionId, move.moveType.constructor.name, move.entryPos, tickCount)
           }
 
           await this.bot.waitForTicks(1)
@@ -808,7 +813,7 @@ export class ThePathfinder {
           if (adding) break
 
           if (tickCount % 40 === 0) {
-            log('[ExecID: %d] ...still performing tick loop (%d ticks)', myExecutionId, tickCount)
+            log('[ExecID: %d] ...still performing tick loop for move %s. Target: %O, (%d ticks)', myExecutionId, move.moveType.constructor.name, move.exitPos, tickCount)
           }
 
           await this.bot.waitForTicks(1)
@@ -839,14 +844,14 @@ export class ThePathfinder {
         }
 
         if (err instanceof ManualResetError) {
-          log(`[ExecID: %d] ManualResetERror handlded. Assume player intervention.`, myExecutionId)
+          log(`[ExecID: %d] ManualResetError handlded. Assume player intervention.`, myExecutionId)
           executor.reset()
           delete this.resetReason
           break
         }
 
         if (err instanceof ResetError) {
-          log('[ExecID: %d] ResetError handled. Halting executor to restart.', myExecutionId)
+          log('[ExecID: %d] ResetError handled. Halting executor to restart. Reason: %s', myExecutionId, this.resetReason)
           executor.reset()
           break
         }
@@ -861,6 +866,7 @@ export class ThePathfinder {
 
           log('[ExecID: %d] CancelError handled. Triggering recovery.', myExecutionId)
           await this.recovery(rawMove, path, goal, entry)
+          break;
         }
 
         log('[ExecID: %d] Unknown error (type: %s) thrown! Bubble up.', myExecutionId, (err as any).constructor.name)

@@ -3,13 +3,13 @@ import * as goals from '../goals'
 import { Move } from '../move'
 import { CancelError } from '../exceptions'
 import { BlockInfo } from '../world/cacheWorld'
-import { BreakHandler, PlaceHandler, RayType } from './interactionUtils'
+import { BreakHandler, PlaceHandler } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
-import { CompleteOpts, MovementExecutor } from './movementExecutor'
+import { CompleteOpts, InitAlignOpts, MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
-import { Block } from '../../types'
+import { Block, RayType } from '../../types'
 
 const debug = require('debug')
 const logIdle = debug('minecraft-pathfinding:movementExecutors:Idle')
@@ -61,13 +61,19 @@ export class NewForwardExecutor extends MovementExecutor {
       target = offset
     }
 
-    await this.landAlign(thisMove, tickCount, goal)
-    // await this.postInitAlignToPath(thisMove, { lookAtYaw: target })
-    return this.isInitAligned(thisMove, target)
+    return await this.landAlign(thisMove, tickCount, goal)
   }
 
   async landAlign (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     const faceForward = await this.faceForward()
+
+    const opts: InitAlignOpts = { enterExitInterp: true }
+
+    // need to shift positional data downward if in air.
+    if (!this.bot.entity.onGround || this.bot.getControlState('jump')) {
+      opts.customBB = AABBUtils.getEntityAABB(this.bot.entity)
+      opts.customBB.expand(0, -1.3, 0) // generous check for alignment if jumping.
+    }
 
     const target = thisMove.entryPos.floored().translate(0.5, 0, 0.5)
     if (faceForward) {
@@ -76,6 +82,7 @@ export class NewForwardExecutor extends MovementExecutor {
       this.bot.setControlState('forward', true)
       if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
       else this.bot.setControlState('sprint', true)
+
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
       // await this.postInitAlignToPath(thisMove, { lookAt: offset })
@@ -89,7 +96,7 @@ export class NewForwardExecutor extends MovementExecutor {
     // console.log("align", this.bot.entity.position, thisMove.exitPos, this.bot.entity.position.xzDistanceTo(thisMove.exitPos), this.bot.entity.onGround)
     // return this.bot.entity.position.distanceTo(thisMove.entryPos) < 0.2 && this.bot.entity.onGround;
 
-    return this.isInitAligned(thisMove, target)
+    return this.isInitAligned(thisMove, target, opts)
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
@@ -201,7 +208,7 @@ export class NewForwardExecutor extends MovementExecutor {
 
     if (faceForward) {
       const jump = this.canJump(thisMove, currentIndex, path)
-      // this.bot.setControlState('jump', jump)
+      this.bot.setControlState('jump', jump)
       void this.postInitAlignToPath(thisMove)
       return this.isComplete(thisMove)
     } else {

@@ -24,12 +24,12 @@ export {
 import { BridgeConfig } from './BridgeConfig'
 import { BridgeExecutor } from './BridgeExecutor'
 
-import { movementProviders } from '../../src'
+import { movementProviders } from '../../../src'
 const { Forward, Diagonal } = movementProviders;
 
 
-import { BuildableMoveExecutor } from '../../src' // todo move to proper path
-import { MovementSetup } from '../../src'
+import { BuildableMoveExecutor } from '../../../src' // todo move to proper path
+import { MovementSetup } from '../../../src'
 
 export function makeBridgeSetup (cfg: Partial<BridgeConfig> = {}): MovementSetup {
   const ExecutorClass: BuildableMoveExecutor = BridgeExecutor.withConfig(cfg)

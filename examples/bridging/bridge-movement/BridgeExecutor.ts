@@ -10,7 +10,7 @@ import { CancelError } from '../../../src/mineflayer-specific/exceptions'
 import * as goals from '../../../src/mineflayer-specific/goals'
 import { randFloat, randRangeMs, shortestYawDelta, OptimalLineTracker, RAD2DEG } from './BridgeUtils'
 import { BridgeConfig, DEFAULT_BRIDGE_CONFIG } from './BridgeConfig'
-import { BridgeModeBase, TickContext } from './modes/BridgeModeBase'
+import { BridgeModeBase, ModeTickResult, TickContext } from './modes/BridgeModeBase'
 import { NormalMode } from './modes/NormalMode'
 import { GodBridgeMode } from './modes/GodBridgeMode'
 import { BreezilyMode } from './modes/BreezilyMode'
@@ -71,17 +71,18 @@ export class BridgeExecutor extends MovementExecutor {
 
   override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     const pos = this.bot.entity.position
-    const aligned = this.isInitAligned(thisMove, thisMove.entryPos.floored().offset(0.5, 0, 0.5))
+    const aligned = this.isInitAligned(thisMove)
 
     if (this._isInWater()) {
       await super.align(thisMove, tickCount, goal)
       this.bot.setControlState('jump', pos.y < thisMove.entryPos.y)
-      return this.isInitAligned(thisMove, thisMove.entryPos.floored().offset(0.5, 0, 0.5))
+      return this.isInitAligned(thisMove)
     }
 
-    if (!this.bot.entity.onGround && pos.y > thisMove.entryPos.y + 0.1) return false
-
+   
     void this.postInitAlignToPath(thisMove)
+
+    if (!this.bot.entity.onGround && pos.y > thisMove.entryPos.y + 0.1) return false
     return aligned
   }
 
@@ -312,7 +313,7 @@ export class BridgeExecutor extends MovementExecutor {
   }
 
   private _shouldElevate(): boolean {
-    const goal = this.bot.pathfinder?.goal
+    const goal = this.bot.pathfinder?.currentGoal
     if (goal == null) return false
 
     const x = (goal as any).x ?? (goal as any).entity?.position?.x
@@ -378,13 +379,14 @@ export class BridgeExecutor extends MovementExecutor {
     if (item == null) return null
 
     if (place.getCurrentItem(this.bot) !== item) {
-      await place.equipItem(this.bot, item)
+      void place.equipItem(this.bot, item)
+      return null;
     }
 
     void (this.bot as any).rightClick()
 
-    ;(place as any)._done = true
-    ;(place as any)._internalLock = false
+      ; (place as any)._done = true
+      ; (place as any)._internalLock = false
 
     return place
   }
@@ -399,21 +401,14 @@ export class BridgeExecutor extends MovementExecutor {
       const block = breakHandler.getBlock(this.world)
       const item = block != null ? breakHandler.getItem(this.bot, block) : null
 
-      void breakHandler._perform(this.bot, item, {}).catch(() => {})
+      void breakHandler._perform(this.bot, item, {}).catch(() => { })
       return
     }
   }
 
   private _applyMovement(
     move: Move,
-    modeResult: {
-      wantSneak: boolean
-      wantJump: boolean
-      wantSprint: boolean
-      movementOverride: Vec3 | null
-      targetYaw: number | null
-      targetPitch: number | null
-    },
+    modeResult: ModeTickResult,
     nowMs: number
   ): void {
     const bot = this.bot
@@ -441,7 +436,7 @@ export class BridgeExecutor extends MovementExecutor {
     }
 
     bot.setControlState('sneak', finalSneak)
-    bot.setControlState('jump', finalJump)
+    bot.setControlState('jump', false)
     bot.setControlState('sprint', modeResult.wantSprint && !finalSneak)
 
     if (modeResult.movementOverride != null) {
@@ -452,7 +447,7 @@ export class BridgeExecutor extends MovementExecutor {
         bot.setControlState('left', false)
         bot.setControlState('right', false)
       } else {
-        this._applyDirectionalVector(ov)
+        this._applyDirectionalVector(ov, modeResult.useStrafe)
       }
     } else {
       if (modeResult.targetYaw != null || modeResult.targetPitch != null) {
@@ -476,7 +471,8 @@ export class BridgeExecutor extends MovementExecutor {
     }
   }
 
-  private _applyDirectionalVector(vec: Vec3): void {
+  private _applyDirectionalVector(vec: Vec3, useStrafe = true): void {
+
     const bot = this.bot
     const yaw = bot.entity.yaw
     const cosYaw = Math.cos(yaw)
@@ -485,10 +481,22 @@ export class BridgeExecutor extends MovementExecutor {
     const fwdDot = -sinYaw * vec.x - cosYaw * vec.z
     const rightDot = -cosYaw * vec.x + sinYaw * vec.z
 
-    bot.setControlState('forward', fwdDot > 0)
-    bot.setControlState('back', fwdDot < 0)
-    bot.setControlState('right', rightDot < 0)
-    bot.setControlState('left', rightDot > 0)
+    const EPS = 1e-2
+
+    console.log('applying vector:', vec, rightDot, fwdDot)
+
+    bot.setControlState('forward', fwdDot > EPS)
+    bot.setControlState('back', fwdDot < -EPS)
+
+    if (useStrafe) {
+      bot.setControlState('right', rightDot < -EPS)
+      bot.setControlState('left', rightDot > EPS)
+    } else {
+      bot.setControlState('right', false)
+      bot.setControlState('left', false)
+    }
+
+
   }
 
   /**

@@ -1,7 +1,7 @@
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
-import { Move } from '../../src/mineflayer-specific/move'
-import { World } from '../../src/mineflayer-specific/world/worldInterface'
+import { Move } from '../../../src/mineflayer-specific/move'
+import { World } from '../../../src/mineflayer-specific/world/worldInterface'
 
 export class PathSplicer {
   static computeSpliceEnd (

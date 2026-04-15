@@ -1,8 +1,8 @@
 import { Vec3 } from 'vec3'
 import { OptimalLineTracker } from '../BridgeUtils'
-import { Move } from '../../../src/mineflayer-specific/move'
+import { Move } from '../../../../src/mineflayer-specific/move'
 import { Bot } from 'mineflayer'
-import { World } from '../../../src/mineflayer-specific/world/worldInterface'
+import { World } from '../../../../src/mineflayer-specific/world/worldInterface'
 import { BridgeConfig } from '../BridgeConfig'
 
 export interface TickContext {
@@ -18,6 +18,7 @@ export interface TickContext {
 export interface ModeTickResult {
   targetYaw: number | null
   targetPitch: number | null
+  useStrafe: boolean
   allowPlace: boolean
   wantSneak: boolean
   wantJump: boolean
@@ -28,6 +29,7 @@ export interface ModeTickResult {
 export const DEFAULT_TICK_RESULT: ModeTickResult = {
   targetYaw: null,
   targetPitch: null,
+  useStrafe: true,
   allowPlace: false,
   wantSneak: false,
   wantJump: false,

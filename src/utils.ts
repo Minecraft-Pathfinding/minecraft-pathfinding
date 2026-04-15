@@ -1,6 +1,7 @@
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
+import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
 export function printBotControls (bot: Bot): void {
   // console.log('forward', bot.getControlState('forward'))
@@ -11,6 +12,40 @@ export function printBotControls (bot: Bot): void {
   // console.log('sprint', bot.getControlState('sprint'))
   // console.log('sneak', bot.getControlState('sneak'))
 }
+
+export function faceToVec(face: BlockFace): Vec3 {
+    switch (face) {
+      case BlockFace.BOTTOM: return new Vec3(0, -1, 0)
+      case BlockFace.TOP: return new Vec3(0, 1, 0)
+      case BlockFace.NORTH: return new Vec3(0, 0, -1)
+      case BlockFace.SOUTH: return new Vec3(0, 0, 1)
+      case BlockFace.WEST: return new Vec3(-1, 0, 0)
+      case BlockFace.EAST: return new Vec3(1, 0, 0)
+      default: throw new Error('Invalid face')
+    }
+  }
+
+export function *interpolateStepPoints(start: Vec3, end: Vec3, step = 0.8): Generator<Vec3> {
+  const delta = end.minus(start)
+  const dist = delta.norm()
+
+  if (dist < 1e-8) {
+    yield start.clone()
+    return
+  }
+
+  const dir = delta.scaled(1 / dist)
+  const steps = Math.floor(dist / step)
+
+  for (let i = 0; i <= steps; i++) {
+    yield start.plus(dir.scaled(i * step))
+  }
+
+  if (steps * step < dist) {
+    yield end.clone()
+  }
+}
+
 
 export const debug = (bot: Bot | undefined, ...args: any[]): void => {
   if (bot != null) {

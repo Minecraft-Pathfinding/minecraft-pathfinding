@@ -5,6 +5,9 @@ import { Bot } from 'mineflayer'
 import { World } from '../world/worldInterface'
 import { BuildableMoveProvider } from '../movements'
 
+const debug = require('debug')
+const log = debug('minecraft-pathfinding:replacement')
+
 /**
  * Provide an intrascture for replacing optimized moves in a path with various new moves.
  *
@@ -85,12 +88,11 @@ export class Replacer {
 
       ret.set(this.currentIndex, path)
 
-      // console.log('found replacement for:', opt?.constructor.name, this.currentIndex, ': here using', path.path.length, 'moves')
-
+      log(`Found replacement for ${opt.constructor.name} at index ${this.currentIndex}. Using ${path.path.length} moves.`)
       this.currentIndex++
     }
 
-    // console.log('optimized path length', this.pathCopy.length)
+    log(`Optimized path length: ${this.pathCopy.length}`)
     return this.makeResult(ret)
   }
 }

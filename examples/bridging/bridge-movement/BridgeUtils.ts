@@ -1,6 +1,6 @@
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
-import { World } from '../../src/mineflayer-specific/world/worldInterface'
+import { World } from '../../../src/mineflayer-specific/world/worldInterface'
 
 export const DEG2RAD = Math.PI / 180
 export const RAD2DEG = 180 / Math.PI

@@ -11,7 +11,7 @@ import { PathingUtil } from './PathingUtil'
 
 import * as goals from './mineflayer-specific/goals'
 import { Path } from './mineflayer-specific/algs'
-import { MovementOptions, MovementSetup } from './mineflayer-specific/movements'
+import { MovementOptions, MovementProvider, MovementSetup } from './mineflayer-specific/movements'
 import { OptimizationSetup } from './mineflayer-specific/post'
 
 export function createPlugin (opts?: HandlerOpts) {
@@ -46,3 +46,6 @@ declare module 'mineflayer' {
 
 export * as goals from './mineflayer-specific/goals'
 export * as custom from './mineflayer-specific/custom'
+
+export * as movementProviders from './mineflayer-specific/movements/movementProviders'
+export { BuildableMoveProvider, BuildableMoveExecutor, MovementSetup } from './mineflayer-specific/movements'

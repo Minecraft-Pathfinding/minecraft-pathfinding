@@ -1,7 +1,14 @@
+import type { Vec3 } from 'vec3'
 import { PathfinderOptions } from './ThePathfinder'
 import { MovementOptions, MovementSetup } from './mineflayer-specific/movements'
 import { OptimizationSetup } from './mineflayer-specific/post'
 import { World } from './mineflayer-specific/world/worldInterface'
+import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
+
+export type RayType = {
+  intersect: Vec3
+  face: BlockFace
+} & Block
 
 export interface Vec3Properties {
   x: number

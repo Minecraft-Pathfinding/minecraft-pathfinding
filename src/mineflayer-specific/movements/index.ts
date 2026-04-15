@@ -3,6 +3,7 @@ import { World } from '../world/worldInterface'
 import { MovementOptions } from './movement'
 import { MovementProvider } from './movementProvider'
 import { MovementExecutor } from './movementExecutor'
+import { MovementOptimizer } from '../post'
 
 // Don't mind these stupid ass typings, I'll clean them up later.
 export type BuildableMoveProvider = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => MovementProvider

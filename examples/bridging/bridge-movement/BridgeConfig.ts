@@ -68,7 +68,7 @@ export const DEFAULT_BRIDGE_CONFIG: BridgeConfig = {
     onlyOnGround: true,
     sprint: 'auto',
     pitch: 78,
-    pitchJitter: 0.5,           // was 2 — minimal pitch variation
+    pitchJitter: 0.2,           // was 2 — minimal pitch variation
     yawJitter: 0.2,             // was 0.8 — minimal yaw variation
     placementPredictorThreshold: 0.5
   },

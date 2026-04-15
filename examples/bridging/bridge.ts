@@ -37,13 +37,13 @@ const bot = createBot({
 function applyBridgeMode (mode: BridgeMode): number {
   dbg(`applyBridgeMode → mode="${mode}"`)
   let count = 0
-  // const setup = makeBridgeSetup({ mode })
-  // for (const [provider, executor] of setup) {
-  //   dbg(`  setExecutor: ${provider.name} → BridgeExecutor[${mode}]`)
-  //   bot.pathfinder.setExecutor(provider, executor)
-  //   count++
-  // }
-  // dbg(`  ${count} executor(s) registered.`)
+  const setup = makeBridgeSetup({ mode })
+  for (const [provider, executor] of setup) {
+    dbg(`  setExecutor: ${provider.name} → BridgeExecutor[${mode}]`)
+    bot.pathfinder.setExecutor(provider, executor)
+    count++
+  }
+  dbg(`  ${count} executor(s) registered.`)
   return count
 }
 
@@ -186,7 +186,8 @@ bot.on('physicsTick', () => {
   //   `sprint:${bot.getControlState('sprint')} ` +
   //   `left:${bot.getControlState('left')} ` + 
   //   `right:${bot.getControlState('right')} ` + 
-  //   `position:${bot.entity.position}`
+  //   `sneak:${bot.getControlState('sneak')} ` +
+  //   `position:${bot.entity.position}` 
   // )
 })
 
