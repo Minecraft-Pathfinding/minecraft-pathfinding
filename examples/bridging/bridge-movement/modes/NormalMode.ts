@@ -265,7 +265,6 @@ export class NormalMode extends BridgeModeBase {
   }
 
   private _getPathKind(dx: number, dz: number): BridgePathKind {
-    console.log('dx, dz', dx, dz)
     return dx !== 0 && dz !== 0 ? 'diagonal' : 'straight'
   }
 
@@ -275,8 +274,6 @@ export class NormalMode extends BridgeModeBase {
       return this._getDiagonalYaw(ctx, movingYaw, targetPlace)
     }
 
-    // Straight bridging: keep existing behavior.
-    // Aim at the backward-right diagonal (movingYaw - 3π/4).
     return this._snapToNearestPrincipalDir(movingYaw - 5 * Math.PI / 4)
   }
 
@@ -320,7 +317,6 @@ export class NormalMode extends BridgeModeBase {
       const predictedBlockPos = hit.position.plus(faceToVec(hit.face))
       if (predictedBlockPos.equals(targetBPos)) {
         console.log('hiting on yaw:', testYaw)
-        bot.entity.yaw = testYaw
         return testYaw
       }
     }
