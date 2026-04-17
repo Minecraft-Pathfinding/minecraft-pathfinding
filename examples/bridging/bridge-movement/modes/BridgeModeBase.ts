@@ -4,6 +4,7 @@ import { Move } from '../../../../src/mineflayer-specific/move'
 import { Bot } from 'mineflayer'
 import { World } from '../../../../src/mineflayer-specific/world/worldInterface'
 import { BridgeConfig } from '../BridgeConfig'
+import { BridgeExecutor } from '../BridgeExecutor'
 
 export interface TickContext {
   move: Move
@@ -41,7 +42,8 @@ export abstract class BridgeModeBase{
   constructor(
     protected readonly bot: Bot,
     protected readonly world: World,
-    protected readonly config: BridgeConfig
+    protected readonly config: BridgeConfig,
+      protected readonly executor: BridgeExecutor
   ) {}
 
   abstract onMoveStart(ctx: TickContext): void

@@ -38,7 +38,7 @@ import {
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
-import { BuildableMoveOptimizer, MovementOptimizer, OptimizationMap, Optimizer } from './mineflayer-specific/post'
+import { BuildableMoveOptimizer, MovementOptimizer, OptimizationMap, OptimizationRegistry, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import { Block, HandlerOpts, ResetReason } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
@@ -101,10 +101,9 @@ export class ThePathfinder {
   astar: AStar | null
   world: World
   movements: ExecutorMap
-  optimizers: OptimizationMap
-  optimizedMovements: ExecutorMap
   defaultMoveSettings: MovementOptions
   pathfinderSettings: PathfinderOptions
+  private readonly optimizerRegistry: OptimizationRegistry
 
   public currentExecutionId = 0
   private currentTick = 0
@@ -120,8 +119,11 @@ export class ThePathfinder {
 
   private resetReason?: ResetReason
   private _currentProducer?: PathProducer
-  private _gotoMovements?: ExecutorMap
-  private _gotoOptimizedMovements?: ExecutorMap
+
+  private _gotoMappings?: {
+    movements: ExecutorMap
+    optimizers: OptimizationMap
+  }
 
   public get currentAStar(): AStar | undefined {
     return this._currentProducer?.getAstarContext()
@@ -131,12 +133,21 @@ export class ThePathfinder {
     return this._currentProducer
   }
 
-  private get activeMovements(): ExecutorMap {
-    return this._gotoMovements ?? this.movements
+  private snapshotMappings(): {
+    movements: ExecutorMap
+    optimizers: OptimizationMap
+  } {
+    return {
+      movements: new Map(this.movements),
+      optimizers: this.optimizerRegistry.snapshot()
+    }
   }
 
-  private get activeOptimizedMovements(): ExecutorMap {
-    return this._gotoOptimizedMovements ?? this.optimizedMovements
+  private get activeMappings(): {
+    movements: ExecutorMap
+    optimizers: OptimizationMap
+  } {
+    return this._gotoMappings ?? this.snapshotMappings()
   }
 
   public get isPathing(): boolean {
@@ -164,13 +175,11 @@ export class ThePathfinder {
       moves.set(providerType, new ExecutorType(bot, this.world, moveSettings))
     }
 
-    const opts2 = new Map<BuildableMoveProvider, MovementOptimizer>()
+    this.optimizerRegistry = new OptimizationRegistry(bot, this.world, moveSettings)
     for (const [providerType, ExecutorType] of optimizers) {
-      opts2.set(providerType, new ExecutorType(bot, this.world, moveSettings))
+      this.optimizerRegistry.setOptimizer(providerType, new ExecutorType(bot, this.world, moveSettings))
     }
     this.movements = moves
-    this.optimizers = opts2
-    this.optimizedMovements = new Map()
     this.defaultMoveSettings = moveSettings
     this.pathfinderSettings = pathfinderSettings
     this.astar = null
@@ -191,27 +200,44 @@ export class ThePathfinder {
   setOptimizer(
     provider: BuildableMoveProvider,
     Optimizer: BuildableMoveOptimizer | MovementOptimizer,
-    Executor?: BuildableMoveExecutor | MovementExecutor
+    Executor?: BuildableMoveExecutor | MovementExecutor,
+    priority = 100
   ): void {
-    if (Optimizer instanceof MovementOptimizer) {
-      this.optimizers.set(provider, Optimizer)
-    } else {
-      this.optimizers.set(provider, new Optimizer(this.bot, this.world, this.defaultMoveSettings))
-    }
+    const optimizer = Optimizer instanceof MovementOptimizer
+      ? Optimizer
+      : new Optimizer(this.bot, this.world, this.defaultMoveSettings)
 
-    if (Executor != null) {
-      if (Executor instanceof MovementExecutor) {
-        this.optimizedMovements.set(provider, Executor)
-      } else {
-        this.optimizedMovements.set(provider, new Executor(this.bot, this.world, this.defaultMoveSettings))
-      }
-    } else {
-      this.optimizedMovements.delete(provider)
-    }
+    const optimizedExecutor = Executor == null
+      ? undefined
+      : Executor instanceof MovementExecutor
+        ? Executor
+        : new Executor(this.bot, this.world, this.defaultMoveSettings)
+
+    this.optimizerRegistry.setOptimizer(provider, optimizer, optimizedExecutor, priority)
+  }
+
+  addOptimizer(
+    provider: BuildableMoveProvider,
+    Optimizer: BuildableMoveOptimizer | MovementOptimizer,
+    Executor?: BuildableMoveExecutor | MovementExecutor,
+    priority = 100
+  ): void {
+    const optimizer = Optimizer instanceof MovementOptimizer
+      ? Optimizer
+      : new Optimizer(this.bot, this.world, this.defaultMoveSettings)
+
+    const optimizedExecutor = Executor == null
+      ? undefined
+      : Executor instanceof MovementExecutor
+        ? Executor
+        : new Executor(this.bot, this.world, this.defaultMoveSettings)
+
+    this.optimizerRegistry.addOptimizer(provider, optimizer, optimizedExecutor, priority)
   }
 
   setMoveOptions(settings: Partial<MovementOptions>): void {
     this.defaultMoveSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+    this.optimizerRegistry.setSettings(this.defaultMoveSettings)
     for (const [, executor] of this.movements) {
       executor.settings = this.defaultMoveSettings
     }
@@ -422,10 +448,17 @@ export class ThePathfinder {
   }
 
   getPathTo(goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
-    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings)
+    const { movements } = this.activeMappings
+    return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings, movements)
   }
 
-  async * getPathFromTo(startPos: Vec3, startVel: Vec3, goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
+  async * getPathFromTo(
+    startPos: Vec3,
+    startVel: Vec3,
+    goal: goals.Goal,
+    settings = this.defaultMoveSettings,
+    movements = this.activeMappings.movements
+  ): PathGenerator {
     this.abortCalculation = false
     delete this.resetReason
 
@@ -449,7 +482,7 @@ export class ThePathfinder {
         settings,
         this.bot,
         this.world,
-        this.activeMovements
+        movements
       )
     } else {
       this._currentProducer = new ContinuousPathProducer(
@@ -458,7 +491,7 @@ export class ThePathfinder {
         settings,
         this.bot,
         this.world,
-        this.activeMovements
+        movements
       )
     }
     log('Path producer initialized: %s', this._currentProducer.constructor.name)
@@ -548,15 +581,13 @@ export class ThePathfinder {
     this.currentGotoGoal = goal
     this.bot.emit('goalSet', goal)
 
-    this._gotoMovements = new Map(this.movements)
-    this._gotoOptimizedMovements = new Map(this.optimizedMovements)
+    this._gotoMappings = this.snapshotMappings()
 
     try {
       await this._goto(goal, performOpts)
       await this.cleanupAll(goal)
     } finally {
-      delete this._gotoMovements
-      delete this._gotoOptimizedMovements
+      delete this._gotoMappings
     }
   }
 
@@ -724,8 +755,7 @@ export class ThePathfinder {
     this.currentIndex = currentIndex
     this.curPath = localPath
 
-    const movements = this.activeMovements
-    const optMovements = this.activeOptimizedMovements
+    const { movements, optimizers } = this.activeMappings
 
     log(
       '[ExecID: %d] Perform started. Entry: %d, Initial Path Length: %d',
@@ -754,7 +784,7 @@ export class ThePathfinder {
           localPath.length
         )
 
-        const optimizer = new Optimizer(this.bot, this.world, this.optimizers)
+        const optimizer = new Optimizer(this.bot, this.world, optimizers)
         optimizer.loadPath(localPath.slice(currentIndex))
         optSequence = await optimizer.compute()
         lastPathLength = localPath.length
@@ -766,7 +796,7 @@ export class ThePathfinder {
       let executor: MovementExecutor | undefined
 
       if (wasOptimized) {
-        executor = optMovements.get(move.moveType.constructor as BuildableMoveProvider)
+        executor = move.optimizedExecutor
       }
       if (executor == null) {
         log(`Unoptimized move (idx ${currentIndex}) when we have optimizer! ${optSequence.map(m=>m.cachedVec)} vs ${localPath.map(m=>m.cachedVec)}`)
@@ -994,7 +1024,7 @@ export class ThePathfinder {
 
   async cleanupBot(): Promise<void> {
     this.bot.clearControlStates()
-    for (const [, executor] of this.activeMovements) {
+    for (const [, executor] of this.activeMappings.movements) {
       executor.reset()
     }
   }

@@ -7,7 +7,7 @@ import { BreakHandler, InteractHandler, InteractOpts, PlaceHandler } from './int
 import { AbortError, CancelError, ManualResetError, ResetError } from '../exceptions'
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
-import { BaseSimulator, BotcraftPhysics, Controller, EPhysicsCtx, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
+import { BaseSimulator, BotcraftPhysics, Controller, ControlStateHandler, EPhysicsCtx, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement, botStrafeMovementStrict } from './controls'
 import { getNormalizedPos, interpolateStepPoints, posToYawPitchFromEye } from '../../utils'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
@@ -652,10 +652,16 @@ export abstract class MovementExecutor extends Movement {
   /**
    * @returns whether we fall off.
    */
-  public willFallOff(ticks = 1): boolean {
+  public willFallOff(ticks = 1, controls?: ControlStateHandler): boolean {
     const ectx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
 
+
     for (let i = 0; i < ticks; i++) {
+
+      if (controls) {
+        ectx.state.control = controls;
+      }
+
       this.bot.physicsUtil.engine.simulate(ectx, this.bot.world);
     }
 

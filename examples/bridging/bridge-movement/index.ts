@@ -44,7 +44,7 @@ export function applyBridgeSetup(bot: Bot, dbg: any, cfg: Partial<BridgeConfig> 
   for (const value of [Forward, Diagonal]) {
     dbg(`  setExecutor: ${value.name} → BridgeExecutor[${cfg.mode}]`)
     // bot.pathfinder.setExecutor(value, ExecutorClass)
-    bot.pathfinder.setOptimizer(value, BridgeOptimizer, ExecutorClass)
+    bot.pathfinder.addOptimizer(value, BridgeOptimizer, ExecutorClass, 150)
     count++;
   }
   dbg(`  ${count} executor(s) registered.`)

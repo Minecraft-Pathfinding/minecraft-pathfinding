@@ -14,6 +14,7 @@ import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
 import { Block, RayType } from '../../../../src/types'
 import { faceToVec } from '../../../../src/utils'
 import test from 'node:test'
+import { ControlStateHandler } from '@nxg-org/mineflayer-physics-util'
 
 const NINJA_ALIGN_THRESH_DEG = 5
 const NINJA_PITCH_THRESH_DEG = 5
@@ -27,8 +28,6 @@ export class NormalMode extends BridgeModeBase {
   private currentPitch = 0
   private currentYawBias = 0
   private shouldBridge = false
-  /** Single timer drives all sneaking – no per-tick reactive toggling. */
-  private _sneakUntilMs = 0
   /** Tracks previous overAir state for rising-edge detection. */
   private _wasOverAir = false
 
@@ -38,7 +37,6 @@ export class NormalMode extends BridgeModeBase {
     this.currentPitch = this._nextPitch()
     this.currentYawBias = this._nextYawBias()
     this.shouldBridge = false
-    this._sneakUntilMs = 0
     this._wasOverAir = false
   }
 
@@ -112,12 +110,6 @@ export class NormalMode extends BridgeModeBase {
     }
 
     const nowMs = ctx.nowMs
-
-    if (overAir && !this._wasOverAir && nowMs >= this._sneakUntilMs) {
-      this._sneakUntilMs = nowMs + randFloat(70, 90)
-    } else if (overAir && nowMs >= this._sneakUntilMs) {
-      this._sneakUntilMs = nowMs + randFloat(40, 55)
-    }
     this._wasOverAir = overAir
 
 
@@ -132,7 +124,7 @@ export class NormalMode extends BridgeModeBase {
     const allowPlace = this.shouldBridge && (!checkBlock || this._shouldAllowPlace(backX, backZ, checkBlock))
 
     const result: ModeTickResult = { ...DEFAULT_TICK_RESULT }
-    result.wantSneak = nowMs < this._sneakUntilMs
+    result.wantSneak = true //this.executor.willFallOff(3, ControlStateHandler.DEFAULT().set('sneak', false))
     result.targetYaw = bridgeYaw
     result.targetPitch = this.currentPitch
     result.allowPlace = allowPlace
@@ -156,10 +148,8 @@ export class NormalMode extends BridgeModeBase {
     const edgePos = this._computeEdgePos(bot.entity.position, backX, backZ)
     this.placementPredictor.record(bot.entity.position, edgePos)
 
-    this._sneakUntilMs = ctx.nowMs + randFloat(70, 90)
-
     console.log(
-      `[ninja dbg] BLOCK PLACED placedTotal=${ctx.placedThisMove + 1} sneakFor=${(this._sneakUntilMs - ctx.nowMs).toFixed(0)}ms ` +
+      `[ninja dbg] BLOCK PLACED placedTotal=${ctx.placedThisMove + 1} ` +
       `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
       `yaw=${(bot.entity.yaw * RAD2DEG).toFixed(1)} pitch=${(bot.entity.pitch * RAD2DEG).toFixed(1)}`
     )
@@ -173,7 +163,6 @@ export class NormalMode extends BridgeModeBase {
     this.placementPredictor.reset()
     this.shouldBridge = false
     this.currentYawBias = 0
-    this._sneakUntilMs = 0
     this._wasOverAir = false
   }
 
@@ -235,14 +224,14 @@ export class NormalMode extends BridgeModeBase {
 
 
     if (fuck && !predictedBlockPos.equals(targetBPos)) {
-      // console.error(
-      //   "woah that's bad",
-      //   predictedBlockPos,
-      //   fuck.face,
-      //   targetBPos,
-      //   this.bot.entity.yaw * RAD2DEG,
-      //   this.bot.entity.position
-      // )
+      console.error(
+        "woah that's bad",
+        predictedBlockPos,
+        fuck.face,
+        targetBPos,
+        this.bot.entity.yaw * RAD2DEG,
+        this.bot.entity.position
+      )
       return false
     }
 

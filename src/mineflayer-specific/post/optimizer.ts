@@ -114,15 +114,7 @@ export class Optimizer {
     return !!this.pathCopy
   }
 
-  private mergeMoves (startIndex: number, endIndex: number, optimizer: MovementOptimizer): void {
-    const newMove = optimizer.mergeMoves(startIndex, endIndex, this.pathCopy)
-
-    // Splice the newly merged move into the array, replacing all intermediate moves
-    this.pathCopy[startIndex] = newMove
-    this.pathCopy.splice(startIndex + 1, endIndex - startIndex)
-    logMerge(`Spliced array. New path length: ${this.pathCopy.length}`)
-  }
-
+  
   async compute (): Promise<Move[]> {
     if (!this.sanitize()) {
       throw new Error('Optimizer not sanitized')
@@ -132,22 +124,38 @@ export class Optimizer {
 
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
-      const opt = this.optMap.get(move.moveType.constructor as BuildableMoveProvider)
-      
-      if (opt == null) {
+      const opts = this.optMap.get(move.moveType.constructor as BuildableMoveProvider)
+
+      if (opts == null || opts.length === 0) {
         log(`[Index ${this.currentIndex}] No optimizer mapped for ${move.moveType.constructor.name}. Skipping.`)
         this.currentIndex++
         continue
       }
 
-      log(`[Index ${this.currentIndex}] Evaluating ${move.moveType.constructor.name} using ${opt.constructor.name}...`)
-      const newEnd = await opt.identEndOpt(this.currentIndex, this.pathCopy)
+      let merged = false
 
-      if (newEnd !== this.currentIndex) {
-        log(`[Index ${this.currentIndex}] Optimizer identified mergable sequence ending at index ${newEnd}.`)
-        this.mergeMoves(this.currentIndex, newEnd, opt)
-      } else {
-        log(`[Index ${this.currentIndex}] Optimizer returned identical index. No merge performed.`)
+      for (const opt of opts) {
+        log(`[Index ${this.currentIndex}] Evaluating ${move.moveType.constructor.name} using ${opt.optimizer.constructor.name} (priority ${opt.priority})...`)
+        const newEnd = await opt.optimizer.identEndOpt(this.currentIndex, this.pathCopy)
+
+        if (newEnd > this.currentIndex) {
+          log(`[Index ${this.currentIndex}] Optimizer identified mergable sequence ending at index ${newEnd}.`)
+          const newMove = opt.optimizer.mergeMoves(this.currentIndex, newEnd, this.pathCopy)
+          newMove.optimizedExecutor = opt.optimizedExecutor
+
+          // Splice the newly merged move into the array, replacing all intermediate moves
+          this.pathCopy[this.currentIndex] = newMove
+          this.pathCopy.splice(this.currentIndex + 1, newEnd - this.currentIndex)
+          logMerge(`Spliced array. New path length: ${this.pathCopy.length}`)
+          merged = true
+          break
+        }
+
+        log(`[Index ${this.currentIndex}] Optimizer returned non-merge index ${newEnd}. Trying next candidate if available.`)
+      }
+
+      if (!merged) {
+        log(`[Index ${this.currentIndex}] No optimizer merged this move. Skipping.`)
       }
 
       // Move to the next movement (which will be the movement directly after our merged block)

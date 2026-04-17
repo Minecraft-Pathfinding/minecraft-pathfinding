@@ -50,13 +50,13 @@ export class BridgeExecutor extends MovementExecutor {
 
     switch (this.bridgeConfig.mode) {
       case 'godbridge':
-        this.mode = new GodBridgeMode(bot, world, this.bridgeConfig)
+        this.mode = new GodBridgeMode(bot, world, this.bridgeConfig, this)
         break
       case 'breezily':
-        this.mode = new BreezilyMode(bot, world, this.bridgeConfig)
+        this.mode = new BreezilyMode(bot, world, this.bridgeConfig, this)
         break
       default:
-        this.mode = new NormalMode(bot, world, this.bridgeConfig)
+        this.mode = new NormalMode(bot, world, this.bridgeConfig, this)
     }
   }
 
@@ -374,6 +374,7 @@ export class BridgeExecutor extends MovementExecutor {
       this.elevatedJumpCooldownUntilMs = nowMs + randFloat(400, 550)
     }
 
+    console.log('setting sneak to ', finalSneak, bot.entity.position)
     bot.setControlState('sneak', finalSneak)
     bot.setControlState('jump', false)
     bot.setControlState('sprint', modeResult.wantSprint && !finalSneak)
