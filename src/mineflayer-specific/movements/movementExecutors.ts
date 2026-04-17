@@ -264,7 +264,7 @@ export class ForwardExecutor extends MovementExecutor {
     if (bb1.length === 0) bb1.push(AABB.fromBlock(bb1bl.position))
     const bb1physical = bb1bl.physical || bb1bl.liquid
 
-    const bb2bl = thisMove.moveType.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
+    const bb2bl = thisMove.getBlockInfo(thisMove.exitPos.floored(), 0, -1, 0)
     const bb2 = bb2bl.getBBs()
     if (bb2.length === 0) bb2.push(AABB.fromBlock(bb1bl.position))
     const bb2physical = bb2bl.physical || bb2bl.liquid

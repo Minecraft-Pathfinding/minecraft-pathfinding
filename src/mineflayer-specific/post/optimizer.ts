@@ -1,6 +1,6 @@
 import { Bot } from 'mineflayer'
 import { OptimizationMap } from '.'
-import { BuildableMoveProvider } from '../movements'
+import { BuildableMoveProvider, MovementProvider } from '../movements'
 import { World } from '../world/worldInterface'
 import { Move } from '../move'
 import { BaseSimulator, BotcraftPhysics } from '@nxg-org/mineflayer-physics-util'
@@ -24,9 +24,26 @@ export abstract class MovementOptimizer {
 
   abstract identEndOpt (currentIndex: number, path: Move[]): number | Promise<number>
 
-  mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]): Move {
+  /**
+   * Select the move type that should represent the merged block.
+   *
+   * Default behavior keeps the start move's provider so existing optimizer/executor
+   * mappings continue to work unchanged.
+   */
+  protected getMergedMoveType (startIndex: number, endIndex: number, path: readonly Move[]): MovementProvider {
+    return path[startIndex].moveType
+  }
+
+  /**
+   * Build the merged move for the optimized span.
+   *
+   * Subclasses may override this when they need to swap in a different move type
+   * or otherwise rewrite the resulting move object.
+   */
+  protected createMergedMove (startIndex: number, endIndex: number, path: readonly Move[]): Move {
     const startMove = path[startIndex]
     const endMove = path[endIndex]
+    const mergedMoveType = this.getMergedMoveType(startIndex, endIndex, path)
 
     logMerge(`Merging ${endIndex - startIndex + 1} moves: [Index ${startIndex}] ${startMove.moveType.constructor.name} -> [Index ${endIndex}] ${endMove.moveType.constructor.name}`)
     logMerge(`Start Pos: ${startMove.entryPos}, End Pos: ${endMove.exitPos}`)
@@ -59,13 +76,17 @@ export abstract class MovementOptimizer {
       toBreak,
       endMove.remainingBlocks,
       costSum,
-      startMove.moveType,
+      mergedMoveType,
       startMove.entryPos,
       startMove.entryVel,
       endMove.exitPos,
       endMove.exitVel,
       startMove.parent
     )
+  }
+
+  mergeMoves (startIndex: number, endIndex: number, path: readonly Move[]): Move {
+    return this.createMergedMove(startIndex, endIndex, path)
   }
 }
 
