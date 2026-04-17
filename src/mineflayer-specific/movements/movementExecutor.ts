@@ -650,10 +650,9 @@ export abstract class MovementExecutor extends Movement {
 
 
   /**
-   * 
-   * @returns 
+   * @returns whether we fall off.
    */
-  public willFallOff(ticks = 1) {
+  public willFallOff(ticks = 1): boolean {
     const ectx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
 
     for (let i = 0; i < ticks; i++) {
