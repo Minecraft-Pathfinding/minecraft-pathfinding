@@ -658,8 +658,8 @@ export class ThePathfinder {
 
   async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     const MAX_RECOVERY_DEPTH = 5
-    const ALIGN_TICK_LIMIT = 999
-    const PERFORM_TICK_LIMIT = 999
+    const ALIGN_TICK_LIMIT = 40
+    const PERFORM_TICK_LIMIT = 10000
 
     if (entry > MAX_RECOVERY_DEPTH) {
       throw new Error('Too many failures, exiting performing.')
