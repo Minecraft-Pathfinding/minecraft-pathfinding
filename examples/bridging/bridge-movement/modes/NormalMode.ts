@@ -121,13 +121,13 @@ export class NormalMode extends BridgeModeBase {
     this._wasOverAir = overAir
 
 
-    console.log(
-      `[ninja dbg] phase=bridge pathKind=${pathKind} sneaking=${nowMs < this._sneakUntilMs} overAir=${overAir} onGround=${onGround} ` +
-      `yaw=${(bot.entity.yaw * RAD2DEG).toFixed(1)} pitch=${(bot.entity.pitch * RAD2DEG).toFixed(1)} ` +
-      `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
-      `vel=(${bot.entity.velocity.x.toFixed(3)},${bot.entity.velocity.y.toFixed(3)},${bot.entity.velocity.z.toFixed(3)}) ` +
-      `placed=${ctx.placedThisMove}, shouldBridge=${this.shouldBridge}, `
-    )
+    // console.log(
+    //   `[ninja dbg] phase=bridge pathKind=${pathKind} sneaking=${nowMs < this._sneakUntilMs} overAir=${overAir} onGround=${onGround} ` +
+    //   `yaw=${(bot.entity.yaw * RAD2DEG).toFixed(1)} pitch=${(bot.entity.pitch * RAD2DEG).toFixed(1)} ` +
+    //   `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
+    //   `vel=(${bot.entity.velocity.x.toFixed(3)},${bot.entity.velocity.y.toFixed(3)},${bot.entity.velocity.z.toFixed(3)}) ` +
+    //   `placed=${ctx.placedThisMove}, shouldBridge=${this.shouldBridge}, `
+    // )
 
     const allowPlace = this.shouldBridge && (!checkBlock || this._shouldAllowPlace(backX, backZ, checkBlock))
 
@@ -235,14 +235,14 @@ export class NormalMode extends BridgeModeBase {
 
 
     if (fuck && !predictedBlockPos.equals(targetBPos)) {
-      console.error(
-        "woah that's bad",
-        predictedBlockPos,
-        fuck.face,
-        targetBPos,
-        this.bot.entity.yaw * RAD2DEG,
-        this.bot.entity.position
-      )
+      // console.error(
+      //   "woah that's bad",
+      //   predictedBlockPos,
+      //   fuck.face,
+      //   targetBPos,
+      //   this.bot.entity.yaw * RAD2DEG,
+      //   this.bot.entity.position
+      // )
       return false
     }
 

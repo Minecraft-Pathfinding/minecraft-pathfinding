@@ -762,12 +762,14 @@ export class ThePathfinder {
 
       const rawMove = localPath[currentIndex]
       const move = optSequence.find((m) => m.hash === rawMove.hash) ?? rawMove
+      const wasOptimized = rawMove !== move
       let executor: MovementExecutor | undefined
 
-      if (rawMove !== move) {
-        executor = optMovements.get(rawMove.moveType.constructor as BuildableMoveProvider)
+      if (wasOptimized) {
+        executor = optMovements.get(move.moveType.constructor as BuildableMoveProvider)
       }
       if (executor == null) {
+        log(`Unoptimized move (idx ${currentIndex}) when we have optimizer! ${optSequence.map(m=>m.cachedVec)} vs ${localPath.map(m=>m.cachedVec)}`)
         executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
       }
       if (executor == null) {
@@ -784,11 +786,17 @@ export class ThePathfinder {
 
       if (executor.isAlreadyCompleted(move, tickCount, goal)) {
         log(
-          '[ExecID: %d] Skipping move %s at index %d (already completed)',
+          '[ExecID: %d] Skipping move %s with executor %s at index %d (already completed)',
           myExecutionId,
           move.moveType.constructor.name,
+          executor.constructor.name,
           currentIndex
         )
+
+        if (wasOptimized) {
+          log(`This move was optimized, but was still skipped. Unlikely.`)
+          log(`Move: %O to %O`, move.entryPos, move.exitPos)
+        }
 
         currentIndex = this.findNextCurrentIdx(myExecutionId, move, localPath, currentIndex)
         this.currentIndex = currentIndex
@@ -796,9 +804,10 @@ export class ThePathfinder {
       }
 
       log(
-        '[ExecID: %d] Executing move: %s aligned to unoptimized index %d',
+        '[ExecID: %d] Executing move: %s aligned to %s index %d',
         myExecutionId,
         move.moveType.constructor.name,
+        wasOptimized ? "optimized" : "unoptimized",
         currentIndex
       )
 
@@ -864,6 +873,7 @@ export class ThePathfinder {
           throw new CancelError(`Execution tick loop timed out for ${move.moveType.constructor.name}`)
         }
 
+        log(`[ExecID: %d] Movement idx %d finished. Extra?: `, myExecutionId, currentIndex, adding)
 
         currentIndex = this.findNextCurrentIdx(myExecutionId, move, localPath, currentIndex, adding)
 

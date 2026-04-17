@@ -109,6 +109,7 @@ export class BridgeExecutor extends MovementExecutor {
     this.elevated = this._shouldElevate()
     this.elevatedJumpCooldownUntilMs = 0
     this.splicedEndIndex = PathSplicer.computeSpliceEnd(this.bot, this.world, currentIndex, path)
+    console.log('SPLICED END INDEX', this.splicedEndIndex)
 
     const splicedTarget = path[this.splicedEndIndex] ?? thisMove
     this.lineTracker.seedPath(thisMove.entryPos, splicedTarget.exitPos)
@@ -135,6 +136,7 @@ export class BridgeExecutor extends MovementExecutor {
       if (pos.y < thisMove.exitPos.y) bot.setControlState('jump', true)
       void this.postInitAlignToPath(thisMove)
       if (this.isComplete(thisMove)) {
+        console.log('BridgeExecutor: WE ARE COMPLETE???', this.bot.entity.position)
         this.mode.onMoveEnd()
         return true
       }
@@ -198,15 +200,15 @@ export class BridgeExecutor extends MovementExecutor {
       const left = bot.getControlState('left')
       const right = bot.getControlState('right')
       const sprint = bot.getControlState('sprint')
-      console.log(
-        `[bridge tick] t=${tickCount} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) ` +
-        `yaw=${yawDeg}° pitch=${pitchDeg}° ` +
-        `sneak=${sneak} jump=${jump} sprint=${sprint} fwd=${fwd} back=${back} left=${left} right=${right} ` +
-        `onGnd=${bot.entity.onGround} xzSpd=${xzSpd} ` +
-        `placed=${this.placedThisMove} allowPlace=${modeResult.allowPlace} ` +
-        `total to place=${this.toPlaceLen()}` +
-        ` vel=(${vel.x.toFixed(3)},${vel.y.toFixed(3)},${vel.z.toFixed(3)})`
-      )
+      // console.log(
+      //   `[bridge tick] t=${tickCount} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) ` +
+      //   `yaw=${yawDeg}° pitch=${pitchDeg}° ` +
+      //   `sneak=${sneak} jump=${jump} sprint=${sprint} fwd=${fwd} back=${back} left=${left} right=${right} ` +
+      //   `onGnd=${bot.entity.onGround} xzSpd=${xzSpd} ` +
+      //   `placed=${this.placedThisMove} allowPlace=${modeResult.allowPlace} ` +
+      //   `total to place=${this.toPlaceLen()}` +
+      //   ` vel=(${vel.x.toFixed(3)},${vel.y.toFixed(3)},${vel.z.toFixed(3)})`
+      // )
     }
 
     const targetMove = path[this.splicedEndIndex] ?? thisMove
@@ -294,16 +296,16 @@ export class BridgeExecutor extends MovementExecutor {
   ): boolean {
     if (this.toBreakLen() > 0) return false
 
-    for (let i = currentIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
+    // for (let i = currentIndex; i <= this.splicedEndIndex; i++) {
+    //   const move = path[i]
+    //   if (move == null) break
 
-      for (const place of move.toPlace) {
-        if (!place.done) return false
-      }
-    }
+    //   for (const place of move.toPlace) {
+    //     if (!place.done) return false
+    //   }
+    // }
 
-    return this.isComplete(thisMove, targetMove)
+    return this.isComplete(thisMove)
   }
 
   private _isInWater(): boolean {
@@ -483,7 +485,7 @@ export class BridgeExecutor extends MovementExecutor {
 
     const EPS = 1e-2
 
-    console.log('applying vector:', vec, rightDot, fwdDot)
+    // console.log('applying vector:', vec, rightDot, fwdDot)
 
     bot.setControlState('forward', fwdDot > EPS)
     bot.setControlState('back', fwdDot < -EPS)
