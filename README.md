@@ -9,6 +9,9 @@
   <a href="https://discord.gg/zDzugD3ywn">
     <img src="https://img.shields.io/badge/discord-000000?style=for-the-badge&logo=discord" alt="Discord">
   </a>
+  <a href="https://ko-fi.com/generel">
+    <img src="https://img.shields.io/badge/ko--fi-000000?style=for-the-badge&logo=ko-fi" alt="Ko-fi">
+  </a>
 </p>
 
 > [!WARNING]
