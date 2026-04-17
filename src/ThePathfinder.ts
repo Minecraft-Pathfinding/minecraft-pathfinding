@@ -743,13 +743,7 @@ export class ThePathfinder {
           currentIndex
         )
 
-        const endIdx = localPath.findIndex(
-          (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
-        )
-
         currentIndex = this.findNextCurrentIdx(myExecutionId, move, localPath, currentIndex)
-
-        currentIndex = endIdx !== -1 ? endIdx + 1 : currentIndex + 1
         this.currentIndex = currentIndex
         continue
       }
