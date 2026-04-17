@@ -660,7 +660,6 @@ export abstract class MovementExecutor extends Movement {
       this.bot.physicsUtil.engine.simulate(ectx, this.bot.world);
     }
 
-    return !ectx.state.onGround && this.bot.entity.onGround
-
+    return !ectx.state.onGround && this.bot.entity.onGround && ectx.state.pos.y < this.bot.entity.position.y
   }
 }
