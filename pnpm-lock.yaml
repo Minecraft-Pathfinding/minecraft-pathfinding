@@ -29,7 +29,7 @@ importers:
         version: link:../mineflayer
       mineflayer-mouse:
         specifier: ^0.1.27
-        version: 0.1.27
+        version: 0.1.28
       prismarine-block:
         specifier: ^1.23.0
         version: 1.23.0
@@ -1093,8 +1093,8 @@ packages:
   minecraft-data@3.109.0:
     resolution: {integrity: sha512-WdeFQAogj0pX30dXMm2mYBd7x1DlKs7LCs8qtFGZ+S+IhnCh0DgHNSGd8dgL7wFxS6I9eJaF8zdGksdUi2PwYg==}
 
-  mineflayer-mouse@0.1.27:
-    resolution: {integrity: sha512-rir2u/WeQfJECbfvuzzwrybmMtFPYjQMpI/nx6Cv78keRlNPyjifnuCBwFJb17NcQgdnhpL9U8RST0010qhx+A==}
+  mineflayer-mouse@0.1.28:
+    resolution: {integrity: sha512-31r73CqU7eiv8cQSVA+NMR0WfA8Qs+p6of+Bd7ApWzR4a56W6fgfY3MExNmxxbb1/w9IbxTcMhDbcoKmE/5+nw==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   minimatch@3.1.5:
@@ -2941,7 +2941,7 @@ snapshots:
 
   minecraft-data@3.109.0: {}
 
-  mineflayer-mouse@0.1.27:
+  mineflayer-mouse@0.1.28:
     dependencies:
       change-case: 5.4.4
       debug: 4.4.3

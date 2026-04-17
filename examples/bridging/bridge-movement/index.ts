@@ -24,18 +24,30 @@ export {
 import { BridgeConfig } from './BridgeConfig'
 import { BridgeExecutor } from './BridgeExecutor'
 
-import { movementProviders } from '../../../src'
+import { movementProviders, OptimizationMap } from '../../../src'
 const { Forward, Diagonal } = movementProviders;
 
 
 import { BuildableMoveExecutor } from '../../../src' // todo move to proper path
 import { MovementSetup } from '../../../src'
+import { BridgeOptimizer } from './bridgeOptimizer'
+import { Bot } from 'mineflayer'
 
-export function makeBridgeSetup (cfg: Partial<BridgeConfig> = {}): MovementSetup {
-  const ExecutorClass: BuildableMoveExecutor = BridgeExecutor.withConfig(cfg)
-  return new Map<typeof Forward | typeof Diagonal, BuildableMoveExecutor>([
-    [Forward, ExecutorClass],
-    [Diagonal, ExecutorClass]
-  ])
+
+
+export function applyBridgeSetup(bot: Bot, dbg: any, cfg: Partial<BridgeConfig> = {}): number {
+
+  dbg(`applyBridgeMode → mode="${cfg.mode}"`)
+  let count = 0
+  const ExecutorClass = BridgeExecutor.withConfig(cfg)
+
+  for (const value of [Forward, Diagonal]) {
+    dbg(`  setExecutor: ${value.name} → BridgeExecutor[${cfg.mode}]`)
+    // bot.pathfinder.setExecutor(value, ExecutorClass)
+    bot.pathfinder.setOptimizer(value, BridgeOptimizer, ExecutorClass)
+    count++;
+  }
+  dbg(`  ${count} executor(s) registered.`)
+  return count
 }
 

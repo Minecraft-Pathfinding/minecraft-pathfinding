@@ -5,3 +5,4 @@ yarn.lock
 package-lock.json
 vscode-profile-*
 flamegraph.htm
+node_modules/

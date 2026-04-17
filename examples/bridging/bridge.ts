@@ -6,7 +6,7 @@ import type { Entity } from 'prismarine-entity'
 import type { Block } from 'prismarine-block'
 import { createMouse } from 'mineflayer-mouse';
 import { BridgeMode } from './bridge-movement'
-import { makeBridgeSetup } from './bridge-movement'
+import { applyBridgeSetup } from './bridge-movement'
 import { RAD2DEG } from './bridge-movement/BridgeUtils'
 
 
@@ -31,20 +31,11 @@ const bot = createBot({
   username: 'testing1',
   auth: 'offline',
   host: 'localhost',
-  port: 51643
+  port: 25565
 }) // Fixed: Added missing closing parenthesis here
 
 function applyBridgeMode (mode: BridgeMode): number {
-  dbg(`applyBridgeMode → mode="${mode}"`)
-  let count = 0
-  const setup = makeBridgeSetup({ mode })
-  for (const [provider, executor] of setup) {
-    dbg(`  setExecutor: ${provider.name} → BridgeExecutor[${mode}]`)
-    bot.pathfinder.setExecutor(provider, executor)
-    count++
-  }
-  dbg(`  ${count} executor(s) registered.`)
-  return count
+  return applyBridgeSetup(bot, dbg, { mode })
 }
 
 const pathfinder = createPlugin()

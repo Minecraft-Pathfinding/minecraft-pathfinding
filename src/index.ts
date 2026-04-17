@@ -14,7 +14,7 @@ import { Path } from './mineflayer-specific/algs'
 import { MovementOptions, MovementProvider, MovementSetup } from './mineflayer-specific/movements'
 import { OptimizationSetup } from './mineflayer-specific/post'
 
-export function createPlugin (opts?: HandlerOpts) {
+export function createPlugin(opts?: HandlerOpts) {
   return function (bot: Bot) {
     BlockInfo.init(bot.registry) // set up block info
     if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
@@ -45,9 +45,9 @@ declare module 'mineflayer' {
 }
 
 export * as goals from './mineflayer-specific/goals'
-export * as custom from './mineflayer-specific/custom'
+
+export { MovementExecutor, BuildableMoveExecutor, BuildableMoveProvider, MovementSetup, MovementProvider } from './mineflayer-specific/movements'
+export { MovementOptimizer, BuildableMoveOptimizer, OptimizationSetup, OptimizationMap } from './mineflayer-specific/post'
+export { Move } from './mineflayer-specific/move'
 
 export * as movementProviders from './mineflayer-specific/movements/movementProviders'
-export { BuildableMoveProvider, BuildableMoveExecutor, MovementSetup } from './mineflayer-specific/movements'
-export { BridgeProvider } from './mineflayer-specific/movements/bridgeProvider'
-export { BridgeOptimizer } from './mineflayer-specific/post/bridgeOptimizer'
