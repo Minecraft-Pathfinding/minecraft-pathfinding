@@ -3,7 +3,7 @@ import { Algorithm, Path } from '../../abstract'
 import { ReplacementMap } from '.'
 import { Bot } from 'mineflayer'
 import { World } from '../world/worldInterface'
-import { BuildableMoveProvider } from '../movements'
+import { BuildableMoveProvider, MovementHandler } from '../movements'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:replacement')
@@ -17,14 +17,14 @@ const log = debug('minecraft-pathfinding:replacement')
 // temp typing
 interface Result {
   referencePath: Move[]
-  replacements: Map<number, Path<Move, MovementReplacement>>
+  replacements: Map<number, Path<Move, MovementHandler, MovementReplacement>>
   context: Replacer
 }
 
 export interface MovementReplacement extends Algorithm<Move> {
   canReplace: (move: Move) => boolean
   initialize: (move: Move) => void
-  compute: () => Path<Move, MovementReplacement> | null
+  compute: () => Path<Move, MovementHandler, MovementReplacement> | null
 }
 
 export class Replacer {
@@ -49,7 +49,7 @@ export class Replacer {
     return !!this.pathCopy
   }
 
-  makeResult (this: Replacer, repRetMap: Map<number, Path<Move, MovementReplacement>>): Result {
+  makeResult (this: Replacer, repRetMap: Map<number, Path<Move, MovementHandler, MovementReplacement>>): Result {
     return {
       referencePath: this.pathCopy,
       replacements: repRetMap,
@@ -62,7 +62,7 @@ export class Replacer {
       throw new Error('Optimizer not sanitized')
     }
 
-    const ret = new Map<number, Path<Move, MovementReplacement>>()
+    const ret = new Map<number, Path<Move, MovementHandler, MovementReplacement>>()
 
     while (this.currentIndex < this.pathCopy.length) {
       const move = this.pathCopy[this.currentIndex]
