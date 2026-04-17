@@ -49,3 +49,6 @@ export * as custom from './mineflayer-specific/custom'
 
 export * as movementProviders from './mineflayer-specific/movements/movementProviders'
 export { BuildableMoveProvider, BuildableMoveExecutor, MovementSetup } from './mineflayer-specific/movements'
+export { BridgeProvider } from './mineflayer-specific/movements/bridgeProvider'
+export { BridgeExecutor } from './mineflayer-specific/movements/bridgeExecutor'
+export { BridgeOptimizer } from './mineflayer-specific/post/bridgeOptimizer'

@@ -1,7 +1,7 @@
 import { createBot } from 'mineflayer'
 import { createPlugin, goals } from '../../src'
 import { Vec3 } from 'vec3'
-import { default as loader, EPhysicsCtx, EntityState, BotcraftPhysics } from '@nxg-org/mineflayer-physics-util'
+import { default as loader, EntityPhysics, EPhysicsCtx, EntityState } from '@nxg-org/mineflayer-physics-util'
 import type { Entity } from 'prismarine-entity'
 import type { Block } from 'prismarine-block'
 import { createMouse } from 'mineflayer-mouse';
@@ -31,7 +31,7 @@ const bot = createBot({
   username: 'testing1',
   auth: 'offline',
   host: 'localhost',
-  port: 54175
+  port: 51643
 }) // Fixed: Added missing closing parenthesis here
 
 function applyBridgeMode (mode: BridgeMode): number {
@@ -57,11 +57,9 @@ bot.once('spawn', () => {
   bot.loadPlugin(pathfinder)
   bot.loadPlugin(loader)
 
-  bot.pathfinder.setOptions({ partialPathProducer: true })
-
   bot.physics.yawSpeed = 6000;
   bot.physics.pitchSpeed = 6000;
-  const physics = new BotcraftPhysics(bot.registry)
+  const physics = new EntityPhysics(bot.registry)
 
   // @ts-expect-error - modifying prototype for physics util compatibility
   EntityState.prototype.apply = function (b) {
@@ -85,7 +83,7 @@ bot.once('spawn', () => {
   })
 
   bot.on('goalFinished', (goal) => {
-    dbg('goalFinished:', JSON.stringify(goal), bot.entity.position)
+    dbg('goalFinished:', JSON.stringify(goal))
   })
 
   bot.on('goalAborted', (goal) => {
@@ -186,8 +184,7 @@ bot.on('physicsTick', () => {
   //   `sprint:${bot.getControlState('sprint')} ` +
   //   `left:${bot.getControlState('left')} ` + 
   //   `right:${bot.getControlState('right')} ` + 
-  //   `sneak:${bot.getControlState('sneak')} ` +
-  //   `position:${bot.entity.position}` 
+  //   `position:${bot.entity.position}`
   // )
 })
 
