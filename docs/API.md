@@ -51,6 +51,15 @@ Return an async generator that generates partial paths until a successful path i
 ▸ **goto(`goal: Goal`): `Promise<void>`**
 
 Moves the bot to the goal.
+The pathfinder snapshots the active movement and optimizer maps at the start of each `goto`, so runtime changes only affect future calls.
+
+▸ **setExecutor(`provider: BuildableMoveProvider, executor: BuildableMoveExecutor | MovementExecutor`): `void`**
+
+Registers or replaces the executor for a movement provider.
+
+▸ **setOptimizer(`provider: BuildableMoveProvider, optimizer: BuildableMoveOptimizer | MovementOptimizer, executor?: BuildableMoveExecutor | MovementExecutor`): `void`**
+
+Registers or replaces the optimizer for a movement provider. The optional third argument only applies to optimized moves.
 
 <h4>Example</h4>
 
@@ -99,7 +108,9 @@ type Path<Data extends PathData, Alg extends Algorithm<Data>>
 <h3>Path</h3>
 
 ```ts
-interface Path extends APath<Move, AStar> {}
+interface Path<T extends AStar = AStar> extends APath<Move, MovementHandler, T> {
+  movementProvider: MovementHandler
+}
 ```
 
 | Property | Type | Description |
@@ -109,9 +120,9 @@ interface Path extends APath<Move, AStar> {}
 | `calcTime` | `number` | The time it took to calculate the path. |
 | `visitedNodes` | `number` | The `number` of nodes visited. |
 | `generatedNodes` | `number` | The `number` of nodes generated. |
-| `movementProvider` | `MovementProvider<Move>` | The movement provider. |
+| `movementProvider` | `MovementHandler` | The movement provider. |
 | `path` | `Move[]` | The path. |
-| `context` | `AStar<Move>` | The astar context. |
+| `context` | `AStar` | The astar context. |
 
 
 
@@ -137,7 +148,7 @@ The status of a path.
 <h3>PathGenerator</h3>
 
 ```ts
-type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult, void>
+type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult | null, unknown>
 
 ```
 
@@ -153,7 +164,7 @@ An async generator that generates partial paths until a successful path is found
 ```ts
 interface PathGeneratorResult {
   result: Path
-  astarContext: AAStar<Move>
+  astarContext: AAStar<Move, MovementHandler>
 }
 ```
 
@@ -162,7 +173,7 @@ The result of a path generator.
 | Property | Type | Description |
 | --- | --- | --- |
 | `result` | [Path](#path) | The result of the path. |
-| `astarContext` | AStar<Move> | The astar context. |
+| `astarContext` | `AAStar<Move, MovementHandler>` | The astar context. |
 
 
 <h3>ResetReason</h3>

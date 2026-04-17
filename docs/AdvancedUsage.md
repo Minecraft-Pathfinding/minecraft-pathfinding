@@ -125,7 +125,7 @@ A: Yes. it will entirely overwrite the previous executor linked to that producer
 
 <h5>Q: If I change the link between Producers and Executors, or Producers and Optimizers, will it affect the current path?</h5>
 
-A: No. The path is calculated and optimized based on the current links between Producers and Executors, and Producers and Optimizers. Changing the links will only affect future paths.
+A: No. Each `goto` snapshots the current movement and optimizer maps when it starts. Changing the links while that `goto` is running will only affect future paths.
 
 <h2>Custom Movement Providers: A Summary</h2>
 
@@ -144,6 +144,7 @@ To break down how this works, let's trace the code functionality.
 6. Provide this optimized path to the `goto` function in the pathfinder. 
 7. The pathfinder now takes the optimized path and begins executing it using `MovementExecutors`.
    - `MovementExecutors` are used to execute the path, performing any necessary actions to reach the goal. This is where the bot actually moves and interacts with the world.
+   - If a movement was optimized and you registered an optimized-only executor for its provider, that executor will be used for that optimized move. Otherwise, the normal executor is used.
    - `MovementExecutors` can provide runtime optimizations to the path itself via skipping nodes, but cannot modify the path itself.
 8. **The path has been executed!** Or has it?
    - In the event that some factor (such as failure to execute or knocking off course) has caused the bot to go off course, The pathfinder will recalculate the path and repeat steps 4-7.
@@ -202,9 +203,11 @@ bot.pathfinder.setExecutor(MyProvider, executor)
 
 **Important!** Adding an optimizer paired with a provider that has *no* executor does *not* break the code. Functionally, nothing will change.
 
-The provider list when calculating a path is *not* linked to the provider list that has optimizers. This means that if you add an optimizer to a provider that has no executor, the optimizer will not be used. 
+The provider list when calculating a path is *not* linked to the provider list that has optimizers. This means that if you add an optimizer to a provider that has no executor, the optimizer will not be used.
 
-This allows providers to be removed from the calculation step without needing to remove the optimizer as well.
+If you also provide a third argument to `setOptimizer`, that executor will only be used when the move was actually optimized. Unoptimized moves still use the normal executor map.
+
+This allows providers to be removed from the calculation step without needing to remove the optimizer as well. 
 
 
 ```ts
@@ -226,6 +229,10 @@ bot.pathfinder.setOptimizer(MyProvider, MyOptimizer)
 const optimizer = new MyOptimizer(bot, world)
 
 bot.pathfinder.setOptimizer(MyProvider, optimizer)
+
+// OR, with a separate executor just for optimized moves:
+
+bot.pathfinder.setOptimizer(MyProvider, MyOptimizer, MyExecutor)
 
 ```
 

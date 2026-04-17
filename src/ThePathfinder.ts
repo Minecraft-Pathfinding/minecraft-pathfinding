@@ -120,6 +120,8 @@ export class ThePathfinder {
 
   private resetReason?: ResetReason
   private _currentProducer?: PathProducer
+  private _gotoMovements?: ExecutorMap
+  private _gotoOptimizedMovements?: ExecutorMap
 
   public get currentAStar(): AStar | undefined {
     return this._currentProducer?.getAstarContext()
@@ -127,6 +129,14 @@ export class ThePathfinder {
 
   public get currentProducer(): PathProducer | undefined {
     return this._currentProducer
+  }
+
+  private get activeMovements(): ExecutorMap {
+    return this._gotoMovements ?? this.movements
+  }
+
+  private get activeOptimizedMovements(): ExecutorMap {
+    return this._gotoOptimizedMovements ?? this.optimizedMovements
   }
 
   public get isPathing(): boolean {
@@ -439,7 +449,7 @@ export class ThePathfinder {
         settings,
         this.bot,
         this.world,
-        this.movements
+        this.activeMovements
       )
     } else {
       this._currentProducer = new ContinuousPathProducer(
@@ -448,7 +458,7 @@ export class ThePathfinder {
         settings,
         this.bot,
         this.world,
-        this.movements
+        this.activeMovements
       )
     }
     log('Path producer initialized: %s', this._currentProducer.constructor.name)
@@ -538,9 +548,16 @@ export class ThePathfinder {
     this.currentGotoGoal = goal
     this.bot.emit('goalSet', goal)
 
-    await this._goto(goal, performOpts)
+    this._gotoMovements = new Map(this.movements)
+    this._gotoOptimizedMovements = new Map(this.optimizedMovements)
 
-    await this.cleanupAll(goal)
+    try {
+      await this._goto(goal, performOpts)
+      await this.cleanupAll(goal)
+    } finally {
+      delete this._gotoMovements
+      delete this._gotoOptimizedMovements
+    }
   }
 
   private async _goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
@@ -707,7 +724,8 @@ export class ThePathfinder {
     this.currentIndex = currentIndex
     this.curPath = localPath
 
-    const movements = (path.movementProvider as MovementHandler).recognizedMovements;
+    const movements = this.activeMovements
+    const optMovements = this.activeOptimizedMovements
 
     log(
       '[ExecID: %d] Perform started. Entry: %d, Initial Path Length: %d',
@@ -744,9 +762,14 @@ export class ThePathfinder {
 
       const rawMove = localPath[currentIndex]
       const move = optSequence.find((m) => m.hash === rawMove.hash) ?? rawMove
-      const executor =
-        (rawMove !== move ? this.optimizedMovements.get(rawMove.moveType.constructor as BuildableMoveProvider) : undefined) ??
-        this.movements.get(move.moveType.constructor as BuildableMoveProvider)
+      let executor: MovementExecutor | undefined
+
+      if (rawMove !== move) {
+        executor = optMovements.get(rawMove.moveType.constructor as BuildableMoveProvider)
+      }
+      if (executor == null) {
+        executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
+      }
       if (executor == null) {
         throw new Error('No executor for movement type ' + move.moveType.constructor.name)
       }
@@ -961,7 +984,7 @@ export class ThePathfinder {
 
   async cleanupBot(): Promise<void> {
     this.bot.clearControlStates()
-    for (const [, executor] of this.movements) {
+    for (const [, executor] of this.activeMovements) {
       executor.reset()
     }
   }
