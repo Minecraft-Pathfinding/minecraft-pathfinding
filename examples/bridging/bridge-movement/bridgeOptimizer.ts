@@ -42,6 +42,11 @@ export class BridgeOptimizer extends MovementOptimizer {
         break
       }
 
+      if (next.toPlace.length === 0) {
+        log(`[BridgeOpt] stop at ${i}: no blocks to place, so no need to bridge.`)
+        break
+      }
+
       if (Math.abs(next.exitPos.y - orgY) > 0.01 || Math.abs(next.entryPos.y - orgY) > 0.01) {
         log(`[BridgeOpt] Stop at ${i}: y-level changed`)
         break
