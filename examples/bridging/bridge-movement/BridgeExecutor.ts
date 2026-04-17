@@ -31,7 +31,6 @@ export class BridgeExecutor extends MovementExecutor {
   private _nextMouseClickMs = 0
   private elevated = false
   private elevatedJumpCooldownUntilMs = 0
-  private splicedEndIndex = 0
   private stallStartMs = 0
   private _lerpYaw = 0.4
   private _lerpPitch = 0.45
@@ -108,11 +107,8 @@ export class BridgeExecutor extends MovementExecutor {
 
     this.elevated = this._shouldElevate()
     this.elevatedJumpCooldownUntilMs = 0
-    this.splicedEndIndex = PathSplicer.computeSpliceEnd(this.bot, this.world, currentIndex, path)
-    console.log('SPLICED END INDEX', this.splicedEndIndex)
 
-    const splicedTarget = path[this.splicedEndIndex] ?? thisMove
-    this.lineTracker.seedPath(thisMove.entryPos, splicedTarget.exitPos)
+    this.lineTracker.seedPath(thisMove.entryPos, thisMove.exitPos)
 
     const ctx = this._makeCtx(thisMove, currentIndex, path)
     this.mode.onMoveStart(ctx)
@@ -211,25 +207,13 @@ export class BridgeExecutor extends MovementExecutor {
       // )
     }
 
-    const targetMove = path[this.splicedEndIndex] ?? thisMove
 
-    if (this._hasOvershot(thisMove, targetMove)) {
-      console.log(
-        `[bridge dbg] overshoot detected — forcing completion ` +
-        `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
-        `target=(${targetMove.exitPos.x.toFixed(2)},${targetMove.exitPos.y.toFixed(2)},${targetMove.exitPos.z.toFixed(2)})`
-      )
+
+    const execComplete = this.isComplete(thisMove)
+    if (execComplete) {
       this.mode.onMoveEnd()
       this._clearSuppressPathReset()
       return true
-    }
-
-    const execComplete = this._isExecutionComplete(thisMove, targetMove, path, currentIndex)
-    if (execComplete) {
-      const delta = this.splicedEndIndex - currentIndex
-      this.mode.onMoveEnd()
-      this._clearSuppressPathReset()
-      return delta > 0 ? delta : true
     }
 
     return false
@@ -253,60 +237,13 @@ export class BridgeExecutor extends MovementExecutor {
   }
 
   private _getPendingPlacements(path: Move[], startIndex: number): PlaceHandler[] {
-    const placements: PlaceHandler[] = []
-
-    for (let i = startIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
-
-      for (const place of move.toPlace) {
-        if (!(place instanceof PlaceHandler)) continue
-        if (place.done) continue
-        if (place.isPerforming) continue
-        if (!place.needToPerform(this.bot)) continue
-        placements.push(place)
-      }
-    }
-
-    return placements
+    return this.toPlace()
   }
 
   private _getNextPlaceCandidate(path: Move[], startIndex: number): PlaceHandler | null {
-    for (let i = startIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
-
-      for (const place of move.toPlace) {
-        if (!(place instanceof PlaceHandler)) continue
-        if (place.done) continue
-        if (place.isPerforming) continue
-        if (!place.needToPerform(this.bot)) continue
-        return place
-      }
-    }
-
-    return null
+    return this.toPlace()[0] ?? null
   }
 
-  private _isExecutionComplete(
-    thisMove: Move,
-    targetMove: Move,
-    path: Move[],
-    currentIndex: number
-  ): boolean {
-    if (this.toBreakLen() > 0) return false
-
-    // for (let i = currentIndex; i <= this.splicedEndIndex; i++) {
-    //   const move = path[i]
-    //   if (move == null) break
-
-    //   for (const place of move.toPlace) {
-    //     if (!place.done) return false
-    //   }
-    // }
-
-    return this.isComplete(thisMove)
-  }
 
   private _isInWater(): boolean {
     if ((this.bot.entity as any).isInWater as boolean) return true
