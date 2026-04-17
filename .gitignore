@@ -6,3 +6,4 @@ package-lock.json
 vscode-profile-*
 flamegraph.htm
 node_modules/
+pnpm-lock.yaml
