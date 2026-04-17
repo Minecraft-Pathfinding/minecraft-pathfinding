@@ -1,0 +1,54 @@
+import { Goal, MovementProvider, Path, Algorithm } from '../';
+import { PathStatus } from '../../types';
+import { BinaryHeapOpenSet as Heap } from '../heap';
+import { PathData, PathNode } from '../node';
+export declare class AStar<Data extends PathData, MProvider extends MovementProvider<Data> = MovementProvider<Data>> implements Algorithm<Data> {
+    startTime: number;
+    goal: Goal<Data>;
+    timeout: number;
+    tickTimeout: number;
+    differential: number;
+    movementProvider: MProvider;
+    closedDataSet: Set<string>;
+    openHeap: Heap<Data, PathNode<Data>>;
+    openDataMap: Map<string, PathNode<Data>>;
+    bestNode: PathNode<Data>;
+    maxCost: number;
+    checkInterval: number;
+    nodeConsiderCount: number;
+    constructor(start: Data, movements: MProvider, goal: Goal<Data>, timeout: number, tickTimeout?: number, searchRadius?: number, differential?: number);
+    protected addToClosedDataSet(node: PathNode<Data>): void;
+    protected heuristic(node: Data): number;
+    private lastAmt;
+    makeResult(status: PathStatus, node: PathNode<Data>): Path<Data, MProvider, this>;
+    compute(): Path<Data, MProvider, this>;
+}
+export declare class AStarBackOff<Data extends PathData, MProv extends MovementProvider<Data>> extends AStar<Data, MProv> {
+    bestNode0: PathNode<Data>;
+    bestNode1: PathNode<Data>;
+    bestNode2: PathNode<Data>;
+    bestNode3: PathNode<Data>;
+    bestNode4: PathNode<Data>;
+    bestNode5: PathNode<Data>;
+    bestNode6: PathNode<Data>;
+    bn0: number;
+    bn1: number;
+    bn2: number;
+    bn3: number;
+    bn4: number;
+    bn5: number;
+    bn6: number;
+    x0: number;
+    x1: number;
+    x2: number;
+    x3: number;
+    x4: number;
+    x5: number;
+    x6: number;
+    checkInterval: number;
+    nodeConsiderCount: number;
+    moveConsiderCount: number;
+    assignBestNodes(check: PathNode<Data>): void;
+    getActualBestNode(): PathNode<Data>;
+    compute(): Path<Data, MProv, this>;
+}

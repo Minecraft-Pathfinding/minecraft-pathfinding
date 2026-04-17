@@ -1,0 +1,54 @@
+import { Bot } from 'mineflayer'
+import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
+import { PathfinderOptions, ThePathfinder } from './ThePathfinder'
+import { Vec3 } from 'vec3'
+
+import utilPlugin from '@nxg-org/mineflayer-util-plugin'
+import physicsUtil, { initSetup } from '@nxg-org/mineflayer-physics-util'
+
+import { Block, HandlerOpts, PlaceBlockOptions, ResetReason } from './types'
+import { PathingUtil } from './PathingUtil'
+
+import * as goals from './mineflayer-specific/goals'
+import { Path } from './mineflayer-specific/algs'
+import { MovementOptions, MovementProvider, MovementSetup } from './mineflayer-specific/movements'
+import { OptimizationSetup } from './mineflayer-specific/post'
+
+export function createPlugin (opts?: HandlerOpts) {
+  return function (bot: Bot) {
+    BlockInfo.init(bot.registry) // set up block info
+    if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)
+    if (!bot.hasPlugin(physicsUtil)) bot.loadPlugin(physicsUtil)
+    initSetup(bot.registry)
+    bot.pathfinder = new ThePathfinder(bot, opts)
+    bot.pathingUtil = new PathingUtil(bot)
+  }
+}
+
+declare module 'mineflayer' {
+  interface Bot {
+    pathfinder: ThePathfinder
+    pathingUtil: PathingUtil
+
+    _placeBlockWithOptions: (referenceBlock: Block, faceVector: Vec3, options?: PlaceBlockOptions) => Promise<void>
+  }
+
+  interface BotEvents {
+    pathGenerated: (path: Path) => void
+    resetPath: (reason: ResetReason) => void
+    enteredRecovery: (errorCount: number) => void
+    exitedRecovery: (errorCount: number) => void
+    goalSet: (goal: goals.Goal) => void
+    goalFinished: (goal: goals.Goal) => void
+    goalAborted: (goal: goals.Goal) => void
+  }
+}
+
+export * as goals from './mineflayer-specific/goals'
+export * as custom from './mineflayer-specific/custom'
+
+export * as movementProviders from './mineflayer-specific/movements/movementProviders'
+export { BuildableMoveProvider, BuildableMoveExecutor, MovementSetup } from './mineflayer-specific/movements'
+export { BridgeProvider } from './mineflayer-specific/movements/bridgeProvider'
+export { BridgeExecutor } from './mineflayer-specific/movements/bridgeExecutor'
+export { BridgeOptimizer } from './mineflayer-specific/post/bridgeOptimizer'

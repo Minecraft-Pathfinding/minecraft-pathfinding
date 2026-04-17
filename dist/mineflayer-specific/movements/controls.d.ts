@@ -1,0 +1,10 @@
+import { IEntityState } from '@nxg-org/mineflayer-physics-util';
+import { Bot } from 'mineflayer';
+import { Vec3 } from 'vec3';
+export declare function wrapDegrees(degrees: number): number;
+export declare function wrapRadians(radians: number): number;
+export declare function strafeMovement(ctx: IEntityState, nextPoint: Vec3): void;
+export declare function botStrafeMovement(bot: Bot, nextPoint: Vec3): void;
+export declare function smartMovement(ctx: IEntityState, nextPoint: Vec3, sprint?: boolean): void;
+export declare function botSmartMovement(bot: Bot, nextPoint: Vec3, sprint: boolean): void;
+export declare function botStrafeMovementStrict(bot: Bot, nextPoint: Vec3): void;

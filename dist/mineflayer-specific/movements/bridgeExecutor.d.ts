@@ -1,0 +1,30 @@
+import { Bot } from 'mineflayer';
+import { Move } from '../move';
+import { World } from '../world/worldInterface';
+import { MovementExecutor } from './movementExecutor';
+import { MovementOptions } from './movement';
+import * as goals from '../goals';
+export declare class BridgeExecutor extends MovementExecutor {
+    private phases;
+    private phaseIdx;
+    private placementCooldownUntilMs;
+    private stallStartMs;
+    constructor(bot: Bot, world: World, settings?: Partial<MovementOptions>);
+    align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean>;
+    performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void>;
+    performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number>;
+    reset(): void;
+    private _buildPhases;
+    private _prewalkFeasible;
+    private _hasCrossedTarget;
+    private _execWalkPhase;
+    private _atEdge;
+    private _voidAhead;
+    private _attemptImmediatePlacement;
+    private _drainBreaks;
+    private _applyYawPitch;
+    private _lerpRotation;
+    private _allPlaced;
+    private _inWater;
+    private _clearSuppressReset;
+}

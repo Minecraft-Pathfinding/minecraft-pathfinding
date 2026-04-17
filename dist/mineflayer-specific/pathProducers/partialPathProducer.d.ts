@@ -1,0 +1,35 @@
+import { Bot } from 'mineflayer';
+import { PathProducer, AStar } from '../../mineflayer-specific/algs';
+import * as goals from '../goals';
+import { Move } from '../move';
+import { ExecutorMap, MovementOptions } from '../movements';
+import { World } from '../world/worldInterface';
+import { AdvanceRes } from '.';
+export declare class PartialPathProducer implements PathProducer {
+    private readonly start;
+    private readonly goal;
+    private readonly settings;
+    private readonly bot;
+    private readonly world;
+    private readonly movements;
+    private latestMove;
+    private readonly latestMoves;
+    private latestCost;
+    private lastPath;
+    private readonly startTime;
+    private lastStartTime;
+    consideredNodeCount: number;
+    latestClosedNodeCount: number;
+    latestMoveCount: number;
+    private _lastContext;
+    get maxPathLength(): number;
+    get lastAstarContext(): AStar | undefined;
+    constructor(start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap);
+    getAstarContext(): AStar | undefined;
+    getCurrentPath(): Move[];
+    private getSliceLen;
+    private handleAstarContext;
+    private generateAstarContext;
+    advance(): AdvanceRes;
+    private mergePathspath;
+}

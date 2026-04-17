@@ -1,0 +1,32 @@
+import { Vec3 } from 'vec3';
+import { MovementProvider } from './movements';
+import { PathData } from '../abstract/node';
+import { EntityState } from '@nxg-org/mineflayer-physics-util';
+import { BreakHandler, PlaceHandler } from './movements/interactionUtils';
+export declare class Move implements PathData {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    readonly remainingBlocks: number;
+    readonly cost: number;
+    readonly moveType: MovementProvider;
+    readonly entryPos: Vec3;
+    readonly entryVel: Vec3;
+    readonly exitPos: Vec3;
+    readonly exitVel: Vec3;
+    readonly parent?: Move | undefined;
+    hash: string;
+    targetPos: Vec3;
+    readonly cachedVec: Vec3;
+    toPlace: PlaceHandler[];
+    toBreak: BreakHandler[];
+    constructor(x: number, y: number, z: number, toPlace: PlaceHandler[], toBreak: BreakHandler[], remainingBlocks: number, cost: number, moveType: MovementProvider, entryPos: Vec3, entryVel: Vec3, exitPos: Vec3, exitVel: Vec3, parent?: Move | undefined);
+    static startMove(type: MovementProvider, pos: Vec3, vel: Vec3, remainingBlocks: number): Move;
+    static fromPreviousState(cost: number, state: EntityState, prevMove: Move, type: MovementProvider, toPlace?: PlaceHandler[], toBreak?: BreakHandler[]): Move;
+    static fromPrevious(cost: number, pos: Vec3, prevMove: Move, type: MovementProvider, toPlace?: PlaceHandler[], toBreak?: BreakHandler[]): Move;
+    clone(): Move;
+    get vec(): Vec3;
+    toVecCenter(): Vec3;
+    exitRounded(digits: number): Vec3;
+    toString(): String;
+}

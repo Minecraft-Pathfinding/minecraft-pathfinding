@@ -1,0 +1,12 @@
+import { Vec3 } from 'vec3';
+import { BlockInfo } from '../../world/cacheWorld';
+import { Movement } from '../movement';
+import { Vec3Properties } from '../../../types';
+export declare function canWalkOn(info: BlockInfo): boolean;
+export declare function canWalkThrough(info: BlockInfo): boolean;
+export declare function findPlaceOpts(move: Movement, orgPos: Vec3Properties, pos: Vec3Properties): BlockInfo | null;
+export declare function canPlaceAgainst(info: BlockInfo): boolean;
+export declare function isBottomSlab(info: BlockInfo): boolean;
+export declare function getMiningDurationTicks(move: Movement, info: BlockInfo, includeFalling?: boolean): number;
+export declare function getMiningDurationTicksCoords(move: Movement, pos: Vec3, includeFalling?: boolean): number;
+export declare function canUseFrostWalker(move: Movement, info: BlockInfo): boolean;
