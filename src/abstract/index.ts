@@ -8,17 +8,17 @@ export interface Goal<Data> {
 
 export interface Algorithm<Data extends PathData = PathData> {
   movementProvider: MovementProvider<Data>
-  compute: () => Path<Data, Algorithm<Data>> | null
-  makeResult: (status: PathStatus, node: PathNode<Data>) => Path<Data, Algorithm<Data>>
+  compute: () => Path<Data, MovementProvider<Data>, Algorithm<Data>> | null
+  makeResult: (status: PathStatus, node: PathNode<Data>) => Path<Data, MovementProvider<Data>, this>
 }
 
-export interface Path<Data extends PathData, Alg extends Algorithm<Data>> {
+export interface Path<Data extends PathData, MProv extends MovementProvider<Data>, Alg extends Algorithm<Data>> {
   status: PathStatus
   cost: number
   calcTime: number
   visitedNodes: number
   generatedNodes: number
-  movementProvider: MovementProvider<Data>
+  movementProvider: MProv
   path: Data[]
   context: Alg
 }

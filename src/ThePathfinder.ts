@@ -1,6 +1,6 @@
 import { Bot, BotEvents } from 'mineflayer'
 import { AStarBackOff as AAStar } from './abstract/algorithms/astar'
-import { AStar, Path, PathProducer } from './mineflayer-specific/algs' // OptPath removed
+import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
 import * as goals from './mineflayer-specific/goals'
 import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
@@ -13,7 +13,8 @@ import {
   MovementOptions,
   ExecutorMap,
   MovementExecutor,
-  DEFAULT_MOVEMENT_OPTS
+  DEFAULT_MOVEMENT_OPTS,
+  MovementProvider
 } from './mineflayer-specific/movements'
 
 import {
@@ -88,7 +89,7 @@ type PathInfo = Path
 type PathGenerator = AsyncGenerator<PathGeneratorResult, PathGeneratorResult | null, unknown>
 interface PathGeneratorResult {
   result: PathInfo
-  astarContext: AAStar<Move>
+  astarContext: AAStar<Move, MovementHandler>
 }
 
 interface PerformOpts {
@@ -101,6 +102,7 @@ export class ThePathfinder {
   world: World
   movements: ExecutorMap
   optimizers: OptimizationMap
+  optimizedMovements: ExecutorMap
   defaultMoveSettings: MovementOptions
   pathfinderSettings: PathfinderOptions
 
@@ -110,7 +112,6 @@ export class ThePathfinder {
   private executeTask: Task<void, void> = Task.createDoneTask()
   private wantedGoal?: goals.Goal
   public abortCalculation = false
-  private userAborted = false
 
   private currentGotoGoal?: goals.Goal
   private curPath?: Move[]
@@ -159,6 +160,7 @@ export class ThePathfinder {
     }
     this.movements = moves
     this.optimizers = opts2
+    this.optimizedMovements = new Map()
     this.defaultMoveSettings = moveSettings
     this.pathfinderSettings = pathfinderSettings
     this.astar = null
@@ -176,11 +178,25 @@ export class ThePathfinder {
   }
 
 
-  setOptimizer(provider: BuildableMoveProvider, Optimizer: BuildableMoveOptimizer | MovementOptimizer): void {
+  setOptimizer(
+    provider: BuildableMoveProvider,
+    Optimizer: BuildableMoveOptimizer | MovementOptimizer,
+    Executor?: BuildableMoveExecutor | MovementExecutor
+  ): void {
     if (Optimizer instanceof MovementOptimizer) {
       this.optimizers.set(provider, Optimizer)
     } else {
       this.optimizers.set(provider, new Optimizer(this.bot, this.world, this.defaultMoveSettings))
+    }
+
+    if (Executor != null) {
+      if (Executor instanceof MovementExecutor) {
+        this.optimizedMovements.set(provider, Executor)
+      } else {
+        this.optimizedMovements.set(provider, new Executor(this.bot, this.world, this.defaultMoveSettings))
+      }
+    } else {
+      this.optimizedMovements.delete(provider)
     }
   }
 
@@ -417,9 +433,23 @@ export class ThePathfinder {
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
-      this._currentProducer = new PartialPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new PartialPathProducer(
+        this.currentMove,
+        goal,
+        settings,
+        this.bot,
+        this.world,
+        this.movements
+      )
     } else {
-      this._currentProducer = new ContinuousPathProducer(this.currentMove, goal, settings, this.bot, this.world, this.movements)
+      this._currentProducer = new ContinuousPathProducer(
+        this.currentMove,
+        goal,
+        settings,
+        this.bot,
+        this.world,
+        this.movements
+      )
     }
     log('Path producer initialized: %s', this._currentProducer.constructor.name)
 
@@ -551,7 +581,7 @@ export class ThePathfinder {
               log('_goto path finding ended early: %s', res.result.status)
               if (task !== null && res1 !== null) res1.path.length = 0
               // think I just return? used to break before, but that's wrong.
-              return 
+              return
             }
 
             if (res.result.status === 'partialSuccess') {
@@ -677,8 +707,7 @@ export class ThePathfinder {
     this.currentIndex = currentIndex
     this.curPath = localPath
 
-    const movementHandler = path.context.movementProvider as MovementHandler
-    const movements = movementHandler.getMovements()
+    const movements = (path.movementProvider as MovementHandler).recognizedMovements;
 
     log(
       '[ExecID: %d] Perform started. Entry: %d, Initial Path Length: %d',
@@ -714,15 +743,10 @@ export class ThePathfinder {
       }
 
       const rawMove = localPath[currentIndex]
-
-      let move =
-        optSequence.find(
-          (m) =>
-            m.moveType.constructor === rawMove.moveType.constructor &&
-            m.entryPos.distanceTo(rawMove.entryPos) < 0.1
-        ) ?? rawMove
-
-      const executor = movements.get(move.moveType.constructor as BuildableMoveProvider)
+      const move = optSequence.find((m) => m.hash === rawMove.hash) ?? rawMove
+      const executor =
+        (rawMove !== move ? this.optimizedMovements.get(rawMove.moveType.constructor as BuildableMoveProvider) : undefined) ??
+        this.movements.get(move.moveType.constructor as BuildableMoveProvider)
       if (executor == null) {
         throw new Error('No executor for movement type ' + move.moveType.constructor.name)
       }

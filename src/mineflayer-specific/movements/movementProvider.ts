@@ -161,29 +161,27 @@ export abstract class MovementProvider extends Movement {
 }
 
 export class MovementHandler implements AMovementProvider<Move> {
-  movementMap: ExecutorMap
   recognizedMovements: MovementProvider[]
   goal!: goals.Goal
   world: World
 
-  constructor (bot: Bot, world: World, recMovement: MovementProvider[], movementMap: ExecutorMap) {
+  constructor (bot: Bot, world: World, recMovement: MovementProvider[]) {
     this.world = world
     this.recognizedMovements = recMovement
-    this.movementMap = movementMap
   }
 
-  static create (bot: Bot, world: World, recMovement: ExecutorMap, settings: Partial<MovementOptions> = {}): MovementHandler {
+  static create (
+    bot: Bot,
+    world: World,
+    recMovement: ExecutorMap,
+    settings: Partial<MovementOptions> = {}
+  ): MovementHandler {
     const opts = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
     return new MovementHandler(
       bot,
       world,
-      [...recMovement.keys()].map((M) => new M(bot, world, opts)),
-      recMovement
+      [...recMovement.keys()].map((M) => new M(bot, world, opts))
     )
-  }
-
-  getMovements (): ExecutorMap {
-    return this.movementMap
   }
 
   sanitize (): boolean {

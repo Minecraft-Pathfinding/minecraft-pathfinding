@@ -1,14 +1,15 @@
-import { Goal, MovementProvider, Path as APath } from '../abstract'
+import { Goal, MovementProvider as AMovementProvider, Path as APath } from '../abstract'
 import { AStarBackOff as AAStarBackOff } from '../abstract/algorithms/astar'
 import { CPathNode } from '../abstract/node'
 import { PathStatus } from '../types'
 import { Move } from './move'
+import { ExecutorMap, MovementHandler } from './movements'
 import { PathNode } from './node'
 
-export interface Path extends APath<Move, AStar> {}
-export interface OptPath extends Path {
-  optPath: Move[]
+export interface Path<T extends AStar = AStar> extends APath<Move, MovementHandler, T> {
+  movementProvider: MovementHandler
 }
+
 
 export interface PathProducer {
   // constructor(start: Data, goal: goals.Goal, settings: Settings): PathProducer
@@ -18,13 +19,13 @@ export interface PathProducer {
   advance: () => { result: Path, astarContext: AStar }
 }
 
-export class AStar extends AAStarBackOff<Move> {
+export class AStar extends AAStarBackOff<Move, MovementHandler> {
   visitedChunks: Set<string>
 
   mostRecentNode: PathNode = this.bestNode // also known as start
   constructor (
     start: Move,
-    movements: MovementProvider<Move>,
+    movements: MovementHandler,
     goal: Goal<Move>,
     timeout: number,
     tickTimeout = 40,
@@ -47,7 +48,7 @@ export class AStar extends AAStarBackOff<Move> {
     this.mostRecentNode = node
   }
 
-  public override compute (): Path {
+  public override compute (): Path<this> {
     // slightly slower, but yknow compliant with typescript bitching.
     return {
       ...super.compute(),
@@ -57,14 +58,14 @@ export class AStar extends AAStarBackOff<Move> {
 }
 
 export class AStarNeighbor extends AStar {
-  makeResult (status: PathStatus, node: PathNode): Path {
+  makeResult (status: PathStatus, node: PathNode): Path<this> {
     return {
       ...super.makeResult(status, node),
       context: this
     }
   }
 
-  compute (): Path {
+  compute (): Path<this> {
     const computeStartTime = performance.now()
 
     if (!this.movementProvider.sanitize()) {

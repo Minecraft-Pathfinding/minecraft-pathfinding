@@ -19,7 +19,14 @@ export class ContinuousPathProducer implements PathProducer {
   private readonly gcInterval: number = 10
   private lastGc: number = 0
   private readonly lastStartTime = performance.now()
-  constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
+  constructor (
+    start: Move,
+    goal: goals.Goal,
+    settings: MovementOptions,
+    bot: Bot,
+    world: World,
+    movements: ExecutorMap
+  ) {
     this.start = start
     this.goal = goal
     this.settings = settings

@@ -5,13 +5,13 @@ import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
 import { CPathNode, PathData, PathNode } from '../node'
 
-export class AStar<Data extends PathData = PathData> implements Algorithm<Data> {
+export class AStar<Data extends PathData, MProvider extends MovementProvider<Data> = MovementProvider<Data>> implements Algorithm<Data> {
   startTime: number
   goal: Goal<Data>
   timeout: number
   tickTimeout: number
   differential: number
-  movementProvider: MovementProvider<Data>
+  movementProvider: MProvider
 
   closedDataSet: Set<string>
   openHeap: Heap<Data, PathNode<Data>> // Heap<<PathNode<Data>>
@@ -25,7 +25,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
 
   constructor (
     start: Data,
-    movements: MovementProvider<Data>,
+    movements: MProvider,
     goal: Goal<Data>,
     timeout: number,
     tickTimeout = 40,
@@ -69,7 +69,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
 
   // for debugging.
   private lastAmt: number = 0
-  makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, AStar<Data>> {
+  makeResult (status: PathStatus, node: PathNode<Data>): Path<Data, MProvider, this> {
     // console.log(
     //   status,
     //   // this.goal,
@@ -100,7 +100,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
     }
   }
 
-  compute (): Path<Data, AStar<Data>> {
+  compute (): Path<Data, MProvider, this> {
     const computeStartTime = performance.now()
 
     if (!this.movementProvider.sanitize()) {
@@ -180,7 +180,7 @@ export class AStar<Data extends PathData = PathData> implements Algorithm<Data> 
   }
 }
 
-export class AStarBackOff<Data extends PathData> extends AStar<Data> {
+export class AStarBackOff<Data extends PathData, MProv extends MovementProvider<Data>> extends AStar<Data, MProv> {
   bestNode0: PathNode<Data> = this.bestNode
   bestNode1: PathNode<Data> = this.bestNode
   bestNode2: PathNode<Data> = this.bestNode
@@ -271,7 +271,7 @@ export class AStarBackOff<Data extends PathData> extends AStar<Data> {
     return this.bestNode
   }
 
-  compute (): Path<Data, AStar<Data>> {
+  compute (): Path<Data, MProv, this> {
     const computeStartTime = performance.now()
 
     if (!this.movementProvider.sanitize()) {

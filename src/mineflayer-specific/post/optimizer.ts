@@ -29,6 +29,8 @@ export abstract class MovementOptimizer {
    *
    * Default behavior keeps the start move's provider so existing optimizer/executor
    * mappings continue to work unchanged.
+   * 
+   * For now, changing this here does not work. Do not use this to set a different movement provider.
    */
   protected getMergedMoveType (startIndex: number, endIndex: number, path: readonly Move[]): MovementProvider {
     return path[startIndex].moveType

@@ -38,7 +38,14 @@ export class PartialPathProducer implements PathProducer {
     return this._lastContext
   }
 
-  constructor (start: Move, goal: goals.Goal, settings: MovementOptions, bot: Bot, world: World, movements: ExecutorMap) {
+  constructor (
+    start: Move,
+    goal: goals.Goal,
+    settings: MovementOptions,
+    bot: Bot,
+    world: World,
+    movements: ExecutorMap
+  ) {
     this.start = start
     this.goal = goal
     this.settings = settings
