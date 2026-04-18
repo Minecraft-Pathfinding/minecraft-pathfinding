@@ -24,12 +24,13 @@ export {
 import { BridgeConfig } from './BridgeConfig'
 import { BridgeExecutor } from './BridgeExecutor'
 
-import { movementProviders, OptimizationMap } from '../../../src'
+import { movementProviders } from '../../../src'
+import type { OptimizationMap } from '../../../src'
 const { Forward, Diagonal } = movementProviders;
 
 
-import { BuildableMoveExecutor } from '../../../src' // todo move to proper path
-import { MovementSetup } from '../../../src'
+import type { BuildableMoveExecutor } from '../../../src'
+import type { MovementSetup } from '../../../src'
 import { BridgeOptimizer } from './bridgeOptimizer'
 import { Bot } from 'mineflayer'
 

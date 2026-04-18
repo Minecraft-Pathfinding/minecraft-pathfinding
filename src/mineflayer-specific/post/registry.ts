@@ -1,5 +1,6 @@
 import { Bot } from 'mineflayer'
-import { BuildableMoveProvider, MovementExecutor, MovementOptions } from '../movements'
+import type { BuildableMoveProvider, MovementOptions } from '../movements'
+import { MovementExecutor } from '../movements'
 import { World } from '../world/worldInterface'
 import { MovementOptimizer } from './optimizer'
 

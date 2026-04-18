@@ -15,8 +15,9 @@ import { NormalMode } from './modes/NormalMode'
 import { GodBridgeMode } from './modes/GodBridgeMode'
 import { BreezilyMode } from './modes/BreezilyMode'
 import { PathSplicer } from './PathSplicer'
-import { BuildableMoveExecutor } from '../../../src/mineflayer-specific/movements'
+import type { BuildableMoveExecutor } from '../../../src/mineflayer-specific/movements'
 import { getViewDir } from '../../../src/utils'
+import { ParkourForward, ParkourDiagonal } from '../../../src/mineflayer-specific/movements/movementProviders'
 
 export class BridgeExecutor extends MovementExecutor {
   private static readonly MIN_YAW_DELTA_RAD = 0.0003
@@ -156,6 +157,62 @@ export class BridgeExecutor extends MovementExecutor {
 
     const wantedBlockPlacements = this._getPendingPlacements(path, currentIndex)
       .map((p) => p.blockInfo.position)
+
+    // ── Parkour handoff ───────────────────────────────────────────────────────
+    // When within 3 XZ blocks of the final path exit the bridging ritual is
+    // unnecessary — the bot can reach the goal by sprinting normally.
+    //
+    // The handoff is ONLY safe when ALL of these hold for every remaining move:
+    //   1. No ParkourForward/ParkourDiagonal — those need precise jump timing.
+    //   2. No pending block placements — the handoff skips mode.onTick and
+    //      _attemptMousePlacement entirely, so the bot would sprint off the
+    //      gap that the bridge executor would have filled.
+    const remainingMoves = path.slice(currentIndex)
+    const hasRemainingParkourMove = remainingMoves.some(
+      (m) => m.moveType instanceof ParkourForward || m.moveType instanceof ParkourDiagonal
+    )
+    const hasPendingPlacements = remainingMoves.some(
+      (m) => m.toPlace.some((p) => !p.done)
+    )
+    const finalExit = path[path.length - 1].exitPos
+    const xzDistToFinal = Math.sqrt(
+      (pos.x - finalExit.x) ** 2 + (pos.z - finalExit.z) ** 2
+    )
+    if (!hasRemainingParkourMove && !hasPendingPlacements && xzDistToFinal <= 3.0 && bot.entity.onGround) {
+      console.log(`[BridgeExecutor] parkour handoff — ${xzDistToFinal.toFixed(2)} blocks from goal`)
+      bot.setControlState('sneak', false)
+      bot.setControlState('jump', false)
+
+      // Face directly toward finalExit (handles diagonal correctly).
+      // Once the bot is facing the target we just press forward — no strafing needed.
+      const dxf = finalExit.x - pos.x
+      const dzf = finalExit.z - pos.z
+      const hDist = Math.sqrt(dxf * dxf + dzf * dzf)
+      if (hDist > 0.01) {
+        const targetYaw = Math.atan2(-dxf, -dzf)
+        const currentYaw = bot.entity.yaw
+        // Snap quickly toward target so we're already aimed before the jump.
+        bot.entity.yaw = currentYaw + shortestYawDelta(currentYaw, targetYaw) * 0.85
+        // Look slightly down at the target block surface.
+        const targetPitch = -Math.atan2(finalExit.y - pos.y + 0.5, hDist) * 0.5
+        bot.entity.pitch = bot.entity.pitch + (targetPitch - bot.entity.pitch) * 0.4
+      }
+
+      // Facing the target, just go forward — Minecraft movement follows yaw.
+      bot.setControlState('forward', true)
+      bot.setControlState('back', false)
+      bot.setControlState('left', false)
+      bot.setControlState('right', false)
+      bot.setControlState('sprint', true)
+
+      if (this.isComplete(thisMove)) {
+        console.log('[BridgeExecutor] parkour handoff: move complete')
+        this.mode.onMoveEnd()
+        this._clearSuppressPathReset()
+        return true
+      }
+      return false
+    }
 
     const ctx = this._makeCtx(thisMove, currentIndex, path)
     const modeResult = this.mode.onTick(ctx, wantedBlockPlacements)
@@ -365,7 +422,8 @@ export class BridgeExecutor extends MovementExecutor {
 
     const needsElevatedJump = this.elevated &&
       nowMs >= this.elevatedJumpCooldownUntilMs &&
-      bot.entity.onGround
+      bot.entity.onGround &&
+      !modeResult.wantSneak
 
     const finalJump = modeResult.wantJump || needsElevatedJump
     const finalSneak = modeResult.wantSneak && !finalJump

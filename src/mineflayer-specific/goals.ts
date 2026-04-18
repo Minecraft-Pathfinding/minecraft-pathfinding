@@ -6,7 +6,7 @@ import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { PlaceHandler } from './movements/interactionUtils'
 import type { Item } from 'prismarine-item'
 import { MovementExecutor } from './movements'
-import { Block } from '../types'
+import type { Block } from '../types'
 import { BotEvents } from 'mineflayer'
 import type { Entity } from 'prismarine-entity'
 

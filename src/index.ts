@@ -6,13 +6,15 @@ import { Vec3 } from 'vec3'
 import utilPlugin from '@nxg-org/mineflayer-util-plugin'
 import physicsUtil, { initSetup } from '@nxg-org/mineflayer-physics-util'
 
-import { Block, HandlerOpts, PlaceBlockOptions, ResetReason } from './types'
+import type { Block, ResetReason } from './types'
+import { HandlerOpts, PlaceBlockOptions } from './types'
 import { PathingUtil } from './PathingUtil'
 
 import * as goals from './mineflayer-specific/goals'
 import { Path } from './mineflayer-specific/algs'
-import { MovementOptions, MovementProvider, MovementSetup } from './mineflayer-specific/movements'
-import { OptimizationSetup } from './mineflayer-specific/post'
+import type { MovementOptions, MovementSetup } from './mineflayer-specific/movements'
+import { MovementProvider } from './mineflayer-specific/movements'
+import type { OptimizationSetup } from './mineflayer-specific/post'
 
 export function createPlugin(opts?: HandlerOpts) {
   return function (bot: Bot) {
@@ -46,8 +48,10 @@ declare module 'mineflayer' {
 
 export * as goals from './mineflayer-specific/goals'
 
-export { MovementExecutor, BuildableMoveExecutor, BuildableMoveProvider, MovementSetup, MovementProvider } from './mineflayer-specific/movements'
-export { MovementOptimizer, BuildableMoveOptimizer, OptimizationSetup, OptimizationMap } from './mineflayer-specific/post'
+export { MovementExecutor, MovementProvider } from './mineflayer-specific/movements'
+export type { BuildableMoveExecutor, BuildableMoveProvider, MovementSetup } from './mineflayer-specific/movements'
+export { MovementOptimizer } from './mineflayer-specific/post'
+export type { BuildableMoveOptimizer, OptimizationSetup, OptimizationMap } from './mineflayer-specific/post'
 export { Move } from './mineflayer-specific/move'
 
 export * as movementProviders from './mineflayer-specific/movements/movementProviders'

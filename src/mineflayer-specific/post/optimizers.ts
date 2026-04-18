@@ -1,6 +1,6 @@
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { Move } from '../move'
-import { RayType } from '../../types'
+import type { RayType } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
 import { MovementOptimizer } from './optimizer'
 

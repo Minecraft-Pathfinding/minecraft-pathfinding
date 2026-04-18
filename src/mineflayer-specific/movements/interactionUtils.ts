@@ -10,7 +10,7 @@ import { AABB, AABBUtils, BlockFace } from '@nxg-org/mineflayer-util-plugin'
 import { CancelError } from '../exceptions'
 import { MovementOptions } from './movement'
 import { MovementExecutor } from './movementExecutor'
-import { Block, RayType } from '../../types'
+import type { Block, RayType } from '../../types'
 import { faceToVec, Task } from '../../utils'
 import { handleBlockEvent, waitForSettledBlockPredicate, toBlockPositionEventName, waitForSettledBlockStateAtPosition } from '../../customBlockEvents'
 

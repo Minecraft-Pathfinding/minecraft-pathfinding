@@ -11,7 +11,7 @@ import { BaseSimulator, BotcraftPhysics, Controller, ControlStateHandler, EPhysi
 import { botStrafeMovement, botSmartMovement, botStrafeMovementStrict } from './controls'
 import { getNormalizedPos, interpolateStepPoints, posToYawPitchFromEye } from '../../utils'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
-import { RayType } from '../../types'
+import type { RayType } from '../../types'
 
 const debug = require('debug')
 

@@ -1,4 +1,4 @@
-import { ResetReason } from '../types'
+import type { ResetReason } from '../types'
 
 export class CancelError extends Error {
   constructor (...args: any[]) {

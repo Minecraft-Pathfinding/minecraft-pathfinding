@@ -6,12 +6,14 @@ import { Vec3 } from 'vec3'
 import { Move } from './mineflayer-specific/move'
 import { BlockInfo, CacheSyncWorld } from './mineflayer-specific/world/cacheWorld'
 import { AbortError, CancelError, ManualResetError, ResetError, TickAdvanceError } from './mineflayer-specific/exceptions'
-import {
+import type {
   BuildableMoveExecutor,
   BuildableMoveProvider,
-  MovementHandler,
   MovementOptions,
   ExecutorMap,
+} from './mineflayer-specific/movements'
+import {
+  MovementHandler,
   MovementExecutor,
   DEFAULT_MOVEMENT_OPTS,
   MovementProvider
@@ -19,6 +21,7 @@ import {
 
 import {
   ParkourForward,
+  ParkourDiagonal,
   Diagonal,
   Forward,
   ForwardDropDown,
@@ -30,6 +33,7 @@ import {
 
 import {
   ParkourForwardExecutor,
+  ParkourDiagonalExecutor,
   ForwardDropDownExecutor,
   NewForwardExecutor,
   NewForwardJumpExecutor,
@@ -38,9 +42,11 @@ import {
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
-import { BuildableMoveOptimizer, MovementOptimizer, OptimizationMap, OptimizationRegistry, Optimizer } from './mineflayer-specific/post'
+import type { BuildableMoveOptimizer, OptimizationMap } from './mineflayer-specific/post'
+import { MovementOptimizer, OptimizationRegistry, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
-import { Block, HandlerOpts, ResetReason } from './types'
+import type { Block, ResetReason } from './types'
+import { HandlerOpts } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 import { reconstructPath } from './abstract/algorithms'
@@ -70,7 +76,8 @@ const DEFAULT_PROVIDER_EXECUTORS = [
   [Diagonal, NewForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
-  [ParkourForward, ParkourForwardExecutor]
+  [ParkourForward, ParkourForwardExecutor],
+  [ParkourDiagonal, ParkourDiagonalExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
 DEFAULT_PROVIDER_EXECUTORS.reverse()

@@ -5,7 +5,7 @@ import { default as loader, EntityPhysics, EPhysicsCtx, EntityState } from '@nxg
 import type { Entity } from 'prismarine-entity'
 import type { Block } from 'prismarine-block'
 import { createMouse } from 'mineflayer-mouse';
-import { BridgeMode } from './bridge-movement'
+import type { BridgeMode } from './bridge-movement'
 import { applyBridgeSetup } from './bridge-movement'
 import { RAD2DEG } from './bridge-movement/BridgeUtils'
 

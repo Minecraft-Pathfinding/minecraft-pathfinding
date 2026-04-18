@@ -4,8 +4,10 @@ import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import { World } from '../world/worldInterface'
 import { BlockInfo } from '../world/cacheWorld'
-import { BreakHandler, InteractHandler, InteractType, PlaceHandler } from './interactionUtils'
-import { Block, Vec3Properties } from '../../types'
+import { BreakHandler, InteractHandler, PlaceHandler } from './interactionUtils'
+import type { InteractType } from './interactionUtils'
+import type { Block } from '../../types'
+import { Vec3Properties } from '../../types'
 import { COST_INF } from './costs'
 
 export interface MovementOptions {
