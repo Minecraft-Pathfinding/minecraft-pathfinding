@@ -33,7 +33,9 @@ export interface PathfinderExecutionHost {
   getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<Path | null>
 }
 
-type RunnerStage = 'idle' | 'align' | 'perform'
+type RunnerStage = 'idle' | 'align' | 'optimize' | 'init' | 'perform'
+
+const MAX_TASK_TIME_MS = 40
 
 export class PathExecutor {
   private currentExecutionId = 0
@@ -98,24 +100,21 @@ export class PathExecutor {
     delete this.resetReason
   }
 
-  private findNextCurrentIdx(move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number): number {
-    const endIdx = localPath.findIndex(
-      (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
-    )
-
-    if (typeof adding === 'number') {
-      if (Number.isFinite(adding) && adding > 0) currentIndex += adding
-    } else {
-      currentIndex = endIdx !== -1 ? endIdx + 1 : currentIndex + 1
+  private async timeAsync<T>(label: string, task: () => T | Promise<T>): Promise<T> {
+    const start = performance.now()
+    try {
+      return await Promise.resolve().then(task)
+    } finally {
+      const duration = performance.now() - start
+      log(`[pathfinder] ${label} took ${duration.toFixed(2)}ms`)
     }
-
-    return currentIndex
   }
 
-  private waitForPromiseSync<T>(promise: Promise<T>): T {
+  private waitForPromiseSync<T>(label: string, promise: Promise<T>): T {
     let settled = false
     let value: T | undefined
     let error: unknown
+    const start = performance.now()
 
     promise.then(
       (result) => {
@@ -132,12 +131,30 @@ export class PathExecutor {
     const tickCallback = (process as NodeJS.Process & { _tickCallback?: () => void })._tickCallback
 
     while (!settled) {
+      if (performance.now() - start > MAX_TASK_TIME_MS) {
+        throw new Error(`PathExecutor ${label} exceeded ${MAX_TASK_TIME_MS}ms`)
+      }
+
       Atomics.wait(waitArray, 0, 0, 1)
       tickCallback?.call(process)
     }
 
     if (error != null) throw error
     return value as T
+  }
+
+  private findNextCurrentIdx(move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number): number {
+    const endIdx = localPath.findIndex(
+      (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
+    )
+
+    if (typeof adding === 'number') {
+      if (Number.isFinite(adding) && adding > 0) currentIndex += adding
+    } else {
+      currentIndex = endIdx !== -1 ? endIdx + 1 : currentIndex + 1
+    }
+
+    return currentIndex
   }
 
   public async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
@@ -160,9 +177,9 @@ export class PathExecutor {
     let lastPathLength = -1
     let optSequence: Move[] = []
     let runnerStage: RunnerStage = 'idle'
+    let pendingOptimize: Promise<void> | undefined
+    let pendingInit: Promise<void> | undefined
     let tickCount = 0
-    let drainRunning = false
-    let pendingPhysicsTicks = 0
     let settled = false
 
     let resolveCompletion!: () => void
@@ -182,7 +199,7 @@ export class PathExecutor {
       settled = true
       bot.off('physicsTick', moveListener)
       if (this.getCurrentExecutionId() === myExecutionId) {
-        await this.host.cleanupBot()
+        await this.timeAsync('finish cleanup', () => this.host.cleanupBot())
       }
       resolveCompletion()
     }
@@ -194,14 +211,81 @@ export class PathExecutor {
       rejectCompletion(err)
     }
 
+    const handleExecutionError = async (err: unknown): Promise<void> => {
+      if (err instanceof AbortError) {
+        executorSafeReset(this.getCurrentExecutor())
+        this.clearResetReason()
+        await finish()
+        return
+      }
+
+      if (err instanceof ManualResetError) {
+        executorSafeReset(this.getCurrentExecutor())
+        this.clearResetReason()
+        await finish()
+        return
+      }
+
+      if (err instanceof ResetError) {
+        executorSafeReset(this.getCurrentExecutor())
+        await finish()
+        return
+      }
+
+      if (err instanceof CancelError) {
+        executorSafeReset(this.getCurrentExecutor())
+
+        if (err.message.includes('superseded')) {
+          await finish()
+          return
+        }
+
+        const rawMove = localPath[currentIndex]
+        if (rawMove == null) {
+          throw err
+        }
+
+        await this.recovery(rawMove, path, goal, entry)
+        await finish()
+        return
+      }
+
+      await fail(err)
+      throw err
+    }
+
+    const beginOptimization = (): void => {
+      if (pendingOptimize != null) return
+
+      runnerStage = 'optimize'
+      const optimizer = new Optimizer(bot, this.host.world, optimizers)
+      optimizer.loadPath(localPath.slice(currentIndex))
+
+      pendingOptimize = this.timeAsync('optimizer.compute', () => optimizer.compute()).then(
+        (result) => {
+          if (settled) return
+          if (this.getCurrentExecutionId() !== myExecutionId) return
+
+          optSequence = result
+          lastPathLength = localPath.length
+          pendingOptimize = undefined
+          if (runnerStage === 'optimize') runnerStage = 'idle'
+        },
+        (err) => {
+          pendingOptimize = undefined
+          void fail(err)
+        }
+      )
+    }
+
     const prepareNextMove = async (): Promise<boolean> => {
       while (currentIndex < localPath.length) {
         if (localPath.length !== lastPathLength) {
-          const optimizer = new Optimizer(bot, this.host.world, optimizers)
-          optimizer.loadPath(localPath.slice(currentIndex))
-          optSequence = await optimizer.compute()
-          lastPathLength = localPath.length
+          beginOptimization()
+          return false
         }
+
+        if (pendingOptimize != null) return false
 
         const rawMove = localPath[currentIndex]
         const move = optSequence.find((m) => m.hash === rawMove.hash) ?? rawMove
@@ -223,7 +307,7 @@ export class PathExecutor {
         this.setCurrentPath(localPath)
         tickCount = 0
 
-        await this.host.cleanupBot()
+        await this.timeAsync('prepare cleanup', () => this.host.cleanupBot())
         executor.loadMove(move)
 
         if (executor.isAlreadyCompleted(move, tickCount, goal)) {
@@ -256,11 +340,18 @@ export class PathExecutor {
           if (runnerStage === 'idle') {
             const hasWork = await prepareNextMove()
             if (!hasWork) {
-              log(`[pathfinder] execution ${myExecutionId} completed at ${bot.entity.position}`)
-              await finish()
+              if (pendingOptimize == null) {
+                log(`[pathfinder] execution ${myExecutionId} completed at ${bot.entity.position}`)
+                await finish()
+                return
+              }
               return
             }
             continue
+          }
+
+          if (runnerStage === 'optimize') {
+            return
           }
 
           const move = this.getCurrentMove()
@@ -273,23 +364,50 @@ export class PathExecutor {
           if (runnerStage === 'align') {
             this.check()
 
-            const aligned = await executor.align(move, tickCount, goal)
+            const aligned = await this.timeAsync(
+              `align ${move.moveType.constructor.name}`,
+              () => executor.align(move, tickCount, goal)
+            )
             tickCount++
 
             if (aligned) {
-              await executor._performInit(move, currentIndex, localPath)
-              runnerStage = 'perform'
-              tickCount = 0
+              runnerStage = 'init'
+              pendingInit = this.timeAsync(
+                `performInit ${move.moveType.constructor.name}`,
+                () => executor._performInit(move, currentIndex, localPath)
+              )
+              pendingInit.then(
+                () => {
+                  if (settled) return
+                  if (this.getCurrentExecutionId() !== myExecutionId) return
+                  tickCount = 0
+                  runnerStage = 'perform'
+                  pendingInit = undefined
+                },
+                (err) => {
+                  pendingInit = undefined
+                  void handleExecutionError(err).catch((handleErr) => {
+                    void fail(handleErr)
+                  })
+                }
+              )
               continue
             }
 
             return
           }
 
+          if (runnerStage === 'init') {
+            return
+          }
+
           if (runnerStage === 'perform') {
             this.check()
 
-            const adding = await executor._performPerTick(move, tickCount, currentIndex, localPath)
+            const adding = await this.timeAsync(
+              `performPerTick ${move.moveType.constructor.name}`,
+              () => executor._performPerTick(move, tickCount, currentIndex, localPath)
+            )
             tickCount++
 
             if (adding) {
@@ -349,36 +467,24 @@ export class PathExecutor {
       }
     }
 
-    const drainMovementTicks = async (): Promise<void> => {
-      if (settled) return
-      pendingPhysicsTicks++
-      if (drainRunning) return
-
-      drainRunning = true
-      try {
-        while (!settled && pendingPhysicsTicks > 0) {
-          pendingPhysicsTicks--
-          await runMovementTick()
-        }
-      } finally {
-        drainRunning = false
-      }
-    }
-
     const moveListener = (): void => {
+      if (settled) return
+      if (runnerStage === 'optimize' || pendingOptimize != null || runnerStage === 'init' || pendingInit != null) {
+        return
+      }
+
       try {
-        this.waitForPromiseSync(drainMovementTicks())
+        this.waitForPromiseSync('physicsTick drain', runMovementTick())
       } catch (err) {
         void fail(err)
       }
     }
 
+    beginOptimization()
+
     bot.prependListener('physicsTick', moveListener)
 
     try {
-      void drainMovementTicks().catch((err) => {
-        void fail(err)
-      })
       await completion
     } finally {
       bot.off('physicsTick', moveListener)
@@ -389,7 +495,7 @@ export class PathExecutor {
     const bot = this.bot;
     log(`[pathfinder] recovery ${entry} for ${move.moveType.constructor.name}`)
     bot.emit('enteredRecovery', entry)
-    await this.host.cleanupBot()
+    await this.timeAsync('recovery cleanup', () => this.host.cleanupBot())
 
     const ind = path.path.findIndex((m) => m.entryPos.distanceTo(move.entryPos) < 0.1)
     if (ind === -1) {
@@ -415,7 +521,10 @@ export class PathExecutor {
       newGoal = goals.GoalBlock.fromVec(nextMove.vec)
     }
 
-    const path1 = await this.host.getPathFromToRaw(bot.entity.position, EMPTY_VEC, newGoal)
+    const path1 = await this.timeAsync(
+      'recovery pathfinding',
+      () => this.host.getPathFromToRaw(bot.entity.position, EMPTY_VEC, newGoal)
+    )
 
     if (path1 === null) {
       log('[pathfinder] recovery pathfinding returned null')

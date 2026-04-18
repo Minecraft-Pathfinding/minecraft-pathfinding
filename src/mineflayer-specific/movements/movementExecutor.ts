@@ -386,7 +386,7 @@ export abstract class MovementExecutor extends Movement {
     off0.translate(0, -off0.y, 0)
     off1.translate(0, -off1.y, 0)
 
-    const similarDirection = off0.dot(off1) > 0.95
+    const similarDirection = off0.dot(off1) > 0.7
 
     let bb0 = options.customBB;
     if (bb0 == null) {
@@ -411,7 +411,8 @@ export abstract class MovementExecutor extends Movement {
       log('isInitAligned: yaw check passed. similarDirection=%s, dist=%d', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
       else {
-        if (this.bot.entity.position.xzDistanceTo(target) < 0.2) return true
+        log(`exit -> cur: %O, exit -> target: %O`, off0, off1, off0.dot(off1))
+        if (this.bot.entity.position.xzDistanceTo(target) < 0.3) return true
         if (this.boundingBoxCheck(bb0, exitCheck)) return true
       }
     }

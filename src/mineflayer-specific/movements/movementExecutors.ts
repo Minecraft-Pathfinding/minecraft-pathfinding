@@ -1124,7 +1124,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._debugLog(
       'yaw info:',
       this._yawDeltaAbs(this._desiredYawTo(jumpState.targetEyeVec)) * (180 / Math.PI),
-      jumpState.targetEyeVec
+      jumpState.targetEyeVec,
+      this.bot.entity.position.offset(0, 1.62, 0),
+      jumpState.targetEyeVec.xzDistanceTo(this.bot.entity.position)
     );
 
     (this as any)._lastTime = performance.now()

@@ -615,10 +615,11 @@ export class ThePathfinder {
     }
 
     if (!this.executeTask.done) {
-      log('Canceling previous goto task to start new one.')
+      log('Cancelling previous goto task to start new one.')
       this.wantedGoal = goal
       await this.cancel()
       await this.executeTask.promise
+      log('Cancelled other goal! Beginning new one: %O', goal)
       if (this.wantedGoal !== goal) return
       delete this.wantedGoal
     }
