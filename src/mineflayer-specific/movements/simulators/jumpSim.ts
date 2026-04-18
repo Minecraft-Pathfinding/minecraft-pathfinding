@@ -83,9 +83,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
       JumpSim.getCleanupPosition(goalVec),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goalVec),
-        // JumpSim.getControllerStrafeAim(goal),
-        // JumpSim.getControllerSmartMovement(goal, sprint),
-        JumpSim.getControllerJumpSprint(jump, sprint, jumpAfter)
+        JumpSim.getControllerSmartJumpMovement(goalVec, sprint, jump, jumpAfter)
       ),
       ctx,
       this.world,
@@ -180,8 +178,8 @@ export class JumpSim extends BaseSimulator<PlayerState> {
 
   // right should be positiive,
   // left should be negative.
-  static getControllerStrafeAim (nextPoint: Vec3): Controller {
-    return (state, ticks) => strafeMovement(state, nextPoint)
+  static getControllerStrafeAim (nextPoint: Vec3, strict = false): Controller {
+    return (state, ticks) => strafeMovement(state, nextPoint, strict)
 
     // commented out for testing.
     // eslint-disable-next-line no-unreachable
@@ -243,6 +241,13 @@ export class JumpSim extends BaseSimulator<PlayerState> {
         state.control.back = false
         state.control.sprint = false
       }
+    }
+  }
+
+  static getControllerSmartJumpMovement (goal: Vec3, sprint: boolean, jump = false, jumpAfter = 0): Controller {
+    return (state, ticks) => {
+      smartMovement(state, goal, sprint)
+      state.control.jump = state.onGround && jump && ticks >= jumpAfter
     }
   }
 }

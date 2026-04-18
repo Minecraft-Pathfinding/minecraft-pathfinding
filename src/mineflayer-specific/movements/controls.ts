@@ -128,32 +128,19 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
  * @returns
  */
 // currentPoint: Vec3
-export function strafeMovement (ctx: IEntityState, nextPoint: Vec3): void {
-  // const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
-
-  // ctx.pos.distanceTo(nextPoint) < 0.3
-  // if (true) {
-  // console.log('stopping since near goal')
-  ctx.control.set('left', false)
-  ctx.control.set('right', false)
-
-  // }
-
-  // const lookDiff = wrapRadians(wrapRadians(ctx.yaw))
-
-  // if (PI_OVER_TWELVE < diff && diff < ELEVEN_PI_OVER_TWELVE) {
-  //   // console.log('going left')
-  //   ctx.control.set('left', false) // are these reversed? tf
-  //   ctx.control.set('right', true)
-  // } else if (THIRTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_THREE_PI_OVER_TWELVE) {
-  //   // console.log('going right')
-  //   ctx.control.set('left', true)
-  //   ctx.control.set('right', false)
-  // } else {
-  //   // console.log('going neither strafe')
-  //   ctx.control.set('left', false)
-  //   ctx.control.set('right', false)
-  // }
+export function strafeMovement (ctx: IEntityState, nextPoint: Vec3, strict = false): void {
+  applyStrafeMovement(
+    {
+      pos: ctx.pos,
+      vel: ctx.vel,
+      yaw: ctx.yaw,
+      onGround: ctx.onGround
+    },
+    nextPoint,
+    strict,
+    (name, value) => ctx.control.set(name, value),
+    (name) => ctx.control.get(name)
+  )
 }
 
 /**
@@ -162,29 +149,19 @@ export function strafeMovement (ctx: IEntityState, nextPoint: Vec3): void {
  * @returns
  */
 // currentPoint,
-export function botStrafeMovement (bot: Bot, nextPoint: Vec3): void {
-  const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
-
-  if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
-  // console.log('stopping since near goal')
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-    return
-  }
-
-  if (FOURTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_TWO_PI_OVER_TWELVE) {
-    // console.log('going left')
-    bot.setControlState('left', false) // are these reversed? tf
-    bot.setControlState('right', true)
-  } else if (TWO_PI_OVER_TWELVE < diff && diff < TEN_PI_OVER_TWELVE) {
-    // console.log('going right')
-    bot.setControlState('left', true)
-    bot.setControlState('right', false)
-  } else {
-    // console.log('going neither strafe')
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-  }
+export function botStrafeMovement (bot: Bot, nextPoint: Vec3, strict = false): void {
+  applyStrafeMovement(
+    {
+      pos: bot.entity.position,
+      vel: bot.entity.velocity,
+      yaw: bot.entity.yaw,
+      onGround: bot.entity.onGround
+    },
+    nextPoint,
+    strict,
+    (name, value) => bot.setControlState(name, value),
+    (name) => bot.getControlState(name)
+  )
 }
 
 /**
@@ -241,96 +218,123 @@ export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true
  */
 // currentPoint,
 export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): void {
-  const diff = findDiff(bot.entity.position, bot.entity.velocity, bot.entity.yaw, bot.entity.pitch, nextPoint, bot.entity.onGround)
+  const stateLike = {
+    pos: bot.entity.position,
+    vel: bot.entity.velocity,
+    yaw: bot.entity.yaw,
+    pitch: bot.entity.pitch,
+    onGround: bot.entity.onGround,
+    control: { set: (name: string, value: boolean) => bot.setControlState(name as any, value) }
+  } as IEntityState
 
-  if (bot.entity.position.distanceTo(nextPoint) < 0.1) {
-    // console.log('stopping since near goal')
-    bot.setControlState('forward', false)
-    bot.setControlState('back', false)
-    return
-  }
+  smartMovement(stateLike, nextPoint, sprint)
+}
 
-  if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
-    // console.log('going back')
-    bot.setControlState('forward', false)
-    bot.setControlState('sprint', false)
-    bot.setControlState('back', true)
+export function smartJumpMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true, jump = false): void {
+  smartMovement(ctx, nextPoint, sprint)
+  ctx.control.set('jump', jump)
+}
 
-    // console.log("back");
-  } else if (TWENTY_PI_OVER_TWELVE < diff || diff < FOUR_PI_OVER_TWELVE) {
-    // console.log('going forward')
-    bot.setControlState('forward', true)
-    bot.setControlState('sprint', sprint)
-    bot.setControlState('back', false)
-  } else {
-    // console.log('going neither')
-    bot.setControlState('forward', false)
-    bot.setControlState('sprint', false)
-    bot.setControlState('back', false)
-  }
+export function botSmartJumpMovement (bot: Bot, nextPoint: Vec3, sprint = true, jump = false): void {
+  botSmartMovement(bot, nextPoint, sprint)
+  bot.setControlState('jump', jump)
 }
 
 
 export function botStrafeMovementStrict(bot: Bot, nextPoint: Vec3): void {
-  const pos = bot.entity.position
-  const vel = bot.entity.velocity
-  const yaw = bot.entity.yaw
+  botStrafeMovement(bot, nextPoint, true)
+}
 
-  const dx = nextPoint.x - pos.x
-  const dz = nextPoint.z - pos.z
+type StrafeState = {
+  pos: Vec3
+  vel: Vec3
+  yaw: number
+  onGround: boolean
+}
 
-  const sin = Math.sin(yaw)
-  const cos = Math.cos(yaw)
+type StrafeSetter = (name: 'left' | 'right', value: boolean) => void
+type StrafeGetter = (name: 'left' | 'right') => boolean
 
-  const forwardError = -(dx * sin + dz * cos)
-  const sideError = dx * cos - dz * sin
-  const sideVel = vel.x * cos - vel.z * sin
+function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boolean, set: StrafeSetter, get?: StrafeGetter): void {
+  if (strict) {
+    const dx = nextPoint.x - state.pos.x
+    const dz = nextPoint.z - state.pos.z
 
-  const dist = pos.distanceTo(nextPoint)
-  if (dist < 0.1) {
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-    return
-  }
+    const sin = Math.sin(state.yaw)
+    const cos = Math.cos(state.yaw)
 
-  if (forwardError <= 0) {
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
-    return
-  }
+    const forwardError = -(dx * sin + dz * cos)
+    const sideError = dx * cos - dz * sin
+    const sideVel = state.vel.x * cos - state.vel.z * sin
 
-  const startThresh = bot.entity.onGround ? 0.08 : 0.04
-  const stopThresh = bot.entity.onGround ? 0.03 : 0.02
-
-  const predictedSideError = sideError - sideVel * 3.0
-
-  const currentlyLeft = bot.getControlState('left')
-  const currentlyRight = bot.getControlState('right')
-
-  if (currentlyLeft) {
-    if (predictedSideError >= -stopThresh) {
-      bot.setControlState('left', false)
+    const dist = state.pos.distanceTo(nextPoint)
+    if (dist < 0.1) {
+      set('left', false)
+      set('right', false)
+      return
     }
-    bot.setControlState('right', false)
-    return
-  }
 
-  if (currentlyRight) {
-    if (predictedSideError <= stopThresh) {
-      bot.setControlState('right', false)
+    if (forwardError <= 0) {
+      set('left', false)
+      set('right', false)
+      return
     }
-    bot.setControlState('left', false)
+
+    const startThresh = state.onGround ? 0.08 : 0.04
+    const stopThresh = state.onGround ? 0.03 : 0.02
+
+    const predictedSideError = sideError - sideVel * 3.0
+
+    // If we are already strafing, keep going until we are close to centered.
+    // This avoids rapid oscillation at the threshold.
+    const currentlyLeft = get?.('left') ?? false
+    const currentlyRight = get?.('right') ?? false
+
+    if (currentlyLeft) {
+      if (predictedSideError >= -stopThresh) {
+        set('left', false)
+      }
+      set('right', false)
+      return
+    }
+
+    if (currentlyRight) {
+      if (predictedSideError <= stopThresh) {
+        set('right', false)
+      }
+      set('left', false)
+      return
+    }
+
+    if (predictedSideError > startThresh) {
+      set('left', false)
+      set('right', true)
+    } else if (predictedSideError < -startThresh) {
+      set('left', true)
+      set('right', false)
+    } else {
+      set('left', false)
+      set('right', false)
+    }
     return
   }
 
-  if (predictedSideError > startThresh) {
-    bot.setControlState('left', false)
-    bot.setControlState('right', true)
-  } else if (predictedSideError < -startThresh) {
-    bot.setControlState('left', true)
-    bot.setControlState('right', false)
+  const diff = findDiff(state.pos, state.vel, state.yaw, 0, nextPoint, state.onGround)
+
+  if (state.pos.distanceTo(nextPoint) < 0.1) {
+    set('left', false)
+    set('right', false)
+    return
+  }
+
+  if (FOURTEEN_PI_OVER_TWELVE < diff && diff < TWENTY_TWO_PI_OVER_TWELVE) {
+    set('left', false)
+    set('right', true)
+  } else if (TWO_PI_OVER_TWELVE < diff && diff < TEN_PI_OVER_TWELVE) {
+    set('left', true)
+    set('right', false)
   } else {
-    bot.setControlState('left', false)
-    bot.setControlState('right', false)
+    set('left', false)
+    set('right', false)
   }
 }

@@ -12,9 +12,9 @@ import { World } from '../world/worldInterface'
 import v, { Vec3 } from 'vec3'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { JumpSim } from './simulators/jumpSim'
+import { smartMovement } from './controls'
 import type { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
-import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 
 interface JumpInfo {
   jumpTick: number
@@ -523,12 +523,9 @@ export class ParkourJumpHelper {
     // const goalCenter = goal.floored().offset(0.5, 0, 0.5)
 
     const goalBBs = this.world.getBlockInfo(goal).getBBs()
+    const target = eyeTarget ?? goal
 
     ctx.state.control = ControlStateHandler.DEFAULT()
-    if (eyeTarget) stateLookAt(ctx.state, eyeTarget)
-    ctx.state.control.set('forward', true)
-    ctx.state.control.set('jump', jump)
-    ctx.state.control.set('sprint', true)
 
     // const orgPos = this.bot.entity.position.clone()
 
@@ -549,8 +546,18 @@ export class ParkourJumpHelper {
       }
     }
 
-    // const state = this.sim.simulateSmartAim(goalCenter, ctx, true, true, 0, 40);
-    const state = this.sim.simulateUntilOnGround(ctx, 45, reached)
+    const state = this.sim.simulateUntil(
+      reached,
+      JumpSim.getCleanupPosition(target),
+      (state, ticks) => {
+        stateLookAt(state, target)
+        smartMovement(state, target, true)
+        state.control.set('jump', jump && ticks === 0)
+      },
+      ctx,
+      this.world,
+      45
+    )
 
     // console.log(
     //   'sim jump immediately',

@@ -80,11 +80,14 @@ export class NormalMode extends BridgeModeBase {
 
     const overAir = this._atPlatformEdgeInTicks(backX, backZ, 0)
 
+    const checkBlock = placements.filter(p => this.bot.blockAt(p)?.boundingBox === 'empty')[0]
+
+
     if (this.phase === 'approach') {
       const result: ModeTickResult = { ...DEFAULT_TICK_RESULT }
       // Pre-align to the bridge yaw during approach so the bot is already looking
       // at the correct x*45° angle by the time it reaches the edge.
-      result.targetYaw = this._getBridgeYaw(ctx, pathKind, movingYaw, null)
+      result.targetYaw = this._getBridgeYaw(ctx, pathKind, movingYaw, checkBlock)
       result.targetPitch = this.currentPitch
       result.allowPlace = false
       result.wantSprint = true
@@ -110,7 +113,6 @@ export class NormalMode extends BridgeModeBase {
       return result
     }
 
-    const checkBlock = placements.filter(p => this.bot.blockAt(p)?.boundingBox === 'empty')[0]
 
 
     const bridgeYaw = this._getBridgeYaw(ctx, pathKind, movingYaw, checkBlock)

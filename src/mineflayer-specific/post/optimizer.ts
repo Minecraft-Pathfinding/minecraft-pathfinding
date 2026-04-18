@@ -156,7 +156,7 @@ export class Optimizer {
       }
 
       if (!merged) {
-        log(`[Index ${this.currentIndex}] No optimizer merged this move. Skipping.`)
+        log(`[Index ${this.currentIndex}] No optimizer merged this move ${move.moveType.constructor.name}. Skipping.`)
       }
 
       // Move to the next movement (which will be the movement directly after our merged block)

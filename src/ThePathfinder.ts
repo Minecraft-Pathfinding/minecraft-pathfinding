@@ -742,7 +742,7 @@ export class ThePathfinder {
   }
 
   async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    const MAX_RECOVERY_DEPTH = 5
+    const MAX_RECOVERY_DEPTH = 0
     const ALIGN_TICK_LIMIT = 40
     const PERFORM_TICK_LIMIT = 10000
 
@@ -1004,8 +1004,9 @@ export class ThePathfinder {
     let path1 = await this.getPathFromToRaw(this.bot.entity.position, EMPTY_VEC, newGoal)
 
     if (path1 === null) {
-      log('Recovery pathfinding returned null.')
+      log('Recovery pathfinding returned null. Cannot recover. Fail.')
       this.bot.emit('exitedRecovery', entry)
+
     } else if (no) {
       log('Executing full recovery path.')
       this.bot.emit('exitedRecovery', entry)
