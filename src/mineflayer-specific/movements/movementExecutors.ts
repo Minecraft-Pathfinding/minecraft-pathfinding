@@ -9,7 +9,7 @@ import { CompleteOpts, InitAlignOpts, MovementExecutor } from './movementExecuto
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
-import { Block, RayType } from '../../types'
+import type { Block, RayType } from '../../types'
 
 const debug = require('debug')
 const logIdle = debug('minecraft-pathfinding:movementExecutors:Idle')

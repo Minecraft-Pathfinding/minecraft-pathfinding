@@ -15,7 +15,7 @@ import { NormalMode } from './modes/NormalMode'
 import { GodBridgeMode } from './modes/GodBridgeMode'
 import { BreezilyMode } from './modes/BreezilyMode'
 import { PathSplicer } from './PathSplicer'
-import { BuildableMoveExecutor } from '../../../src/mineflayer-specific/movements'
+import type { BuildableMoveExecutor } from '../../../src/mineflayer-specific/movements'
 import { getViewDir } from '../../../src/utils'
 
 export class BridgeExecutor extends MovementExecutor {
@@ -31,7 +31,6 @@ export class BridgeExecutor extends MovementExecutor {
   private _nextMouseClickMs = 0
   private elevated = false
   private elevatedJumpCooldownUntilMs = 0
-  private splicedEndIndex = 0
   private stallStartMs = 0
   private _lerpYaw = 0.4
   private _lerpPitch = 0.45
@@ -51,13 +50,13 @@ export class BridgeExecutor extends MovementExecutor {
 
     switch (this.bridgeConfig.mode) {
       case 'godbridge':
-        this.mode = new GodBridgeMode(bot, world, this.bridgeConfig)
+        this.mode = new GodBridgeMode(bot, world, this.bridgeConfig, this)
         break
       case 'breezily':
-        this.mode = new BreezilyMode(bot, world, this.bridgeConfig)
+        this.mode = new BreezilyMode(bot, world, this.bridgeConfig, this)
         break
       default:
-        this.mode = new NormalMode(bot, world, this.bridgeConfig)
+        this.mode = new NormalMode(bot, world, this.bridgeConfig, this)
     }
   }
 
@@ -108,10 +107,8 @@ export class BridgeExecutor extends MovementExecutor {
 
     this.elevated = this._shouldElevate()
     this.elevatedJumpCooldownUntilMs = 0
-    this.splicedEndIndex = PathSplicer.computeSpliceEnd(this.bot, this.world, currentIndex, path)
 
-    const splicedTarget = path[this.splicedEndIndex] ?? thisMove
-    this.lineTracker.seedPath(thisMove.entryPos, splicedTarget.exitPos)
+    this.lineTracker.seedPath(thisMove.entryPos, thisMove.exitPos)
 
     const ctx = this._makeCtx(thisMove, currentIndex, path)
     this.mode.onMoveStart(ctx)
@@ -135,6 +132,7 @@ export class BridgeExecutor extends MovementExecutor {
       if (pos.y < thisMove.exitPos.y) bot.setControlState('jump', true)
       void this.postInitAlignToPath(thisMove)
       if (this.isComplete(thisMove)) {
+        console.log('BridgeExecutor: WE ARE COMPLETE???', this.bot.entity.position)
         this.mode.onMoveEnd()
         return true
       }
@@ -158,6 +156,51 @@ export class BridgeExecutor extends MovementExecutor {
 
     const wantedBlockPlacements = this._getPendingPlacements(path, currentIndex)
       .map((p) => p.blockInfo.position)
+
+    // ── Parkour handoff ───────────────────────────────────────────────────────
+    // When within 3 XZ blocks of the final path exit the bridging ritual is
+    // unnecessary — the bot can reach the goal by sprinting / jumping normally
+    // (the existing ParkourForwardExecutor handles those last hops once this
+    // move completes and the pathfinder advances to the remaining moves).
+    const finalExit = path[path.length - 1].exitPos
+    const xzDistToFinal = Math.sqrt(
+      (pos.x - finalExit.x) ** 2 + (pos.z - finalExit.z) ** 2
+    )
+    if (xzDistToFinal <= 3.0 && bot.entity.onGround) {
+      console.log(`[BridgeExecutor] parkour handoff — ${xzDistToFinal.toFixed(2)} blocks from goal`)
+      bot.setControlState('sneak', false)
+      bot.setControlState('jump', false)
+
+      // Face directly toward finalExit (handles diagonal correctly).
+      // Once the bot is facing the target we just press forward — no strafing needed.
+      const dxf = finalExit.x - pos.x
+      const dzf = finalExit.z - pos.z
+      const hDist = Math.sqrt(dxf * dxf + dzf * dzf)
+      if (hDist > 0.01) {
+        const targetYaw = Math.atan2(-dxf, -dzf)
+        const currentYaw = bot.entity.yaw
+        // Snap quickly toward target so we're already aimed before the jump.
+        bot.entity.yaw = currentYaw + shortestYawDelta(currentYaw, targetYaw) * 0.85
+        // Look slightly down at the target block surface.
+        const targetPitch = -Math.atan2(finalExit.y - pos.y + 0.5, hDist) * 0.5
+        bot.entity.pitch = bot.entity.pitch + (targetPitch - bot.entity.pitch) * 0.4
+      }
+
+      // Facing the target, just go forward — Minecraft movement follows yaw.
+      bot.setControlState('forward', true)
+      bot.setControlState('back', false)
+      bot.setControlState('left', false)
+      bot.setControlState('right', false)
+      bot.setControlState('sprint', true)
+
+      if (this.isComplete(thisMove)) {
+        console.log('[BridgeExecutor] parkour handoff: move complete')
+        this.mode.onMoveEnd()
+        this._clearSuppressPathReset()
+        return true
+      }
+      return false
+    }
 
     const ctx = this._makeCtx(thisMove, currentIndex, path)
     const modeResult = this.mode.onTick(ctx, wantedBlockPlacements)
@@ -198,36 +241,24 @@ export class BridgeExecutor extends MovementExecutor {
       const left = bot.getControlState('left')
       const right = bot.getControlState('right')
       const sprint = bot.getControlState('sprint')
-      console.log(
-        `[bridge tick] t=${tickCount} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) ` +
-        `yaw=${yawDeg}° pitch=${pitchDeg}° ` +
-        `sneak=${sneak} jump=${jump} sprint=${sprint} fwd=${fwd} back=${back} left=${left} right=${right} ` +
-        `onGnd=${bot.entity.onGround} xzSpd=${xzSpd} ` +
-        `placed=${this.placedThisMove} allowPlace=${modeResult.allowPlace} ` +
-        `total to place=${this.toPlaceLen()}` +
-        ` vel=(${vel.x.toFixed(3)},${vel.y.toFixed(3)},${vel.z.toFixed(3)})`
-      )
+      // console.log(
+      //   `[bridge tick] t=${tickCount} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) ` +
+      //   `yaw=${yawDeg}° pitch=${pitchDeg}° ` +
+      //   `sneak=${sneak} jump=${jump} sprint=${sprint} fwd=${fwd} back=${back} left=${left} right=${right} ` +
+      //   `onGnd=${bot.entity.onGround} xzSpd=${xzSpd} ` +
+      //   `placed=${this.placedThisMove} allowPlace=${modeResult.allowPlace} ` +
+      //   `total to place=${this.toPlaceLen()}` +
+      //   ` vel=(${vel.x.toFixed(3)},${vel.y.toFixed(3)},${vel.z.toFixed(3)})`
+      // )
     }
 
-    const targetMove = path[this.splicedEndIndex] ?? thisMove
 
-    if (this._hasOvershot(thisMove, targetMove)) {
-      console.log(
-        `[bridge dbg] overshoot detected — forcing completion ` +
-        `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
-        `target=(${targetMove.exitPos.x.toFixed(2)},${targetMove.exitPos.y.toFixed(2)},${targetMove.exitPos.z.toFixed(2)})`
-      )
+
+    const execComplete = this.isComplete(thisMove)
+    if (execComplete) {
       this.mode.onMoveEnd()
       this._clearSuppressPathReset()
       return true
-    }
-
-    const execComplete = this._isExecutionComplete(thisMove, targetMove, path, currentIndex)
-    if (execComplete) {
-      const delta = this.splicedEndIndex - currentIndex
-      this.mode.onMoveEnd()
-      this._clearSuppressPathReset()
-      return delta > 0 ? delta : true
     }
 
     return false
@@ -251,60 +282,13 @@ export class BridgeExecutor extends MovementExecutor {
   }
 
   private _getPendingPlacements(path: Move[], startIndex: number): PlaceHandler[] {
-    const placements: PlaceHandler[] = []
-
-    for (let i = startIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
-
-      for (const place of move.toPlace) {
-        if (!(place instanceof PlaceHandler)) continue
-        if (place.done) continue
-        if (place.isPerforming) continue
-        if (!place.needToPerform(this.bot)) continue
-        placements.push(place)
-      }
-    }
-
-    return placements
+    return this.toPlace()
   }
 
   private _getNextPlaceCandidate(path: Move[], startIndex: number): PlaceHandler | null {
-    for (let i = startIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
-
-      for (const place of move.toPlace) {
-        if (!(place instanceof PlaceHandler)) continue
-        if (place.done) continue
-        if (place.isPerforming) continue
-        if (!place.needToPerform(this.bot)) continue
-        return place
-      }
-    }
-
-    return null
+    return this.toPlace()[0] ?? null
   }
 
-  private _isExecutionComplete(
-    thisMove: Move,
-    targetMove: Move,
-    path: Move[],
-    currentIndex: number
-  ): boolean {
-    if (this.toBreakLen() > 0) return false
-
-    for (let i = currentIndex; i <= this.splicedEndIndex; i++) {
-      const move = path[i]
-      if (move == null) break
-
-      for (const place of move.toPlace) {
-        if (!place.done) return false
-      }
-    }
-
-    return this.isComplete(thisMove, targetMove)
-  }
 
   private _isInWater(): boolean {
     if ((this.bot.entity as any).isInWater as boolean) return true
@@ -435,6 +419,7 @@ export class BridgeExecutor extends MovementExecutor {
       this.elevatedJumpCooldownUntilMs = nowMs + randFloat(400, 550)
     }
 
+    console.log('setting sneak to ', finalSneak, bot.entity.position)
     bot.setControlState('sneak', finalSneak)
     bot.setControlState('jump', false)
     bot.setControlState('sprint', modeResult.wantSprint && !finalSneak)
@@ -483,7 +468,7 @@ export class BridgeExecutor extends MovementExecutor {
 
     const EPS = 1e-2
 
-    console.log('applying vector:', vec, rightDot, fwdDot)
+    // console.log('applying vector:', vec, rightDot, fwdDot)
 
     bot.setControlState('forward', fwdDot > EPS)
     bot.setControlState('back', fwdDot < -EPS)

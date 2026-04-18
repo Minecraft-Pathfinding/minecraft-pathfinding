@@ -5,7 +5,7 @@ import { World } from '../world/worldInterface'
 import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from './movement'
 
 import { MovementProvider as AMovementProvider } from '../../abstract'
-import { ExecutorMap } from '.'
+import type { ExecutorMap } from '.'
 import { Vec3 } from 'vec3'
 import { Vec3Properties } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'

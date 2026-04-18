@@ -1,6 +1,6 @@
 import { Vec3 } from 'vec3'
 import type { BlockInfo } from './cacheWorld'
-import { Block, RayType } from '../../types'
+import type { Block, RayType } from '../../types'
 
 export interface World {
   minY: number

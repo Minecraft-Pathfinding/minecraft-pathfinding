@@ -1,17 +1,14 @@
 import { Bot } from 'mineflayer'
-import { BuildableMoveProvider, MovementOptions } from '../movements'
+import type { BuildableMoveProvider, MovementOptions } from '../movements'
 import { World } from '../world/worldInterface'
 import { MovementOptimizer } from './optimizer'
 import { MovementReplacement } from './replacement'
 
 export * from './optimizer'
-export * from './bridgeOptimizer'
+export * from './registry'
 
 export type BuildableMoveOptimizer = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => MovementOptimizer
 
 
 export type OptimizationSetup = Map<BuildableMoveProvider, BuildableMoveOptimizer>
-
-
-export type OptimizationMap = Map<BuildableMoveProvider, MovementOptimizer>
 export type ReplacementMap = Map<BuildableMoveProvider, MovementReplacement>

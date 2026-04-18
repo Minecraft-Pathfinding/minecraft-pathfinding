@@ -14,7 +14,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "examples/bridging/bridge-movement/bridgeProvider.ts", "examples/bridging/bridge-movement/bridgeOptimizer.ts"],
   "exclude": ["node_modules", "examples"],
   "compileOnSave": true,
 }

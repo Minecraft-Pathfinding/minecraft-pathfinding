@@ -1,4 +1,4 @@
-import { PathStatus } from '../types'
+import type { PathStatus } from '../types'
 import { PathData, PathNode } from './node'
 
 export interface Goal<Data> {

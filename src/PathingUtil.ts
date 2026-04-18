@@ -1,5 +1,5 @@
 import { Bot } from 'mineflayer'
-import { Block } from './types'
+import type { Block } from './types'
 import type { Item } from 'prismarine-item'
 import * as nbt from 'prismarine-nbt'
 

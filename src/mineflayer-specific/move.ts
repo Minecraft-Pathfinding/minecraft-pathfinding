@@ -1,5 +1,6 @@
 import { Vec3 } from 'vec3'
 import { MovementProvider } from './movements'
+import type { MovementExecutor } from './movements'
 import { PathData } from '../abstract/node'
 import { EntityState } from '@nxg-org/mineflayer-physics-util'
 import { BreakHandler, PlaceHandler } from './movements/interactionUtils'
@@ -18,6 +19,7 @@ export class Move implements PathData {
 
   toPlace: PlaceHandler[]
   toBreak: BreakHandler[]
+  optimizedExecutor?: MovementExecutor
 
   constructor (
     public readonly x: number,

@@ -1,25 +1,19 @@
 import { Bot } from 'mineflayer'
-import { Move } from '../move'
-import { MovementOptions } from '../movements/movement'
-import { MovementProvider } from '../movements/movementProvider'
-import { Forward, Diagonal } from '../movements/movementProviders'
-import { BridgeProvider } from '../movements/bridgeProvider'
-import { World } from '../world/worldInterface'
-import { MovementOptimizer } from './optimizer'
+import { Move } from '../../../src/mineflayer-specific/move'
+import { MovementOptions } from '../../../src/mineflayer-specific/movements/movement'
+import { MovementProvider } from '../../../src/mineflayer-specific/movements/movementProvider'
+import { Forward, Diagonal } from '../../../src/mineflayer-specific/movements/movementProviders'
+import { BridgeProvider } from './bridgeProvider'
+import { World } from '../../../src/mineflayer-specific/world/worldInterface'
+import { MovementOptimizer } from '../../../src/mineflayer-specific/post/optimizer'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:BridgeOptimizer')
 
 export class BridgeOptimizer extends MovementOptimizer {
-  private readonly _bridgeProvider: BridgeProvider
 
   constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world)
-    this._bridgeProvider = new BridgeProvider(bot, world, settings)
-  }
-
-  protected override getMergedMoveType (_startIndex: number, _endIndex: number, _path: readonly Move[]): MovementProvider {
-    return this._bridgeProvider
   }
 
   identEndOpt (currentIndex: number, path: Move[]): number {
@@ -45,6 +39,11 @@ export class BridgeOptimizer extends MovementOptimizer {
 
       if (ctor !== Forward && ctor !== Diagonal) {
         log(`[BridgeOpt] Stop at ${i}: wrong type ${next.moveType.constructor.name}`)
+        break
+      }
+
+      if (next.toPlace.length === 0) {
+        log(`[BridgeOpt] stop at ${i}: no blocks to place, so no need to bridge.`)
         break
       }
 

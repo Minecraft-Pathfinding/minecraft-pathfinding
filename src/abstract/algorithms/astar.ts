@@ -1,6 +1,6 @@
 import { reconstructPath } from '.'
 import { Goal, MovementProvider, Path, Algorithm } from '../'
-import { PathStatus } from '../../types'
+import type { PathStatus } from '../../types'
 import { BinaryHeapOpenSet as Heap } from '../heap'
 // import {MinHeap as Heap} from 'heap-typed'
 import { CPathNode, PathData, PathNode } from '../node'

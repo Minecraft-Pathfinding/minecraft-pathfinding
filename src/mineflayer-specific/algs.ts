@@ -1,9 +1,10 @@
 import { Goal, MovementProvider as AMovementProvider, Path as APath } from '../abstract'
 import { AStarBackOff as AAStarBackOff } from '../abstract/algorithms/astar'
 import { CPathNode } from '../abstract/node'
-import { PathStatus } from '../types'
+import type { PathStatus } from '../types'
 import { Move } from './move'
-import { ExecutorMap, MovementHandler } from './movements'
+import type { ExecutorMap } from './movements'
+import { MovementHandler } from './movements'
 import { PathNode } from './node'
 
 export interface Path<T extends AStar = AStar> extends APath<Move, MovementHandler, T> {

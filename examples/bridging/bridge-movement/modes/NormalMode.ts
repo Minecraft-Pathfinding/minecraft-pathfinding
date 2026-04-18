@@ -11,9 +11,9 @@ import {
 } from '../BridgeUtils'
 import { BridgeModeBase, ModeTickResult, TickContext, DEFAULT_TICK_RESULT } from './BridgeModeBase'
 import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
-import { Block, RayType } from '../../../../src/types'
+import type { Block, RayType } from '../../../../src/types'
 import { faceToVec } from '../../../../src/utils'
-import test from 'node:test'
+import { ControlStateHandler } from '@nxg-org/mineflayer-physics-util'
 
 const NINJA_ALIGN_THRESH_DEG = 5
 const NINJA_PITCH_THRESH_DEG = 5
@@ -27,10 +27,26 @@ export class NormalMode extends BridgeModeBase {
   private currentPitch = 0
   private currentYawBias = 0
   private shouldBridge = false
-  /** Single timer drives all sneaking – no per-tick reactive toggling. */
-  private _sneakUntilMs = 0
-  /** Tracks previous overAir state for rising-edge detection. */
-  private _wasOverAir = false
+
+  /**
+   * Deterministic sneak state machine.
+   *
+   * Physics model (20 TPS, 50 ms per tick):
+   *   RELEASE (50 ms / 1 tick)  → sneak=false, bot drifts backward ≤ 0.044 blocks
+   *   HOLD    (100 ms / 2 ticks) → sneak=true, clamps motion at edge; place block here
+   *
+   * State is ONLY advanced when the bot is actually at the edge
+   * (_wouldFallWithMovement = true).  Between blocks the state is 'walking'
+   * and sneak is never applied — that is what was causing the spam.
+   */
+  private _sneakState: 'walking' | 'hold' | 'release' = 'walking'
+  private _sneakStateEndMs = 0
+  private _notAtEdgeTicks = 0        // debounce: require N consecutive !atEdge ticks before resetting HOLD/RELEASE
+  private _blockPlacedThisHold = false  // prevent HOLD→RELEASE when no block was actually placed
+  private static readonly SNEAK_HOLD_MIN_MS = 60
+  private static readonly SNEAK_HOLD_MAX_MS = 80
+  private static readonly SNEAK_RELEASE_MS = 50  // 1 tick
+  private static readonly NOT_AT_EDGE_RESET_TICKS = 2  // ticks of !atEdge needed to reset HOLD/RELEASE
 
   onMoveStart(ctx: TickContext): void {
     this.phase = 'approach'
@@ -38,8 +54,10 @@ export class NormalMode extends BridgeModeBase {
     this.currentPitch = this._nextPitch()
     this.currentYawBias = this._nextYawBias()
     this.shouldBridge = false
-    this._sneakUntilMs = 0
-    this._wasOverAir = false
+    this._sneakState = 'walking'
+    this._sneakStateEndMs = 0
+    this._notAtEdgeTicks = 0
+    this._blockPlacedThisHold = false
   }
 
   onTick(ctx: TickContext, placements: Vec3[]): ModeTickResult {
@@ -59,7 +77,9 @@ export class NormalMode extends BridgeModeBase {
 
     if (this.phase === 'approach') {
       const result: ModeTickResult = { ...DEFAULT_TICK_RESULT }
-      result.targetYaw = rawMovingYaw
+      // Pre-align to the bridge yaw during approach so the bot is already looking
+      // at the correct x*45° angle by the time it reaches the edge.
+      result.targetYaw = this._getBridgeYaw(ctx, pathKind, movingYaw, null)
       result.targetPitch = this.currentPitch
       result.allowPlace = false
       result.wantSprint = true
@@ -67,6 +87,10 @@ export class NormalMode extends BridgeModeBase {
       if (onGround && overAir) {
         this.phase = 'bridge'
         this.shouldBridge = true
+        this._sneakState = 'walking'  // first bridge tick will immediately enter HOLD
+        this._sneakStateEndMs = 0
+        this._notAtEdgeTicks = 0
+        this._blockPlacedThisHold = false
         result.wantSneak = true
         result.movementOverride = new Vec3(0, 0, 0)
         console.log(
@@ -102,8 +126,10 @@ export class NormalMode extends BridgeModeBase {
         'yawErr=' + (yawErr * RAD2DEG).toFixed(1) + '° pitchErr=' + pitchErr.toFixed(1) + '°'
       )
       const result: ModeTickResult = { ...DEFAULT_TICK_RESULT }
-      result.useStrafe = false;
-      result.wantSneak = true
+      result.useStrafe = false
+      // While unaligned, sneak immediately if movement would send us off the edge.
+      // Re-evaluated every tick so it auto-clears as soon as safe.
+      result.wantSneak = this._wouldFallWithMovement(backX, backZ)
       result.targetYaw = bridgeYaw
       result.targetPitch = this.currentPitch
       result.allowPlace = false
@@ -113,36 +139,80 @@ export class NormalMode extends BridgeModeBase {
 
     const nowMs = ctx.nowMs
 
-    if (overAir && !this._wasOverAir && nowMs >= this._sneakUntilMs) {
-      this._sneakUntilMs = nowMs + randFloat(70, 90)
-    } else if (overAir && nowMs >= this._sneakUntilMs) {
-      this._sneakUntilMs = nowMs + randFloat(40, 55)
+    // ── Edge-gated sneak state machine ───────────────────────────────────────
+    //
+    // The machine ONLY advances when the bot is truly at the edge
+    // (_wouldFallWithMovement = true with 5-tick look-ahead).
+    // Between blocks (after placement, walking to the next edge) state is
+    // 'walking' and sneak is never set — this was the "spam sneak" root cause.
+    //
+    //   'walking' → not at edge, move freely
+    //   'hold'    → at edge, sneak=true  100 ms (2 ticks), place block here
+    //   'release' → at edge, sneak=false  50 ms (1 tick), bot drifts ≤ 0.044 blks
+    //
+    // Backward movement is ALWAYS applied; sneak physically clamps the drift at
+    // the 0.3-block bounding-box edge so zeroing movement is never needed.
+
+    const atEdge = this._wouldFallWithMovement(backX, backZ)
+
+    if (!atEdge) {
+      // Require NOT_AT_EDGE_RESET_TICKS consecutive non-edge ticks before resetting
+      // HOLD/RELEASE — prevents physics-sim noise from cutting the hold timer short.
+      // In 'walking' state we reset immediately (nothing to protect).
+      this._notAtEdgeTicks++
+      if (this._sneakState === 'walking' || this._notAtEdgeTicks >= NormalMode.NOT_AT_EDGE_RESET_TICKS) {
+        this._sneakState = 'walking'
+        this._sneakStateEndMs = 0
+        this._blockPlacedThisHold = false
+        this._notAtEdgeTicks = 0
+      }
+    } else {
+      this._notAtEdgeTicks = 0
+
+      if (this._sneakState === 'walking') {
+        // Just arrived at edge: enter HOLD.
+        this._sneakState = 'hold'
+        this._blockPlacedThisHold = false
+        this._sneakStateEndMs = nowMs + randFloat(NormalMode.SNEAK_HOLD_MIN_MS, NormalMode.SNEAK_HOLD_MAX_MS)
+      } else if (nowMs >= this._sneakStateEndMs) {
+        // Advance hold ↔ release cycle.
+        if (this._sneakState === 'hold') {
+          if (this._blockPlacedThisHold) {
+            // Block was placed — safe to release sneak briefly.
+            this._sneakState = 'release'
+            this._sneakStateEndMs = nowMs + NormalMode.SNEAK_RELEASE_MS
+          } else {
+            // No block placed yet — extending HOLD to avoid releasing over air.
+            this._sneakStateEndMs = nowMs + randFloat(NormalMode.SNEAK_HOLD_MIN_MS, NormalMode.SNEAK_HOLD_MAX_MS)
+          }
+        } else {
+          // release → hold
+          this._sneakState = 'hold'
+          this._blockPlacedThisHold = false
+          this._sneakStateEndMs = nowMs + randFloat(NormalMode.SNEAK_HOLD_MIN_MS, NormalMode.SNEAK_HOLD_MAX_MS)
+        }
+      }
     }
-    this._wasOverAir = overAir
 
+    const wantSneak = this._sneakState === 'hold'
+    // Allow placement only during HOLD: sneak is keeping us safely on the edge,
+    // and BridgeExecutor's placementCooldownUntilMs prevents double-fires.
+    const allowPlace = this.shouldBridge &&
+      this._sneakState === 'hold' &&
+      (!checkBlock || this._shouldAllowPlace(backX, backZ, checkBlock))
 
-    console.log(
-      `[ninja dbg] phase=bridge pathKind=${pathKind} sneaking=${nowMs < this._sneakUntilMs} overAir=${overAir} onGround=${onGround} ` +
-      `yaw=${(bot.entity.yaw * RAD2DEG).toFixed(1)} pitch=${(bot.entity.pitch * RAD2DEG).toFixed(1)} ` +
-      `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
-      `vel=(${bot.entity.velocity.x.toFixed(3)},${bot.entity.velocity.y.toFixed(3)},${bot.entity.velocity.z.toFixed(3)}) ` +
-      `placed=${ctx.placedThisMove}, shouldBridge=${this.shouldBridge}, `
-    )
-
-    const allowPlace = this.shouldBridge && (!checkBlock || this._shouldAllowPlace(backX, backZ, checkBlock))
+    // Always provide backward movement — sneak clamps it physically at the edge.
+    const movementVec = pathKind === 'diagonal'
+      ? this._getDiagonalBridgeMovement(ctx)
+      : this._getStraightBridgeMovement(ctx, backX, backZ)
 
     const result: ModeTickResult = { ...DEFAULT_TICK_RESULT }
-    result.wantSneak = nowMs < this._sneakUntilMs
+    result.wantSneak = wantSneak
     result.targetYaw = bridgeYaw
     result.targetPitch = this.currentPitch
     result.allowPlace = allowPlace
     result.wantSprint = false
-
-    result.movementOverride =
-      pathKind === 'diagonal'
-        ? this._getDiagonalBridgeMovement(ctx)
-        : this._getStraightBridgeMovement(ctx, backX, backZ)
-
+    result.movementOverride = movementVec
     result.useStrafe = pathKind !== 'diagonal'
     return result
   }
@@ -156,14 +226,13 @@ export class NormalMode extends BridgeModeBase {
     const edgePos = this._computeEdgePos(bot.entity.position, backX, backZ)
     this.placementPredictor.record(bot.entity.position, edgePos)
 
-    this._sneakUntilMs = ctx.nowMs + randFloat(70, 90)
-
     console.log(
-      `[ninja dbg] BLOCK PLACED placedTotal=${ctx.placedThisMove + 1} sneakFor=${(this._sneakUntilMs - ctx.nowMs).toFixed(0)}ms ` +
+      `[ninja dbg] BLOCK PLACED placedTotal=${ctx.placedThisMove + 1} ` +
       `pos=(${bot.entity.position.x.toFixed(2)},${bot.entity.position.y.toFixed(2)},${bot.entity.position.z.toFixed(2)}) ` +
       `yaw=${(bot.entity.yaw * RAD2DEG).toFixed(1)} pitch=${(bot.entity.pitch * RAD2DEG).toFixed(1)}`
     )
 
+    this._blockPlacedThisHold = true
     this.currentPitch = this._nextPitch()
     this.currentYawBias = this._nextYawBias()
   }
@@ -173,8 +242,10 @@ export class NormalMode extends BridgeModeBase {
     this.placementPredictor.reset()
     this.shouldBridge = false
     this.currentYawBias = 0
-    this._sneakUntilMs = 0
-    this._wasOverAir = false
+    this._sneakState = 'walking'
+    this._sneakStateEndMs = 0
+    this._notAtEdgeTicks = 0
+    this._blockPlacedThisHold = false
   }
 
   /**
@@ -274,7 +345,7 @@ export class NormalMode extends BridgeModeBase {
       return this._getDiagonalYaw(ctx, movingYaw, targetPlace)
     }
 
-    return this._snapToNearestPrincipalDir(movingYaw - 5 * Math.PI / 4)
+    return this._snapToNearestPrincipalDir(movingYaw - 3 * Math.PI / 4)
   }
 
 
@@ -292,7 +363,9 @@ export class NormalMode extends BridgeModeBase {
   private _resolveDiagonalYawForTarget(baseYaw: number, targetBPos: Vec3): number | null {
     const bot = this.bot
 
-    // Try current yaw first, then small alternating nudges.
+    // baseYaw is already the backward-facing yaw (movingYaw - π, snapped to 45°).
+    // Try small alternating nudges around it to find the exact angle that
+    // places the cursor on targetBPos.
     const step = 1.5 * DEG2RAD
     const attempts = [
       0,
@@ -304,11 +377,13 @@ export class NormalMode extends BridgeModeBase {
     ]
 
     const originalYaw = bot.entity.yaw
+    let found: number | null = null
 
     for (const off of attempts) {
-      const testYaw = this._snapToNearestPrincipalDir(baseYaw - Math.PI) + off
+      // Do NOT apply another -π here — baseYaw is already backward-facing.
+      const testYaw = baseYaw + off
 
-      // We only want to query cursor resolution, not commit permanent view state.
+      // Temporarily set yaw to query cursor; always restored below.
       bot.entity.yaw = testYaw
       const hit = bot.blockAtCursor() as (Block & { face: BlockFace }) | null
 
@@ -317,13 +392,16 @@ export class NormalMode extends BridgeModeBase {
       const predictedBlockPos = hit.position.plus(faceToVec(hit.face))
       if (predictedBlockPos.equals(targetBPos)) {
         console.log('hiting on yaw:', testYaw)
-        return testYaw
+        found = testYaw
+        break
       }
     }
 
-    console.log('NOTHING HIT??')
+    // Always restore the real yaw — never leave bot.entity.yaw in a test state.
     bot.entity.yaw = originalYaw
-    return null
+
+    if (found === null) console.log('NOTHING HIT??')
+    return found
   }
 
   private _getStraightBridgeMovement(ctx: TickContext, backX: number, backZ: number): Vec3 {
@@ -361,6 +439,35 @@ export class NormalMode extends BridgeModeBase {
     }
 
     return new Vec3(dx / len, 0, dz / len)
+  }
+
+  /**
+   * Simulates N physics ticks with the actual S+D movement controls that will
+   * be applied this tick (mirroring _applyDirectionalVector), but with sneak
+   * forced off. Returns true if the bot would leave the ground — i.e. it needs
+   * to sneak to stay on the platform.
+   *
+   * Using DEFAULT controls (no movement) was wrong: ground friction kills
+   * velocity in 1 tick so willFallOff returned false even at the edge, and
+   * the very next tick S+D pushed the bot off.
+   */
+  private _wouldFallWithMovement(moveX: number, moveZ: number): boolean {
+    const yaw = this.bot.entity.yaw
+    const cosYaw = Math.cos(yaw)
+    const sinYaw = Math.sin(yaw)
+
+    const fwdDot  = -sinYaw * moveX - cosYaw * moveZ
+    const rightDot = -cosYaw * moveX + sinYaw * moveZ
+    const EPS = 1e-2
+
+    const ctrl = ControlStateHandler.DEFAULT()
+    ctrl.set('forward', fwdDot  >  EPS)
+    ctrl.set('back',    fwdDot  < -EPS)
+    ctrl.set('right',   rightDot < -EPS)
+    ctrl.set('left',    rightDot >  EPS)
+    ctrl.set('sneak',   false)
+
+    return this.executor.willFallOff(5, ctrl)
   }
 
   /**

@@ -12,7 +12,7 @@ import { World } from '../world/worldInterface'
 import v, { Vec3 } from 'vec3'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { JumpSim } from './simulators/jumpSim'
-import { Block } from '../../types'
+import type { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 

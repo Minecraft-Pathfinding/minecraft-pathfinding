@@ -9,7 +9,7 @@ export class PathSplicer {
     world: World,
     startIndex: number,
     path: Move[],
-    maxLook = 8
+    maxLook = 10000
   ): number {
     if (startIndex >= path.length) return startIndex
 

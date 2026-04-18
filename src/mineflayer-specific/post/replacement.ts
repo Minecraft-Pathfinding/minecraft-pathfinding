@@ -1,9 +1,10 @@
 import { Move } from '../move'
 import { Algorithm, Path } from '../../abstract'
-import { ReplacementMap } from '.'
+import type { ReplacementMap } from '.'
 import { Bot } from 'mineflayer'
 import { World } from '../world/worldInterface'
-import { BuildableMoveProvider, MovementHandler } from '../movements'
+import type { BuildableMoveProvider } from '../movements'
+import { MovementHandler } from '../movements'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:replacement')
