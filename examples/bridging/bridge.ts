@@ -98,9 +98,12 @@ bot.once('spawn', () => {
   })
 })
 
+const debugBuild = require('debug')
+const debug = debugBuild('bridge-script')
+
 bot.on("move", (pos) => {
   if (bot.pathfinder && bot.pathfinder.isPathing)
-  console.log('moved to pos:', pos)
+  debug('moved to pos:', pos)
 })
 
 // ─── state ───────────────────────────────────────────────────────────────────
