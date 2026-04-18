@@ -1017,7 +1017,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private _lookAtInFlight: Promise<void> | null = null
   private _pendingLookTarget: Vec3 | null = null
 
-  protected static readonly APPROACH_YAW_EPS = 0.16 // ~9.2 deg — generous for cardinal jumps
+  protected static readonly APPROACH_YAW_EPS: number = 0.16 // ~9.2 deg — generous for cardinal jumps
 
   protected isComplete (startMove: Move, endMove?: Move, opts: CompleteOpts = { }): boolean {
     const ret = super.isComplete(startMove, endMove, opts)
