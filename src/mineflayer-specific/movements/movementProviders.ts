@@ -503,3 +503,186 @@ export class ParkourForward extends MovementProvider {
     }
   }
 }
+
+export class ParkourDiagonal extends MovementProvider {
+  movementDirs = Movement.diagonalDirs
+
+  provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
+    for (const dir of Movement.diagonalDirs) {
+      this.getMoveParkourDiagonal(start, dir, storage, closed)
+    }
+  }
+
+  /**
+   * Diagonal (intercardinal) parkour: jump over a gap at a 45° angle.
+   *
+   * Layout (example NE direction, dir = {x:1, z:-1}):
+   *
+   *   S = start, G = gap at d=1, L = potential landing at d=2+
+   *   Corners cx/cz must also be clear so the 0.6-wide hitbox doesn't clip.
+   *
+   *       z-1  z   z+0  z+1
+   *   x-1        S
+   *   x+0  cx       cz
+   *   x+1        G    L(d=2)
+   *
+   * We mirror ParkourForward's logic for down/level/up landings, but use
+   * diagonalDirs and include corner-block clearance at every depth step.
+   */
+  getMoveParkourDiagonal (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
+    // Must have solid ground beneath player to jump.
+    const block0 = this.getBlockInfo(node, 0, -1, 0)
+    if (!block0.physical) return
+
+    // Can't jump from inside liquid.
+    const block00 = this.getBlockInfo(node, 0, 0, 0)
+    if (block00.liquid) return
+
+    // ── d=1 gap checks ──────────────────────────────────────────────────────
+    // The first diagonal step must be a gap (no solid floor) so that we are
+    // actually doing parkour rather than a normal walk.
+    const block1Floor = this.getBlockInfo(node, dir.x, -1, dir.z)
+    if (block1Floor.physical && block1Floor.height >= block0.height) return
+
+    if (!this.getBlockInfo(node, dir.x, 0, dir.z).walkthrough) return
+    if (!this.getBlockInfo(node, dir.x, 1, dir.z).walkthrough) return
+
+    // Corner clearance at d=1: the inner corners that the hitbox clips through
+    // when moving diagonally must be passable at both body and head level.
+    if (!this.getBlockInfo(node, dir.x, 0, 0).walkthrough) return
+    if (!this.getBlockInfo(node, 0, 0, dir.z).walkthrough) return
+    if (!this.getBlockInfo(node, dir.x, 1, 0).walkthrough) return
+    if (!this.getBlockInfo(node, 0, 1, dir.z).walkthrough) return
+
+    // Base cost: diagonal step distance + jump penalty.
+    const cost0 = Diagonal.diagonalCost + this.settings.jumpCost
+
+    // Track whether ceiling and floor stay clear as we probe further out.
+    // initialCeilingClear captures the state at the jump origin + first step;
+    // the asymmetric landing section below reuses it as a prerequisite.
+    const initialCeilingClear =
+      this.getBlockInfo(node, 0, 2, 0).walkthrough &&
+      this.getBlockInfo(node, dir.x, 2, dir.z).walkthrough &&
+      this.getBlockInfo(node, dir.x, 2, 0).walkthrough &&
+      this.getBlockInfo(node, 0, 2, dir.z).walkthrough
+
+    let ceilingClear = initialCeilingClear
+
+    let floorCleared = !this.getBlockInfo(node, dir.x, -2, dir.z).physical
+
+    // Diagonal sprint-jumps cover ~2 diagonal steps comfortably; cap at 4 with sprint.
+    const maxD = this.settings.allowSprinting ? 4 : 2
+
+    for (let d = 2; d <= maxD; d++) {
+      const cost = cost0 + d * 0.5 * Diagonal.diagonalCost
+      const dx = dir.x * d
+      const dz = dir.z * d
+
+      const flag0 = !closed.has(`${node.x + dx},${node.y - 1},${node.z + dz}`)
+      const flag1 = !closed.has(`${node.x + dx},${node.y},${node.z + dz}`)
+      const flag2 = !closed.has(`${node.x + dx},${node.y + 1},${node.z + dz}`)
+
+      if (!flag0 && !flag1 && !flag2) return
+
+      const blockA = this.getBlockInfo(node, dx, 2, dz)
+      const blockB = this.getBlockInfo(node, dx, 1, dz)
+      const blockC = this.getBlockInfo(node, dx, 0, dz)
+      const blockD = this.getBlockInfo(node, dx, -1, dz)
+
+      // Corner clearance at this depth — if any corner is blocked, the hitbox
+      // cannot pass through even if the diagonal centre is open.
+      if (!this.getBlockInfo(node, dx, 0, 0).walkthrough) break
+      if (!this.getBlockInfo(node, 0, 0, dz).walkthrough) break
+      if (!this.getBlockInfo(node, dx, 1, 0).walkthrough) break
+      if (!this.getBlockInfo(node, 0, 1, dz).walkthrough) break
+
+      if (flag0 && (ceilingClear || d === 2) && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && floorCleared) {
+        // ── Down landing: jump descends into the gap ─────────────────────────
+        const blockE = this.getBlockInfo(node, dx, -2, dz)
+        if (blockE.physical) {
+          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
+        }
+        floorCleared = floorCleared && !blockE.physical
+      } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
+        // ── Level landing: same height as start ──────────────────────────────
+        if (d === maxD) continue
+        const cost1 = cost + 3 // slight slowdown penalty for long approach
+        neighbors.push(Move.fromPrevious(cost1, blockC.position.offset(0.5, 0, 0.5), node, this))
+        break
+      } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical) {
+        // ── Up landing: target is 1 block higher ─────────────────────────────
+        if (d === maxD) continue
+        if (blockC.height - block0.height > 1.2) break // jump height limit
+        neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this))
+        break
+      } else if (!blockB.walkthrough || !blockC.walkthrough) {
+        break // solid wall in the way; no point looking further
+      }
+
+      // Update ceiling clearance to include this depth's overhead blocks.
+      ceilingClear = ceilingClear &&
+        blockA.walkthrough &&
+        this.getBlockInfo(node, dx, 2, 0).walkthrough &&
+        this.getBlockInfo(node, 0, 2, dz).walkthrough
+    }
+
+    // ── Asymmetric (1 ↔ 3) diagonal sprint-jump landings ────────────────────
+    //
+    // The depth-d loop above only generates landings along the strict 1:1
+    // diagonal line (dx = dz in magnitude).  Real Minecraft sprint-jumps can
+    // also reach positions with a 1:3 or 3:1 axis ratio, e.g. (+1, −3) from
+    // this node's (+1, −1) diagonal direction.  Those landings are √10 ≈ 3.16
+    // blocks away — well within sprint-jump range — but are simply invisible
+    // to the loop above, causing the pathfinder to pick a wrong (or absent)
+    // move and the executor to look at the wrong target entirely.
+    //
+    // We only attempt these when sprinting is allowed (same gate as maxD = 4)
+    // and the initial ceiling at the jump origin is clear.
+    if (this.settings.allowSprinting && initialCeilingClear) {
+      // Two candidate offsets per diagonal direction:
+      //   • (dir.x × 1, dir.z × 3) — e.g. (+1, −3) when dir = (+1, −1)
+      //   • (dir.x × 3, dir.z × 1) — e.g. (+3, −1) when dir = (+1, −1)
+      const asymmetricOffsets: [number, number][] = [
+        [dir.x,      dir.z * 3],
+        [dir.x * 3,  dir.z    ]
+      ]
+
+      for (const [ldx, ldz] of asymmetricOffsets) {
+        // Skip if this landing node is already in the closed set.
+        if (closed.has(`${node.x + ldx},${node.y},${node.z + ldz}`)) continue
+
+        // Intermediate cell: 2/3 of the way along the long axis.
+        // For (1, −3): long axis is z → mid = (1, *, −2)
+        // For (3, −1): long axis is x → mid = (2, *, −1)
+        const midDx = Math.abs(ldx) === 3 ? Math.sign(ldx) * 2 : ldx
+        const midDz = Math.abs(ldz) === 3 ? Math.sign(ldz) * 2 : ldz
+
+        // Ceiling must be clear at the intermediate cell and the landing cell.
+        if (!this.getBlockInfo(node, midDx, 2, midDz).walkthrough) continue
+        if (!this.getBlockInfo(node, ldx,   2, ldz  ).walkthrough) continue
+
+        // Body and head must be clear at the intermediate cell.
+        if (!this.getBlockInfo(node, midDx, 0, midDz).walkthrough) continue
+        if (!this.getBlockInfo(node, midDx, 1, midDz).walkthrough) continue
+
+        // Landing conditions (level landing only — same y as jump start).
+        const landFloor = this.getBlockInfo(node, ldx, -1, ldz)
+        const landBody  = this.getBlockInfo(node, ldx,  0, ldz)
+        const landHead  = this.getBlockInfo(node, ldx,  1, ldz)
+
+        if (!landFloor.physical)    continue  // no floor to land on
+        if (!landBody.walkthrough)  continue  // solid block at feet on landing
+        if (!landHead.walkthrough)  continue  // solid block at head on landing
+        if (landFloor.height - block0.height > 1.2) continue  // too high to reach
+
+        // Cost: proportional to actual XZ distance, matching the depth-loop
+        // formula (0.5 × diagonalCost per block of diagonal travel), plus the
+        // standard +3 slow-down penalty used for level landings above.
+        const dist = Math.sqrt(ldx * ldx + ldz * ldz)
+        const cost = cost0 + dist * 0.5 * Diagonal.diagonalCost + 3
+
+        neighbors.push(Move.fromPrevious(cost, landBody.position.offset(0.5, 0, 0.5), node, this))
+      }
+    }
+  }
+}

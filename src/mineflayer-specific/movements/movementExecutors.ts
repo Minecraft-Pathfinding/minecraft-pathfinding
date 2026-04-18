@@ -1017,7 +1017,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private _lookAtInFlight: Promise<void> | null = null
   private _pendingLookTarget: Vec3 | null = null
 
-  private static readonly APPROACH_YAW_EPS = 0.16 // ~3.4 deg
+  protected static readonly APPROACH_YAW_EPS = 0.16 // ~9.2 deg — generous for cardinal jumps
 
   protected isComplete (startMove: Move, endMove?: Move, opts: CompleteOpts = { }): boolean {
     const ret = super.isComplete(startMove, endMove, opts)
@@ -1161,20 +1161,20 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.bot.setControlState('sneak', false)
   }
 
-  private _desiredYawTo (target: Vec3): number {
+  protected _desiredYawTo (target: Vec3): number {
     const dx = target.x - this.bot.entity.position.x
     const dz = target.z - this.bot.entity.position.z
     return Math.atan2(-dx, -dz)
   }
 
-  private _yawDeltaAbs (targetYaw: number): number {
+  protected _yawDeltaAbs (targetYaw: number): number {
     let delta = targetYaw - this.bot.entity.yaw
     while (delta > Math.PI) delta -= Math.PI * 2
     while (delta < -Math.PI) delta += Math.PI * 2
     return Math.abs(delta)
   }
 
-  private _isYawAlignedForApproach (target: Vec3): boolean {
+  protected _isYawAlignedForApproach (target: Vec3): boolean {
     const wantedYaw = this._desiredYawTo(target)
     return this._yawDeltaAbs(wantedYaw) <= ParkourForwardExecutor.APPROACH_YAW_EPS
   }
@@ -1291,5 +1291,36 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._clearLockedYaw()
     this.bot.clearControlStates()
     throw new CancelError('ParkourExecutor: will not make this jump!')
+  }
+}
+
+/**
+ * Executor for diagonal (intercardinal) parkour jumps.
+ *
+ * Inherits all physics-simulation and jump-execution logic from
+ * ParkourForwardExecutor — the only meaningful difference is a tighter
+ * yaw-alignment threshold.
+ *
+ * Why tighter?  In a cardinal jump the hitbox approaches the gap head-on, so
+ * a few degrees of misalignment just costs a little forward momentum.  In a
+ * diagonal jump the corners of the hitbox are only 0.3 blocks away from the
+ * two side-blocks (the "inner corners" of the L-shape).  A misalignment of
+ * more than ~6° can push the hitbox into those corners and abort the jump
+ * with a horizontal collision, so we require closer alignment before we
+ * commit to the sprint-jump.
+ */
+export class ParkourDiagonalExecutor extends ParkourForwardExecutor {
+  /** ~6.9 deg — tighter than the cardinal 9.2 deg to avoid corner clipping. */
+  protected static override readonly APPROACH_YAW_EPS = 0.12
+
+  /**
+   * Resolve the yaw-alignment check using this class's tighter epsilon.
+   * TypeScript static dispatch means the parent's _isYawAlignedForApproach
+   * already reads `ParkourForwardExecutor.APPROACH_YAW_EPS`, so we
+   * override the instance method to point at the subclass constant instead.
+   */
+  protected override _isYawAlignedForApproach (target: Vec3): boolean {
+    const wantedYaw = this._desiredYawTo(target)
+    return this._yawDeltaAbs(wantedYaw) <= ParkourDiagonalExecutor.APPROACH_YAW_EPS
   }
 }

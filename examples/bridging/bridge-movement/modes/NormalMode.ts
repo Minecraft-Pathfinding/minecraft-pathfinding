@@ -68,7 +68,12 @@ export class NormalMode extends BridgeModeBase {
 
     const pathKind = this._getPathKind(dx, dz)
 
-    const rawMovingYaw = Math.atan2(-dx, -dz)
+    // Snap to the nearest of the 8 principal directions before deriving
+    // backX/backZ.  Without this, a merged move that folds a 1-block lateral
+    // correction into an otherwise cardinal bridge produces a slightly off-axis
+    // yaw (e.g. atan2(-1,-5) ≈ -169° instead of -180°), which corrupts the
+    // sneak-edge detector and triggers diagonal mode unnecessarily.
+    const rawMovingYaw = this._snapToNearestPrincipalDir(Math.atan2(-dx, -dz))
     const movingYaw = rawMovingYaw + this.currentYawBias
     const { dx: backX, dz: backZ } = dirFromYaw(movingYaw)
     const onGround = bot.entity.onGround
@@ -335,10 +340,28 @@ export class NormalMode extends BridgeModeBase {
     )
   }
 
+  /**
+   * Classify a bridge move as straight (cardinal) or diagonal (intercardinal).
+   *
+   * The naive check `dx !== 0 && dz !== 0` breaks when the optimiser merges a
+   * short lateral-correction Diagonal move with a run of Forward moves: the
+   * resulting merged move has a tiny dx and a large dz (or vice-versa), but
+   * both are non-zero, so the old code entered diagonal mode even though the
+   * overall bridge is cardinal.
+   *
+   * Fix: compare the magnitudes of the two components.  A true 45° diagonal has
+   * ratio = min/max ≈ 1.0.  A cardinal bridge with a 1-block correction and
+   * n≥2 forward blocks has ratio ≤ 1/2 = 0.5.  We require ≥ 0.7 (within ~35°
+   * of 45°) to call it diagonal, which leaves a comfortable margin for genuine
+   * diagonal bridges while ignoring small lateral artefacts.
+   */
   private _getPathKind(dx: number, dz: number): BridgePathKind {
-    return dx !== 0 && dz !== 0 ? 'diagonal' : 'straight'
+    const ax = Math.abs(dx)
+    const az = Math.abs(dz)
+    if (ax < 0.001 || az < 0.001) return 'straight'
+    const ratio = Math.min(ax, az) / Math.max(ax, az)
+    return ratio >= 0.7 ? 'diagonal' : 'straight'
   }
-
   private _getBridgeYaw(ctx: TickContext, pathKind: BridgePathKind, movingYaw: number, targetPlace: Vec3): number {
     if (pathKind === 'diagonal') {
       // Diagonal bridging: look exactly backward from path direction.

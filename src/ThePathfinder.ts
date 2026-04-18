@@ -21,6 +21,7 @@ import {
 
 import {
   ParkourForward,
+  ParkourDiagonal,
   Diagonal,
   Forward,
   ForwardDropDown,
@@ -32,6 +33,7 @@ import {
 
 import {
   ParkourForwardExecutor,
+  ParkourDiagonalExecutor,
   ForwardDropDownExecutor,
   NewForwardExecutor,
   NewForwardJumpExecutor,
@@ -74,7 +76,8 @@ const DEFAULT_PROVIDER_EXECUTORS = [
   [Diagonal, NewForwardExecutor],
   [StraightDown, StraightDownExecutor],
   [StraightUp, StraightUpExecutor],
-  [ParkourForward, ParkourForwardExecutor]
+  [ParkourForward, ParkourForwardExecutor],
+  [ParkourDiagonal, ParkourDiagonalExecutor]
 ] as Array<[BuildableMoveProvider, BuildableMoveExecutor]>
 
 DEFAULT_PROVIDER_EXECUTORS.reverse()

@@ -17,6 +17,7 @@ import { BreezilyMode } from './modes/BreezilyMode'
 import { PathSplicer } from './PathSplicer'
 import type { BuildableMoveExecutor } from '../../../src/mineflayer-specific/movements'
 import { getViewDir } from '../../../src/utils'
+import { ParkourForward, ParkourDiagonal } from '../../../src/mineflayer-specific/movements/movementProviders'
 
 export class BridgeExecutor extends MovementExecutor {
   private static readonly MIN_YAW_DELTA_RAD = 0.0003
@@ -159,14 +160,25 @@ export class BridgeExecutor extends MovementExecutor {
 
     // ── Parkour handoff ───────────────────────────────────────────────────────
     // When within 3 XZ blocks of the final path exit the bridging ritual is
-    // unnecessary — the bot can reach the goal by sprinting / jumping normally
-    // (the existing ParkourForwardExecutor handles those last hops once this
-    // move completes and the pathfinder advances to the remaining moves).
+    // unnecessary — the bot can reach the goal by sprinting normally.
+    //
+    // The handoff is ONLY safe when ALL of these hold for every remaining move:
+    //   1. No ParkourForward/ParkourDiagonal — those need precise jump timing.
+    //   2. No pending block placements — the handoff skips mode.onTick and
+    //      _attemptMousePlacement entirely, so the bot would sprint off the
+    //      gap that the bridge executor would have filled.
+    const remainingMoves = path.slice(currentIndex)
+    const hasRemainingParkourMove = remainingMoves.some(
+      (m) => m.moveType instanceof ParkourForward || m.moveType instanceof ParkourDiagonal
+    )
+    const hasPendingPlacements = remainingMoves.some(
+      (m) => m.toPlace.some((p) => !p.done)
+    )
     const finalExit = path[path.length - 1].exitPos
     const xzDistToFinal = Math.sqrt(
       (pos.x - finalExit.x) ** 2 + (pos.z - finalExit.z) ** 2
     )
-    if (xzDistToFinal <= 3.0 && bot.entity.onGround) {
+    if (!hasRemainingParkourMove && !hasPendingPlacements && xzDistToFinal <= 3.0 && bot.entity.onGround) {
       console.log(`[BridgeExecutor] parkour handoff — ${xzDistToFinal.toFixed(2)} blocks from goal`)
       bot.setControlState('sneak', false)
       bot.setControlState('jump', false)

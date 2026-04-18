@@ -321,8 +321,13 @@ export class ParkourJumpHelper {
 
     const pos = this.bot.entity.position
 
-    const closerX = goal.minX - pos.x < pos.x - goal.maxX ? goal.minX : goal.maxX
-    const closerZ = goal.minZ - pos.z < pos.z - goal.maxZ ? goal.minZ : goal.maxZ
+    // When `goal.minX - pos.x < pos.x - goal.maxX` the bot is past the block's
+    // centre on the X axis, meaning maxX is the nearer face — NOT minX.
+    // The original code had the two branches swapped (always picked the far
+    // corner), causing the bot to aim at the wrong vertex and fail the
+    // yaw-alignment check before every diagonal parkour jump.
+    const closerX = goal.minX - pos.x < pos.x - goal.maxX ? goal.maxX : goal.minX
+    const closerZ = goal.minZ - pos.z < pos.z - goal.maxZ ? goal.maxZ : goal.minZ
 
     // 3 closest vectors to source position
     const verts = [
