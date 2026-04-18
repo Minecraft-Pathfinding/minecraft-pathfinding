@@ -52,7 +52,8 @@ import { reconstructPath } from './abstract/algorithms'
 import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 import { handleBlockEvent, handleSettledBlockEvent } from './customBlockEvents'
-import { MovementExecutionRunner, type ExecutionMappings } from './MovementExecutionRunner'
+import { PathExecutor, type ExecutionMappings } from './pathExecutor'
+import { start } from 'node:repl'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:main')
@@ -112,20 +113,13 @@ export class ThePathfinder {
   pathfinderSettings: PathfinderOptions
   private readonly optimizerRegistry: OptimizationRegistry
 
-  public currentExecutionId = 0
-  private currentIndex = 0
   private executeTask: Task<void, void> = Task.createDoneTask()
   private wantedGoal?: goals.Goal
   public abortCalculation = false
 
   private currentGotoGoal?: goals.Goal
-  private curPath?: Move[]
-  private currentMove?: Move
-  private currentExecutor?: MovementExecutor
-
-  private resetReason?: ResetReason
   private _currentProducer?: PathProducer
-  private readonly executionRunner: MovementExecutionRunner
+  private readonly executionRunner: PathExecutor
 
   private _gotoMappings?: {
     movements: ExecutorMap
@@ -157,6 +151,10 @@ export class ThePathfinder {
     return this._gotoMappings ?? this.snapshotMappings()
   }
 
+  public getActiveMappings(): ExecutionMappings {
+    return this.activeMappings
+  }
+
   public get isPathing(): boolean {
     return !this.executeTask.done
   }
@@ -165,69 +163,41 @@ export class ThePathfinder {
     return this.currentGotoGoal;
   }
 
-  public getBot(): Bot {
-    return this.bot
+  public get resetReason(): ResetReason | undefined {
+    return this.executionRunner.getResetReason()
   }
 
-  public getWorld(): World {
-    return this.world
+  public get currentIndex(): number {
+    return this.executionRunner.getCurrentIndex();
   }
 
-  public getActiveMappings(): ExecutionMappings {
-    return this.activeMappings
+  public get currentPath(): Move[] | undefined {
+    return this.executionRunner.getCurrentPath()
   }
 
-  public bumpExecutionId(): number {
-    this.currentExecutionId++
-    return this.currentExecutionId
+  public set currentPath(path: Move[] | undefined) {
+    this.executionRunner.setCurrentPath(path)
   }
 
-  public getCurrentExecutionId(): number {
-    return this.currentExecutionId
+  public get currentMove(): Move | undefined {
+    return this.executionRunner.getCurrentMove()
   }
 
-  public getCurrentIndex(): number {
-    return this.currentIndex
+  public set currentMove(move: Move | undefined) {
+    this.executionRunner.setCurrentMove(move)
   }
 
-  public setCurrentIndex(index: number): void {
-    this.currentIndex = index
+  public get currentExecutor(): MovementExecutor | undefined {
+    return this.executionRunner.getCurrentExecutor()
   }
 
-  public getCurrentPath(): Move[] | undefined {
-    return this.curPath
+  public set currentExecutor(executor: MovementExecutor | undefined) {
+    this.executionRunner.setCurrentExecutor(executor)
   }
 
-  public setCurrentPath(path?: Move[]): void {
-    this.curPath = path
-  }
-
-  public getCurrentMove(): Move | undefined {
-    return this.currentMove
-  }
-
-  public setCurrentMove(move?: Move): void {
-    this.currentMove = move
-  }
-
-  public getCurrentExecutor(): MovementExecutor | undefined {
-    return this.currentExecutor
-  }
-
-  public setCurrentExecutor(executor?: MovementExecutor): void {
-    this.currentExecutor = executor
-  }
-
-  public getResetReason(): ResetReason | undefined {
-    return this.resetReason
-  }
-
-  public setResetReason(reason?: ResetReason): void {
-    this.resetReason = reason
-  }
 
   public clearResetReason(): void {
-    delete this.resetReason
+    this.executionRunner.clearResetReason()
   }
 
   reconstructPath = reconstructPath
@@ -255,7 +225,7 @@ export class ThePathfinder {
     this.defaultMoveSettings = moveSettings
     this.pathfinderSettings = pathfinderSettings
     this.astar = null
-    this.executionRunner = new MovementExecutionRunner(this)
+    this.executionRunner = new PathExecutor(this.bot, this)
 
     this.setupListeners()
     log('Pathfinder initialized.')
@@ -338,12 +308,14 @@ export class ThePathfinder {
     if (this._currentProducer == null) return log('Interrupt ignored: no producer')
     this.abortCalculation = cancelCalculation
 
-    if (this.currentExecutor == null) return log('Interrupt ignored: no executor')
-    if (this.currentMove == null) throw new Error('No current move, but there is a current executor.')
+    const currentExecutor = this.currentExecutor;
+    const currentMove = this.currentMove;
+    if (currentExecutor == null) return log('Interrupt ignored: no executor')
+    if (currentMove == null) throw new Error('No current move, but there is a current executor.')
 
     const reason = reasonStr ? ResetError.fromReason(reasonStr) : undefined;
-    this.resetReason = reasonStr;
-    await this.currentExecutor.abort(this.currentMove, { timeout, reason })
+    this.executionRunner.setResetReason(reasonStr);
+    await currentExecutor.abort(currentMove, { timeout, reason })
   }
 
   async reset(reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
@@ -366,12 +338,13 @@ export class ThePathfinder {
           settledBlock?.position
         )
 
+        const currentPath = this.currentPath;
         if (oldBlock == null || settledBlock == null) return
-        if (this.curPath == null) return
+        if (currentPath == null) return
         if (oldBlock.type === settledBlock.type) return // break in progress.
         if (!this.isPositionNearPath(oldBlock.position)) return
         if (settledBlock == null) return
-        if (this.updateMatchesWanted(settledBlock, this.curPath)) return
+        if (this.updateMatchesWanted(settledBlock, currentPath)) return
 
         log('Block update near path detected, resetting...')
         await this.reset('blockUpdate')
@@ -400,12 +373,13 @@ export class ThePathfinder {
 
   }
 
-  public updateMatchesWanted(block: Block | null, path: Move[] | undefined = this.curPath): boolean {
-    log(`block: ${block?.name} pos: ${block?.position}, path: ${path?.length}, index: ${this.currentIndex}`)
+  public updateMatchesWanted(block: Block | null, path: Move[] | undefined = this.currentPath): boolean {
+    const currentIndex = this.currentIndex;
+    log(`block: ${block?.name} pos: ${block?.position}, path: ${path?.length}, index: ${currentIndex}`)
     if (block == null || path == null) return false
 
     const pos = block.position.floored()
-    for (let i = Math.max(0, this.currentIndex - 2); i < path.length; i++) {
+    for (let i = Math.max(0, currentIndex - 2); i < path.length; i++) {
       const move = path[i]
       for (const place of move.toPlace) {
         if (place.vec.equals(pos)) {
@@ -431,7 +405,7 @@ export class ThePathfinder {
     return false
   }
 
-  isPositionNearPath(pos: Vec3 | undefined, path: Move[] | undefined = this.curPath): boolean {
+  isPositionNearPath(pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
     if (pos == null || path == null) return false
 
     for (let i = this.currentIndex; i < path.length; i++) {
@@ -530,24 +504,27 @@ export class ThePathfinder {
     movements = this.activeMappings.movements
   ): PathGenerator {
     this.abortCalculation = false
-    delete this.resetReason
+    this.clearResetReason()
 
     startPos = getNormalizedPos(this.bot, startPos)
     log('Generating path from %O to %O', startPos, goal)
 
-    this.currentMove = Move.startMove(
+
+    const startMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
       startPos.clone(),
       startVel.clone(),
       getScaffoldCount(this.bot)
     )
-    this.currentExecutor = new IdleMovementExecutor(this.bot, this.world, this.defaultMoveSettings)
+
+    this.executionRunner.setCurrentMove(startMove)
+    this.executionRunner.setCurrentExecutor(new IdleMovementExecutor(this.bot, this.world, this.defaultMoveSettings))
 
     this.bot.pathingUtil.refresh()
 
     if (this.pathfinderSettings.partialPathProducer) {
       this._currentProducer = new PartialPathProducer(
-        this.currentMove,
+        startMove,
         goal,
         settings,
         this.bot,
@@ -556,7 +533,7 @@ export class ThePathfinder {
       )
     } else {
       this._currentProducer = new ContinuousPathProducer(
-        this.currentMove,
+        startMove,
         goal,
         settings,
         this.bot,
@@ -757,19 +734,16 @@ export class ThePathfinder {
             manualCleanup()
           }
         }
-      } while (!(this.resetReason === "goalReassignment") && madeIt === false)
+      } while (this.resetReason !== "goalReassignment" && madeIt === false)
 
       await this.cleanupBot()
       if (doForever) {
-        if (this.resetReason == null && !(this.resetReason === "goalReassignment")) {
+        if (this.resetReason == null && this.resetReason !== "goalReassignment") {
           await toWaitOn
         }
       }
-    } while (doForever && !(this.resetReason === "goalReassignment"))
+    } while (doForever && this.resetReason !== "goalReassignment")
   }
-
-
-
 
   perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     return this.executionRunner.perform(path, goal, entry)
@@ -788,11 +762,12 @@ export class ThePathfinder {
 
   cleanupClient(): void {
     this.abortCalculation = false
-    delete this.resetReason
+    this.clearResetReason()
     delete this.currentGotoGoal
-    delete this.curPath
-    delete this.currentMove
-    delete this.currentExecutor
+    delete this.currentPath;
+    delete this.currentExecutor;
+    delete this.currentMove;
+
   }
 
   async cleanupAll(goal: goals.Goal, executor = this.currentExecutor): Promise<void> {
