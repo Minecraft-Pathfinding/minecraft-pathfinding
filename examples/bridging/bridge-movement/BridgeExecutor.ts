@@ -410,7 +410,8 @@ export class BridgeExecutor extends MovementExecutor {
 
     const needsElevatedJump = this.elevated &&
       nowMs >= this.elevatedJumpCooldownUntilMs &&
-      bot.entity.onGround
+      bot.entity.onGround &&
+      !modeResult.wantSneak
 
     const finalJump = modeResult.wantJump || needsElevatedJump
     const finalSneak = modeResult.wantSneak && !finalJump
