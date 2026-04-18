@@ -12,7 +12,6 @@ import { World } from '../world/worldInterface'
 import v, { Vec3 } from 'vec3'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { JumpSim } from './simulators/jumpSim'
-import { smartMovement } from './controls'
 import type { Block } from '../../types'
 import type { PCChunk } from 'prismarine-chunk'
 
@@ -462,7 +461,7 @@ export class ParkourJumpHelper {
     // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));
   }
 
-  public simJumpFromEdge (srcBBs: AABB[], goal: Vec3): boolean {
+  public simJumpFromEdge (srcBBs: AABB[], goal: Vec3, eyeTarget?: Vec3): boolean {
     // const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6);
     // console.log(bbs)
 
@@ -549,11 +548,15 @@ export class ParkourJumpHelper {
     const state = this.sim.simulateUntil(
       reached,
       JumpSim.getCleanupPosition(target),
-      (state, ticks) => {
-        stateLookAt(state, target)
-        smartMovement(state, target, true)
-        state.control.set('jump', jump && ticks === 0)
-      },
+      JumpSim.buildFullController(
+        JumpSim.getControllerStraightAim(target),
+        JumpSim.getControllerStrafeAim(target, true),
+        JumpSim.getControllerSmartMovement(target, true),
+        (state, ticks) => {
+          state.control.sneak = false
+          state.control.set('jump', jump && ticks === 0)
+        }
+      ),
       ctx,
       this.world,
       45

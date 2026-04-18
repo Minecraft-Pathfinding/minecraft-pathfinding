@@ -10,7 +10,7 @@ import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel,
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
 import type { Block, RayType } from '../../types'
-import { botSmartMovement } from './controls'
+import { botSmartMovement, botStrafeMovementStrict } from './controls'
 
 const debug = require('debug')
 const logIdle = debug('minecraft-pathfinding:movementExecutors:Idle')
@@ -35,6 +35,11 @@ export class IdleMovementExecutor extends MovementExecutor {
 
 
 export class NewForwardExecutor extends MovementExecutor {
+
+  protected isComplete(startMove: Move, endMove?: Move, opts?: CompleteOpts): boolean {
+    return super.isComplete(startMove, endMove, {ticks: 2})
+  }
+
   private async faceForward (): Promise<boolean> {
     // console.log('called faceForward!')
     if (this.doWaterLogic()) return true
@@ -1015,8 +1020,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   private executing = false
   private lockedYaw: number | null = null
-  private _lookAtInFlight: Promise<void> | null = null
-  private _pendingLookTarget: Vec3 | null = null
 
   protected static readonly APPROACH_YAW_EPS: number = 0.16 // ~9.2 deg — generous for cardinal jumps
 
@@ -1029,8 +1032,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
     logParkour(...args)
   }
 
-  private _lockCurrentYaw (): void {
-    this.lockedYaw = this.bot.entity.yaw
+  private _lockCurrentYaw (targetYaw: number): void {
+    this.lockedYaw = targetYaw
   }
 
   private _clearLockedYaw (): void {
@@ -1043,33 +1046,17 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
   }
 
+  private _lockAndApplyTargetYaw (target: Vec3): void {
+    this._lockCurrentYaw(this._desiredYawTo(target))
+    this._applyLockedYaw()
+  }
+
   private _applySmartControls (target: Vec3, jump: boolean): void {
     this._applyLockedYaw()
     botSmartMovement(this.bot, target, true)
+    botStrafeMovementStrict(this.bot, target)
     this.bot.setControlState('jump', jump)
     this.bot.setControlState('sneak', false)
-  }
-
-  private _queueLookAtSync (target: Vec3): Promise<void> {
-    this._pendingLookTarget = target
-
-    if (this._lookAtInFlight != null) {
-      return this._lookAtInFlight
-    }
-
-    this._lookAtInFlight = (async () => {
-      try {
-        while (this._pendingLookTarget != null) {
-          const nextTarget = this._pendingLookTarget
-          this._pendingLookTarget = null
-          await this.lookAt(nextTarget, true)
-        }
-      } finally {
-        this._lookAtInFlight = null
-      }
-    })()
-
-    return this._lookAtInFlight
   }
 
   private _getTargetBlock (thisMove: Move): Vec3 {
@@ -1135,8 +1122,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
       this.bot.entity.velocity,
     )
     this._debugLog(
-      'yaw delta:',
-      this._yawDeltaAbs(this._desiredYawTo(jumpState.targetEyeVec)) * (180 / Math.PI)
+      'yaw info:',
+      this._yawDeltaAbs(this._desiredYawTo(jumpState.targetEyeVec)) * (180 / Math.PI),
+      jumpState.targetEyeVec
     );
 
     (this as any)._lastTime = performance.now()
@@ -1153,7 +1141,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   }
 
   private _startJumpExecution (target: Vec3): void {
-    this.lockedYaw = this.bot.entity.yaw
+    this.lockedYaw = this._desiredYawTo(target)
     this.executing = true
     this._applySmartControls(target, true)
   }
@@ -1177,7 +1165,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   }
 
   private _tryApproachWhenAligned (targetEyeVec: Vec3): boolean {
-    void this._queueLookAtSync(targetEyeVec)
+    this._lockAndApplyTargetYaw(targetEyeVec)
 
     if (!this._isYawAlignedForApproach(targetEyeVec)) {
       this._clearApproachControls()
@@ -1195,13 +1183,12 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const jumpState = this._getJumpState(thisMove)
     const { target, targetEyeVec, canDirectJump, canJumpFromEdge, fallOffEdge } = jumpState
 
-    void this._queueLookAtSync(targetEyeVec)
+    this._lockAndApplyTargetYaw(targetEyeVec)
 
     this._debugJumpState('align', jumpState)
 
     if (fallOffEdge) {
       this.executing = true
-      this._lockCurrentYaw()
       this._applySmartControls(targetEyeVec, false)
       return true
     }
@@ -1239,7 +1226,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
-    void this._queueLookAtSync(targetEyeVec)
+    this._lockAndApplyTargetYaw(targetEyeVec)
   }
 
   performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
@@ -1253,7 +1240,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
 
     if (this.executing) {   
-      this._applySmartControls(targetEyeVec, false)
+      // this._lockAndApplyTargetYaw(targetEyeVec)
+      this._applyLockedYaw()
+      this._applySmartControls(targetEyeVec, true)
       return this.isComplete(thisMove)
     }
 
@@ -1262,7 +1251,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     this._debugJumpState('tick', jumpState)
 
-    void this._queueLookAtSync(targetEyeVec)
+    this._lockAndApplyTargetYaw(targetEyeVec)
 
     if (canDirectJump || fallOffEdge) {
       if (!this._isYawAlignedForApproach(targetEyeVec)) {
@@ -1276,7 +1265,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
 
     if (canJumpFromEdge) {
-      this._clearLockedYaw()
       this._tryApproachWhenAligned(targetEyeVec)
       return false
     }

@@ -119,7 +119,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
       JumpSim.getCleanupPosition(goalCorner),
       JumpSim.buildFullController(
         JumpSim.getControllerStraightAim(goalCorner),
-        JumpSim.getControllerStrafeAim(goalCorner),
+        JumpSim.getControllerStrafeAim(goalCorner, true),
         JumpSim.getControllerSmartMovement(goalCorner, sprint),
         (state, ticks) => {
           // console.log('jump edge', state.age, state.pos)

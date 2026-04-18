@@ -1,4 +1,4 @@
-import { Bot } from 'mineflayer'
+import { Bot, BotEvents } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
@@ -103,15 +103,15 @@ export function getNormalizedPos (bot: Bot, startPos?: Vec3): Vec3 {
   return pos
 }
 
-export async function onceWithCleanup<T> (
-  emitter: NodeJS.EventEmitter,
-  event: string,
-  options: { timeout?: number, checkCondition?: (data?: T) => boolean } = {}
-): Promise<T> {
+export async function onceWithCleanup<T extends keyof BotEvents> (
+  emitter: Bot,
+  event: T,
+  options: { timeout?: number, checkCondition?: (...data: Parameters<BotEvents[T]>) => boolean } = {}
+): Promise<Parameters<BotEvents[T]>> {
   return await new Promise((resolve, reject) => {
     const timeout = options.timeout ?? 10000
 
-    let checkCondition: (data?: T) => boolean
+    let checkCondition: (...data: Parameters<BotEvents[T]>) => boolean
     if (options.checkCondition != null) checkCondition = options.checkCondition
     else checkCondition = () => true
 
@@ -119,14 +119,36 @@ export async function onceWithCleanup<T> (
       emitter.removeListener(event, listener)
       reject(new Error(`Timeout waiting for ${event}`))
     }, timeout)
-    const listener = (data: T): void => {
-      if (checkCondition(data)) {
+
+    // man fuck it, it's good enough.
+    const listener: any = (...data: Parameters<BotEvents[T]>): void | Promise<void> => {
+      if (checkCondition(...data)) {
         clearTimeout(timeoutId)
         emitter.removeListener(event, listener)
         resolve(data)
       }
     }
     emitter.on(event, listener)
+  })
+}
+
+export async function waitForMove (bot: Bot, timeout = 0): Promise<void> {
+  if (timeout > 0) {
+    await onceWithCleanup(bot, 'move', {
+      timeout,
+      checkCondition: (oldPos) => oldPos != null && !oldPos.equals(bot.entity.position)
+    })
+    return
+  }
+
+  await new Promise<void>((resolve) => {
+    const listener = (oldPos: Vec3): void => {
+      if (!oldPos.equals(bot.entity.position)) {
+        bot.off('move', listener)
+        resolve()
+      }
+    }
+    bot.on('move', listener)
   })
 }
 

@@ -1,0 +1,80 @@
+ minecraft-pathfinding:main [ExecID: 1] Movement idx 1 finished. Extra?:  true +559ms
+  minecraft-pathfinding:main [ExecID 1] Finish info. start: 1. endIdx: 1, info: true, path len: 3 +0ms
+  minecraft-pathfinding:main [ExecID 1] extra info: (0.5, 60, 5.5) +0ms
+  minecraft-pathfinding:main Unoptimized move (idx 2) when we have optimizer! (0, 60, 2),(0, 60, 5),(-4, 61, 4) vs (0, 60, 2),(0, 60, 5),(-4, 61, 4) +0ms
+  minecraft-pathfinding:main [ExecID: 1] Executing move: ParkourDiagonal aligned to unoptimized index 2 +0ms
+  minecraft-pathfinding:main [ExecID: 1] Aligning for move: ParkourDiagonal... +0ms
+  minecraft-pathfinding:movementExecutors:Parkour align 21497.9965 +5ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: true fallOffEdge: false +0ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.5881673799471843 Vec3 { x: 0.5, y: 60.121296840539195, z: 4.939195197823581 } Vec3 {
+  x: -4.368559964273512e-18,
+  y: -0.4448259643949201,
+  z: 0.15567371210812778
+} +1ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+moved to pos: Vec3 { x: 0.5, y: 60.121296840539195, z: 4.939195197823581 }
+moved to pos: Vec3 { x: 0.48129865154324825, y: 60, z: 5.076806255172882 }
+  minecraft-pathfinding:movementExecutors:Parkour align 59.65459999999803 +60ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: true fallOffEdge: false +0ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.537665014998813 Vec3 { x: 0.3707736721660452, y: 60, z: 5.1117190339102585 } Vec3 {
+  x: -0.06034663873995287,
+  y: -0.0784000015258789,
+  z: 0.01906237719060732
+} +0ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+moved to pos: Vec3 { x: 0.3707736721660452, y: 60, z: 5.1117190339102585 }
+  minecraft-pathfinding:movementExecutors:Parkour align 59.72149999999965 +60ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: true fallOffEdge: false +0ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.5596647483126254 Vec3 { x: 0.2215985854223449, y: 60, z: 5.035862958788361 } Vec3 {
+  x: -0.08144959736206035,
+  y: -0.0784000015258789,
+  z: -0.041417417016555894
+} +0ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+moved to pos: Vec3 { x: 0.2215985854223449, y: 60, z: 5.035862958788361 }
+  minecraft-pathfinding:movementExecutors:Parkour align 61.52969999999914 +62ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: true fallOffEdge: false +0ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.573110678719381 Vec3 { x: 0.012756874052845923, y: 60, z: 4.993027407881605 } Vec3 {
+  x: -0.11402757440774645,
+  y: -0.0784000015258789,
+  z: -0.023388210795089275
+} +1ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+moved to pos: Vec3 { x: 0.012756874052845923, y: 60, z: 4.993027407881605 }
+  minecraft-pathfinding:movementExecutors:Parkour align 62.53650000000198 +62ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: true fallOffEdge: false +1ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.581644828850613 Vec3 { x: -0.22867036628680376, y: 60, z: 4.969934045274968 } Vec3 {
+  x: -0.13181927322544873,
+  y: -0.0784000015258789,
+  z: -0.012608975983223523
+} +0ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+moved to pos: Vec3 { x: -0.22867036628680376, y: 60, z: 4.969934045274968 }
+moved to pos: Vec3 { x: -0.4878821498558506, y: 60, z: 4.958707141421203 }
+  minecraft-pathfinding:movementExecutors:Parkour align 61.231400000000576 +61ms
+  minecraft-pathfinding:movementExecutors:Parkour can we make it? jump right now: false jump at ledge: false fallOffEdge: false +1ms
+  minecraft-pathfinding:movementExecutors:Parkour current bot info: 1.591318037161152 Vec3 {
+  x: -0.7568042940281483,
+  y: 59.92159999847412,
+  z: 4.953959324046507
+} Vec3 {
+  x: -0.14683149071807453,
+  y: -0.1552320045166016,
+  z: -0.002592308286584237
+} +0ms
+  minecraft-pathfinding:movementExecutors:Parkour yaw info: 0 Vec3 { x: -3, y: 61, z: 5 } +0ms
+  minecraft-pathfinding:main [ExecID: 1] CancelError handled. Triggering recovery. +1ms
+  minecraft-pathfinding:main Entering recovery 0 for move ParkourDiagonal from Vec3 { x: 0.5, y: 60, z: 5.5 } to Vec3 { x: -3.5, y: 61, z: 4.5 } +0ms
+[bridge dbg] enteredRecovery attempt #0
+  minecraft-pathfinding:main Full recovery needed. Bad: false, NextMove Null: true +1ms
+  minecraft-pathfinding:main Generating path from Vec3 {
+  minecraft-pathfinding:main   x: -0.7568042940281483,
+  minecraft-pathfinding:main   y: 59.92159999847412,
+  minecraft-pathfinding:main   z: 4.953959324046507
+  minecraft-pathfinding:main } to GoalBlock { x: -4, y: 61, z: 4 } +0ms
+  minecraft-pathfinding:main Path producer initialized: ContinuousPathProducer +1ms
+  minecraft-pathfinding:main Recovery pathfinding returned null. Cannot recover. Fail. +1ms
+[bridge dbg] exitedRecovery attempt #0
+  minecraft-pathfinding:main [ExecId 1] End pos: (-0.7568042940281483, 59.92159999847412, 4.953959324046507) +1ms
+  minecraft-pathfinding:main [ExecID: 1] Perform loop ended naturally. +0ms
+  minecraft-pathfinding:main Goto reached the goal! +0ms

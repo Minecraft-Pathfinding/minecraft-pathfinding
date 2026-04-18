@@ -8,6 +8,8 @@ import { MovementProvider } from './movementProvider'
 import { BlockInfo } from '../world/cacheWorld'
 import { COST_INF } from './costs'
 
+const PARKOUR_DIAGONAL_3_1_TRAVEL = Math.sqrt(17) // 4 by 1 offset.
+
 // technically, the offsets are slow. Yeah, I know.
 // However, removing those breaks the code. So I won't fix that for the time being. -Gen
 
@@ -588,16 +590,17 @@ export class ParkourDiagonal extends MovementProvider {
     if (!this.getBlockInfo(node, dx, 1, 0).walkthrough) return false
     if (!this.getBlockInfo(node, 0, 1, dz).walkthrough) return false
 
+    const blockE = this.getBlockInfo(node, dx, -2, dz)
+
     const ceilingClear =
       this.getBlockInfo(node, 0, 2, 0).walkthrough &&
       this.getBlockInfo(node, dx, 2, dz).walkthrough &&
       this.getBlockInfo(node, dx, 2, 0).walkthrough &&
       this.getBlockInfo(node, 0, 2, dz).walkthrough
 
-    const floorCleared = !this.getBlockInfo(node, dx, -2, dz).physical
+    const floorCleared = !blockE.physical
 
-    if (flag0 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && floorCleared) {
-      const blockE = this.getBlockInfo(node, dx, -2, dz)
+    if (flag0 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && !floorCleared) {
       if (blockE.physical) {
         neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
         return true
@@ -607,6 +610,7 @@ export class ParkourDiagonal extends MovementProvider {
       return true
     } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical) {
       if (blockC.height - block0.height > 1.2) return false
+      if (travel !== PARKOUR_DIAGONAL_3_1_TRAVEL) return false
       neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this))
       return true
     }

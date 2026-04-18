@@ -99,7 +99,8 @@ bot.once('spawn', () => {
 })
 
 bot.on("move", (pos) => {
-  // console.log('moved to pos:', pos)
+  if (bot.pathfinder && bot.pathfinder.isPathing)
+  console.log('moved to pos:', pos)
 })
 
 // ─── state ───────────────────────────────────────────────────────────────────

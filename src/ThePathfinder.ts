@@ -50,7 +50,7 @@ import { HandlerOpts } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 import { reconstructPath } from './abstract/algorithms'
-import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
+import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos, waitForMove } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 import { handleBlockEvent, handleSettledBlockEvent } from './customBlockEvents'
 
@@ -158,7 +158,7 @@ export class ThePathfinder {
   }
 
   public get isPathing(): boolean {
-    return this.executeTask.done
+    return !this.executeTask.done
   }
 
   public get currentGoal(): Readonly<goals.Goal> | undefined {
@@ -332,8 +332,10 @@ export class ThePathfinder {
       }
     })
 
-    this.bot.on("physicsTick", () => {
-      this.currentTick++;
+    this.bot.on("move", (oldPos) => {
+      if (!oldPos.equals(this.bot.entity.position)) {
+        this.currentTick++;
+      }
     })
   }
 
@@ -705,22 +707,7 @@ export class ThePathfinder {
     } while (doForever && !(this.resetReason === "goalReassignment"))
   }
 
-  private async awaitWithoutTickAdvance<T>(label: string, move: MovementExecutor, fn: () => Promise<T>): Promise<T> {
-    const beforeTick = this.currentTick
-    const result = await fn()
-    const afterTick = this.currentTick
 
-    // don't throw tick advance error if the movement was aborted, since this can happen when waiting.
-    if (move.aborted) return result;
-
-    if (afterTick !== beforeTick) {
-      throw new TickAdvanceError(
-        label, beforeTick, afterTick
-      )
-    }
-
-    return result
-  }
 
 
   private findNextCurrentIdx(execId: number, move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number) {
@@ -739,6 +726,23 @@ export class ThePathfinder {
 
     // however, if the path is optimized this does not work.
     return currentIndex;
+  }
+
+  private async awaitWithoutTickAdvance<T>(label: string, move: MovementExecutor, fn: () => Promise<T>): Promise<T> {
+    const beforeTick = this.currentTick
+    const result = await fn()
+    const afterTick = this.currentTick
+
+    // don't throw tick advance error if the movement was aborted, since this can happen when waiting.
+    if (move.aborted) return result;
+
+    if (afterTick !== beforeTick) {
+      throw new TickAdvanceError(
+        label, beforeTick, afterTick
+      )
+    }
+
+    return result
   }
 
   async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
@@ -870,7 +874,7 @@ export class ThePathfinder {
             log('[ExecID: %d] ...still aligning for move %s. Entry pos: %O, (%d ticks)', myExecutionId, move.moveType.constructor.name, move.entryPos, tickCount)
           }
 
-          await this.bot.waitForTicks(1)
+          await waitForMove(this.bot)
         }
 
         if (tickCount >= ALIGN_TICK_LIMIT) {
@@ -903,7 +907,7 @@ export class ThePathfinder {
             log('[ExecID: %d] ...still performing tick loop for move %s. Target: %O, (%d ticks)', myExecutionId, move.moveType.constructor.name, move.exitPos, tickCount)
           }
 
-          await this.bot.waitForTicks(1)
+          await waitForMove(this.bot)
         }
 
         if (tickCount >= PERFORM_TICK_LIMIT) {
