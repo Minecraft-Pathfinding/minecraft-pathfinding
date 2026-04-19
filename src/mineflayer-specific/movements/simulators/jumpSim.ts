@@ -95,7 +95,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
    * Assume we know the correct back-up position.
    */
   simulateBackUpBeforeJump (ctx: EPhysicsCtx<PlayerState>, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): PlayerState {
-    const aim = strafe ? JumpSim.getControllerStrafeAim(goal) : JumpSim.getControllerStraightAim(goal)
+    const aim = strafe ? JumpSim.getControllerStrafeAim(goal, true) : JumpSim.getControllerStraightAim(goal)
     return this.simulateUntil(
       (state) => state.pos.xzDistanceTo(goal) < 0.02,
       JumpSim.getCleanupPosition(goal),

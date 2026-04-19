@@ -2,6 +2,9 @@ import { IEntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
+const debug = require('debug')
+const logStrafe = debug('minecraft-pathfinding:controls:strafe')
+
 // const ZERO = (0 * Math.PI) / 12
 // const PI_OVER_TWELVE = (1 * Math.PI) / 12
 const TWO_PI_OVER_TWELVE = (2 * Math.PI) / 12
@@ -241,9 +244,7 @@ export function botSmartJumpMovement (bot: Bot, nextPoint: Vec3, sprint = true, 
 }
 
 
-export function botStrafeMovementStrict(bot: Bot, nextPoint: Vec3): void {
-  botStrafeMovement(bot, nextPoint, true)
-}
+
 
 type StrafeState = {
   pos: Vec3
@@ -290,31 +291,54 @@ function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boole
     const currentlyLeft = get?.('left') ?? false
     const currentlyRight = get?.('right') ?? false
 
+    logStrafe(
+      'strict state pos=%O vel=%O yaw=%d target=%O dist=%d forwardError=%d sideError=%d sideVel=%d predictedSideError=%d onGround=%s left=%s right=%s',
+      state.pos,
+      state.vel,
+      state.yaw,
+      nextPoint,
+      dist,
+      forwardError,
+      sideError,
+      sideVel,
+      predictedSideError,
+      state.onGround,
+      currentlyLeft,
+      currentlyRight
+    )
+
     if (currentlyLeft) {
       if (predictedSideError >= -stopThresh) {
         set('left', false)
+        logStrafe('strict branch: clear left at stopThresh=%d', stopThresh)
       }
       set('right', false)
+      logStrafe('strict branch: hold left=false right=false from left latch')
       return
     }
 
     if (currentlyRight) {
       if (predictedSideError <= stopThresh) {
         set('right', false)
+        logStrafe('strict branch: clear right at stopThresh=%d', stopThresh)
       }
       set('left', false)
+      logStrafe('strict branch: hold left=false %s from right latch', predictedSideError > stopThresh ? 'right=true' : 'right=false')
       return
     }
 
     if (predictedSideError > startThresh) {
       set('left', false)
       set('right', true)
+      logStrafe('strict branch: set right=true startThresh=%d', startThresh)
     } else if (predictedSideError < -startThresh) {
       set('left', true)
       set('right', false)
+      logStrafe('strict branch: set left=true startThresh=%d', startThresh)
     } else {
       set('left', false)
       set('right', false)
+      logStrafe('strict branch: clear lateral controls startThresh=%d', startThresh)
     }
     return
   }

@@ -31,7 +31,7 @@ const bot = createBot({
   username: 'testing1',
   auth: 'offline',
   host: 'localhost',
-  port: 54501
+  port: 60880
 }) // Fixed: Added missing closing parenthesis here
 
 function applyBridgeMode (mode: BridgeMode): number {

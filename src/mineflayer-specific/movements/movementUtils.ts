@@ -409,25 +409,6 @@ export class ParkourJumpHelper {
     return result
   }
 
-  private _shiftBackupVertex(backupVert: Vec3, goalVert: Vec3, mode: 'away' | 'toward'): Vec3 {
-    const sign = mode === 'away' ? 1 : -1
-    const offsetX = Math.sign(backupVert.x - goalVert.x) * 0.3 * sign
-    const offsetZ = Math.sign(backupVert.z - goalVert.z) * 0.3 * sign
-
-    const result = backupVert.clone().offset(offsetX, 0, offsetZ)
-    return this._snapSharedAxesToFaceCenter(result, goalVert)
-  }
-
-  private _validateBackupJump(goal: Vec3, goalVert: Vec3, bbs: AABB[], backupTarget: Vec3): boolean {
-    const goalBBs = this.world.getBlockInfo(goal).getBBs()
-    const reached = JumpSim.getReachedAABB(goalBBs)
-    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
-
-    this.sim.simulateBackUpBeforeJump(ctx, backupTarget, true, true, 40)
-    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
-    return reached(state, 0) as boolean
-  }
-
   public simJumpFromEdge(srcBBs: AABB[], goal: Vec3, eyeTarget?: Vec3): boolean {
     // const bbs = this.getUnderlyingBBs(this.bot.entity.position, 0.6);
     // console.log(bbs)
@@ -544,13 +525,7 @@ export class ParkourJumpHelper {
     const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
 
     this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40)
-
-    console.log('state info', ctx.state.pos, ctx.state.yaw, ctx.state.pitch)
-    console.log('goal vert found', goalVert, 'backup vert target', lazyFix)
-    console.log('goal block', goal, 'us', this.bot.entity.position)
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
-    console.log('sup fuckers 1', ctx.state.pos, ctx.state.vel, ctx.state.yaw, ctx.state.pitch, reached(state, 0) as boolean)
-
     return reached(state, 0) as boolean
   }
 }

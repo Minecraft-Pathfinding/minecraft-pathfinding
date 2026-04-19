@@ -8,7 +8,7 @@ import { AbortError, CancelError, ManualResetError, ResetError } from '../except
 import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, BotcraftPhysics, Controller, ControlStateHandler, EPhysicsCtx, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
-import { botStrafeMovement, botSmartMovement, botStrafeMovementStrict } from './controls'
+import { botStrafeMovement, botSmartMovement } from './controls'
 import { getNormalizedPos, interpolateStepPoints, posToYawPitchFromEye } from '../../utils'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 import type { RayType } from '../../types'
@@ -637,7 +637,7 @@ export abstract class MovementExecutor extends Movement {
       }
     }
 
-    botStrafeMovementStrict(this.bot, endMove.exitPos)
+    botStrafeMovement(this.bot, endMove.exitPos, true)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
 

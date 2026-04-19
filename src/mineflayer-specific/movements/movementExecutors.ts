@@ -10,7 +10,7 @@ import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel,
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
 import type { Block, RayType } from '../../types'
-import { botSmartMovement, botStrafeMovementStrict } from './controls'
+import { botSmartMovement, botStrafeMovement } from './controls'
 
 const debug = require('debug')
 const logIdle = debug('minecraft-pathfinding:movementExecutors:Idle')
@@ -1047,6 +1047,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   }
 
   private _applyLockedYaw(): void {
+
     if (this.lockedYaw != null) {
       this.bot.entity.yaw = this.lockedYaw
     }
@@ -1055,7 +1056,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private _applySmartControls(target: Vec3, jump: boolean): void {
     this._applyLockedYaw()
     botSmartMovement(this.bot, target, true)
-    botStrafeMovementStrict(this.bot, target)
+    botStrafeMovement(this.bot, target, true)
     this.bot.setControlState('jump', jump)
     this.bot.setControlState('sneak', false)
   }
@@ -1420,6 +1421,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
 
     if (this.executing) {
+      // printBotControls(this.bot, logParkour)
+      logParkour(`Bot pos: %O`, this.bot.entity.position)
+      this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
       this._applySmartControls(targetEyeVec, false)
       return this.isComplete(thisMove)
     }

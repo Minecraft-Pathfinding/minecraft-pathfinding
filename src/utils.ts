@@ -3,14 +3,27 @@ import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
 
-export function printBotControls (bot: Bot): void {
-  // console.log('forward', bot.getControlState('forward'))
-  // console.log('back', bot.getControlState('back'))
-  // console.log('left', bot.getControlState('left'))
-  // console.log('right', bot.getControlState('right'))
-  // console.log('jump', bot.getControlState('jump'))
-  // console.log('sprint', bot.getControlState('sprint'))
-  // console.log('sneak', bot.getControlState('sneak'))
+export function printBotControls(bot: Bot, log: (...args: unknown[]) => void = console.log): void {
+  const controls = {
+    forward: bot.getControlState('forward'),
+    back: bot.getControlState('back'),
+    left: bot.getControlState('left'),
+    right: bot.getControlState('right'),
+    jump: bot.getControlState('jump'),
+    sprint: bot.getControlState('sprint'),
+    sneak: bot.getControlState('sneak'),
+  }
+
+  log(
+    '[bot controls]',
+    `forward=${controls.forward}`,
+    `back=${controls.back}`,
+    `left=${controls.left}`,
+    `right=${controls.right}`,
+    `jump=${controls.jump}`,
+    `sprint=${controls.sprint}`,
+    `sneak=${controls.sneak}`
+  )
 }
 
 export function faceToVec(face: BlockFace): Vec3 {
