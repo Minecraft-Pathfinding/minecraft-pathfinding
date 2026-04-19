@@ -1020,6 +1020,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   private executing = false
   private lockedYaw: number | null = null
+  private backingUp = false
+  private backupAttempted = false
+  private backupTarget: Vec3 | null = null
   private _lookAtInFlight: Promise<void> | null = null
   private _pendingLookTarget: Vec3 | null = null
 
@@ -1078,6 +1081,11 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return this._lookAtInFlight
   }
 
+  private _clearBackupState (): void {
+    this.backingUp = false
+    this.backupTarget = null
+  }
+
   private _getTargetBlock (thisMove: Move): Vec3 {
     return thisMove.exitPos.offset(0, -1, 0)
   }
@@ -1092,6 +1100,81 @@ export class ParkourForwardExecutor extends MovementExecutor {
       bbs.push(AABB.fromBlockPos(thisMove.entryPos.offset(0, -1, 0)))
     }
     return bbs
+  }
+
+  private _getBackupTarget (thisMove: Move): Vec3 | null {
+    const target = this._getTargetBlock(thisMove)
+    const targetEyeVec = this._getTargetEyeVec(target)
+    const backupTarget = this.shitterTwo.getBackupVertexTarget(target, targetEyeVec, undefined, thisMove.entryPos)
+    this._debugLog(
+      'backup target check:',
+      'target:', target,
+      'eye:', targetEyeVec,
+      'result:', backupTarget
+    )
+    return backupTarget
+  }
+
+  private _shouldSneakDuringBackup (thisMove: Move, target: Vec3): boolean {
+    const entryBB = AABB.fromBlockPos(thisMove.entryPos)
+    return !(
+      target.x >= entryBB.minX &&
+      target.x <= entryBB.maxX &&
+      target.z >= entryBB.minZ &&
+      target.z <= entryBB.maxZ
+    )
+  }
+
+  private _applyBackupControls (thisMove: Move, target: Vec3): void {
+    this._lockCurrentYaw(this._desiredYawTo(target))
+    void this._queueLookAtSync(target)
+    this._applySmartControls(target, false)
+    this.bot.setControlState('sneak', this._shouldSneakDuringBackup(thisMove, target))
+  }
+
+  private _startBackup (thisMove: Move): boolean {
+    this.backupTarget ??= this._getBackupTarget(thisMove)
+    if (this.backupTarget == null) {
+      this._debugLog('backup start failed: no backup target')
+      return false
+    }
+
+    this.backingUp = true
+    this.backupAttempted = true
+    this._debugLog('backup start:', this.backupTarget)
+    this._applyBackupControls(thisMove, this.backupTarget)
+    return true
+  }
+
+  private _advanceBackup (thisMove: Move): 'backing' | 'recheck' | 'jump' | 'failed' {
+    this.backupTarget ??= this._getBackupTarget(thisMove)
+    if (this.backupTarget == null) {
+      this._debugLog('backup advance failed: no backup target')
+      return 'failed'
+    }
+
+    const jumpState = this._getJumpState(thisMove)
+    if (jumpState.canJumpFromEdge) {
+      this._debugLog('backup advance: jump-from-edge became available, switching out of backup')
+      this._clearBackupState()
+      this._clearLockedYaw()
+      this.bot.clearControlStates()
+      return 'jump'
+    }
+
+    const dist = this.bot.entity.position.xzDistanceTo(this.backupTarget)
+    this._debugLog('backup advance:', 'target:', this.backupTarget, 'dist:', dist)
+
+    if (dist > 0.02) {
+      this._applyBackupControls(thisMove, this.backupTarget)
+      return 'backing'
+    }
+
+    this._clearBackupState()
+    this._clearLockedYaw()
+    this.bot.clearControlStates()
+    this._debugLog('backup recheck: reached target, retrying jump state')
+    return 'recheck'
   }
 
   private _getJumpState (thisMove: Move): {
@@ -1199,51 +1282,74 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.executing = false
     this._clearLockedYaw()
 
-    const jumpState = this._getJumpState(thisMove)
-    const { target, targetEyeVec, canDirectJump, canJumpFromEdge, fallOffEdge } = jumpState
+    while (true) {
+      if (this.backingUp) {
+        const backupState = this._advanceBackup(thisMove)
+        if (backupState === 'backing') return false
+        if (backupState === 'jump') continue
+        if (backupState === 'failed') {
+          this.bot.clearControlStates()
+          throw new CancelError('ParkourExecutor: backup failed')
+        }
+      }
 
-    void this._queueLookAtSync(targetEyeVec)
+      const jumpState = this._getJumpState(thisMove)
+      const { targetEyeVec, canDirectJump, canJumpFromEdge, fallOffEdge } = jumpState
 
-    this._debugJumpState('align', jumpState)
+      void this._queueLookAtSync(targetEyeVec)
 
-    if (fallOffEdge) {
-      this.executing = true
-      this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
-      this._applySmartControls(targetEyeVec, false)
-      return true
-    }
+      this._debugJumpState('align', jumpState)
 
-    if (canDirectJump) {
-      if (!this._isYawAlignedForApproach(targetEyeVec)) {
-        this._clearApproachControls()
+      if (fallOffEdge) {
+        this.executing = true
+        this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
+        this._applySmartControls(targetEyeVec, false)
+        return true
+      }
+
+      if (canDirectJump) {
+        if (!this._isYawAlignedForApproach(targetEyeVec)) {
+          this._clearApproachControls()
+          return false
+        }
+
+        this._clearBackupState()
+        this._startJumpExecution(targetEyeVec)
+        return true
+      }
+
+      if (canJumpFromEdge) {
+        this._clearBackupState()
+        this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
+        this._tryApproachWhenAligned(targetEyeVec)
         return false
       }
 
-      this._startJumpExecution(targetEyeVec)
-      return true
-    }
+      if (!this.bot.entity.onGround && this.bot.entity.position.y <= thisMove.entryPos.y) {
+        throw new CancelError(`Too low y level! bot: ${this.bot.entity.position.y} | target: ${thisMove.entryPos.y}`)
+      }
 
-    if (canJumpFromEdge) {
-      this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
-      this._tryApproachWhenAligned(targetEyeVec)
-      return false
-    }
+      if (this.bot.entity.onGround) {
+        this.bot.clearControlStates()
+      }
 
-    if (!this.bot.entity.onGround && this.bot.entity.position.y <= thisMove.entryPos.y) {
-      throw new CancelError(`Too low y level! bot: ${this.bot.entity.position.y} | target: ${thisMove.entryPos.y}`)
-    }
+      if (this.backupAttempted) {
+        this._clearBackupState()
+        throw new CancelError('ParkourExecutor: will not make this jump after backing up!')
+      }
 
-    if (this.bot.entity.onGround) {
+      if (this._startBackup(thisMove)) return false
+
       this.bot.clearControlStates()
+      throw new CancelError('ParkourExecutor: will not make this jump!')
     }
-
-    this._tryApproachWhenAligned(targetEyeVec)
-    return false
   }
 
   async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.executing = false
     this._clearLockedYaw()
+    this._clearBackupState()
+    this.backupAttempted = false
 
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
@@ -1265,38 +1371,60 @@ export class ParkourForwardExecutor extends MovementExecutor {
       return this.isComplete(thisMove)
     }
 
-    const jumpState = this._getJumpState(thisMove)
-    const { canDirectJump, canJumpFromEdge, fallOffEdge } = jumpState
+    while (true) {
+      if (this.backingUp) {
+        const backupState = this._advanceBackup(thisMove)
+        if (backupState === 'backing') return false
+        if (backupState === 'jump') continue
+        if (backupState === 'failed') {
+          this.bot.clearControlStates()
+          throw new CancelError('ParkourExecutor: backup failed')
+        }
+      }
 
-    this._debugJumpState('tick', jumpState)
+      const jumpState = this._getJumpState(thisMove)
+      const { canDirectJump, canJumpFromEdge, fallOffEdge } = jumpState
 
-    void this._queueLookAtSync(targetEyeVec)
+      this._debugJumpState('tick', jumpState)
 
-    if (canDirectJump || fallOffEdge) {
-      if (!this._isYawAlignedForApproach(targetEyeVec)) {
-        this._clearApproachControls()
+      void this._queueLookAtSync(targetEyeVec)
+
+      if (canDirectJump || fallOffEdge) {
+        if (!this._isYawAlignedForApproach(targetEyeVec)) {
+          this._clearApproachControls()
+          return false
+        }
+        this._clearBackupState()
+        if (canDirectJump) this._startJumpExecution(targetEyeVec)
+        else this._applySmartControls(targetEyeVec, false)
+
         return false
       }
-      if (canDirectJump) this._startJumpExecution(targetEyeVec)
-      else this._applySmartControls(targetEyeVec, false)
-      
-      return false
-    }
 
-    if (canJumpFromEdge) {
+      if (canJumpFromEdge) {
+        this._clearBackupState()
+        this._clearLockedYaw()
+        this._tryApproachWhenAligned(targetEyeVec)
+        return false
+      }
+
+      if (!this.bot.entity.onGround) {
+        this._clearLockedYaw()
+        throw new CancelError('ParkourExecutor: missed jump window')
+      }
+
+      if (this.backupAttempted) {
+        this._clearBackupState()
+        this.bot.clearControlStates()
+        throw new CancelError('ParkourExecutor: will not make this jump after backing up!')
+      }
+
+      if (this._startBackup(thisMove)) return false
+
       this._clearLockedYaw()
-      this._tryApproachWhenAligned(targetEyeVec)
-      return false
+      this.bot.clearControlStates()
+      throw new CancelError('ParkourExecutor: will not make this jump!')
     }
-
-    if (!this.bot.entity.onGround) {
-      this._clearLockedYaw()
-      throw new CancelError('ParkourExecutor: missed jump window')
-    }
-
-    this._clearLockedYaw()
-    this.bot.clearControlStates()
-    throw new CancelError('ParkourExecutor: will not make this jump!')
   }
 }
 

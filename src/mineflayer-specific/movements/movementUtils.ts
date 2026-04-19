@@ -364,101 +364,55 @@ export class ParkourJumpHelper {
   }
 
   public findBackupVertex(bbs: AABB[], goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 {
-    const dir = goalVert.minus(this.bot.entity.position)
-    dir.translate(0, -dir.y, 0)
-    dir.normalize()
+    const verts = bbs.flatMap((bb) => bb.toVertices())
+    if (verts.length === 0) return orgPos.clone()
 
-    // const test = this.bot.entity.position.floored().offset(0, -1, 0)
+    let bestVert = verts[0]
+    let bestDist = bestVert.distanceTo(goalVert)
+    let bestOrgDist = bestVert.distanceTo(orgPos)
 
-    const start = this.bot.entity.position.clone()
-    start.y = Math.round(start.y)
+    for (const vert of verts.slice(1)) {
+      const dist = vert.distanceTo(goalVert)
+      const orgDist = vert.distanceTo(orgPos)
 
-    // console.log(this.bot.entity.position, start, bbs);
-    const intersects = []
-
-    // const bbs = this.getUnderlyingBBs(start, 0.6)
-
-    start.translate(0, -0.251, 0)
-    for (const bb of bbs) {
-      const intersect = bb.intersectsRay(start, dir)
-      if (intersect != null) intersects.push(intersect)
-    }
-
-    intersects.sort((a, b) => b.distanceTo(start) - a.distanceTo(start))
-    const intersect = intersects[0] as Vec3 | undefined
-
-    if (intersect == null) {
-      let intersect: Vec3 = this.bot.entity.position
-      let verts = bbs.flatMap((bb) => bb.toVertices())
-      verts = verts.filter((v) => goalVert.xzDistanceTo(v) > goalVert.xzDistanceTo(start))
-      let closest = 0
-      const minY = this.bot.entity.position
-
-      for (const vert of verts) {
-        if (vert.y < minY.y) continue
-        const dir1 = goalVert.minus(vert)
-        const cmp = dir.dot(dir1)
-        if (cmp > closest) {
-          closest = cmp
-          intersect = vert
-        }
+      if (dist > bestDist + 1e-6) {
+        bestVert = vert
+        bestDist = dist
+        bestOrgDist = orgDist
+        continue
       }
 
-      return intersect
-
-      // console.log(bbs, this.bot.entity.position, start, dir, goalVert)
-    }
-    // if (!intersect) return null;
-
-    const dir2 = intersect.minus(start)
-
-    let scale = 1.25
-
-    // eslint-disable-next-line no-labels
-    outer: while (scale >= 0.6) {
-      const wanted = dir2.scaled(scale).plus(start)
-
-      const width = 0.6
-      const height = 1.8
-      const testBB = AABBUtils.getPlayerAABB({ position: wanted.offset(0, 0.252, 0), width, height })
-
-      const cursor = new Vec3(0, 0, 0)
-      for (let x = testBB.minX; x <= testBB.maxX; x += width / 2) {
-        for (let y = testBB.minY; y <= testBB.maxY; y += height / 2) {
-          for (let z = testBB.minZ; z <= testBB.maxZ; z += width / 2) {
-            cursor.set(x, y, z)
-            // console.log(cursor)
-            const bl = this.world.getBlockInfo(cursor)
-            if (bl.physical && bl.getBBs().some((b) => b.collides(testBB))) {
-              // console.log('scale', scale, 'failed')
-              scale -= 0.03
-
-              // eslint-disable-next-line no-labels
-              continue outer
-            }
-          }
-        }
+      if (Math.abs(dist - bestDist) <= 1e-6 && orgDist < bestOrgDist) {
+        bestVert = vert
+        bestOrgDist = orgDist
       }
-
-      // console.log('scale', scale, 'success', wanted, intersect)
-      // if (this.world.getBlockInfo(wanted).physical) {
-      return wanted
-      // }
-
-      // for (const vert of testBB.toVertices()) {
-
-      //   if (this.world.getBlockInfo(vert).getBBs().some(b=>!b.collides(testBB))) {
-      //     scale -= 0.03;
-      //     continue outer
-      //   }
-      // }
     }
 
-    // if (this.world.getBlockInfo(wanted).physical) return intersect
+    const offsetX = Math.sign(bestVert.x - goalVert.x) * 0.3
+    const offsetZ = Math.sign(bestVert.z - goalVert.z) * 0.3
 
-    return intersect
+    if (offsetX === 0 && offsetZ === 0) return bestVert
 
-    // return start.minus(dir.scaled(intersect.distanceTo(start) * 1.3));
+    return bestVert.clone().offset(offsetX, 0, offsetZ)
+  }
+
+  private _shiftBackupVertex(backupVert: Vec3, goalVert: Vec3, mode: 'away' | 'toward'): Vec3 {
+    const sign = mode === 'away' ? 1 : -1
+    const offsetX = Math.sign(backupVert.x - goalVert.x) * 0.3 * sign
+    const offsetZ = Math.sign(backupVert.z - goalVert.z) * 0.3 * sign
+
+    if (offsetX === 0 && offsetZ === 0) return backupVert.clone()
+    return backupVert.clone().offset(offsetX, 0, offsetZ)
+  }
+
+  private _validateBackupJump(goal: Vec3, goalVert: Vec3, bbs: AABB[], backupTarget: Vec3): boolean {
+    const goalBBs = this.world.getBlockInfo(goal).getBBs()
+    const reached = JumpSim.getReachedAABB(goalBBs)
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
+
+    this.sim.simulateBackUpBeforeJump(ctx, backupTarget, true, true, 40)
+    const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
+    return reached(state, 0) as boolean
   }
 
   public simJumpFromEdge(srcBBs: AABB[], goal: Vec3, eyeTarget?: Vec3): boolean {
@@ -565,12 +519,12 @@ export class ParkourJumpHelper {
     return testwtf
   }
 
-  public simBackupJump(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3): boolean {
-    const bbs = getUnderlyingBBs(this.world, this.bot.entity.position, 0.6)
+  public simBackupJump(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): boolean {
+    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
 
     const goalBBs = this.world.getBlockInfo(goal).getBBs()
     const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
-    const lazyFix = backupTarget ?? this.findBackupVertex(bbs, goal)
+    const lazyFix = backupTarget ?? this.findBackupVertex(bbs, goalVert)
 
     const reached = JumpSim.getReachedAABB(goalBBs)
 
@@ -578,12 +532,46 @@ export class ParkourJumpHelper {
 
     this.sim.simulateBackUpBeforeJump(ctx, lazyFix, true, true, 40)
 
-    console.log('sup fuckers', ctx.state.pos, ctx.state.yaw, ctx.state.pitch)
-    console.log('test', lazyFix, goalVert)
+    console.log('state info', ctx.state.pos, ctx.state.yaw, ctx.state.pitch)
+    console.log('goal vert found', goalVert, 'backup vert target', lazyFix)
     console.log('goal block', goal, 'us', this.bot.entity.position)
     const state = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
     console.log('sup fuckers 1', ctx.state.pos, ctx.state.vel, ctx.state.yaw, ctx.state.pitch, reached(state, 0) as boolean)
 
     return reached(state, 0) as boolean
+  }
+
+  public getBackupVertexTarget(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 {
+    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
+    const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
+    const rawBackup = backupTarget ?? this.findBackupVertex(bbs, goalVert)
+    if (this._validateBackupJump(goal, goalVert, bbs, rawBackup)) return rawBackup
+
+
+    return rawBackup
+  }
+
+  public getBackupJumpTarget(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 | null {
+    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
+
+    const goalBBs = this.world.getBlockInfo(goal).getBBs()
+    const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
+    const rawBackup = backupTarget ?? this.findBackupVertex(bbs, goalVert)
+
+    const reached = JumpSim.getReachedAABB(goalBBs)
+    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
+
+    const outwardBackup = this._shiftBackupVertex(rawBackup, goalVert, 'away')
+    this.sim.simulateBackUpBeforeJump(ctx, outwardBackup, true, true, 40)
+    const outwardState = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
+    if (reached(outwardState, 0) as boolean) return outwardBackup
+
+    const shiftedBackup = this._shiftBackupVertex(rawBackup, goalVert, 'toward')
+    const shiftedCtx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
+    this.sim.simulateBackUpBeforeJump(shiftedCtx, shiftedBackup, true, true, 40)
+    const shiftedState = this.sim.simulateJumpFromEdgeOfBlock(shiftedCtx, bbs, goalVert, goalBBs, true, 40)
+
+    if (!(reached(shiftedState, 0) as boolean)) return null
+    return shiftedBackup
   }
 }
