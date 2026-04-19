@@ -19,6 +19,7 @@ const debug = require('debug')
 const log = debug('minecraft-pathfinding:PathExecutor')
 
 const EMPTY_VEC = new Vec3(0, 0, 0)
+let warnedNonNodeSyncWait = false
 
 export interface ExecutionMappings {
   movements: ExecutorMap
@@ -37,6 +38,10 @@ type RunnerStage = 'idle' | 'align' | 'optimize' | 'init' | 'perform'
 
 const MAX_TASK_TIME_MS = 40
 
+function isNodeRuntime(): boolean {
+  return typeof process !== 'undefined' && process.versions?.bun == null
+}
+
 export class PathExecutor {
   private currentExecutionId = 0
   private currentIndex = 0
@@ -45,7 +50,7 @@ export class PathExecutor {
   private currentExecutor?: MovementExecutor
   private resetReason?: ResetReason
 
-  public constructor(private readonly bot: Bot, private readonly host: ThePathfinder) {}
+  public constructor(private readonly bot: Bot, private readonly host: ThePathfinder) { }
 
   public bumpExecutionId(): number {
     this.currentExecutionId++
@@ -111,6 +116,13 @@ export class PathExecutor {
   }
 
   private waitForPromiseSync<T>(label: string, promise: Promise<T>): T {
+    if (!isNodeRuntime()) {
+      void promise.catch((err) => {
+        log(`[pathfinder] ${label} rejected on a non-Node runtime: %O`, err)
+      })
+      return undefined as T
+    }
+
     let settled = false
     let value: T | undefined
     let error: unknown
@@ -184,6 +196,9 @@ export class PathExecutor {
 
     let resolveCompletion!: () => void
     let rejectCompletion!: (err: unknown) => void
+
+    let nonNodeDrainInFlight = false
+
 
     const completion = new Promise<void>((resolve, reject) => {
       resolveCompletion = resolve
@@ -305,7 +320,7 @@ export class PathExecutor {
         }
 
 
-  
+
         this.setCurrentMove(move)
         this.setCurrentExecutor(executor)
         this.setCurrentIndex(currentIndex)
@@ -483,7 +498,22 @@ export class PathExecutor {
       }
 
       try {
-        this.waitForPromiseSync('physicsTick drain', runMovementTick())
+        if (!isNodeRuntime()) {
+          if (!warnedNonNodeSyncWait) {
+            warnedNonNodeSyncWait = true
+            console.warn('[pathfinder] physicsTick sync draining is disabled on this runtime; running movement ticks asynchronously.')
+          }
+          if (nonNodeDrainInFlight) return
+          nonNodeDrainInFlight = true
+          void runMovementTick().catch((err) => {
+            void fail(err)
+          }).finally(() => {
+            nonNodeDrainInFlight = false
+          })
+          return
+        }
+
+        this.waitForPromiseSync('physicsTick step', runMovementTick())
       } catch (err) {
         void fail(err)
       }
