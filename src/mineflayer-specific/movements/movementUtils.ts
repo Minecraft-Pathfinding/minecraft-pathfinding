@@ -59,7 +59,7 @@ export function getUnderlyingBBs(world: World, pos: Vec3, width: number, collidi
   const bb = AABBUtils.getPlayerAABB({ position: pos, width, height: 0.1 }) // whatever
   const blocks = new Set(verts.map((v) => world.getBlockInfo(v)))
 
-  // console.log(bb)
+  // console.log('BLOCKS', blocks, 'VERTS', verts)
 
   const ret = []
   for (const block of blocks) {
@@ -391,9 +391,22 @@ export class ParkourJumpHelper {
     const offsetX = Math.sign(bestVert.x - goalVert.x) * 0.3
     const offsetZ = Math.sign(bestVert.z - goalVert.z) * 0.3
 
-    if (offsetX === 0 && offsetZ === 0) return bestVert
+    const result = bestVert.clone().offset(offsetX, 0, offsetZ)
+    return this._snapSharedAxesToFaceCenter(result, goalVert)
+  }
 
-    return bestVert.clone().offset(offsetX, 0, offsetZ)
+  private _snapSharedAxesToFaceCenter (backupVert: Vec3, goalVert: Vec3): Vec3 {
+    const result = backupVert.clone()
+
+    if (Math.abs(result.x - goalVert.x) <= 1e-6) {
+      result.x = Math.floor(goalVert.x) + 0.5
+    }
+
+    if (Math.abs(result.z - goalVert.z) <= 1e-6) {
+      result.z = Math.floor(goalVert.z) + 0.5
+    }
+
+    return result
   }
 
   private _shiftBackupVertex(backupVert: Vec3, goalVert: Vec3, mode: 'away' | 'toward'): Vec3 {
@@ -401,8 +414,8 @@ export class ParkourJumpHelper {
     const offsetX = Math.sign(backupVert.x - goalVert.x) * 0.3 * sign
     const offsetZ = Math.sign(backupVert.z - goalVert.z) * 0.3 * sign
 
-    if (offsetX === 0 && offsetZ === 0) return backupVert.clone()
-    return backupVert.clone().offset(offsetX, 0, offsetZ)
+    const result = backupVert.clone().offset(offsetX, 0, offsetZ)
+    return this._snapSharedAxesToFaceCenter(result, goalVert)
   }
 
   private _validateBackupJump(goal: Vec3, goalVert: Vec3, bbs: AABB[], backupTarget: Vec3): boolean {
@@ -539,39 +552,5 @@ export class ParkourJumpHelper {
     console.log('sup fuckers 1', ctx.state.pos, ctx.state.vel, ctx.state.yaw, ctx.state.pitch, reached(state, 0) as boolean)
 
     return reached(state, 0) as boolean
-  }
-
-  public getBackupVertexTarget(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 {
-    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
-    const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
-    const rawBackup = backupTarget ?? this.findBackupVertex(bbs, goalVert)
-    if (this._validateBackupJump(goal, goalVert, bbs, rawBackup)) return rawBackup
-
-
-    return rawBackup
-  }
-
-  public getBackupJumpTarget(goal: Vec3, eyeTarget?: Vec3, backupTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 | null {
-    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
-
-    const goalBBs = this.world.getBlockInfo(goal).getBBs()
-    const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
-    const rawBackup = backupTarget ?? this.findBackupVertex(bbs, goalVert)
-
-    const reached = JumpSim.getReachedAABB(goalBBs)
-    const ctx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
-
-    const outwardBackup = this._shiftBackupVertex(rawBackup, goalVert, 'away')
-    this.sim.simulateBackUpBeforeJump(ctx, outwardBackup, true, true, 40)
-    const outwardState = this.sim.simulateJumpFromEdgeOfBlock(ctx, bbs, goalVert, goalBBs, true, 40)
-    if (reached(outwardState, 0) as boolean) return outwardBackup
-
-    const shiftedBackup = this._shiftBackupVertex(rawBackup, goalVert, 'toward')
-    const shiftedCtx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
-    this.sim.simulateBackUpBeforeJump(shiftedCtx, shiftedBackup, true, true, 40)
-    const shiftedState = this.sim.simulateJumpFromEdgeOfBlock(shiftedCtx, bbs, goalVert, goalBBs, true, 40)
-
-    if (!(reached(shiftedState, 0) as boolean)) return null
-    return shiftedBackup
   }
 }

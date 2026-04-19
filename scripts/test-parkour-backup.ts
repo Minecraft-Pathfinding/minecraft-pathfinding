@@ -72,8 +72,7 @@ async function main(): Promise<void> {
       const edge = helper.simJumpFromEdge(fallbackBbs, goal, eyeTarget)
       const fallOffEdge = helper.simFallOffEdge(goal, eyeTarget)
       const backupJump = helper.simBackupJump(goal, eyeTarget, backupTarget)
-      const computedBackup = helper.getBackupJumpTarget(goal, eyeTarget, backupTarget)
-
+    
       console.log('--- Parkour probe ---')
       console.log('bot pos:', bot.entity.position.toString())
       console.log('bot vel:', bot.entity.velocity.toString())
@@ -87,7 +86,6 @@ async function main(): Promise<void> {
       console.log('edge jump:', edge)
       console.log('fall off edge:', fallOffEdge)
       console.log('backup jump:', backupJump)
-      console.log('validated backup target:', computedBackup == null ? 'null' : computedBackup.toString())
     } catch (err) {
       console.error('Probe failed:', err)
       process.exitCode = 1
