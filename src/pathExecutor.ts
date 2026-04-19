@@ -212,6 +212,9 @@ export class PathExecutor {
     }
 
     const handleExecutionError = async (err: unknown): Promise<void> => {
+
+      log(`Error: ${err}`)
+
       if (err instanceof AbortError) {
         executorSafeReset(this.getCurrentExecutor())
         this.clearResetReason()
@@ -301,10 +304,14 @@ export class PathExecutor {
           throw new Error('No executor for movement type ' + move.moveType.constructor.name)
         }
 
+
+  
         this.setCurrentMove(move)
         this.setCurrentExecutor(executor)
         this.setCurrentIndex(currentIndex)
         this.setCurrentPath(localPath)
+
+        log(`[ExecID %d] Entering movement ${move.moveType.constructor.name}. Idx: ${this.getCurrentIndex()}, start: ${move.entryPos}, end: ${move.exitPos}`, myExecutionId)
         tickCount = 0
 
         await this.timeAsync('prepare cleanup', () => this.host.cleanupBot())
@@ -424,6 +431,8 @@ export class PathExecutor {
           }
         }
       } catch (err) {
+
+        log(`Error: ${err}`)
         if (err instanceof AbortError) {
           executorSafeReset(this.getCurrentExecutor())
           this.clearResetReason()

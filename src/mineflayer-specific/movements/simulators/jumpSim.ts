@@ -97,7 +97,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
   simulateBackUpBeforeJump (ctx: EPhysicsCtx<PlayerState>, goal: Vec3, sprint: boolean, strafe = true, ticks = 20): PlayerState {
     const aim = strafe ? JumpSim.getControllerStrafeAim(goal) : JumpSim.getControllerStraightAim(goal)
     return this.simulateUntil(
-      (state) => state.pos.xzDistanceTo(goal) < 0.1,
+      (state) => state.pos.xzDistanceTo(goal) < 0.02,
       JumpSim.getCleanupPosition(goal),
       JumpSim.buildFullController(aim, JumpSim.getControllerSmartMovement(goal, sprint), (state, ticks) => {
         state.control.sprint = false
@@ -131,6 +131,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
             // goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z)
             changed = true
           }
+          
           if (ticks > 0 && srcAABBs.every((src) => !src.intersects(playerBB)) && !jump) {
             state.control.jump = true
             jump = true
