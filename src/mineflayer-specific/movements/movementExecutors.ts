@@ -1021,6 +1021,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
   private executing = false
   private lockedYaw: number | null = null
   private backingUp = false
+  private backupSettling = false
   private backupAttempted = false
   private backupTarget: Vec3 | null = null
   private _lookAtInFlight: Promise<void> | null = null
@@ -1084,6 +1085,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   private _clearBackupState(): void {
     this.backingUp = false
+    this.backupSettling = false
     this.backupTarget = null
   }
 
@@ -1135,7 +1137,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     const controls = ControlStateHandler.COPY_BOT(this.bot).set('sneak', false).set('jump', false)
     const ectx = this.simForward({ticks: 2, controls})
-    console.log(ectx.state.pos, ectx.state.control, ectx.state.pos.y, this.bot.entity.position.y, !ectx.state.onGround)
+    // console.log(ectx.state.pos, ectx.state.control, ectx.state.pos.y, this.bot.entity.position.y, !ectx.state.onGround)
     return  ectx.state.pos.y < this.bot.entity.position.y && !ectx.state.onGround
 
 
@@ -1145,7 +1147,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._lockCurrentYaw(this._desiredYawTo(target))
     void this._queueLookAtSync(target)
     this._applySmartControls(target, false)
-    console.log('should sneak', this._shouldSneakDuringBackup(thisMove, target))
+    // console.log('should sneak', this._shouldSneakDuringBackup(thisMove, target))
     this.bot.setControlState('sneak', this._shouldSneakDuringBackup(thisMove, target))
   }
 
@@ -1170,20 +1172,42 @@ export class ParkourForwardExecutor extends MovementExecutor {
       return 'failed'
     }
 
-    // const jumpState = this._getJumpState(thisMove)
-    // if (jumpState.canJumpFromEdge) {
-    //   this._debugLog('backup advance: jump-from-edge became available, switching out of backup')
-    //   this._clearBackupState()
-    //   this._clearLockedYaw()
-    //   this.bot.clearControlStates()
-    //   return 'jump'
-    // }
+    const jumpState = this._getJumpState(thisMove)
+    if (jumpState.canJumpFromEdge) {
+      this._debugLog('backup advance: jump-from-edge became available, switching out of backup')
+      this._clearBackupState()
+      this._clearLockedYaw()
+      this.bot.clearControlStates()
+      return 'jump'
+    }
 
     const dist = this.bot.entity.position.xzDistanceTo(this.backupTarget)
-    this._debugLog('backup advance:', 'target:', this.backupTarget, 'pos:', this.bot.entity.position, 'dist:', dist)
+    const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
+    this._debugLog(
+      'backup advance:',
+      'target:', this.backupTarget,
+      'pos:', this.bot.entity.position,
+      'dist:', dist,
+      'xzVel:', xzVel,
+      'settling:', this.backupSettling
+    )
 
-    if (dist > 0.05) {
+    if (dist > 0.08) {
+      this.backupSettling = false
       this._applyBackupControls(thisMove, this.backupTarget)
+      return 'backing'
+    }
+
+    this.backupSettling = true
+    this.bot.clearControlStates()
+    this.bot.setControlState('sneak', this._shouldSneakDuringBackup(thisMove, this.backupTarget))
+
+    if (xzVel.norm() > 0.05) {
+      this._debugLog(
+        'backup advance: waiting for velocity to settle',
+        'target:', this.backupTarget,
+        'xzVel:', xzVel.norm()
+      )
       return 'backing'
     }
 

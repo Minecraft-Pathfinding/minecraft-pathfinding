@@ -4,7 +4,6 @@ import type { Bot } from 'mineflayer'
 import type { Block } from 'prismarine-block'
 import type { Vec3 } from 'vec3'
 
-const debug = createDebug('minecraft-pathfinding:block-events')
 
 export type BlockUpdateListener = (oldBlock: Block | null, newBlock: Block | null) => void
 
@@ -16,6 +15,15 @@ type BlockEventListenerMap = {
   blockUpdate: BlockUpdateListener
 } & {
   [K in BlockPositionEventName]: BlockUpdateListener
+}
+
+const debugIt = false;
+
+function debug(...args: any[]) {
+  const log = createDebug('minecraft-pathfinding:block-events')
+  if (debugIt) {
+    log(...args)
+  }
 }
 
 export function toBlockPositionEventName(position: Vec3): BlockPositionEventName {

@@ -328,15 +328,15 @@ export class ThePathfinder {
     const disposeBlockUpdateListener = handleSettledBlockEvent(
       this.bot,
       async (oldBlock: Block | null, newBlock: Block | null, settledBlock: Block | null) => {
-        log(
-          'settled block update',
-          oldBlock?.name,
-          oldBlock?.position,
-          newBlock?.name,
-          newBlock?.position,
-          settledBlock?.name,
-          settledBlock?.position
-        )
+        // log(
+        //   'settled block update',
+        //   oldBlock?.name,
+        //   oldBlock?.position,
+        //   newBlock?.name,
+        //   newBlock?.position,
+        //   settledBlock?.name,
+        //   settledBlock?.position
+        // )
 
         const currentPath = this.currentPath;
         if (oldBlock == null || settledBlock == null) return
