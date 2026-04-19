@@ -636,6 +636,7 @@ export class ThePathfinder {
       await this.cleanupAll(goal)
     } finally {
       delete this._gotoMappings
+      this.executeTask.finish()
     }
   }
 

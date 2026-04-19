@@ -212,6 +212,9 @@ export class PathExecutor {
     }
 
     const handleExecutionError = async (err: unknown): Promise<void> => {
+
+      log(`Error: ${err}`)
+
       if (err instanceof AbortError) {
         executorSafeReset(this.getCurrentExecutor())
         this.clearResetReason()
@@ -364,6 +367,8 @@ export class PathExecutor {
           if (runnerStage === 'align') {
             this.check()
 
+            log(`Entering movement ${move.moveType.constructor.name} align.`)
+
             const aligned = await this.timeAsync(
               `align ${move.moveType.constructor.name}`,
               () => executor.align(move, tickCount, goal)
@@ -424,6 +429,8 @@ export class PathExecutor {
           }
         }
       } catch (err) {
+
+        log(`Error: ${err}`)
         if (err instanceof AbortError) {
           executorSafeReset(this.getCurrentExecutor())
           this.clearResetReason()

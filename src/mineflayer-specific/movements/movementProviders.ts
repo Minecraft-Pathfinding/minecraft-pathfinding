@@ -8,7 +8,7 @@ import { MovementProvider } from './movementProvider'
 import { BlockInfo } from '../world/cacheWorld'
 import { COST_INF } from './costs'
 
-const PARKOUR_DIAGONAL_3_1_TRAVEL = Math.sqrt(17) // 4 by 1 offset.
+const PARKOUR_DIAGONAL_4_1_TRAVEL = Math.sqrt(17) // 4 by 1 offset.
 
 // technically, the offsets are slow. Yeah, I know.
 // However, removing those breaks the code. So I won't fix that for the time being. -Gen
@@ -573,6 +573,10 @@ export class ParkourDiagonal extends MovementProvider {
 
     const travel = Math.sqrt(xSteps * xSteps + zSteps * zSteps)
     const cost = cost0 + 0.5 * Diagonal.diagonalCost * travel
+    const majorIsX = xSteps > zSteps
+    const majorIsZ = zSteps > xSteps
+    const frontDx = dx - (majorIsX || xSteps === zSteps ? dir.x : 0)
+    const frontDz = dz - (majorIsZ || xSteps === zSteps ? dir.z : 0)
 
     const flag0 = !closed.has(`${node.x + dx},${node.y - 1},${node.z + dz}`)
     const flag1 = !closed.has(`${node.x + dx},${node.y},${node.z + dz}`)
@@ -584,6 +588,9 @@ export class ParkourDiagonal extends MovementProvider {
     const blockB = this.getBlockInfo(node, dx, 1, dz)
     const blockC = this.getBlockInfo(node, dx, 0, dz)
     const blockD = this.getBlockInfo(node, dx, -1, dz)
+    const blockFrontD = this.getBlockInfo(node, frontDx, -1, frontDz)
+    const blockFrontC = this.getBlockInfo(node, frontDx, 0, frontDz)
+    const blockFrontB = this.getBlockInfo(node, frontDx, 1, frontDz)
 
     if (!this.getBlockInfo(node, dx, 0, 0).walkthrough) return false
     if (!this.getBlockInfo(node, 0, 0, dz).walkthrough) return false
@@ -600,17 +607,17 @@ export class ParkourDiagonal extends MovementProvider {
 
     const floorCleared = !blockE.physical
 
-    if (flag0 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && !floorCleared) {
+    if (flag0 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && blockFrontD.walkthrough && !floorCleared) {
       if (blockE.physical) {
         neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
         return true
       }
-    } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
+    } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical && blockFrontC.walkthrough) {
       neighbors.push(Move.fromPrevious(cost + 3, blockC.position.offset(0.5, 0, 0.5), node, this))
       return true
-    } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical) {
+    } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical && blockFrontB.walkthrough) {
       if (blockC.height - block0.height > 1.2) return false
-      if (travel !== PARKOUR_DIAGONAL_3_1_TRAVEL) return false
+      if (travel > PARKOUR_DIAGONAL_4_1_TRAVEL) return false
       neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this))
       return true
     }
