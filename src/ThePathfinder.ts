@@ -49,7 +49,7 @@ import { HandlerOpts } from './types'
 import { Task } from '@nxg-org/mineflayer-util-plugin'
 
 import { reconstructPath } from './abstract/algorithms'
-import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos } from './utils'
+import { closestPointOnLineSegment, getScaffoldCount, getNormalizedPos, getSupportedStartPos } from './utils'
 import { World } from './mineflayer-specific/world/worldInterface'
 import { handleBlockEvent, handleSettledBlockEvent } from './customBlockEvents'
 import { PathExecutor, type ExecutionMappings } from './pathExecutor'
@@ -506,7 +506,7 @@ export class ThePathfinder {
     this.abortCalculation = false
     this.clearResetReason()
 
-    startPos = getNormalizedPos(this.bot, startPos)
+    startPos = getSupportedStartPos(this.world, getNormalizedPos(this.bot, startPos))
     log('Generating path from %O to %O', startPos, goal)
 
 

@@ -1326,7 +1326,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     while (true) {
 
-      const botY = this.bot.entity.position.y;
+      const botY = this.bot.entity.position.y + 0.6; // allow step up
 
       if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
         throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
@@ -1414,7 +1414,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
 
-    const botY = this.bot.entity.position.y;
+    const botY = this.bot.entity.position.y + 0.6; // allow step up
 
     if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
       throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
@@ -1422,7 +1422,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
     if (this.executing) {
       // printBotControls(this.bot, logParkour)
-      logParkour(`Bot pos: %O`, this.bot.entity.position)
       this._lockCurrentYaw(this._desiredYawTo(targetEyeVec))
       this._applySmartControls(targetEyeVec, false)
       return this.isComplete(thisMove)

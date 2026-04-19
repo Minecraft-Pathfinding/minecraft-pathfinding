@@ -2,6 +2,8 @@ import { Bot, BotEvents } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
+import { AABBUtils } from '@nxg-org/mineflayer-util-plugin'
+import { World } from './mineflayer-specific/world/worldInterface'
 
 export function printBotControls(bot: Bot, log: (...args: unknown[]) => void = console.log): void {
   const controls = {
@@ -114,6 +116,52 @@ export function getNormalizedPos (bot: Bot, startPos?: Vec3): Vec3 {
   }
 
   return pos
+}
+
+export function getSupportedStartPos(world: World, startPos: Vec3): Vec3 {
+  if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
+
+  const pos = startPos.clone()
+  const block = world.getBlockInfo(pos)
+  if (BlockInfo.carpets.has(block.type)) {
+    pos.floor()
+  }
+
+  const current = world.getBlockInfo(pos)
+
+  if (current.physical || current.climbable || current.liquid) {
+    return pos
+  }
+
+  const footBB = AABBUtils.getPlayerAABB({ position: pos, width: 0.6, height: 0.1 })
+  const seen = new Set<string>()
+  let best: Vec3 | undefined
+  let bestDist = Infinity
+
+  for (const dx of [-0.3, 0.3]) {
+    for (const dz of [-0.3, 0.3]) {
+      const sample = pos.offset(dx, -0.6, dz)
+      const info = world.getBlockInfo(sample)
+      if (!info.physical) continue
+
+      const key = `${info.position.x},${info.position.y},${info.position.z}`
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      const bbs = info.getBBs()
+      if (!bbs.some((bb) => bb.collides(footBB))) continue
+
+      const center = info.position.offset(0.5, 0, 0.5)
+      const dist = center.xzDistanceTo(pos)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = info.position.clone()
+      }
+    }
+  }
+
+  if (best == null) return pos
+  return new Vec3(best.x, pos.y, best.z)
 }
 
 export async function onceWithCleanup<T extends keyof BotEvents> (

@@ -193,6 +193,7 @@ export class PathExecutor {
     let pendingInit: Promise<void> | undefined
     let tickCount = 0
     let settled = false
+    let recoveryInFlight = false
 
     let resolveCompletion!: () => void
     let rejectCompletion!: (err: unknown) => void
@@ -224,6 +225,20 @@ export class PathExecutor {
       settled = true
       bot.off('physicsTick', moveListener)
       rejectCompletion(err)
+    }
+
+    const scheduleRecovery = (rawMove: Move): void => {
+      if (recoveryInFlight) return
+      recoveryInFlight = true
+
+      void (async () => {
+        try {
+          await this.recovery(rawMove, path, goal, entry)
+          await finish()
+        } catch (recoveryErr) {
+          await fail(recoveryErr)
+        }
+      })()
     }
 
     const handleExecutionError = async (err: unknown): Promise<void> => {
@@ -263,8 +278,7 @@ export class PathExecutor {
           throw err
         }
 
-        await this.recovery(rawMove, path, goal, entry)
-        await finish()
+        scheduleRecovery(rawMove)
         return
       }
 
@@ -481,8 +495,7 @@ export class PathExecutor {
             throw err
           }
 
-          await this.recovery(rawMove, path, goal, entry)
-          await finish()
+          scheduleRecovery(rawMove)
           return
         }
 
@@ -494,7 +507,7 @@ export class PathExecutor {
     let tickInFlight = false
 
     const moveListener = (): void => {
-      if (settled || tickInFlight) return
+      if (settled || tickInFlight || recoveryInFlight) return
       if (runnerStage === 'optimize' || pendingOptimize != null || runnerStage === 'init' || pendingInit != null) {
         return
       }
@@ -535,6 +548,11 @@ export class PathExecutor {
   public async recovery(move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     const bot = this.bot;
     log(`[pathfinder] recovery ${entry} for ${move.moveType.constructor.name}`)
+
+    while (!bot.entity.onGround && !(bot.entity as any).isInWater) {
+      await bot.waitForTicks(1)
+    }
+
     bot.emit('enteredRecovery', entry)
     await this.timeAsync('recovery cleanup', () => this.host.cleanupBot())
 
