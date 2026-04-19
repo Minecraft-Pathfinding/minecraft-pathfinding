@@ -7,7 +7,7 @@ import { BreakHandler, PlaceHandler } from './interactionUtils'
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { CompleteOpts, InitAlignOpts, MovementExecutor } from './movementExecutor'
 import { JumpCalculator, ParkourJumpHelper, getUnderlyingBBs, leavingBlockLevel, stateLookAt } from './movementUtils'
-import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
+import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { printBotControls } from '../../utils'
 import type { Block, RayType } from '../../types'
 import { botSmartMovement, botStrafeMovementStrict } from './controls'
@@ -1060,7 +1060,8 @@ export class ParkourForwardExecutor extends MovementExecutor {
   }
 
   private _queueLookAtSync(target: Vec3): Promise<void> {
-    this._pendingLookTarget = target
+
+    this._pendingLookTarget = target.offset(0, this.bot.entity.position.y - target.y, 0)
 
     if (this._lookAtInFlight != null) {
       return this._lookAtInFlight
@@ -1127,18 +1128,24 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   private _shouldSneakDuringBackup(thisMove: Move, target: Vec3): boolean {
     const entryBB = AABB.fromBlockPos(thisMove.entryPos)
-    return !(
-      target.x >= entryBB.minX &&
-      target.x <= entryBB.maxX &&
-      target.z >= entryBB.minZ &&
-      target.z <= entryBB.maxZ
-    )
+    const botPos = this.bot.entity.position
+
+    if (botPos.xzDistanceTo(target) < 0.1) return true;
+
+
+    const controls = ControlStateHandler.COPY_BOT(this.bot).set('sneak', false).set('jump', false)
+    const ectx = this.simForward({ticks: 2, controls})
+    console.log(ectx.state.pos, ectx.state.control, ectx.state.pos.y, this.bot.entity.position.y, !ectx.state.onGround)
+    return  ectx.state.pos.y < this.bot.entity.position.y && !ectx.state.onGround
+
+
   }
 
   private _applyBackupControls(thisMove: Move, target: Vec3): void {
     this._lockCurrentYaw(this._desiredYawTo(target))
     void this._queueLookAtSync(target)
     this._applySmartControls(target, false)
+    console.log('should sneak', this._shouldSneakDuringBackup(thisMove, target))
     this.bot.setControlState('sneak', this._shouldSneakDuringBackup(thisMove, target))
   }
 
@@ -1173,7 +1180,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     // }
 
     const dist = this.bot.entity.position.xzDistanceTo(this.backupTarget)
-    this._debugLog('backup advance:', 'target:', this.backupTarget, 'dist:', dist)
+    this._debugLog('backup advance:', 'target:', this.backupTarget, 'pos:', this.bot.entity.position, 'dist:', dist)
 
     if (dist > 0.05) {
       this._applyBackupControls(thisMove, this.backupTarget)
@@ -1293,6 +1300,15 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._clearLockedYaw()
 
     while (true) {
+
+      const botY = this.bot.entity.position.y;
+
+      if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
+        throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
+      }
+
+
+
       if (this.backingUp) {
         const backupState = this._advanceBackup(thisMove)
         if (backupState === 'backing') return false
@@ -1376,7 +1392,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const botY = this.bot.entity.position.y;
 
     if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
-      throw new CancelError('y level: too low!')
+      throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
     }
 
     if (this.executing) {

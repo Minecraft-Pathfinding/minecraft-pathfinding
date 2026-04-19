@@ -39,6 +39,10 @@ export interface InitAlignOpts {
   enterExitInterp?: boolean
 }
 
+export interface SimOpts {
+  ticks?: number, controls?: ControlStateHandler, ectx?: EPhysicsCtx<PlayerState>
+}
+
 export interface PostInitAlignOpts { handleBack?: boolean, lookAt?: Vec3, lookAtYaw?: Vec3, sprint?: boolean }
 
 export abstract class MovementExecutor extends Movement {
@@ -653,19 +657,19 @@ export abstract class MovementExecutor extends Movement {
   /**
    * @returns whether we fall off.
    */
-  public willFallOff(ticks = 1, controls?: ControlStateHandler): boolean {
-    const ectx = EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
-
+  public simForward(options: SimOpts = {}): EPhysicsCtx<PlayerState> {
+    const ectx = options.ectx ?? EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+    const ticks = options.ticks ?? 1
 
     for (let i = 0; i < ticks; i++) {
 
-      if (controls) {
-        ectx.state.control = controls;
+      if (options.controls) {
+        ectx.state.control = options.controls;
       }
 
-      this.bot.physicsUtil.engine.simulate(ectx, this.bot.world);
+      this.sim.ctx.simulate(ectx, this.bot.world);
     }
 
-    return !ectx.state.onGround && this.bot.entity.onGround && ectx.state.pos.y < this.bot.entity.position.y
+    return ectx
   }
 }

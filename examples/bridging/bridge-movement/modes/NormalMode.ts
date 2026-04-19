@@ -492,7 +492,9 @@ export class NormalMode extends BridgeModeBase {
     ctrl.set('left',    rightDot >  EPS)
     ctrl.set('sneak',   false)
 
-    return this.executor.willFallOff(5, ctrl)
+    const ectx = this.executor.simForward({ticks:5, controls: ctrl});
+
+    return ectx.position.y < this.bot.entity.position.y && !ectx.state.onGround
   }
 
   /**
