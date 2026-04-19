@@ -491,8 +491,10 @@ export class PathExecutor {
       }
     }
 
+    let tickInFlight = false
+
     const moveListener = (): void => {
-      if (settled) return
+      if (settled || tickInFlight) return
       if (runnerStage === 'optimize' || pendingOptimize != null || runnerStage === 'init' || pendingInit != null) {
         return
       }
