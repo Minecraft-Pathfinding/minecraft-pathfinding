@@ -35,7 +35,6 @@ export interface PathfinderExecutionHost {
 
 type RunnerStage = 'idle' | 'align' | 'optimize' | 'init' | 'perform'
 
-const MAX_TASK_TIME_MS = 40
 
 export class PathExecutor {
   private currentExecutionId = 0
@@ -110,38 +109,6 @@ export class PathExecutor {
     }
   }
 
-  private waitForPromiseSync<T>(label: string, promise: Promise<T>): T {
-    let settled = false
-    let value: T | undefined
-    let error: unknown
-    const start = performance.now()
-
-    promise.then(
-      (result) => {
-        value = result
-        settled = true
-      },
-      (err) => {
-        error = err
-        settled = true
-      }
-    )
-
-    const waitArray = new Int32Array(new SharedArrayBuffer(4))
-    const tickCallback = (process as NodeJS.Process & { _tickCallback?: () => void })._tickCallback
-
-    while (!settled) {
-      if (performance.now() - start > MAX_TASK_TIME_MS) {
-        throw new Error(`PathExecutor ${label} exceeded ${MAX_TASK_TIME_MS}ms`)
-      }
-
-      Atomics.wait(waitArray, 0, 0, 1)
-      tickCallback?.call(process)
-    }
-
-    if (error != null) throw error
-    return value as T
-  }
 
   private findNextCurrentIdx(move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number): number {
     const endIdx = localPath.findIndex(
@@ -476,17 +443,20 @@ export class PathExecutor {
       }
     }
 
+    let tickInFlight = false
+
     const moveListener = (): void => {
-      if (settled) return
+      if (settled || tickInFlight) return
       if (runnerStage === 'optimize' || pendingOptimize != null || runnerStage === 'init' || pendingInit != null) {
         return
       }
 
-      try {
-        this.waitForPromiseSync('physicsTick drain', runMovementTick())
-      } catch (err) {
+      tickInFlight = true
+      runMovementTick().catch((err) => {
         void fail(err)
-      }
+      }).finally(() => {
+        tickInFlight = false
+      })
     }
 
     beginOptimization()
