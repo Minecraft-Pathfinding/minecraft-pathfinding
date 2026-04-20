@@ -26,6 +26,8 @@ interface AbortOpts {
 export interface CompleteOpts {
   ticks?: number
   entry?: boolean
+  checkPlaces?: boolean
+  checkBreaks?: boolean
 }
 
 export interface AlignmentBBInfo {
@@ -92,6 +94,16 @@ export abstract class MovementExecutor extends Movement {
     this.aborted = false
     delete this.resetReason
     this.task.finish()
+  }
+
+  protected getRemainingBreaks(): BreakHandler[] {
+    if (!this.currentMove) return []
+    return this.currentMove.toBreak.filter(b => b.needToPerform(this.bot))
+  }
+
+  protected getRemainingPlaces(): PlaceHandler[] {
+    if (!this.currentMove) return []
+    return this.currentMove.toPlace.filter(b => b.needToPerform(this.bot))
   }
 
   /**
@@ -271,6 +283,11 @@ export abstract class MovementExecutor extends Movement {
     if (this.cI !== undefined) {
       if (!this.cI.allowExit) return false
     }
+
+    const checkP = opts.checkPlaces ?? true;
+    const checkB = opts.checkBreaks ?? true;
+    if (checkP && this.toPlaceLen() > 0) return false;
+    if (checkB && this.toBreakLen() > 0) return false;
 
     const ticks = opts.ticks ?? 1
 
@@ -672,4 +689,16 @@ export abstract class MovementExecutor extends Movement {
 
     return ectx
   }
+
+
+  protected doWaterLogic(): boolean {
+    if ((this.bot.entity as any).isInWater as boolean) return true
+
+    // potentially false, if underwater + standing on ground.
+    if (this.bot.entity.onGround) return false
+
+    const bl = this.getBlockInfo(this.bot.entity.position, 0, -0.6, 0)
+    return bl.liquid
+  }
+
 }

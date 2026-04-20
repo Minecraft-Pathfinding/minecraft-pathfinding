@@ -111,14 +111,14 @@ export class PathExecutor {
       return await Promise.resolve().then(task)
     } finally {
       const duration = performance.now() - start
-      log(`[pathfinder] ${label} took ${duration.toFixed(2)}ms`)
+      log(`${label} took ${duration.toFixed(2)}ms. ${this.bot.entity.position}`)
     }
   }
 
   private waitForPromiseSync<T>(label: string, promise: Promise<T>): T {
     if (!isNodeRuntime()) {
       void promise.catch((err) => {
-        log(`[pathfinder] ${label} rejected on a non-Node runtime: %O`, err)
+        log(`${label} rejected on a non-Node runtime: %O`, err)
       })
       return undefined as T
     }
@@ -377,7 +377,7 @@ export class PathExecutor {
             const hasWork = await prepareNextMove()
             if (!hasWork) {
               if (pendingOptimize == null) {
-                log(`[pathfinder] execution ${myExecutionId} completed at ${bot.entity.position}`)
+                log(`execution ${myExecutionId} completed at ${bot.entity.position}`)
                 await finish()
                 return
               }
@@ -516,7 +516,7 @@ export class PathExecutor {
         if (!isNodeRuntime()) {
           if (!warnedNonNodeSyncWait) {
             warnedNonNodeSyncWait = true
-            console.warn('[pathfinder] physicsTick sync draining is disabled on this runtime; running movement ticks asynchronously.')
+            console.warn(' physicsTick sync draining is disabled on this runtime; running movement ticks asynchronously.')
           }
           if (nonNodeDrainInFlight) return
           nonNodeDrainInFlight = true
@@ -547,7 +547,7 @@ export class PathExecutor {
 
   public async recovery(move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     const bot = this.bot;
-    log(`[pathfinder] recovery ${entry} for ${move.moveType.constructor.name}`)
+    log(`recovery ${entry} for ${move.moveType.constructor.name}`)
 
     while (!bot.entity.onGround && !(bot.entity as any).isInWater) {
       await bot.waitForTicks(1)
@@ -558,7 +558,7 @@ export class PathExecutor {
 
     const ind = path.path.findIndex((m) => m.entryPos.distanceTo(move.entryPos) < 0.1)
     if (ind === -1) {
-      log('[pathfinder] recovery failed: could not find move in path')
+      log(' recovery failed: could not find move in path')
       return
     }
 
@@ -586,20 +586,20 @@ export class PathExecutor {
     )
 
     if (path1 === null) {
-      log('[pathfinder] recovery pathfinding returned null')
+      log(' recovery pathfinding returned null')
       bot.emit('exitedRecovery', entry)
     } else if (no) {
-      log('[pathfinder] executing full recovery path')
+      log(' executing full recovery path')
       bot.emit('exitedRecovery', entry)
       await this.perform(path1, goal, entry + 1)
     } else {
-      log('[pathfinder] executing partial recovery path')
+      log(' executing partial recovery path')
       await this.perform(path1, newGoal, entry + 1)
 
       // We only need to splice the unoptimized path directly!
       path.path.splice(0, ind + 1)
 
-      log('[pathfinder] continuing original goal after partial recovery')
+      log(' continuing original goal after partial recovery')
       bot.emit('exitedRecovery', entry)
       await this.perform(path, goal, 0)
     }

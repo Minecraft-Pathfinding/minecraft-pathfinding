@@ -42,7 +42,6 @@ const pathfinder = createPlugin()
 
 bot.loadPlugin(createMouse());
 
-bot.on('error', (err) => console.error('[bridge] Bot error:', err))
 
 bot.once('spawn', () => {
   bot.loadPlugin(pathfinder)
@@ -221,6 +220,20 @@ async function handleChat (username: string, msg: string): Promise<void> {
       break
     }
 
+    case 'come': {
+      const target = bot.nearestEntity(e=>e.username === username)
+      if (!target) {
+        bot.chat('cant see you')
+        return
+      }
+      const {x, y, z} = target.position
+      if (isNaN(x) || isNaN(y) || isNaN(z)) { bot.chat('come'); return }
+      bot.chat(`Going to ${x} ${y} ${z}`)
+      const time = await safeGoto(new GoalBlock(x, y, z), `come`)
+      bot.chat(time)
+      break
+    }
+
     case 'bridge': {
       const x = Math.floor(Number(args[0]))
       const y = Math.floor(Number(args[1]))
@@ -348,6 +361,10 @@ bot._client.on('animation', (data: { animation: number, entityId: number }) => {
 
 // ─── global error handlers ────────────────────────────────────────────────────
 
-bot.on('kicked', (reason) => console.error('[bridge] Kicked:', reason))
+bot.on('kicked', (reason) => {
+  if (typeof reason !== "string") {
+    console.error(`[bridge] Kicked: `, JSON.stringify(reason))
+  } else console.error('[bridge] Kicked:', reason)
+})
 bot.on('error', (err) => console.error('[bridge] Bot error:', err))
 process.on('unhandledRejection', (reason) => console.error('[bridge] Unhandled rejection:', reason))
