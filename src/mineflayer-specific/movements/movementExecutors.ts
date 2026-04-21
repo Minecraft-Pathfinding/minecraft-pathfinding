@@ -910,7 +910,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       targetEyeVec,
       canDirectJump: this.shitterTwo.simForwardMove(target, targetEyeVec),
       canJumpFromEdge: this.shitterTwo.simJumpFromEdge(bbs, target),
-      fallOffEdge: this.shitterTwo.simFallOffEdge(target)
+      fallOffEdge: thisMove.entryPos.y > thisMove.exitPos.y && this.shitterTwo.simFallOffEdge(target)
     }
   }
 
@@ -1089,11 +1089,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
 
-    const botY = this.bot.entity.position.y + 0.6; // allow step up
-
-    if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
-      throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
-    }
 
     if (this.executing) {
       // printBotControls(this.bot, logParkour)

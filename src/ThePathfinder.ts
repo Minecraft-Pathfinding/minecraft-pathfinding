@@ -755,28 +755,32 @@ export class ThePathfinder {
     return this.executionRunner.recovery(move, path, goal, entry)
   }
 
-  async cleanupBot(finish = false): Promise<void> {
+  async cleanupBot(forceSafety = false): Promise<void> {
     this.bot.clearControlStates()
 
-    if (finish && this.currentExecutor) {
-      const ectx = this.currentExecutor.simForward({ ticks: 2 })
-      if (this.bot.entity.onGround && !ectx.state.onGround && ectx.position.y < this.bot.entity.position.y) {
-        this.bot.setControlState('sneak', true)
-      }
+    // rough code. just need any of them.
 
-      let normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
-      while (normVel.norm() > 5e-4) {
-        console.log(normVel, normVel.norm())
-        await this.bot.waitForTicks(1)
-        normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
-      }
-
-      this.bot.setControlState('sneak', false)
+    let exec;
+    for (const [, executor] of this.activeMappings.movements) {
+      exec ??= executor;
+      executor.reset()
     }
 
+    if (forceSafety && exec != null) {
+      let normVel;
+      do {
+        normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
+        const ectx = exec.simForward({ ticks: 2 })
+        if (ectx.state.isInWater || ectx.state.isInLava) return
+        if (this.bot.entity.onGround && !ectx.state.onGround && ectx.position.y < this.bot.entity.position.y) {
+          this.bot.setControlState('sneak', true)
+        }
 
-    for (const [, executor] of this.activeMappings.movements) {
-      executor.reset()
+        console.log(normVel, normVel.norm())
+        await this.bot.waitForTicks(1)
+      } while (normVel.norm() > 5e-4)
+
+      this.bot.setControlState('sneak', false)
     }
   }
 
@@ -795,10 +799,10 @@ export class ThePathfinder {
       goal.cleanup?.()
     }
 
-    await this.cleanupBot()
+    await this.cleanupBot(true)
+
     if (executor != null) {
       await goal.onFinish(executor)
-      await this.cleanupBot(true)
     }
     this.world.cleanup?.()
 
@@ -813,6 +817,7 @@ export class ThePathfinder {
     this.abortCalculation = false
     this.executeTask.finish()
 
+    log(`Task finished, cleanup client.`)
     this.cleanupClient()
   }
 }

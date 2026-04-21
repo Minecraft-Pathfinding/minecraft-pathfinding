@@ -16,6 +16,8 @@ import {
 } from './neo-align-utils'
 import { CancelError } from '../../../src/mineflayer-specific/exceptions'
 import { printBotControls } from '../../../src/utils'
+import { World } from '../../../src/mineflayer-specific/world/worldInterface'
+import { MovementOptions } from '../../../src/mineflayer-specific/movements'
 
 export interface NeoExecutorSettings {
   neoWaitForVelocitySettle?: boolean
@@ -23,10 +25,10 @@ export interface NeoExecutorSettings {
 
 export class NeoExecutor extends MovementExecutor {
   private static readonly ALIGN_EPS = 0.08
+  private static readonly ALIGN_SNEAK_EPS = 0.15
   private static readonly SNEAK_SETTLE_XZ_VEL = 1e-4
   private static readonly SNEAK_SETTLE_MAX_TICKS = 5
   private static readonly VELOCITY_SETTLE_XZ_VEL = 1e-4
-  private static readonly VELOCITY_SETTLE_MAX_TICKS = 20
   private phase: 'approach' | 'jump' | 'air' | 'look' = 'approach'
   private airTicks = 0
   private approachTarget: Vec3 | null = null
@@ -34,15 +36,17 @@ export class NeoExecutor extends MovementExecutor {
   private jumpYaw: number | null = null
   private neededSneak = false
   private alignSneakWaitTicks = 0
+  private pendingIdealYaw: number | null = null
   private strictStrafeActive = false
   private neoWallBlocks: AABB[] = []
   private readonly waitForVelocitySettle: boolean
 
   private isPositionAligned(alignTarget: Vec3): boolean {
+    console.log(`alignment: %O -> %O, dist: %d`, this.bot.entity.position, alignTarget, this.bot.entity.position.xzDistanceTo(alignTarget))
     return this.bot.entity.position.xzDistanceTo(alignTarget) <= NeoExecutor.ALIGN_EPS
   }
 
-  constructor(bot: import('mineflayer').Bot, world: import('../../../src/mineflayer-specific/world/worldInterface').World, settings: Partial<import('../../../src/mineflayer-specific/movements').MovementOptions> & NeoExecutorSettings = {}) {
+  constructor(bot: import('mineflayer').Bot, world: World, settings: Partial<MovementOptions> & NeoExecutorSettings = {}) {
     super(bot, world, settings)
     this.waitForVelocitySettle = settings.neoWaitForVelocitySettle ?? true
   }
@@ -51,6 +55,7 @@ export class NeoExecutor extends MovementExecutor {
     this.approachTarget = null;
     this.backVertex = null;
     this.jumpYaw = null;
+    this.pendingIdealYaw = null
     super.reset()
   }
 
@@ -128,15 +133,16 @@ export class NeoExecutor extends MovementExecutor {
     const dist = thisMove.entryPos.floored().xzDistanceTo(thisMove.exitPos.floored())
     let maxDist, probeStep;
     if (dist === 3) {
-      maxDist = 25 * (Math.PI / 180);
+      maxDist = 180 * (Math.PI / 180);
       probeStep = 0.5 * (Math.PI / 180);
     } else {
       maxDist = 30 * (Math.PI / 180);
       probeStep = 0.5 * (Math.PI / 180);
     }
-  
+
     const directProbe = this.probeAlignYaw(directYaw, 12)
-    if (directProbe.safe) {
+    if (directProbe.safe && directProbe.age && directProbe.age > 1) {
+      console.log('safe??', directProbe.age)
       return { yaw: signedRadians(directYaw), usedFallback: false }
     }
 
@@ -148,7 +154,7 @@ export class NeoExecutor extends MovementExecutor {
 
     const usedFallback = Math.abs(safeYaw - directYaw) < 1e-9
     return {
-      yaw: signedRadians(safeYaw + directionHint * (Math.PI / 30)),
+      yaw: signedRadians(safeYaw),
       usedFallback
     }
   }
@@ -185,25 +191,6 @@ export class NeoExecutor extends MovementExecutor {
     return !entryWall.intersects(playerBB)
   }
 
-  private async waitForVelocityToSettle(ticks = 2): Promise<void> {
-    if (!this.waitForVelocitySettle) return
-
-
-    for (let i = 0; i < NeoExecutor.VELOCITY_SETTLE_MAX_TICKS; i++) {
-
-
-      this.neededSneak ||= this.shouldSneak(ticks)
-      this.bot.clearControlStates()
-      this.bot.setControlState('sneak', this.neededSneak)
-
-      printBotControls(this.bot)
-
-      const xzVelNorm = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm()
-      if (xzVelNorm <= NeoExecutor.VELOCITY_SETTLE_XZ_VEL) return
-
-      await this.bot.waitForTicks(1)
-    }
-  }
 
   private getNeoWallEnvelope(): { minX: number, maxX: number, minZ: number, maxZ: number } | null {
     if (this.neoWallBlocks.length === 0) return null
@@ -254,7 +241,7 @@ export class NeoExecutor extends MovementExecutor {
     return this.strictStrafeActive
   }
 
-  align(thisMove: Move): boolean {
+  async align(thisMove: Move): Promise<boolean> {
     const side = getNeoAlignmentSide(thisMove)
     const alignTarget = getNeoAlignmentTarget(thisMove, side)
     this.approachTarget ??= alignTarget
@@ -266,11 +253,48 @@ export class NeoExecutor extends MovementExecutor {
       botSmartMovement(this.bot, alignTarget, false, 0.001)
       botStrafeMovement(this.bot, alignTarget, false, 0.001)
       this.neededSneak ||= this.shouldSneak()
+      const sneak = this.neededSneak ||  this.bot.entity.position.xzDistanceTo(alignTarget) < NeoExecutor.ALIGN_SNEAK_EPS
       this.alignSneakWaitTicks = 0
-      this.bot.setControlState('sneak', this.neededSneak)
+      this.pendingIdealYaw = null
+      this.bot.setControlState('sneak', sneak)
       return false
     }
 
+
+    if (this.waitForVelocitySettle) {
+      this.neededSneak ||= this.shouldSneak(2)
+      this.bot.clearControlStates()
+      this.bot.setControlState('sneak', true)
+
+      printBotControls(this.bot)
+
+      const xzVelNorm = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0).norm()
+      if (xzVelNorm >= NeoExecutor.VELOCITY_SETTLE_XZ_VEL) return false
+    }
+
+
+    if (!this.isPositionAligned(alignTarget)) {
+      this.bot.clearControlStates()
+      botSmartMovement(this.bot, alignTarget, false, 0.001)
+      botStrafeMovement(this.bot, alignTarget, false, 0.001)
+      this.neededSneak ||= this.shouldSneak()
+      const sneak = this.neededSneak || this.bot.entity.position.xzDistanceTo(alignTarget) < NeoExecutor.ALIGN_SNEAK_EPS
+      this.alignSneakWaitTicks = 0
+      this.pendingIdealYaw = null
+
+      console.log('goddamnit?')
+      this.bot.setControlState('sneak', sneak)
+      return false
+    }
+
+    console.log('yes done')
+
+    // const idealYawResult = this.findIdealAlignYaw(thisMove)
+    // if (idealYawResult.usedFallback) {
+    //   throw new CancelError('Neo: cannot make this jump')
+    // }
+
+    // this.pendingIdealYaw = idealYawResult.yaw
     this.neededSneak ||= this.shouldSneak()
     this.alignSneakWaitTicks = 0
     this.bot.setControlState('sneak', this.neededSneak)
@@ -301,25 +325,13 @@ export class NeoExecutor extends MovementExecutor {
     this.strictStrafeActive = false
     this.neoWallBlocks = collectNeoWallAABBs(thisMove, (pos) => this.getBlockInfoRaw(pos))
 
-    await this.waitForVelocityToSettle(2)
-
-    const alignTarget = this.approachTarget ?? getNeoAlignmentTarget(thisMove, getNeoAlignmentSide(thisMove))
-    let idealYawResult = this.findIdealAlignYaw(thisMove)
-
-    if (idealYawResult.usedFallback) {
-      if (!this.isPositionAligned(alignTarget)) {
-        await this.align(thisMove)
-        await this.bot.waitForTicks(1)
-        idealYawResult = this.findIdealAlignYaw(thisMove)
-      }
-
-      if (idealYawResult.usedFallback && this.isPositionAligned(alignTarget)) {
-        throw new CancelError('Neo: cannot make this jump')
-      }
-    }
-
-    this.bot.entity.yaw = idealYawResult.yaw
+    // this.bot.entity.position.set(this.approachTarget.x, this.approachTarget.y + 1, this.approachTarget.z)
+    // this.bot.entity.velocity.set(0, 0, 0)
+    this.bot.entity.yaw = this.findIdealAlignYaw(thisMove).yaw
+    this.pendingIdealYaw = null
     this.bot.entity.pitch = 0
+
+    // await this.bot.waitForTicks(2)
 
     this.bot.setControlState('forward', true)
     this.bot.setControlState('sprint', true)
@@ -342,7 +354,7 @@ export class NeoExecutor extends MovementExecutor {
     // this.bot.setControlState('sneak', false)
 
     if (this.phase === 'approach') {
-      if (this.shouldJumpNow()) {
+      if (this.shouldJumpNow(1)) {
         this.phase = 'jump'
         this.jumpYaw = this.bot.entity.yaw
         this.bot.setControlState('jump', true)

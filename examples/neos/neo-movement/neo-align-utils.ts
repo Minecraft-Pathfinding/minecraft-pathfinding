@@ -39,7 +39,6 @@ export function getNeoAlignmentSide(move: Move): NeoAlignmentSide | undefined {
 
 export function getNeoAlignmentOffsets(move: Move): NeoAlignmentOffsets {
   const dist = move.entryPos.floored().subtract(move.exitPos.floored()).norm()
-  console.log('dist', dist)
   return getNeoOffset(dist)
 }
 
@@ -63,7 +62,7 @@ function offsetAlignedVertex(
   return base.clone().offset(
     sideSign * offsets.minor,
     0,
-    majorSign * offsets.major
+    -majorSign * offsets.major
   )
 }
 

@@ -11,9 +11,10 @@ const { GoalBlock } = goals
 
 const bot = createBot({
   username: 'testing1',
-  auth: 'offline',
-  host: 'localhost',
-  port: 60880
+  auth: 'microsoft',
+  host: 'thedevsplayground.cosmos-ink.net',
+  port: 25565,
+  version: "1.21.4"
 })
 
 const pathfinder = createPlugin()
@@ -26,6 +27,11 @@ bot.once('spawn', () => {
 
   bot.physics.yawSpeed = 6000
   bot.physics.pitchSpeed = 6000
+
+  bot.pathfinder.setMoveOptions({
+    canDig: false,
+    canPlace: false
+  })
 
   const physics = new EntityPhysics(bot.registry)
 
