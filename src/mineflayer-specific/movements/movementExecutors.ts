@@ -35,7 +35,6 @@ export class IdleMovementExecutor extends MovementExecutor {
 
 
 export class NewForwardExecutor extends MovementExecutor {
-
   protected isComplete(startMove: Move, endMove?: Move, opts?: CompleteOpts): boolean {
     return super.isComplete(startMove, endMove, { ticks: 2 })
   }
@@ -54,7 +53,10 @@ export class NewForwardExecutor extends MovementExecutor {
 
   override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     if (this.doWaterLogic()) {
-      await super.align(thisMove, tickCount, goal)
+
+      // clear to remove jump.
+      this.bot.clearControlStates()
+      return await super.align(thisMove, tickCount, goal)
       // this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.entryPos.y)
     }
 
@@ -222,19 +224,14 @@ export class ForwardJumpExecutor extends MovementExecutor {
   private readonly shitter: JumpCalculator = new JumpCalculator(this.sim, this.bot, this.world, this.simCtx)
   private flag = false
 
-  private getRemainingPlacements(): PlaceHandler[] {
-    if (!this.currentMove) return []
-    return this.currentMove.toPlace.filter(p => p.needToPerform(this.bot))
-  }
 
   protected isComplete(startMove: Move, endMove?: Move): boolean {
     return super.isComplete(startMove, endMove, { ticks: 0 })
   }
 
   override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
-    if ((this.bot.entity as any).isInWater as boolean) {
+    if (super.doWaterLogic()) {
       this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.entryPos.y)
-      return await super.align(thisMove, tickCount, goal)
     }
 
     return await super.align(thisMove, tickCount, goal)
@@ -298,7 +295,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
     }
 
     if (this.cI == null) {
-      const remaining = this.getRemainingPlacements()
+      const remaining = this.getRemainingPlaces()
 
       if (remaining.length > 0) {
         let batchExecuted = false
@@ -377,36 +374,22 @@ export class NewForwardJumpExecutor extends ForwardJumpExecutor {
 }
 
 export class ForwardDropDownExecutor extends MovementExecutor {
-  private currentIndex!: number
 
+  private handleSneak(thisMove: Move) {
+    if (super.doWaterLogic()) {
+      this.bot.setControlState('sneak', this.bot.entity.position.y > thisMove.exitPos.y && !this.bot.entity.onGround)
+    }
+  }
+
+  override async align(thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): Promise<boolean> {
+    this.handleSneak(thisMove)
+    return await super.align(thisMove, tickCount, goal, lookTarget)
+  }
 
   async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
-    this.currentIndex = currentIndex
     await this.postInitAlignToPath(thisMove)
   }
 
-  private identMove(thisMove: Move, currentIndex: number, path: Move[]): number {
-    let lastMove = thisMove
-    let nextMove = path[++currentIndex]
-
-    if (nextMove === undefined) return --currentIndex
-
-    const pos = this.bot.entity.position
-
-    while (
-      lastMove.entryPos.xzDistanceTo(pos) > lastMove.entryPos.xzDistanceTo(lastMove.exitPos) &&
-      lastMove.entryPos.y > nextMove.exitPos.y &&
-      nextMove.moveType.toPlaceLen() === 0
-    ) {
-      if (++currentIndex >= path.length) return --currentIndex
-      lastMove = nextMove
-      nextMove = path[currentIndex]
-    }
-
-    if (lastMove.entryPos.y === nextMove.exitPos.y) currentIndex++
-
-    return --currentIndex
-  }
 
   async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot, 0))) {
@@ -455,62 +438,17 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     }
 
-    // eslint-disable-next-line no-constant-condition
-    if (false) {
-      const idx = this.identMove(thisMove, currentIndex, path)
-      this.currentIndex = Math.max(idx, this.currentIndex)
-      const nextMove = path[this.currentIndex]
 
-      if (currentIndex !== this.currentIndex && nextMove !== undefined) {
-        void this.postInitAlignToPath(thisMove, nextMove)
-        if (this.isComplete(thisMove, nextMove)) return this.currentIndex - currentIndex
-      } else {
-        void this.postInitAlignToPath(thisMove, thisMove)
-        if (this.isComplete(thisMove, thisMove)) return true
-      }
-    } else {
-      if (currentIndex < path.length) void this.postInitAlignToPath(thisMove)
-      else void this.postInitAlignToPath(thisMove)
+    if (currentIndex < path.length) void this.postInitAlignToPath(thisMove)
+    else void this.postInitAlignToPath(thisMove)
 
-      if (this.isComplete(thisMove)) return true
-    }
-
-    return false
-  }
-
-  getLandingBlock(node: Move, dir: Vec3): BlockInfo | null {
-    let blockLand = this.getBlockInfo(node, dir.x, -2, dir.z)
-    while (blockLand.position.y > (this.bot.game as any).minY) {
-      if (blockLand.liquid && blockLand.walkthrough) return blockLand
-      if (blockLand.physical) {
-        if (node.y - blockLand.position.y <= this.settings.maxDropDown) return this.getBlockInfo(blockLand.position, 0, 1, 0)
-        return null
-      }
-      if (!blockLand.walkthrough) return null
-      blockLand = this.getBlockInfo(blockLand.position, 0, -1, 0)
-    }
-    return null
+    this.handleSneak(thisMove)
+    return this.isComplete(thisMove)
   }
 }
 
-export class NewForwardDropDownExecutor extends ForwardDropDownExecutor {
-  override async align(thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): Promise<boolean> {
-     if (super.doWaterLogic()) {
-      this.bot.setControlState('sneak', this.bot.entity.position.y > thisMove.exitPos.y) 
-    }
-    return await super.align(thisMove, tickCount, goal, lookTarget)
-  }
-  
-  override async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
-    if (super.doWaterLogic()) {
-      this.bot.setControlState('sneak', this.bot.entity.position.y > thisMove.exitPos.y) 
-    }
-    return await super.performPerTick(thisMove, tickCount, currentIndex, path)
-  }
-}
 
 export class StraightDownExecutor extends MovementExecutor {
-
 
   align(thisMove: Move): boolean {
     this.bot.clearControlStates()
@@ -690,6 +628,7 @@ export class StraightUpExecutor extends MovementExecutor {
 
     return false
   }
+
 
   isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     return this.bot.entity.position.y >= thisMove.exitPos.y
@@ -873,9 +812,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
 
     const controls = ControlStateHandler.COPY_BOT(this.bot).set('sneak', false).set('jump', false)
-    const ectx = this.simForward({ticks: 2, controls})
+    const ectx = this.simForward({ ticks: 2, controls })
     // console.log(ectx.state.pos, ectx.state.control, ectx.state.pos.y, this.bot.entity.position.y, !ectx.state.onGround)
-    return  ectx.state.pos.y < this.bot.entity.position.y && !ectx.state.onGround
+    return ectx.state.pos.y < this.bot.entity.position.y && !ectx.state.onGround
 
 
   }

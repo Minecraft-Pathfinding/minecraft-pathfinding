@@ -374,7 +374,8 @@ export class BridgeExecutor extends MovementExecutor {
     const item = place.getItem(this.bot)
     if (item == null) return null
 
-    if (place.getCurrentItem(this.bot) !== item) {
+    if (place.getCurrentItem(this.bot)?.type !== item.type) {
+      console.log(item, place.getCurrentItem(this.bot))
       void place.equipItem(this.bot, item)
       return null;
     }

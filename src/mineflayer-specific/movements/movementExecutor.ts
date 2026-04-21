@@ -397,6 +397,10 @@ export abstract class MovementExecutor extends Movement {
   }
 
   public isInitAligned(thisMove: Move, target: Vec3 = thisMove.entryPos, options: InitAlignOpts = {}): boolean {
+
+    if (this.isComplete(thisMove)) return true;
+
+
     const off0 = thisMove.exitPos.minus(this.bot.entity.position).normalize()
     const off1 = thisMove.exitPos.minus(target).normalize()
 
@@ -439,6 +443,7 @@ export abstract class MovementExecutor extends Movement {
     }
 
     log(`isInitAligned: We are not aligned. us: %O, target pos: %O`, bb0, target)
+    log(`Extra info: opts: %O`, options)
     return false
   }
 
@@ -508,15 +513,26 @@ export abstract class MovementExecutor extends Movement {
   }
 
   /**
-   * Utility function to have the bot look in the direction of the target, but only on the xz plane.
-   */
+ * Utility function to have the bot look in the direction of the target,
+ * but only on the xz plane (pitch is always 0).
+ */
   public async lookAtPathPos(vec3: Vec3, force = this.settings.forceLook): Promise<void> {
-    return await this.lookAt(vec3.offset(0, -vec3.y + this.bot.entity.position.y + 1.62, 0), force)
+    const pos = this.bot.entity.position
+    const dx = vec3.x - pos.x
+    const dz = vec3.z - pos.z
+    const yaw = Math.atan2(-dx, -dz)
+
+    if (this.isLookingAtYawRotation(yaw, 0.001)) return
+    await this.bot.look(yaw, 0, force)
+  }
+
+  public async look(yaw: number, pitch: number, force = this.settings.forceLook): Promise<void> {
+    if (this.isLookingAtRotation(yaw, pitch, 0.001)) return
+    await this.bot.look(yaw, pitch, force)
   }
 
   public async lookAt(vec3: Vec3, force = this.settings.forceLook): Promise<void> {
     if (this.isLookingAt(vec3, 0.001)) return
-    // log('lookAt: looking at %O (force=%s)', vec3, force)
     await this.bot.lookAt(vec3, force)
   }
 
@@ -533,13 +549,53 @@ export abstract class MovementExecutor extends Movement {
   public isLookingAtYaw(vec3: Vec3, limit = 0.01): boolean {
     if (!this.settings.careAboutLookAlignment) return true
 
-    const inter = this.bot.util.getViewDir()
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
+    const targetDir = vec3.minus(eyePos).offset(0, -(vec3.minus(eyePos).y), 0)
 
-    const pos1 = vec3.minus(eyePos)
-    pos1.translate(0, -pos1.y, 0)
+    if (targetDir.norm() < 1e-8) return true
 
-    return inter.normalize().dot(pos1.normalize()) > 1 - limit
+    const yaw = Math.atan2(-targetDir.x, -targetDir.z)
+    return this.isLookingAtYawRotation(yaw, limit)
+  }
+
+  public isLookingAtRotation(yaw: number, pitch: number, limit = 0.01): boolean {
+    if (!this.settings.careAboutLookAlignment) return true
+
+    const currentYaw = this.bot.entity.yaw
+    const currentPitch = this.bot.entity.pitch
+
+    const currentDir = new Vec3(
+      -Math.sin(currentYaw) * Math.cos(currentPitch),
+      -Math.sin(currentPitch),
+      -Math.cos(currentYaw) * Math.cos(currentPitch)
+    ).normalize()
+
+    const targetDir = new Vec3(
+      -Math.sin(yaw) * Math.cos(pitch),
+      -Math.sin(pitch),
+      -Math.cos(yaw) * Math.cos(pitch)
+    ).normalize()
+
+    return currentDir.dot(targetDir) > 1 - limit
+  }
+
+  public isLookingAtYawRotation(yaw: number, limit = 0.01): boolean {
+    if (!this.settings.careAboutLookAlignment) return true
+
+    const currentYaw = this.bot.entity.yaw
+    const currentDir = new Vec3(
+      -Math.sin(currentYaw),
+      0,
+      -Math.cos(currentYaw)
+    ).normalize()
+
+    const targetDir = new Vec3(
+      -Math.sin(yaw),
+      0,
+      -Math.cos(yaw)
+    ).normalize()
+
+    return currentDir.dot(targetDir) > 1 - limit
   }
 
   // Utils for handling collisions

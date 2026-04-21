@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@nxg-org/mineflayer-physics-util':
-        specifier: ^1.9.1
-        version: 1.9.1
+        specifier: ^1.9.2
+        version: 1.9.2
       '@nxg-org/mineflayer-util-plugin':
         specifier: ^1.9.2
         version: 1.9.2
@@ -123,8 +123,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@nxg-org/mineflayer-physics-util@1.9.1':
-    resolution: {integrity: sha512-+mcHKpe2ugDElH6izhi4FH8jiZ42wl/mbkfdTmWISbDRagasSq3D48pGu0gCSDcp7mTgk3laDJfl/f1j42O64g==}
+  '@nxg-org/mineflayer-physics-util@1.9.2':
+    resolution: {integrity: sha512-m04YocD04FqfaTbvDMAgHM5KY0CIJ0QzCHuq9E31i+YQ0GiUNeoZ1LrvseoBml1jzqY165pXkPfULRzRIOb0ug==}
 
   '@nxg-org/mineflayer-util-plugin@1.9.2':
     resolution: {integrity: sha512-bz7q3/YwPZ30H+RDXa1F64AlK8GyUlKRB9kn7n84BPkk332xeE0NOBB65Glh76S2euaKaipu3iINHKJvW2jlhw==}
@@ -1759,7 +1759,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@nxg-org/mineflayer-physics-util@1.9.1':
+  '@nxg-org/mineflayer-physics-util@1.9.2':
     dependencies:
       '@nxg-org/mineflayer-util-plugin': 1.9.2
 

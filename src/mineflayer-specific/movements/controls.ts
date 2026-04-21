@@ -131,7 +131,7 @@ function findDiff (position: Vec3, velocity: Vec3, yaw: number, pitch: number, n
  * @returns
  */
 // currentPoint: Vec3
-export function strafeMovement (ctx: IEntityState, nextPoint: Vec3, strict = false): void {
+export function strafeMovement (ctx: IEntityState, nextPoint: Vec3, strict = false, minDist = 0.1): void {
   applyStrafeMovement(
     {
       pos: ctx.pos,
@@ -142,7 +142,8 @@ export function strafeMovement (ctx: IEntityState, nextPoint: Vec3, strict = fal
     nextPoint,
     strict,
     (name, value) => ctx.control.set(name, value),
-    (name) => ctx.control.get(name)
+    (name) => ctx.control.get(name),
+    minDist
   )
 }
 
@@ -152,7 +153,7 @@ export function strafeMovement (ctx: IEntityState, nextPoint: Vec3, strict = fal
  * @returns
  */
 // currentPoint,
-export function botStrafeMovement (bot: Bot, nextPoint: Vec3, strict = false): void {
+export function botStrafeMovement (bot: Bot, nextPoint: Vec3, strict = false, minDist = 0.1): void {
   applyStrafeMovement(
     {
       pos: bot.entity.position,
@@ -163,7 +164,8 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3, strict = false): v
     nextPoint,
     strict,
     (name, value) => bot.setControlState(name, value),
-    (name) => bot.getControlState(name)
+    (name) => bot.getControlState(name),
+    minDist
   )
 }
 
@@ -175,12 +177,14 @@ export function botStrafeMovement (bot: Bot, nextPoint: Vec3, strict = false): v
  * @returns
  */
 // currentPoint,
-export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true): void {
+export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true, minDist = 0.1): void {
   // console.log('hey!')
   const diff = findDiff(ctx.pos, ctx.vel, ctx.yaw, ctx.pitch, nextPoint, ctx.onGround)
 
-  if (ctx.pos.distanceTo(nextPoint) < 0.1) {
-    // console.log('stopping since near goal')
+  // console.log(diff)
+
+  if (ctx.pos.distanceTo(nextPoint) < minDist) {
+    console.log('stopping since near goal')
     ctx.control.set('forward', false)
     ctx.control.set('back', false)
     return
@@ -220,7 +224,7 @@ export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true
  * @returns
  */
 // currentPoint,
-export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): void {
+export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean, minDist = 0.1): void {
   const stateLike = {
     pos: bot.entity.position,
     vel: bot.entity.velocity,
@@ -230,21 +234,8 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean): v
     control: { set: (name: string, value: boolean) => bot.setControlState(name as any, value) }
   } as IEntityState
 
-  smartMovement(stateLike, nextPoint, sprint)
+  smartMovement(stateLike, nextPoint, sprint, minDist)
 }
-
-export function smartJumpMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true, jump = false): void {
-  smartMovement(ctx, nextPoint, sprint)
-  ctx.control.set('jump', jump)
-}
-
-export function botSmartJumpMovement (bot: Bot, nextPoint: Vec3, sprint = true, jump = false): void {
-  botSmartMovement(bot, nextPoint, sprint)
-  bot.setControlState('jump', jump)
-}
-
-
-
 
 type StrafeState = {
   pos: Vec3
@@ -256,7 +247,7 @@ type StrafeState = {
 type StrafeSetter = (name: 'left' | 'right', value: boolean) => void
 type StrafeGetter = (name: 'left' | 'right') => boolean
 
-function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boolean, set: StrafeSetter, get?: StrafeGetter): void {
+function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boolean, set: StrafeSetter, get?: StrafeGetter, minDist = 0.1): void {
   if (strict) {
     const dx = nextPoint.x - state.pos.x
     const dz = nextPoint.z - state.pos.z
@@ -269,7 +260,7 @@ function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boole
     const sideVel = state.vel.x * cos - state.vel.z * sin
 
     const dist = state.pos.distanceTo(nextPoint)
-    if (dist < 0.1) {
+    if (dist < minDist) {
       set('left', false)
       set('right', false)
       return
