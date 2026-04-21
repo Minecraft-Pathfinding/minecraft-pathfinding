@@ -87,7 +87,7 @@ export interface NeoYawSearchOpts {
 
 export interface NeoYawProbeResult {
   safe: boolean
-  reason: 'direct' | 'left' | 'right' | 'no-escape' | 'horizontal-collision'
+  reason: 'direct' | 'left' | 'right' | 'no-escape' | 'horizontal-collision' | 'vertical-collision'
 }
 
 export function findSafeYaw (
@@ -101,28 +101,28 @@ export function findSafeYaw (
 
   logNeoAlign(
     'findSafeYaw start directYaw=%d probeStep=%d maxDelta=%d directionHint=%s',
-    directYaw,
-    probeStep,
+    directYaw * (180 / Math.PI),
+    probeStep ,
     maxDelta,
     directionHint
   )
 
   const direct = isSafe(directYaw)
-  logNeoAlign('findSafeYaw direct yaw=%d safe=%s reason=%s', directYaw, direct.safe, direct.reason)
+  logNeoAlign('findSafeYaw direct yaw=%d safe=%s reason=%s', directYaw * (180 / Math.PI), direct.safe, direct.reason)
   if (direct.safe) return directYaw
 
   for (let delta = probeStep; delta <= maxDelta; delta += probeStep) {
     if (directionHint == null || directionHint < 0) {
-      const left = wrapRadians(directYaw - delta)
+      const left = signedRadians(directYaw - delta)
       const leftSafe = isSafe(left)
       logNeoAlign('findSafeYaw check left delta=%d yaw=%d safe=%s reason=%s', delta, left, leftSafe.safe, leftSafe.reason)
       if (leftSafe.safe) return left
     }
 
     if (directionHint == null || directionHint > 0) {
-      const right = wrapRadians(directYaw + delta)
+      const right = signedRadians(directYaw + delta)
       const rightSafe = isSafe(right)
-      logNeoAlign('findSafeYaw check right delta=%d yaw=%d safe=%s reason=%s', delta, right, rightSafe.safe, rightSafe.reason)
+      logNeoAlign('findSafeYaw check right delta=%d yaw=%d safe=%s reason=%s', delta, right * (180 / Math.PI), rightSafe.safe, rightSafe.reason)
       if (rightSafe.safe) return right
     }
   }
