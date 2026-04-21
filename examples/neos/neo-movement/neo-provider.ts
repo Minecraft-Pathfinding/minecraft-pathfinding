@@ -105,7 +105,7 @@ export class NeoProvider extends MovementProvider {
 
       const cost = 1 + this.settings.jumpCost + (distance * 0.5)
       const move = Move.fromPrevious(cost, landingFloor.position.offset(0.5, 1, 0.5), node, this)
-      if (chosenSide != null) move.metadata.neoSide = chosenSide
+      if (chosenSide != null) move.metadata = {neoSide: chosenSide}
       neighbors.push(move)
     }
   }

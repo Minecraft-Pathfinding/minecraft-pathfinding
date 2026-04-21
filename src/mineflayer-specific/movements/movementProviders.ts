@@ -477,7 +477,7 @@ export class ParkourForward extends MovementProvider {
         }
         floorCleared = floorCleared && !blockE.physical
       } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
-        if (d === 5) continue
+        // if (d === 5) continue
         const cost1 = cost + 3 // potential slowdown (will fix later.)
         // cost += this.exclusionStep(blockB)
         // Forward

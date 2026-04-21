@@ -9,6 +9,7 @@ import { Movement, MovementOptions } from './movement'
 import { AABB, AABBUtils, Task } from '@nxg-org/mineflayer-util-plugin'
 import { BaseSimulator, BotcraftPhysics, Controller, ControlStateHandler, EPhysicsCtx, PlayerState, SimulationGoal } from '@nxg-org/mineflayer-physics-util'
 import { botStrafeMovement, botSmartMovement } from './controls'
+import { getUnderlyingBBs } from './movementUtils'
 import { getNormalizedPos, interpolateStepPoints, posToYawPitchFromEye } from '../../utils'
 import { IPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 import type { RayType } from '../../types'
@@ -104,6 +105,18 @@ export abstract class MovementExecutor extends Movement {
   protected getRemainingPlaces(): PlaceHandler[] {
     if (!this.currentMove) return []
     return this.currentMove.toPlace.filter(b => b.needToPerform(this.bot))
+  }
+
+  protected isTooLow(thisMove: Move) {
+    
+    const botY = this.bot.entity.position.y + 0.6; // allow step up
+
+    const block = this.getBlockInfo(this.bot.entity.position, 0, 0, 0)
+
+
+    if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
+      throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
+    }
   }
 
   /**
@@ -453,6 +466,22 @@ export abstract class MovementExecutor extends Movement {
    */
   public safeToCancel(startMove: Move, endMove: Move = startMove): boolean {
     return this.bot.entity.onGround || ((this.bot.entity as any).isInWater as boolean)
+  }
+
+  protected getTooLowCheckY(pos: Vec3 = this.bot.entity.position): number {
+    const supportBbs = getUnderlyingBBs(this.world, pos, 0.6)
+    if (supportBbs.length === 0) {
+      return pos.y + 0.6
+    }
+
+    const supportHeight = Math.max(...supportBbs.map((bb) => bb.maxY - bb.minY))
+    const supportCorrection = supportHeight < 1 ? 1 - supportHeight : 0
+    return pos.y + 0.6 + supportCorrection
+  }
+
+  protected tooLowCheck(thisMove: Move, pos: Vec3 = this.bot.entity.position): boolean {
+    const botY = this.getTooLowCheckY(pos)
+    return botY < thisMove.exitPos.y && botY < thisMove.entryPos.y
   }
 
   /**

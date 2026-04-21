@@ -33,7 +33,7 @@ export function signedRadians(radians: number): number {
 }
 
 export function getNeoAlignmentSide(move: Move): NeoAlignmentSide | undefined {
-  const side = move.metadata.neoSide
+  const side = move.metadata?.neoSide
   return side === -1 || side === 1 ? side : undefined
 }
 

@@ -1000,14 +1000,10 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this._clearLockedYaw()
 
     while (true) {
-
-      const botY = this.bot.entity.position.y + 0.6; // allow step up
-
-      if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
+      if (this.tooLowCheck(thisMove)) {
+        const botY = this.getTooLowCheckY()
         throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
       }
-
-
 
       if (this.backingUp) {
         const backupState = this._advanceBackup(thisMove)
@@ -1051,8 +1047,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
         return false
       }
 
-      if (!this.bot.entity.onGround && this.bot.entity.position.y <= thisMove.entryPos.y) {
-        throw new CancelError(`Too low y level! bot: ${this.bot.entity.position.y} | target: ${thisMove.entryPos.y}`)
+      if (!this.bot.entity.onGround && this.tooLowCheck(thisMove)) {
+        const botY = this.getTooLowCheckY()
+        throw new CancelError(`Too low y level! bot: ${botY} | target: ${thisMove.entryPos.y}`)
       }
 
       if (this.bot.entity.onGround) {

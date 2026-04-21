@@ -343,9 +343,8 @@ export class NeoExecutor extends MovementExecutor {
     this.neededSneak = sneak;
     this.bot.setControlState('sneak', sneak)
 
-    const botY = this.bot.entity.position.y + 0.6;
-    if (botY < thisMove.entryPos.y) {
-      throw new CancelError('Neo: y level too low!')
+    if (this.tooLowCheck(thisMove)) {
+      throw new CancelError(`Neo: y level too low! ${this.getTooLowCheckY()}`)
     }
     // this.bot.setControlState('forward', true)
     // this.bot.setControlState('sprint', true)

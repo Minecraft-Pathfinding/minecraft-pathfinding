@@ -21,7 +21,7 @@ export class Move implements PathData {
   toBreak: BreakHandler[]
   optimizedExecutor?: MovementExecutor
 
-  metadata: Record<string, any> = {}
+  metadata?: Record<string, any>
 
   constructor (
     public readonly x: number,
