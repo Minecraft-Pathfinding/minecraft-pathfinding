@@ -1,9 +1,15 @@
 import { Vec3 } from 'vec3'
 import { goals, Move, MovementProvider } from '../../../src'
 import { Movement } from '../../../src/mineflayer-specific/movements'
+import { getNeoAlignmentSide, type NeoAlignmentSide } from './neo-align-utils'
 
 const SIDE_DIRS_X = [new Vec3(0, 0, 1), new Vec3(0, 0, -1)]
 const SIDE_DIRS_Z = [new Vec3(1, 0, 0), new Vec3(-1, 0, 0)]
+
+function getNeoSideFromDir (dir: Vec3, sideDir: Vec3): NeoAlignmentSide {
+  const cross = dir.x * sideDir.z - dir.z * sideDir.x
+  return cross >= 0 ? -1 : 1
+}
 
 /**
  * Neo movement provider.
@@ -29,6 +35,8 @@ export class NeoProvider extends MovementProvider {
   }
 
   private getMoveNeo (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
+    let chosenSide = getNeoAlignmentSide(node)
+
     const takeoffFloor = this.getBlockInfo(node, 0, -1, 0)
     if (!takeoffFloor.solidFull || takeoffFloor.liquid) return
 
@@ -64,17 +72,30 @@ export class NeoProvider extends MovementProvider {
         }
 
         const sideDirs = dir.x !== 0 ? SIDE_DIRS_X : SIDE_DIRS_Z
-        let hasOpenSide = false
+        const openSides: NeoAlignmentSide[] = []
         for (const sideDir of sideDirs) {
           const sideFeet = this.getBlockInfo(node, dir.x * step + sideDir.x, 0, dir.z * step + sideDir.z)
           const sideHead = this.getBlockInfo(node, dir.x * step + sideDir.x, 1, dir.z * step + sideDir.z)
           if (sideFeet.walkthrough && sideHead.walkthrough) {
-            hasOpenSide = true
-            break
+            openSides.push(getNeoSideFromDir(dir, sideDir))
           }
         }
 
-        if (!hasOpenSide) {
+        if (openSides.length === 0) {
+          valid = false
+          break
+        }
+
+        if (chosenSide != null) {
+          if (!openSides.includes(chosenSide)) {
+            valid = false
+            break
+          }
+        } else {
+          chosenSide = openSides[0]
+        }
+
+        if (chosenSide == null) {
           valid = false
           break
         }
@@ -83,7 +104,9 @@ export class NeoProvider extends MovementProvider {
       if (!valid) continue
 
       const cost = 1 + this.settings.jumpCost + (distance * 0.5)
-      neighbors.push(Move.fromPrevious(cost, landingFloor.position.offset(0.5, 1, 0.5), node, this))
+      const move = Move.fromPrevious(cost, landingFloor.position.offset(0.5, 1, 0.5), node, this)
+      if (chosenSide != null) move.metadata.neoSide = chosenSide
+      neighbors.push(move)
     }
   }
 }

@@ -6,76 +6,129 @@ const debug = require('debug')
 const logNeoAlign = debug('minecraft-pathfinding:neo:align')
 
 const TWO_PI = 2 * Math.PI
+export type NeoAlignmentSide = -1 | 1
 
-export function wrapRadians (radians: number): number {
+export interface NeoAlignmentOffsets {
+  major: number
+  minor: number
+}
+
+
+export function getNeoOffset(distance: number): NeoAlignmentOffsets {
+  switch (distance) {
+    case 2: return { major: 0.3, minor: 0.2 }
+    case 3: return { major: 0.3, minor: 0.2 }
+    default: throw `Invalid distance: ${distance}`
+  }
+}
+
+export function wrapRadians(radians: number): number {
   const tmp = radians % TWO_PI
   return tmp < 0 ? tmp + TWO_PI : tmp
 }
 
-export function signedRadians (radians: number): number {
+export function signedRadians(radians: number): number {
   const wrapped = wrapRadians(radians)
   return wrapped > Math.PI ? wrapped - TWO_PI : wrapped
 }
 
-export function getNeoAlignmentTarget (move: Move): Vec3 {
-  const entry = move.entryPos.floored()
-  const goal = move.exitPos.floored()
-  const delta = move.exitPos.minus(move.entryPos)
-  let bestVert: Vec3
-  const xDir = Math.sign(delta.x) || 1
-  const zDir = Math.sign(delta.z) || 1
+export function getNeoAlignmentSide(move: Move): NeoAlignmentSide | undefined {
+  const side = move.metadata.neoSide
+  return side === -1 || side === 1 ? side : undefined
+}
 
-  if (Math.abs(delta.x) >= Math.abs(delta.z)) {
-    bestVert = new Vec3(entry.x + (delta.x >= 0 ? 0 : 1), entry.y, entry.z)
-    return bestVert.clone().offset(
-      (Math.sign(bestVert.x - goal.x) || xDir) * 0.3,
+export function getNeoAlignmentOffsets(move: Move): NeoAlignmentOffsets {
+  const dist = move.entryPos.floored().subtract(move.exitPos.floored()).norm()
+  console.log('dist', dist)
+  return getNeoOffset(dist)
+}
+
+function offsetAlignedVertex(
+  base: Vec3,
+  delta: Vec3,
+  xMajor: boolean,
+  sideSign: 1 | -1,
+  offsets: NeoAlignmentOffsets
+): Vec3 {
+  const majorSign = (xMajor ? delta.x : delta.z) >= 0 ? 1 : -1
+
+  if (xMajor) {
+    return base.clone().offset(
+      -majorSign * offsets.major,
       0,
-      (delta.x >= 0 ? -1 : 1) * 0.15
+      sideSign * offsets.minor
     )
   }
 
-  bestVert = new Vec3(entry.x, entry.y, entry.z + (delta.z >= 0 ? 0 : 1))
-  return bestVert.clone().offset(
-    (delta.z >= 0 ? 1 : -1) * 0.15,
+  return base.clone().offset(
+    sideSign * offsets.minor,
     0,
-    (Math.sign(bestVert.z - goal.z) || zDir) * 0.3
+    majorSign * offsets.major
   )
 }
 
-export function getNeoGoalBackVertex (move: Move, approachTarget: Vec3): Vec3 {
+export function getNeoAlignmentTarget(move: Move, side?: NeoAlignmentSide): Vec3 {
+  const entry = move.entryPos.floored()
+  const goal = move.exitPos.floored()
+  const delta = move.exitPos.minus(move.entryPos)
+  const xMajor = Math.abs(delta.x) >= Math.abs(delta.z)
+  const offsets = getNeoAlignmentOffsets(move)
+
+  if (side != null) {
+    const path = move.exitPos.minus(move.entryPos)
+    const entryCenter = entry.offset(0.5, 0, 0.5)
+    const alignedAxis = xMajor
+      ? new Vec3(entry.x + (delta.x >= 0 ? 0 : 1), entry.y, entry.z)
+      : new Vec3(entry.x, entry.y, entry.z + (delta.z >= 0 ? 0 : 1))
+    const candidates = xMajor
+      ? [alignedAxis, alignedAxis.offset(0, 0, 1)]
+      : [alignedAxis, alignedAxis.offset(1, 0, 0)]
+
+    const chosen = candidates.find((candidate) => {
+      const sideVec = candidate.minus(entryCenter)
+      const cross = path.x * sideVec.z - path.z * sideVec.x
+      return side === -1 ? cross >= 0 : cross < 0
+    }) ?? candidates[0]
+
+    const sideSign: 1 | -1 = xMajor
+      ? (chosen.z > alignedAxis.z ? 1 : -1)
+      : (chosen.x > alignedAxis.x ? 1 : -1)
+
+    return offsetAlignedVertex(chosen, delta, xMajor, sideSign, offsets)
+  }
+
+  let bestVert: Vec3
+
+  if (xMajor) {
+    bestVert = new Vec3(entry.x + (delta.x >= 0 ? 0 : 1), entry.y, entry.z)
+    return offsetAlignedVertex(bestVert, delta, xMajor, -1, offsets)
+  }
+
+  bestVert = new Vec3(entry.x, entry.y, entry.z + (delta.z >= 0 ? 0 : 1))
+  return offsetAlignedVertex(bestVert, delta, xMajor, -1, offsets)
+}
+
+export function getNeoGoalBackVertex(move: Move, approachTarget: Vec3): Vec3 {
   const goal = move.exitPos.floored()
   const delta = move.exitPos.minus(move.entryPos)
 
   if (Math.abs(delta.x) >= Math.abs(delta.z)) {
     const x = delta.x >= 0 ? goal.x + 1 : goal.x
-    const z = approachTarget.z < goal.z + 0.5 ? goal.z : goal.z + 1
+    const z = approachTarget.z < goal.z + 0.5 ? goal.z : goal.z + 0.5
     return new Vec3(x, goal.y + 1, z)
   }
 
-  const x = approachTarget.x < goal.x + 0.5 ? goal.x : goal.x + 1
+  const x = approachTarget.x < goal.x + 0.5 ? goal.x : goal.x + 0.5
   const z = delta.z >= 0 ? goal.z + 1 : goal.z
   return new Vec3(x, goal.y + 1, z)
 }
 
-function snapSharedAxesToFaceCenter (backupVert: Vec3, goalVert: Vec3): Vec3 {
-  const result = backupVert.clone()
 
-  if (Math.abs(result.x - goalVert.x) <= 1e-6) {
-    result.x = Math.floor(goalVert.x) + 0.5
-  }
-
-  if (Math.abs(result.z - goalVert.z) <= 1e-6) {
-    result.z = Math.floor(goalVert.z) + 0.5
-  }
-
-  return result
-}
-
-export function getNeoDirectYaw (from: Vec3, target: Vec3): number {
+export function getNeoDirectYaw(from: Vec3, target: Vec3): number {
   return Math.atan2(-(target.x - from.x), -(target.z - from.z))
 }
 
-export function getNeoApproachDirection (move: Move): { axis: 'x' | 'z', sign: 1 | -1 } {
+export function getNeoApproachDirection(move: Move): { axis: 'x' | 'z', sign: 1 | -1 } {
   const delta = move.exitPos.minus(move.entryPos)
   if (Math.abs(delta.x) >= Math.abs(delta.z)) {
     return { axis: 'x', sign: (delta.x >= 0 ? 1 : -1) as 1 | -1 }
@@ -94,6 +147,7 @@ export interface NeoYawSearchOpts {
 export interface NeoYawProbeResult {
   safe: boolean
   reason: 'direct' | 'left' | 'right' | 'no-escape' | 'horizontal-collision' | 'vertical-collision'
+  age?: number
 }
 
 export interface NeoPhysicsAlignProbeState {
@@ -103,7 +157,7 @@ export interface NeoPhysicsAlignProbeState {
   pos: Vec3
 }
 
-export function probeAlignYawPhysics (
+export function probeAlignYawPhysics(
   yaw: number,
   step: (yaw: number) => NeoPhysicsAlignProbeState,
   maxTicks = 12
@@ -149,7 +203,7 @@ export interface NeoAabbAlignProbeOpts {
   inflate?: number
 }
 
-export function probeAlignYawAABB (opts: NeoAabbAlignProbeOpts): NeoYawProbeResult {
+export function probeAlignYawAABB(opts: NeoAabbAlignProbeOpts): NeoYawProbeResult {
   const probeDistance = opts.probeDistance ?? 1.5
   const inflate = opts.inflate ?? 0.02
   const dir = new Vec3(-Math.sin(opts.yaw), 0, -Math.cos(opts.yaw))
@@ -186,7 +240,7 @@ export interface NeoWallAabbSource {
   getBBs(): AABB[]
 }
 
-export function collectNeoWallAABBs (
+export function collectNeoWallAABBs(
   move: Move,
   getBlockInfo: (pos: Vec3) => NeoWallAabbSource
 ): AABB[] {
@@ -223,7 +277,7 @@ export function collectNeoWallAABBs (
   return blocks
 }
 
-export function findSafeYaw (
+export function findSafeYaw(
   directYaw: number,
   isSafe: (yaw: number) => NeoYawProbeResult,
   opts: NeoYawSearchOpts = {}
@@ -235,7 +289,7 @@ export function findSafeYaw (
   logNeoAlign(
     'findSafeYaw start directYaw=%d probeStep=%d maxDelta=%d directionHint=%s',
     directYaw * (180 / Math.PI),
-    probeStep ,
+    probeStep,
     maxDelta,
     directionHint
   )
@@ -248,14 +302,14 @@ export function findSafeYaw (
     if (directionHint == null || directionHint < 0) {
       const left = signedRadians(directYaw - delta)
       const leftSafe = isSafe(left)
-      logNeoAlign('findSafeYaw check left delta=%d yaw=%d safe=%s reason=%s', delta, left, leftSafe.safe, leftSafe.reason)
+      logNeoAlign('findSafeYaw check left delta=%d yaw=%d safe=%s reason=%s age=%d', delta, left * (180 / Math.PI), leftSafe.safe, leftSafe.reason, leftSafe.age)
       if (leftSafe.safe) return left
     }
 
     if (directionHint == null || directionHint > 0) {
       const right = signedRadians(directYaw + delta)
       const rightSafe = isSafe(right)
-      logNeoAlign('findSafeYaw check right delta=%d yaw=%d safe=%s reason=%s', delta, right * (180 / Math.PI), rightSafe.safe, rightSafe.reason)
+      logNeoAlign('findSafeYaw check right delta=%d yaw=%d safe=%s reason=%s age=%d', delta, right * (180 / Math.PI), rightSafe.safe, rightSafe.reason, rightSafe.age)
       if (rightSafe.safe) return right
     }
   }
@@ -277,7 +331,7 @@ export interface NeoForwardYawCheck {
   inflate?: number
 }
 
-export function isNeoForwardYawSafe (check: NeoForwardYawCheck): boolean {
+export function isNeoForwardYawSafe(check: NeoForwardYawCheck): boolean {
   const probeDistance = check.probeDistance ?? 1.25
   const inflate = check.inflate ?? 0.02
   const dir = new Vec3(-Math.sin(check.yaw), 0, -Math.cos(check.yaw))
@@ -312,18 +366,19 @@ export function isNeoForwardYawSafe (check: NeoForwardYawCheck): boolean {
   return !supportHit
 }
 
-export function isNeoForwardYawSafeFromSimulation (
+export function isNeoForwardYawSafeFromSimulation(
   simulate: (yaw: number) => NeoYawProbeResult,
   yaw: number
 ): NeoYawProbeResult {
   return simulate(yaw)
 }
 
-export function getNeoYawSearchDirection (move: Move): 1 | -1 {
+export function getNeoYawSearchDirection(move: Move, side?: NeoAlignmentSide): 1 | -1 {
+  const neoSide = side ?? getNeoAlignmentSide(move)
   const entryCenter = move.entryPos.floored().offset(0.5, 0, 0.5)
-  const corner = getNeoAlignmentTarget(move)
+  const corner = getNeoAlignmentTarget(move, neoSide)
   const path = move.exitPos.minus(move.entryPos)
-  const side = corner.minus(entryCenter)
-  const cross = path.x * side.z - path.z * side.x
+  const sideVec = corner.minus(entryCenter)
+  const cross = path.x * sideVec.z - path.z * sideVec.x
   return cross >= 0 ? -1 : 1
 }

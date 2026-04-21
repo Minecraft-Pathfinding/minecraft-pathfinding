@@ -66,6 +66,17 @@ bot.on('chat', (username, msg) => {
     const [cmd, ...args] = msg.split(' ')
 
     switch (cmd) {
+      case "tickrate": {
+        const rate = Number(args[0])
+        if (Number.isNaN(rate)) {
+          bot.chat(`Invalid rate: ${args[0]}`)
+          return
+        }
+        const old = bot.physics.physicsIntervalMs
+        bot.physics.physicsIntervalMs = rate;
+        bot.chat(`Tick rate set to ${args[0]}, was ${old}.`)
+        break
+      }
       case 'goto': {
         const x = Math.floor(Number(args[0]))
         const y = Math.floor(Number(args[1]))

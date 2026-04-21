@@ -336,9 +336,9 @@ function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boole
 
   const diff = findDiff(state.pos, state.vel, state.yaw, 0, nextPoint, state.onGround)
 
-  console.log('left/right diff:', diff, diff / (Math.PI * 12))
+  console.log('left/right diff:', diff, diff / Math.PI * 12)
 
-  if (state.pos.distanceTo(nextPoint) < 0.1) {
+  if (state.pos.distanceTo(nextPoint) < minDist) {
     set('left', false)
     set('right', false)
     return

@@ -755,8 +755,26 @@ export class ThePathfinder {
     return this.executionRunner.recovery(move, path, goal, entry)
   }
 
-  async cleanupBot(): Promise<void> {
+  async cleanupBot(finish = false): Promise<void> {
     this.bot.clearControlStates()
+
+    if (finish && this.currentExecutor) {
+      const ectx = this.currentExecutor.simForward({ ticks: 2 })
+      if (this.bot.entity.onGround && !ectx.state.onGround && ectx.position.y < this.bot.entity.position.y) {
+        this.bot.setControlState('sneak', true)
+      }
+
+      let normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
+      while (normVel.norm() > 5e-4) {
+        console.log(normVel, normVel.norm())
+        await this.bot.waitForTicks(1)
+        normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
+      }
+
+      this.bot.setControlState('sneak', false)
+    }
+
+
     for (const [, executor] of this.activeMappings.movements) {
       executor.reset()
     }
@@ -780,7 +798,7 @@ export class ThePathfinder {
     await this.cleanupBot()
     if (executor != null) {
       await goal.onFinish(executor)
-      await this.cleanupBot()
+      await this.cleanupBot(true)
     }
     this.world.cleanup?.()
 

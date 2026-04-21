@@ -21,6 +21,8 @@ export class Move implements PathData {
   toBreak: BreakHandler[]
   optimizedExecutor?: MovementExecutor
 
+  metadata: Record<string, any> = {}
+
   constructor (
     public readonly x: number,
     public readonly y: number,
@@ -82,7 +84,7 @@ export class Move implements PathData {
       state.pos.z,
       toPlace,
       toBreak,
-      prevMove.remainingBlocks - 0, // toPlace.length,
+      prevMove.remainingBlocks - toPlace.length,
       cost,
       type,
       prevMove.exitPos,
@@ -116,7 +118,7 @@ export class Move implements PathData {
       pos.z,
       toPlace,
       toBreak,
-      prevMove.remainingBlocks - 0, // toPlace.length,
+      prevMove.remainingBlocks - toPlace.length,
       cost,
       type,
       prevMove.exitPos,

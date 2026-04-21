@@ -14,6 +14,7 @@ import { Optimizer } from './mineflayer-specific/post'
 import { World } from './mineflayer-specific/world/worldInterface'
 import type { ResetReason } from './types'
 import { ThePathfinder } from './ThePathfinder'
+import { printBotControls } from './utils'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:PathExecutor')
@@ -111,7 +112,9 @@ export class PathExecutor {
       return await Promise.resolve().then(task)
     } finally {
       const duration = performance.now() - start
-      log(`${label} took ${duration.toFixed(2)}ms. ${this.bot.entity.position}`)
+      log(`${label} took ${duration.toFixed(2)}ms.`)
+      log(`pos: ${this.bot.entity.position}`)
+      printBotControls(this.bot, log)
     }
   }
 
@@ -213,7 +216,7 @@ export class PathExecutor {
     const finish = async (): Promise<void> => {
       if (settled) return
       settled = true
-      bot.off('physicsTick', moveListener)
+      bot.off('physicsTickBegin', moveListener)
       if (this.getCurrentExecutionId() === myExecutionId) {
         await this.timeAsync('finish cleanup', () => this.host.cleanupBot())
       }
@@ -223,7 +226,7 @@ export class PathExecutor {
     const fail = async (err: unknown): Promise<void> => {
       if (settled) return
       settled = true
-      bot.off('physicsTick', moveListener)
+      bot.off('physicsTickBegin', moveListener)
       rejectCompletion(err)
     }
 
@@ -536,12 +539,12 @@ export class PathExecutor {
 
     beginOptimization()
 
-    bot.prependListener('physicsTick', moveListener)
+    bot.prependListener('physicsTickBegin', moveListener)
 
     try {
       await completion
     } finally {
-      bot.off('physicsTick', moveListener)
+      bot.off('physicsTickBegin', moveListener)
     }
   }
 
