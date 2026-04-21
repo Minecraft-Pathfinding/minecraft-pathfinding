@@ -33,7 +33,6 @@ export class NeoProvider extends MovementProvider {
     if (!takeoffFloor.solidFull || takeoffFloor.liquid) return
 
 
-  
     const takeoffHead = this.getBlockInfo(node, 0, 1, 0)
     const takeoffUpper = this.getBlockInfo(node, 0, 2, 0)
     if (!takeoffHead.walkthrough || !takeoffUpper.walkthrough) return
@@ -49,7 +48,7 @@ export class NeoProvider extends MovementProvider {
       if (closed.has(`${landingFloor.position.x},${landingFloor.position.y},${landingFloor.position.z}`)) continue
       if (!landingFloor.solidFull || landingFloor.liquid) continue
 
-      const landingFeet = this.getBlockInfo(node, dx, 1, dz)
+      const landingFeet = this.getBlockInfo(node, dx, 0, dz)
       const landingHead = this.getBlockInfo(node, dx, 1, dz)
       const landingUpper = this.getBlockInfo(node, dx, 2, dz)
       if (!landingFeet.walkthrough || !landingHead.walkthrough) continue

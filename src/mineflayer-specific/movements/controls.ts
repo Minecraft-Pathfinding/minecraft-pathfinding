@@ -194,7 +194,7 @@ export function smartMovement (ctx: IEntityState, nextPoint: Vec3, sprint = true
 
   // diff = wrapRadians(diff + lookDiff)
 
-  // console.log('forward/back diff', diff, diff / Math.PI * 12)
+  console.log('forward/back diff', diff, diff / Math.PI * 12)
 
   if (EIGHT_PI_OVER_TWELVE < diff && diff < SIXTEEN_PI_OVER_TWELVE) {
     // console.log('going back')
@@ -335,6 +335,8 @@ function applyStrafeMovement (state: StrafeState, nextPoint: Vec3, strict: boole
   }
 
   const diff = findDiff(state.pos, state.vel, state.yaw, 0, nextPoint, state.onGround)
+
+  console.log('left/right diff:', diff, diff / (Math.PI * 12))
 
   if (state.pos.distanceTo(nextPoint) < 0.1) {
     set('left', false)

@@ -22,18 +22,24 @@ export function getNeoAlignmentTarget (move: Move): Vec3 {
   const goal = move.exitPos.floored()
   const delta = move.exitPos.minus(move.entryPos)
   let bestVert: Vec3
+  const xDir = Math.sign(delta.x) || 1
+  const zDir = Math.sign(delta.z) || 1
 
   if (Math.abs(delta.x) >= Math.abs(delta.z)) {
     bestVert = new Vec3(entry.x + (delta.x >= 0 ? 0 : 1), entry.y, entry.z)
-    const offsetX = Math.sign(bestVert.x - goal.x) * 0.3
-    const offsetZ = Math.sign(bestVert.z - goal.z) * 0.3
-    return bestVert.clone().offset(offsetX, 0, offsetZ)
+    return bestVert.clone().offset(
+      (Math.sign(bestVert.x - goal.x) || xDir) * 0.3,
+      0,
+      (delta.x >= 0 ? -1 : 1) * 0.15
+    )
   }
 
   bestVert = new Vec3(entry.x, entry.y, entry.z + (delta.z >= 0 ? 0 : 1))
-  const offsetX = Math.sign(bestVert.x - goal.x) * 0.3
-  const offsetZ = Math.sign(bestVert.z - goal.z) * 0.3
-  return bestVert.clone().offset(offsetX, 0, offsetZ)
+  return bestVert.clone().offset(
+    (delta.z >= 0 ? 1 : -1) * 0.15,
+    0,
+    (Math.sign(bestVert.z - goal.z) || zDir) * 0.3
+  )
 }
 
 export function getNeoGoalBackVertex (move: Move, approachTarget: Vec3): Vec3 {
@@ -88,6 +94,133 @@ export interface NeoYawSearchOpts {
 export interface NeoYawProbeResult {
   safe: boolean
   reason: 'direct' | 'left' | 'right' | 'no-escape' | 'horizontal-collision' | 'vertical-collision'
+}
+
+export interface NeoPhysicsAlignProbeState {
+  onGround: boolean
+  isCollidedHorizontally: boolean
+  isCollidedVertically: boolean
+  pos: Vec3
+}
+
+export function probeAlignYawPhysics (
+  yaw: number,
+  step: (yaw: number) => NeoPhysicsAlignProbeState,
+  maxTicks = 12
+): NeoYawProbeResult {
+  logNeoAlign('probeAlignYawPhysics start yaw=%d maxTicks=%d', yaw * (180 / Math.PI), maxTicks)
+
+  for (let i = 0; i < maxTicks; i++) {
+    const state = step(yaw)
+    logNeoAlign(
+      'probeAlignYawPhysics tick=%d yaw=%d onGround=%s vert=%s horiz=%s pos=%O',
+      i,
+      yaw * (180 / Math.PI),
+      state.onGround,
+      state.isCollidedHorizontally,
+      state.pos
+    )
+
+    if (state.isCollidedHorizontally) {
+      return { safe: false, reason: 'horizontal-collision' }
+    }
+
+    if (!state.onGround) {
+      return { safe: true, reason: 'direct' }
+    }
+  }
+
+  return { safe: false, reason: 'no-escape' }
+}
+
+export interface NeoAabbAlignProbeBlockInfo {
+  physical: boolean
+  liquid: boolean
+  position: Vec3
+  getBBs(): AABB[]
+}
+
+export interface NeoAabbAlignProbeOpts {
+  origin: Vec3
+  yaw: number
+  playerHeight: number
+  wallBlocks: AABB[]
+  probeDistance?: number
+  inflate?: number
+}
+
+export function probeAlignYawAABB (opts: NeoAabbAlignProbeOpts): NeoYawProbeResult {
+  const probeDistance = opts.probeDistance ?? 1.5
+  const inflate = opts.inflate ?? 0.02
+  const dir = new Vec3(-Math.sin(opts.yaw), 0, -Math.cos(opts.yaw))
+  const startBB = AABBUtils.getPlayerAABBRaw(opts.origin, opts.playerHeight).clone().expand(inflate, 0, inflate)
+  const endPos = opts.origin.plus(dir.scaled(probeDistance))
+  const endBB = AABBUtils.getPlayerAABBRaw(endPos, opts.playerHeight).clone().expand(inflate, 0, inflate)
+  const sweptBB = startBB.expandTowards(dir.scaled(probeDistance)).expand(inflate, 0, inflate)
+
+  const wallHit = opts.wallBlocks.some((bb) => bb.collides(sweptBB))
+  if (wallHit) {
+    logNeoAlign(
+      'probeAlignYawAABB reject wall origin=%O yaw=%d sweptBB=%O walls=%d',
+      opts.origin,
+      opts.yaw * (180 / Math.PI),
+      sweptBB,
+      opts.wallBlocks.length
+    )
+    return { safe: false, reason: 'horizontal-collision' }
+  }
+
+  logNeoAlign(
+    'probeAlignYawAABB success origin=%O yaw=%d sweptBB=%O walls=%d',
+    opts.origin,
+    opts.yaw * (180 / Math.PI),
+    sweptBB,
+    opts.wallBlocks.length
+  )
+  return { safe: true, reason: 'direct' }
+}
+
+export interface NeoWallAabbSource {
+  physical: boolean
+  position: Vec3
+  getBBs(): AABB[]
+}
+
+export function collectNeoWallAABBs (
+  move: Move,
+  getBlockInfo: (pos: Vec3) => NeoWallAabbSource
+): AABB[] {
+  const delta = move.exitPos.minus(move.entryPos)
+  const entry = move.entryPos.floored()
+  const goal = move.exitPos.floored()
+  const blocks: AABB[] = []
+
+  if (Math.abs(delta.x) >= Math.abs(delta.z)) {
+    const stepSign = delta.x >= 0 ? 1 : -1
+    for (let x = entry.x + stepSign; x !== goal.x; x += stepSign) {
+      for (const y of [entry.y, entry.y + 1]) {
+        const info = getBlockInfo(new Vec3(x, y, entry.z))
+        if (!info.physical) continue
+        const bbs = info.getBBs()
+        if (bbs.length === 0) bbs.push(AABB.fromBlock(info.position))
+        blocks.push(...bbs)
+      }
+    }
+    return blocks
+  }
+
+  const stepSign = delta.z >= 0 ? 1 : -1
+  for (let z = entry.z + stepSign; z !== goal.z; z += stepSign) {
+    for (const y of [entry.y, entry.y + 1]) {
+      const info = getBlockInfo(new Vec3(entry.x, y, z))
+      if (!info.physical) continue
+      const bbs = info.getBBs()
+      if (bbs.length === 0) bbs.push(AABB.fromBlock(info.position))
+      blocks.push(...bbs)
+    }
+  }
+
+  return blocks
 }
 
 export function findSafeYaw (
