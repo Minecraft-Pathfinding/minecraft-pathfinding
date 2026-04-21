@@ -262,6 +262,15 @@ export class LadderForwardExecutor extends MovementExecutor {
     this.bot.setControlState('sneak', false)
   }
 
+  protected _applyApproachControls(_thisMove: Move, target: Vec3): void {
+    this._applyLockedYaw()
+    this.bot.clearControlStates()
+    botSmartMovement(this.bot, target, true)
+    botStrafeMovement(this.bot, target, true)
+    this.bot.setControlState('jump', false)
+    this.bot.setControlState('sneak', false)
+  }
+
   protected _applyExecutionControls(_thisMove: Move, _target: Vec3): void {
     this._applyLockedYaw()
     this.bot.clearControlStates()
@@ -317,20 +326,23 @@ export class LadderForwardExecutor extends MovementExecutor {
       }
 
       if (canJumpFromEdge) {
+        this._clearBackupState()
+        this._clearLockedYaw()
+
         if (!this._isYawAlignedForApproach(targetEyeVec)) {
           this._clearApproachControls()
           return false
         }
 
-        this._clearBackupState()
-        this._startExecution(targetEyeVec, thisMove)
-        return true
+        this._applyApproachControls(thisMove, targetEyeVec)
+        return false
       }
 
       if (this.backupAttempted) {
         this._clearBackupState()
-        this._startExecution(targetEyeVec, thisMove)
-        return true
+        this._clearLockedYaw()
+        this.bot.clearControlStates()
+        throw new CancelError('LadderExecutor: will not make this jump after backing up!')
       }
 
       if (this.bot.entity.onGround) {
@@ -339,8 +351,9 @@ export class LadderForwardExecutor extends MovementExecutor {
 
       if (this._startBackup(thisMove)) return false
 
-      this._startExecution(targetEyeVec, thisMove)
-      return true
+      this._clearLockedYaw()
+      this.bot.clearControlStates()
+      throw new CancelError('LadderExecutor: will not make this jump!')
     }
   }
 
@@ -381,7 +394,7 @@ export class LadderForwardExecutor extends MovementExecutor {
 
     void this._queueLookAtSync(targetEyeVec)
 
-    if (canDirectJump || fallOffEdge || canJumpFromEdge) {
+    if (canDirectJump || fallOffEdge) {
       if (!this._isYawAlignedForApproach(targetEyeVec)) {
         this._clearApproachControls()
         return false
@@ -392,16 +405,31 @@ export class LadderForwardExecutor extends MovementExecutor {
       return false
     }
 
+    if (canJumpFromEdge) {
+      this._clearBackupState()
+      this._clearLockedYaw()
+
+      if (!this._isYawAlignedForApproach(targetEyeVec)) {
+        this._clearApproachControls()
+        return false
+      }
+
+      this._applyApproachControls(thisMove, targetEyeVec)
+      return false
+    }
+
     if (this.backupAttempted) {
       this._clearBackupState()
-      this._startExecution(targetEyeVec, thisMove)
-      return false
+      this._clearLockedYaw()
+      this.bot.clearControlStates()
+      throw new CancelError('LadderExecutor: will not make this jump after backing up!')
     }
 
     if (this._startBackup(thisMove)) return false
 
-    this._startExecution(targetEyeVec, thisMove)
-    return false
+    this._clearLockedYaw()
+    this.bot.clearControlStates()
+    throw new CancelError('LadderExecutor: will not make this jump!')
   }
 }
 
