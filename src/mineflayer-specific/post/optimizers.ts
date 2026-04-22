@@ -73,7 +73,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         }
       }
 
-      let counter = verts1.length
+      let validCount = 0
       for (const vert of verts1) {
         const offset = vert.minus(orgPos)
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
@@ -89,13 +89,14 @@ export class LandStraightAheadOpt extends MovementOptimizer {
 
         const valid0 = (raycast0 == null) || raycast0.shapes.length > 0 || raycast0.position.distanceTo(orgPos) > dist
 
-        if (!valid0) {
-          counter--
-        }
+        if (valid0) validCount++
       }
 
-      if (counter === 0) {
-        log(`[LandStraightAhead] Index ${currentIndex}: Air check raycast failed (counter reached 0).`)
+      // Require every foot-corner probe to be clear. Accepting a line when
+      // only one probe succeeds lets the optimizer merge paths that skim block
+      // edges and then snag the player's hitbox.
+      if (validCount !== verts1.length) {
+        log(`[LandStraightAhead] Index ${currentIndex}: Air check raycast failed (${validCount}/${verts1.length} corners clear).`)
         return --currentIndex
       }
 

@@ -776,7 +776,7 @@ export class ThePathfinder {
           this.bot.setControlState('sneak', true)
         }
 
-        console.log(normVel, normVel.norm())
+        log(normVel, normVel.norm())
         await this.bot.waitForTicks(1)
       } while (normVel.norm() > 5e-4)
 
