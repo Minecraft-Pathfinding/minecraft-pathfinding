@@ -18,12 +18,41 @@ type BlockEventListenerMap = {
 }
 
 const debugIt = false;
+const listenerCounts = new WeakMap<Bot, Map<BlockEventName, number>>()
 
 function debug(...args: any[]) {
   const log = createDebug('minecraft-pathfinding:block-events')
   if (debugIt) {
     log(...args)
   }
+}
+
+function getTrackedListenerCounts(bot: Bot): Map<BlockEventName, number> {
+  let counts = listenerCounts.get(bot)
+  if (counts == null) {
+    counts = new Map<BlockEventName, number>()
+    listenerCounts.set(bot, counts)
+  }
+  return counts
+}
+
+function changeTrackedListenerCount(bot: Bot, eventName: BlockEventName, delta: number): number {
+  const counts = getTrackedListenerCounts(bot)
+  const next = Math.max(0, (counts.get(eventName) ?? 0) + delta)
+  counts.set(eventName, next)
+  return next
+}
+
+export function getBlockEventListenerCount(bot: Bot, eventName: BlockEventName): number {
+  return getTrackedListenerCounts(bot).get(eventName) ?? 0
+}
+
+export function getTotalBlockEventListenerCount(bot: Bot): number {
+  let total = 0
+  for (const count of getTrackedListenerCounts(bot).values()) {
+    total += count
+  }
+  return total
 }
 
 export function toBlockPositionEventName(position: Vec3): BlockPositionEventName {
@@ -37,6 +66,13 @@ export function onBlockEvent<K extends BlockEventName>(
 ): void {
   debug('on %s', eventName)
   bot.on(eventName, listener as (...args: any[]) => void)
+  const active = changeTrackedListenerCount(bot, eventName, 1)
+  debug('active listeners %s=%d total=%d', eventName, active, getTotalBlockEventListenerCount(bot))
+  if (eventName === 'blockUpdate' && active > 10) {
+    console.warn(
+      `[block-events] blockUpdate listeners active=${active} emitter=${bot.listenerCount(eventName)} total=${getTotalBlockEventListenerCount(bot)}`
+    )
+  }
 }
 
 export function onceBlockEvent<K extends BlockEventName>(
@@ -45,7 +81,20 @@ export function onceBlockEvent<K extends BlockEventName>(
   listener: BlockEventListenerMap[K]
 ): void {
   debug('once %s', eventName)
-  bot.once(eventName, listener as (...args: any[]) => void)
+  const wrapped = ((...args: any[]) => {
+    changeTrackedListenerCount(bot, eventName, -1)
+    debug(
+      'active listeners %s=%d total=%d',
+      eventName,
+      getBlockEventListenerCount(bot, eventName),
+      getTotalBlockEventListenerCount(bot)
+    )
+    ;(listener as (...args: any[]) => void)(...args)
+  }) as (...args: any[]) => void
+
+  bot.once(eventName, wrapped)
+  const active = changeTrackedListenerCount(bot, eventName, 1)
+  debug('active listeners %s=%d total=%d', eventName, active, getTotalBlockEventListenerCount(bot))
 }
 
 export function offBlockEvent<K extends BlockEventName>(
@@ -55,6 +104,8 @@ export function offBlockEvent<K extends BlockEventName>(
 ): void {
   debug('off %s', eventName)
   bot.off(eventName, listener as (...args: any[]) => void)
+  const active = changeTrackedListenerCount(bot, eventName, -1)
+  debug('active listeners %s=%d total=%d', eventName, active, getTotalBlockEventListenerCount(bot))
 }
 
 export function handleBlockEvent<K extends BlockEventName>(
@@ -188,7 +239,8 @@ function waitForPositionSettle<TResult>(
     ) => BlockUpdateListener
   }
 ): Promise<TResult> {
-  const eventName = toBlockPositionEventName(position)
+  const targetPosition = position.floored()
+  const eventName = toBlockPositionEventName(targetPosition)
   const timeoutMs = opts.timeoutMs ?? 5000
   const settleMs = opts.settleMs ?? 75
   const signal = opts.signal
@@ -247,6 +299,10 @@ function waitForPositionSettle<TResult>(
     const baseListener = opts.createListener(controller)
 
     const onUpdate: BlockUpdateListener = (oldBlock, newBlock) => {
+      const updatedPosition = oldBlock?.position ?? newBlock?.position
+      if (updatedPosition == null) return
+      if (!updatedPosition.floored().equals(targetPosition)) return
+
       baseListener(oldBlock, newBlock)
     }
 
@@ -254,14 +310,18 @@ function waitForPositionSettle<TResult>(
       fail(new Error(`Aborted while waiting for ${eventName}`))
     }
 
-    const cleanup = () => {
-      if (timeoutTimer) clearTimeout(timeoutTimer)
-      cancelSettleTimer()
-      offBlockEvent(bot, eventName, onUpdate)
-      signal?.removeEventListener('abort', onAbort)
-    }
+  const cleanup = () => {
+    if (timeoutTimer) clearTimeout(timeoutTimer)
+    cancelSettleTimer()
+    offBlockEvent(bot, 'blockUpdate', onUpdate)
+    signal?.removeEventListener('abort', onAbort)
+  }
 
-    onBlockEvent(bot, eventName, onUpdate)
+    onBlockEvent(bot, 'blockUpdate', onUpdate)
+
+    // Seed the listener from the current world state so callers do not have to
+    // wait for a second update before the settle timer can start.
+    baseListener(null, bot.blockAt(targetPosition) ?? null)
 
     if (timeoutMs > 0) {
       timeoutTimer = setTimeout(() => {
@@ -445,6 +505,12 @@ export function handleSettledBlockEvent(
         })
 
         await listener(oldBlock, newBlock, settledBlock)
+      } catch (err) {
+        debug(
+          'settled block listener failed for %s: %s',
+          key,
+          err instanceof Error ? err.message : String(err)
+        )
       } finally {
         pending.delete(key)
       }
