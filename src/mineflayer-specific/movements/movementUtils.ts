@@ -315,6 +315,31 @@ export class ParkourJumpHelper {
     this.world = world
   }
 
+  private _buildBackupCandidates(bbs: AABB[], goalVert: Vec3, orgPos: Vec3): Vec3[] {
+    const candidates = new Map<string, Vec3>()
+
+    for (const bb of bbs) {
+      for (const vert of bb.toVertices()) {
+        const offsetX = Math.sign(vert.x - goalVert.x) * 0.3
+        const offsetZ = Math.sign(vert.z - goalVert.z) * 0.3
+        const candidate = this._snapSharedAxesToFaceCenter(vert.clone().offset(offsetX, 0, offsetZ), goalVert)
+        candidates.set(`${candidate.x},${candidate.y},${candidate.z}`, candidate)
+      }
+    }
+
+    return [...candidates.values()].sort((a, b) => {
+      const aOrgDist = a.xzDistanceTo(orgPos)
+      const bOrgDist = b.xzDistanceTo(orgPos)
+      if (Math.abs(aOrgDist - bOrgDist) > 1e-6) return aOrgDist - bOrgDist
+
+      const aGoalDist = a.distanceTo(goalVert)
+      const bGoalDist = b.distanceTo(goalVert)
+      if (Math.abs(aGoalDist - bGoalDist) > 1e-6) return bGoalDist - aGoalDist
+
+      return 0
+    })
+  }
+
   public findGoalVertex(goal: AABB): Vec3 {
     // get top vertex that is closest to target.
 
@@ -364,35 +389,21 @@ export class ParkourJumpHelper {
   }
 
   public findBackupVertex(bbs: AABB[], goalVert: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 {
-    const verts = bbs.flatMap((bb) => bb.toVertices())
-    if (verts.length === 0) return orgPos.clone()
+    const candidates = this._buildBackupCandidates(bbs, goalVert, orgPos)
+    return candidates[0] ?? orgPos.clone()
+  }
 
-    let bestVert = verts[0]
-    let bestDist = bestVert.distanceTo(goalVert)
-    let bestOrgDist = bestVert.distanceTo(orgPos)
+  public findViableBackupVertex(goal: Vec3, eyeTarget?: Vec3, orgPos: Vec3 = this.bot.entity.position): Vec3 | null {
+    const bbs = getUnderlyingBBs(this.world, orgPos, 0.6)
+    const goalVert = eyeTarget ?? this.findGoalVertex(AABB.fromBlockPos(goal))
 
-    for (const vert of verts.slice(1)) {
-      const dist = vert.distanceTo(goalVert)
-      const orgDist = vert.distanceTo(orgPos)
-
-      if (dist > bestDist + 1e-6) {
-        bestVert = vert
-        bestDist = dist
-        bestOrgDist = orgDist
-        continue
-      }
-
-      if (Math.abs(dist - bestDist) <= 1e-6 && orgDist < bestOrgDist) {
-        bestVert = vert
-        bestOrgDist = orgDist
+    for (const candidate of this._buildBackupCandidates(bbs, goalVert, orgPos)) {
+      if (this.simBackupJump(goal, goalVert, candidate, orgPos)) {
+        return candidate
       }
     }
 
-    const offsetX = Math.sign(bestVert.x - goalVert.x) * 0.3
-    const offsetZ = Math.sign(bestVert.z - goalVert.z) * 0.3
-
-    const result = bestVert.clone().offset(offsetX, 0, offsetZ)
-    return this._snapSharedAxesToFaceCenter(result, goalVert)
+    return null
   }
 
   private _snapSharedAxesToFaceCenter (backupVert: Vec3, goalVert: Vec3): Vec3 {

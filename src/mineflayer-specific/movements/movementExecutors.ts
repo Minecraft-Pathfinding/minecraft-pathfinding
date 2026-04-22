@@ -791,15 +791,14 @@ export class ParkourForwardExecutor extends MovementExecutor {
     //   pos.y = Math.round(pos.y)
     // }
 
-    const bbs = getUnderlyingBBs(this.bot.pathfinder.world, pos, 0.6);
-    const backupTarget = this.shitterTwo.findBackupVertex(bbs, targetEyeVec, pos)
+    const backupTarget = this.shitterTwo.findViableBackupVertex(target, targetEyeVec, pos)
     this._debugLog(
       'backup target check:',
       'pos', pos,
       'target:', target,
       'eye:', targetEyeVec,
       'result:', backupTarget,
-      'bbs', bbs
+      'bbs', getUnderlyingBBs(this.bot.pathfinder.world, pos, 0.6)
     )
     return backupTarget
   }

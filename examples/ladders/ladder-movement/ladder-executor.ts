@@ -166,8 +166,7 @@ export class LadderForwardExecutor extends MovementExecutor {
   protected _getBackupTarget(thisMove: Move): Vec3 | null {
     const targetEyeVec = this._getTargetEyeVec(thisMove)
     const pos = thisMove.entryPos
-    const bbs = getUnderlyingBBs(this.bot.pathfinder.world, pos, 0.6)
-    return this.jumpHelper.findBackupVertex(bbs, targetEyeVec, pos)
+    return this.jumpHelper.findViableBackupVertex(this._getTargetBlock(thisMove), targetEyeVec, pos)
   }
 
   protected _shouldSneakDuringBackup(thisMove: Move, target: Vec3): boolean {
