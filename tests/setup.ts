@@ -67,13 +67,15 @@ export class FlatWorld {
 function createFakePlayer(
   version: string,
   mcData: ReturnType<typeof registry>,
+  world: Bot["world"],
   pos: Vec3,
   groundLevel: number,
-) {
+): any {
   const onGround = pos.y === groundLevel;
   const control: Partial<Record<ControlState, boolean>> = {};
 
   return {
+    world: world,
     entity: {
       position: pos,
       velocity: new Vec3(0, onGround ? -0.08 : 0, 0),
@@ -96,6 +98,11 @@ function createFakePlayer(
     food: 20,
     game: { gameMode: "survival", dimension: "overworld" },
     registry: mcData,
+
+    blockAt: (point: Vec3, extraInfos?: any) => {
+        return world.getBlock(point)
+    },
+
     setControlState: (name: ControlState, value: boolean) => {
       control[name] = value;
     },
@@ -109,7 +116,7 @@ export function createFlatWorld(version: string, floorY: number) {
   return new FlatWorld(mcData.blocksByName, Block, floorY);
 }
 
-export function createPlayerRig(options: {
+export function createPlayerRig(world: Bot["world"], options: {
   version: string;
   position: Vec3;
   groundLevel?: number;
@@ -118,7 +125,7 @@ export function createPlayerRig(options: {
   const groundLevel = options.groundLevel ?? position.y;
   const { mcData } = loadMcData(version);
 
-  const fakePlayer: any = createFakePlayer(version, mcData, position.clone(), groundLevel);
+  const fakePlayer: any = createFakePlayer(version, mcData, world, position.clone(), groundLevel);
   fakePlayer.entity = applyMdToNewEntity(EPhysicsCtx, mcData.entitiesByName.player, fakePlayer.entity);
 
   const physics = new BotcraftPhysics(mcData);
