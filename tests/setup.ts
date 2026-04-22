@@ -1,5 +1,5 @@
 import type { Bot, ControlState } from "mineflayer";
-import md from "minecraft-data";
+import registry from "prismarine-registry";
 import block, { Block as PBlock } from "prismarine-block";
 import { Vec3 } from "vec3";
 import { initSetup } from "@nxg-org/mineflayer-physics-util/dist";
@@ -12,7 +12,7 @@ import { applyMdToNewEntity } from "@nxg-org/mineflayer-physics-util/dist/util/p
 const initializedVersions = new Set<string>();
 
 export function loadMcData(version: string) {
-  const mcData = md(version);
+  const mcData = registry(version);
   if (!initializedVersions.has(version)) {
     initSetup(mcData);
     initializedVersions.add(version);
@@ -28,7 +28,7 @@ export class FlatWorld {
   private readonly overrideBlocks: Record<string, PBlock> = {};
 
   constructor(
-    private readonly blocksByName: ReturnType<typeof md>["blocksByName"],
+    private readonly blocksByName: ReturnType<typeof registry>["blocksByName"],
     private readonly Block: typeof PBlock,
     private readonly floorY: number,
   ) {}
@@ -66,7 +66,7 @@ export class FlatWorld {
 
 function createFakePlayer(
   version: string,
-  mcData: ReturnType<typeof md>,
+  mcData: ReturnType<typeof registry>,
   pos: Vec3,
   groundLevel: number,
 ) {
@@ -94,7 +94,7 @@ function createFakePlayer(
     inventory: { slots: [] },
     equipment: [],
     food: 20,
-    game: { gameMode: "survival" },
+    game: { gameMode: "survival", dimension: "overworld" },
     registry: mcData,
     setControlState: (name: ControlState, value: boolean) => {
       control[name] = value;
