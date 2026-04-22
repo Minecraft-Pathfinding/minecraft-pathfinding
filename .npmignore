@@ -4,3 +4,5 @@
 examples/
 yarn*
 *.log
+tests/
+pnpm-lock.yaml
