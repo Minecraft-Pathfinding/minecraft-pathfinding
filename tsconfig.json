@@ -8,6 +8,7 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
+    "rootDir": "src",
     "skipLibCheck": true,
     "target": "ES2015",
     "declaration": true,

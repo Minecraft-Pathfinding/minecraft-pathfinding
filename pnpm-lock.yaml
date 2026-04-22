@@ -24,6 +24,9 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.22.1
+      minecraft-data:
+        specifier: ^3.109.0
+        version: 3.109.0
       mineflayer:
         specifier: link:C:\Users\owner\Documents\github\mineflayer
         version: link:../mineflayer

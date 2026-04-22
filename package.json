@@ -24,6 +24,7 @@
   "devDependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "minecraft-data": "^3.109.0",
     "mineflayer": "link:C:\\Users\\owner\\Documents\\github\\mineflayer",
     "mineflayer-mouse": "^0.1.27",
     "mojangson": "^2.0.4",
