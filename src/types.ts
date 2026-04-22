@@ -8,6 +8,7 @@ import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
 export type RayType = {
   intersect: Vec3
   face: BlockFace
+  iterations?: Array<{ x: number, y: number, z: number, face: number }>
 } & Block
 
 export interface Vec3Properties {

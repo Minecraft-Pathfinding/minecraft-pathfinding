@@ -13,12 +13,14 @@
     "postinstall": "npm run build",
     "prepublishOnly": "npm run lint && npm run build",
     "build": "tsc -p ./tsconfig.json",
+    "test": "node --test tests/run.cjs",
     "pub": "npm run lint && npm run build && npm publish --access public",
     "lint": "ts-standard -y --fix"
   },
   "dependencies": {
     "@nxg-org/mineflayer-physics-util": "^1.9.2",
-    "@nxg-org/mineflayer-util-plugin": "^1.9.2",
+    "@nxg-org/mineflayer-util-plugin": "^1.9.3",
+    "debug": "^4.4.3",
     "lru-cache": "^10.1.0"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "prismarine-item": "^1.18.0",
     "prismarine-registry": "^1.12.0",
     "prismarine-world": "^3.7.0",
+    "prismarine-nbt": "^2.8.0",
     "ts-node": "^10.9.2",
     "ts-standard": "^12.0.2",
     "typescript": "^5.3.3",

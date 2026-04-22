@@ -193,26 +193,6 @@ export async function onceWithCleanup<T extends keyof BotEvents> (
   })
 }
 
-export async function waitForMove (bot: Bot, timeout = 0): Promise<void> {
-  if (timeout > 0) {
-    await onceWithCleanup(bot, 'move', {
-      timeout,
-      checkCondition: (oldPos) => oldPos != null && !oldPos.equals(bot.entity.position)
-    })
-    return
-  }
-
-  await new Promise<void>((resolve) => {
-    const listener = (oldPos: Vec3): void => {
-      if (!oldPos.equals(bot.entity.position)) {
-        bot.off('move', listener)
-        resolve()
-      }
-    }
-    bot.on('move', listener)
-  })
-}
-
 export class Task<Res, Rej> {
   done: boolean = false
   canceled: boolean = false
