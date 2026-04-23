@@ -26,7 +26,7 @@ export abstract class MovementProvider extends Movement {
   abstract movementDirs: Vec3[]
 
   private boundaries!: [x: number, z: number, y: number]
-  private halfway!: [x: number, z: number, y: number]
+  // private halfway!: [x: number, z: number, y: number]
   private orgX = 0
   private orgY = 0
   private orgZ = 0
@@ -68,7 +68,7 @@ export abstract class MovementProvider extends Movement {
     this.localData = arr
     if (this.boundaries !== boundaries) {
       this.boundaries = boundaries
-      this.halfway = [Math.floor(boundaries[0] / 2), Math.floor(boundaries[1] / 2), Math.floor(boundaries[2] / 2)]
+      // this.halfway = [Math.floor(boundaries[0] / 2), Math.floor(boundaries[1] / 2), Math.floor(boundaries[2] / 2)]
       this.boundaryX = boundaries[0]
       this.boundaryZ = boundaries[1]
       this.boundaryY = boundaries[2]
@@ -91,6 +91,7 @@ export abstract class MovementProvider extends Movement {
   }
 
   private getBlockInfoAt (x: number, y: number, z: number, pos?: Vec3): BlockInfo {
+
     const wantedDx = x - this.orgX + this.halfX
     const wantedDz = z - this.orgZ + this.halfZ
     const wantedDy = y - this.orgY + this.halfY
@@ -127,6 +128,7 @@ export class MovementHandler implements AMovementProvider<Move> {
   constructor (bot: Bot, world: World, recMovement: MovementProvider[]) {
     this.world = world
     this.recognizedMovements = recMovement
+    this.initIndexCoordinates()
   }
 
   static create (
@@ -152,17 +154,38 @@ export class MovementHandler implements AMovementProvider<Move> {
     this.goal = goal
   }
 
-  private readonly boundaries: [x: number, z: number, y: number] = [7, 7, 7]
+  private readonly boundaries: [x: number, z: number, y: number] = [19, 19, 7]
   private readonly halfway: [x: number, z: number, y: number] = [Math.floor(this.boundaries[0] / 2), Math.floor(this.boundaries[1] / 2), Math.floor(this.boundaries[2] / 2)]
+  private readonly boundaryX = this.boundaries[0]
+  private readonly boundaryZ = this.boundaries[1]
+  private readonly boundaryY = this.boundaries[2]
+  private readonly halfX = this.halfway[0]
+  private readonly halfZ = this.halfway[1]
+  private readonly halfY = this.halfway[2]
+  private readonly xStride = this.boundaries[2] * this.boundaries[1]
+  private readonly zStride = this.boundaries[2]
 
   private readonly maxBound = this.boundaries[0] * this.boundaries[1] * this.boundaries[2]
   private readonly toClear: Set<number> = new Set()
   private readonly localData: Array<BlockInfo | null> = new Array(this.maxBound).fill(null, 0, this.maxBound)
+  private readonly indexX = new Int16Array(this.maxBound)
+  private readonly indexY = new Int16Array(this.maxBound)
+  private readonly indexZ = new Int16Array(this.maxBound)
+  private readonly seenMarks = new Uint32Array(this.maxBound)
+  private seenStamp = 0
+
+  private initIndexCoordinates (): void {
+    for (let idx = 0; idx < this.maxBound; idx++) {
+      const x = Math.floor(idx / this.xStride)
+      const rest = idx % this.xStride
+      this.indexX[idx] = x
+      this.indexZ[idx] = Math.floor(rest / this.zStride)
+      this.indexY[idx] = rest % this.zStride
+    }
+  }
 
   resetLocalData (): void {
-    for (let i = 0; i < this.maxBound; i++) {
-      this.localData[i] = null
-    }
+    this.localData.fill(null)
   }
 
   // Do not reassign localData, must do shift in place.
@@ -173,26 +196,31 @@ export class MovementHandler implements AMovementProvider<Move> {
   static count = 0
   static totCount = 0
   shiftLocalData (orgPos: Vec3, newPos: Vec3): void {
-    const diff = newPos.minus(orgPos)
+    const diffX = newPos.x - orgPos.x
+    const diffY = newPos.y - orgPos.y
+    const diffZ = newPos.z - orgPos.z
+
+    if (diffX === 0 && diffY === 0 && diffZ === 0) return
+
+    if (Math.abs(diffX) >= this.boundaryX || Math.abs(diffY) >= this.boundaryY || Math.abs(diffZ) >= this.boundaryZ) {
+      this.resetLocalData()
+      MovementHandler.totCount++
+      return
+    }
 
     let swapIdx = 0
     for (let idx = 0; idx < this.maxBound; idx++) {
-      if (this.localData[idx] === null) continue
+      const data = this.localData[idx]
+      if (data === null) continue
 
-      // convert i into 3D indexes, boundaries are this.boundaries
-      const x = Math.floor(idx / (this.boundaries[2] * this.boundaries[1]))
-      const rest = idx % (this.boundaries[2] * this.boundaries[1])
-      const z = Math.floor(rest / this.boundaries[2])
-      const y = rest % this.boundaries[2]
+      const newX = this.indexX[idx] - diffX
+      const newY = this.indexY[idx] - diffY
+      const newZ = this.indexZ[idx] - diffZ
 
-      const newX = x - diff.x
-      const newY = y - diff.y
-      const newZ = z - diff.z
+      if (newX >= 0 && newX < this.boundaryX && newY >= 0 && newY < this.boundaryY && newZ >= 0 && newZ < this.boundaryZ) {
+        const newIdx = newX * this.xStride + newZ * this.zStride + newY
 
-      if (newX >= 0 && newX < this.boundaries[0] && newY >= 0 && newY < this.boundaries[2] && newZ >= 0 && newZ < this.boundaries[1]) {
-        const newIdx = newX * this.boundaries[2] * this.boundaries[1] + newZ * this.boundaries[2] + newY
-
-        this.swapArray[newIdx] = this.localData[idx]
+        this.swapArray[newIdx] = data
 
         this.swapSet[swapIdx++] = newIdx
       }
@@ -203,6 +231,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     for (let i = 0; i < swapIdx; i++) {
       const idx = this.swapSet[i]
       this.localData[idx] = this.swapArray[idx]
+      this.swapArray[idx] = null
     }
     if (swapIdx > 0) MovementHandler.count++
     MovementHandler.totCount++
@@ -213,32 +242,36 @@ export class MovementHandler implements AMovementProvider<Move> {
     let move1: Move | undefined = move
     let exit = false
 
-    const seen = new Set<number>()
+    let seenStamp = ++this.seenStamp
+    if (seenStamp === 0) {
+      this.seenMarks.fill(0)
+      seenStamp = ++this.seenStamp
+    }
 
     // theoretically, this is incorrect. Newest iteration should occur, not oldest.
     // reverse by starting at root then traversing down.
     // or keep track of changes.
     while (move1 !== undefined && !exit) {
-      const wantedDx = move1.x - orgPos.x + this.halfway[0]
-      const wantedDz = move1.z - orgPos.z + this.halfway[1]
-      const wantedDy = move1.y - orgPos.y + this.halfway[2]
+      const wantedDx = move1.x - orgPos.x + this.halfX
+      const wantedDz = move1.z - orgPos.z + this.halfZ
+      const wantedDy = move1.y - orgPos.y + this.halfY
 
-      if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+      if (wantedDx < 0 || wantedDx >= this.boundaryX || wantedDz < 0 || wantedDz >= this.boundaryZ || wantedDy < 0 || wantedDy >= this.boundaryY) {
         exit = true
       }
 
       for (const m of move1.toPlace) {
-        const wantedDx = m.x - orgPos.x + this.halfway[0]
-        const wantedDz = m.z - orgPos.z + this.halfway[1]
-        const wantedDy = m.y - orgPos.y + this.halfway[2]
+        const wantedDx = m.x - orgPos.x + this.halfX
+        const wantedDz = m.z - orgPos.z + this.halfZ
+        const wantedDy = m.y - orgPos.y + this.halfY
 
-        if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+        if (wantedDx < 0 || wantedDx >= this.boundaryX || wantedDz < 0 || wantedDz >= this.boundaryZ || wantedDy < 0 || wantedDy >= this.boundaryY) {
           exit = true
         } else {
-          const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
-          if (!seen.has(idx)) {
+          const idx = wantedDx * this.xStride + wantedDz * this.zStride + wantedDy
+          if (this.seenMarks[idx] !== seenStamp) {
             this.localData[idx] = m.blockInfo
-            seen.add(idx)
+            this.seenMarks[idx] = seenStamp
           }
         }
       }
@@ -246,17 +279,17 @@ export class MovementHandler implements AMovementProvider<Move> {
       for (const m of move1.toBreak) {
         // idx is the index of the block in the localData array
         // idx is offset from current position
-        const wantedDx = m.x - orgPos.x + this.halfway[0]
-        const wantedDz = m.z - orgPos.z + this.halfway[1]
-        const wantedDy = m.y - orgPos.y + this.halfway[2]
+        const wantedDx = m.x - orgPos.x + this.halfX
+        const wantedDz = m.z - orgPos.z + this.halfZ
+        const wantedDy = m.y - orgPos.y + this.halfY
 
-        if (wantedDx < 0 || wantedDx >= this.boundaries[0] || wantedDz < 0 || wantedDz >= this.boundaries[1] || wantedDy < 0 || wantedDy >= this.boundaries[2]) {
+        if (wantedDx < 0 || wantedDx >= this.boundaryX || wantedDz < 0 || wantedDz >= this.boundaryZ || wantedDy < 0 || wantedDy >= this.boundaryY) {
           exit = true
         } else {
-          const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
-          if (!seen.has(idx)) {
+          const idx = wantedDx * this.xStride + wantedDz * this.zStride + wantedDy
+          if (this.seenMarks[idx] !== seenStamp) {
             this.localData[idx] = m.blockInfo
-            seen.add(idx)
+            this.seenMarks[idx] = seenStamp
           }
         }
       }
