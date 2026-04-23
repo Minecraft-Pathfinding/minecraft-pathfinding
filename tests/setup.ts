@@ -51,6 +51,22 @@ function keyFor(pos: Vec3): string {
   return `${floored.x},${floored.y},${floored.z}`
 }
 
+function columnKey(chunkX: number, chunkZ: number): string {
+  return `${chunkX},${chunkZ}`
+}
+
+function chunkX(pos: Vec3): number {
+  return Math.floor(pos.x / 16)
+}
+
+function chunkZ(pos: Vec3): number {
+  return Math.floor(pos.z / 16)
+}
+
+function columnCorner(chunkX: number, chunkZ: number): Vec3 {
+  return new Vec3(chunkX * 16, 0, chunkZ * 16)
+}
+
 function createBlockAt(
   Block: typeof PBlock,
   stateId: number,
@@ -61,19 +77,36 @@ function createBlockAt(
   return block as unknown as Block
 }
 
+interface FakeWorldOptions {
+  renderDistance?: number
+  center?: Vec3
+}
+
+interface FakeColumn {
+  chunkX: number
+  chunkZ: number
+}
+
 export class FakeWorld extends EventEmitter implements World {
   private readonly overrides = new Map<string, Block>()
+  private readonly columns = new Map<string, FakeColumn>()
   private readonly raycastBot: any
+  private trackedBot?: EventEmitter & { entity?: { position?: Vec3 } }
+  private readonly trackedBotListeners: Array<() => void> = []
+  public renderDistance: number
 
   constructor(
     private readonly mcData: ReturnType<typeof registry>,
     private readonly Block: typeof PBlock,
-    public readonly minY: number = 0
+    public readonly minY: number = 0,
+    options: FakeWorldOptions = {}
   ) {
     super()
+    this.renderDistance = options.renderDistance ?? 10
     this.raycastBot = {
       blockAt: (position: Vec3) => this.getBlock(position)
     }
+    this.updateLoadedColumns(options.center ?? new Vec3(0, minY, 0), false)
   }
 
   setBlock(pos: Vec3, blockRef: string | number): Block {
@@ -85,7 +118,7 @@ export class FakeWorld extends EventEmitter implements World {
     return block
   }
 
-  clearBlock(pos: Vec3): Block {
+  clearBlock(pos: Vec3): Block | null {
     const key = keyFor(pos)
     const oldBlock = this.getBlock(pos)
     this.overrides.delete(key)
@@ -106,6 +139,8 @@ export class FakeWorld extends EventEmitter implements World {
 
   getBlock(pos: Vec3) {
     const blockPos = pos.floored()
+    if (!this.isColumnLoadedAt(blockPos)) return null
+
     const override = this.overrides.get(keyFor(blockPos))
     if (override != null) return override
 
@@ -118,7 +153,7 @@ export class FakeWorld extends EventEmitter implements World {
   }
 
   getBlockStateId(pos: Vec3) {
-    return this.getBlock(pos).stateId
+    return this.getBlock(pos)?.stateId
   }
 
   raycast(from: Vec3, direction: Vec3, range: number, matcher?: (block: Block) => boolean): RayType | null {
@@ -133,8 +168,120 @@ export class FakeWorld extends EventEmitter implements World {
     }) as RayType
   }
 
-  private createBlock(pos: Vec3, blockRef: string | number): Block {
+  createBlock(pos: Vec3, blockRef: string | number): Block {
     return createBlockAt(this.Block, resolveStateId(this.mcData, blockRef), pos)
+  }
+
+  isColumnLoaded(chunkX: number, chunkZ: number): boolean {
+    return this.columns.has(columnKey(chunkX, chunkZ))
+  }
+
+  isColumnLoadedAt(pos: Vec3): boolean {
+    return this.isColumnLoaded(chunkX(pos), chunkZ(pos))
+  }
+
+  getColumn(chunkX: number, chunkZ: number): FakeColumn | undefined {
+    return this.columns.get(columnKey(chunkX, chunkZ))
+  }
+
+  getLoadedColumn(chunkX: number, chunkZ: number): FakeColumn | undefined {
+    return this.getColumn(chunkX, chunkZ)
+  }
+
+  getColumnAt(pos: Vec3): FakeColumn | undefined {
+    return this.getColumn(chunkX(pos), chunkZ(pos))
+  }
+
+  getLoadedColumnAt(pos: Vec3): FakeColumn | undefined {
+    return this.getColumnAt(pos)
+  }
+
+  getColumns(): Array<{ chunkX: number, chunkZ: number, column: FakeColumn }> {
+    return [...this.columns.values()].map((column) => ({
+      chunkX: column.chunkX,
+      chunkZ: column.chunkZ,
+      column
+    }))
+  }
+
+  setColumn(chunkX: number, chunkZ: number, column: FakeColumn = { chunkX, chunkZ }): void {
+    const key = columnKey(chunkX, chunkZ)
+    this.columns.set(key, column)
+    this.emit('chunkColumnLoad', columnCorner(chunkX, chunkZ))
+  }
+
+  setLoadedColumn(chunkX: number, chunkZ: number, column: FakeColumn = { chunkX, chunkZ }): void {
+    this.setColumn(chunkX, chunkZ, column)
+  }
+
+  unloadColumn(chunkX: number, chunkZ: number): void {
+    const key = columnKey(chunkX, chunkZ)
+    if (!this.columns.has(key)) return
+
+    this.columns.delete(key)
+    this.emit('chunkColumnUnload', columnCorner(chunkX, chunkZ))
+  }
+
+  setRenderDistance(renderDistance: number, center?: Vec3): void {
+    if (!Number.isFinite(renderDistance) || renderDistance < 0) {
+      throw new Error(`Invalid render distance: ${renderDistance}`)
+    }
+
+    this.renderDistance = Math.floor(renderDistance)
+    this.updateLoadedColumns(center ?? this.trackedBot?.entity?.position ?? new Vec3(0, this.minY, 0))
+  }
+
+  updateLoadedColumns(center: Vec3, emitEvents = true): void {
+    const centerChunkX = chunkX(center)
+    const centerChunkZ = chunkZ(center)
+    const wanted = new Set<string>()
+
+    for (let x = centerChunkX - this.renderDistance; x <= centerChunkX + this.renderDistance; x++) {
+      for (let z = centerChunkZ - this.renderDistance; z <= centerChunkZ + this.renderDistance; z++) {
+        wanted.add(columnKey(x, z))
+      }
+    }
+
+    for (const key of wanted) {
+      if (this.columns.has(key)) continue
+
+      const [x, z] = key.split(',').map(Number)
+      this.columns.set(key, { chunkX: x, chunkZ: z })
+      if (emitEvents) this.emit('chunkColumnLoad', columnCorner(x, z))
+    }
+
+    for (const [key, column] of [...this.columns.entries()]) {
+      if (wanted.has(key)) continue
+
+      this.columns.delete(key)
+      if (emitEvents) this.emit('chunkColumnUnload', columnCorner(column.chunkX, column.chunkZ))
+    }
+  }
+
+  trackBot(bot: EventEmitter & { entity?: { position?: Vec3 } }): void {
+    this.untrackBot()
+    this.trackedBot = bot
+    const update = () => {
+      const position = bot.entity?.position
+      if (position != null) this.updateLoadedColumns(position)
+    }
+
+    bot.on('physicsTick', update)
+    bot.on('move', update)
+    this.trackedBotListeners.push(
+      () => bot.off('physicsTick', update),
+      () => bot.off('move', update)
+    )
+    update()
+  }
+
+  untrackBot(): void {
+    for (const dispose of this.trackedBotListeners.splice(0)) dispose()
+    this.trackedBot = undefined
+  }
+
+  cleanup(): void {
+    this.untrackBot()
   }
 }
 

@@ -8,3 +8,4 @@ flamegraph.htm
 node_modules/
 pnpm-lock.yaml
 output.log
+tests/profiling/profiles/

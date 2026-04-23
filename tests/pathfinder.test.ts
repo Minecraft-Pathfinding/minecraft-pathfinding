@@ -5,7 +5,7 @@ import { Vec3 } from 'vec3'
 import { createPlugin, goals } from '../src'
 import { createCacheWorld } from './setup'
 
-require('debug').disable()
+// require('debug').disable()
 
 type PathResult = {
   status: string
