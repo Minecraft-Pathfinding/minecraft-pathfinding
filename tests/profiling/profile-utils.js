@@ -11,7 +11,7 @@ const { createCacheWorld } = require('../setup')
 
 const outputDir = path.resolve(__dirname, 'profiles')
 
-function post(session, method, params) {
+function post (session, method, params) {
   return new Promise((resolve, reject) => {
     session.post(method, params ?? {}, (error, result) => {
       if (error != null) reject(error)
@@ -20,11 +20,12 @@ function post(session, method, params) {
   })
 }
 
-function createPathRig(options) {
+function createPathRig (options) {
   const { world, rig } = createCacheWorld(
     options.version ?? '1.20.4',
     options.floorY ?? 64,
-    options.start
+    options.start,
+    { renderDistance: options.renderDistance ?? 96 }
   )
 
   if (options.configureWorld != null) {
@@ -47,7 +48,7 @@ function createPathRig(options) {
   return rig
 }
 
-async function collectPathResult(bot, goal, timeoutMs = 30000) {
+async function collectPathResult (bot, goal, timeoutMs = 30000) {
   let timer
   let final
 
@@ -70,7 +71,7 @@ async function collectPathResult(bot, goal, timeoutMs = 30000) {
   return final
 }
 
-function normalizeCpuProfileTiming(profile, measuredDurationMicros) {
+function normalizeCpuProfileTiming (profile, measuredDurationMicros) {
   if (!Array.isArray(profile.timeDeltas) || profile.timeDeltas.length === 0) return profile
 
   const sortedDeltas = profile.timeDeltas
@@ -113,12 +114,12 @@ function normalizeCpuProfileTiming(profile, measuredDurationMicros) {
   return profile
 }
 
-function isProfilerArtifactFrame(callFrame) {
+function isProfilerArtifactFrame (callFrame) {
   const url = callFrame?.url ?? ''
   return url === 'node:inspector'
 }
 
-function removeCpuProfileArtifacts(profile) {
+function removeCpuProfileArtifacts (profile) {
   if (!Array.isArray(profile.samples) || !Array.isArray(profile.timeDeltas)) return profile
 
   const nodesById = new Map(profile.nodes.map((node) => [node.id, node]))
@@ -130,7 +131,7 @@ function removeCpuProfileArtifacts(profile) {
     }
   }
 
-  function sampleHasArtifact(sampleId) {
+  function sampleHasArtifact (sampleId) {
     const seen = new Set()
     let currentId = sampleId
 
@@ -182,8 +183,8 @@ function removeCpuProfileArtifacts(profile) {
   return profile
 }
 
-function removeHeapProfileArtifacts(profile) {
-  function pruneNode(node) {
+function removeHeapProfileArtifacts (profile) {
+  function pruneNode (node) {
     if (isProfilerArtifactFrame(node.callFrame)) return null
 
     node.children = (node.children ?? [])
@@ -200,7 +201,7 @@ function removeHeapProfileArtifacts(profile) {
   return profile
 }
 
-async function runOnce(prepareRig, goal, timeoutMs) {
+async function runOnce (prepareRig, goal, timeoutMs) {
   const rig = prepareRig()
 
   try {
@@ -210,7 +211,7 @@ async function runOnce(prepareRig, goal, timeoutMs) {
   }
 }
 
-async function profilePathGeneration(options) {
+async function profilePathGeneration (options) {
   await fs.mkdir(outputDir, { recursive: true })
   const iterations = options.iterations ?? 100
   const freshRigPerIteration = options.freshRigPerIteration === true
@@ -273,7 +274,7 @@ async function profilePathGeneration(options) {
   }
 }
 
-function printProfileSummary(summary) {
+function printProfileSummary (summary) {
   const last = summary.result.path[summary.result.path.length - 1]
 
   console.log(summary.title ?? 'Profiled pathfinder generation')
