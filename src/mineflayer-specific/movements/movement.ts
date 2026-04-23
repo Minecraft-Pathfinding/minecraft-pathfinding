@@ -165,11 +165,11 @@ export abstract class Movement {
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
     const yes = new Vec3(Math.floor(pos.x + dx), Math.floor(pos.y + dy), Math.floor(pos.z + dz))
-    return this.world.getBlockInfo(yes)
+    return BlockInfo.fromBlock(this.world.getBlock(yes))
   }
 
   getBlockInfoRaw (pos: Vec3): BlockInfo {
-    return this.world.getBlockInfo(pos)
+    return BlockInfo.fromBlock(this.world.getBlock(pos))
   }
 
   /**

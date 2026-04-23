@@ -54,6 +54,9 @@ importers:
       prismarine-nbt:
         specifier: ^2.8.0
         version: 2.8.0
+      prismarine-provider-anvil:
+        specifier: ^2.13.0
+        version: 2.13.0
       prismarine-registry:
         specifier: ^1.12.0
         version: 1.12.0
@@ -1310,6 +1313,9 @@ packages:
   prismarine-nbt@2.8.0:
     resolution: {integrity: sha512-5D6FUZq0PNtf3v/41ImDlwThVesOv5adyqCRMZLzmkUGEmRJNNh5C6AsnvrClBftXs+IF0yqPnZoj8kcNPiMGg==}
 
+  prismarine-provider-anvil@2.13.0:
+    resolution: {integrity: sha512-ZgP8vOnMOUu4Jv73UBnZOPa2jBuNoUivfY1//Xsrwz7rM/GlJhla+UecGz6AsINor7ZrbXQAoQgm7vp5tuFZmw==}
+
   prismarine-registry@1.12.0:
     resolution: {integrity: sha512-OC5U6YrflY6OcAWRZEqe2HGZuNp0bIuP7H+oKEHD6rLfKNDxo8Ymx5eh2VvrZWnMVugpwID1Qj/UjA4MoCzNDw==}
 
@@ -1658,6 +1664,9 @@ packages:
 
   vec3@0.1.10:
     resolution: {integrity: sha512-Sr1U3mYtMqCOonGd3LAN9iqy0qF6C+Gjil92awyK/i2OwiUo9bm7PnLgFpafymun50mOjnDcg4ToTgRssrlTcw==}
+
+  vec3@0.2.0:
+    resolution: {integrity: sha512-jOjU4zbCNWOKOGLHop1I0J2Ar4h5Zz76455LJhJKhiOJwI21QP6d5TnKklNZDKG+c5h71zWtPAbd9wh+Va57OQ==}
 
   which-boxed-primitive@1.1.1:
     resolution: {integrity: sha512-TbX3mj8n0odCBFVlY8AxkqcHASw3L60jIuF8jFP78az3C2YhmGvqbHBpAjTRH2/xqYunrJ9g1jSyjCjpoWzIAA==}
@@ -3189,6 +3198,15 @@ snapshots:
     dependencies:
       protodef: 1.19.0
 
+  prismarine-provider-anvil@2.13.0:
+    dependencies:
+      prismarine-chunk: 1.40.0
+      prismarine-nbt: 2.8.0
+      uint4: 0.1.2
+      vec3: 0.2.0
+    transitivePeerDependencies:
+      - supports-color
+
   prismarine-registry@1.12.0:
     dependencies:
       minecraft-data: 3.109.0
@@ -3634,6 +3652,8 @@ snapshots:
   vary@1.1.2: {}
 
   vec3@0.1.10: {}
+
+  vec3@0.2.0: {}
 
   which-boxed-primitive@1.1.1:
     dependencies:

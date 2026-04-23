@@ -19,6 +19,7 @@ export function createPlayerRig(world: World, options: {
   position: Vec3
   groundLevel?: number
   username?: string
+  trackRenderDistance?: boolean
 }) {
   const { version, position } = options
   const groundLevel = options.groundLevel ?? position.y
@@ -40,7 +41,7 @@ export function createPlayerRig(world: World, options: {
     flags: 0,
     teleportId: 0
   })
-  if (world instanceof FakeWorld) {
+  if (world instanceof FakeWorld && options.trackRenderDistance !== false) {
     world.trackBot(fakePlayer)
   }
 
@@ -63,9 +64,9 @@ export function createPlayerRig(world: World, options: {
   }
 }
 
-export function createCacheWorld(version: string, floorY: number, position: Vec3, options: Omit<FakeWorldOptions, 'center'> = {}) {
+export function createCacheWorld(version: string, floorY: number, position: Vec3, options: Omit<FakeWorldOptions, 'center'> & { trackRenderDistance?: boolean } = {}) {
   const world = createFlatWorld(version, floorY, { ...options, center: position })
-  const rig = createPlayerRig(world, { version, position, groundLevel: floorY })
+  const rig = createPlayerRig(world, { version, position, groundLevel: floorY, trackRenderDistance: options.trackRenderDistance })
   const cacheWorld = new CacheSyncWorld(rig.bot, world as any)
 
   return {
@@ -73,4 +74,14 @@ export function createCacheWorld(version: string, floorY: number, position: Vec3
     rig,
     cacheWorld
   }
+}
+
+export function createCacheWorldFromFolder(
+  version: string,
+  floorY: number,
+  position: Vec3,
+  worldFolder: string,
+  options: Omit<FakeWorldOptions, 'center' | 'worldFolder'> & { trackRenderDistance?: boolean } = {}
+) {
+  return createCacheWorld(version, floorY, position, { ...options, worldFolder })
 }

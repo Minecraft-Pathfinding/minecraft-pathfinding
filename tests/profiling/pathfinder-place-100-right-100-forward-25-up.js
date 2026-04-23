@@ -16,6 +16,12 @@ const wallHeight = 50
 function prepareRig() {
   return createPathRig({
     start,
+    pregenerateChunks: {
+      minX: -1,
+      maxX: 64,
+      minZ: -1,
+      maxZ: 32
+    },
     configureWorld: ({ world }) => {
       const getBlock = world.getBlock.bind(world)
 
@@ -37,7 +43,10 @@ function prepareRig() {
       type: mcData.itemsByName.dirt.id,
       count: 10000,
       name: 'dirt'
-    }]
+    }],
+    pathfinderSettings: {
+      partialPathProducer: false
+    }
   })
 }
 

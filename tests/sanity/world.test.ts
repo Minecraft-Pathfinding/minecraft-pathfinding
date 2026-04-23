@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import test from 'node:test'
 import { Vec3 } from 'vec3'
 
-import { createCacheWorld, createFlatWorld, loadMcData } from '../setup'
+import { createCacheWorld, createFlatWorld, createWorldFromFolder, loadMcData } from '../setup'
 
 test('fake world returns floor and air blocks', () => {
   const world = createFlatWorld('1.20.4', 64)
@@ -37,7 +38,7 @@ test('fake world returns null for unloaded chunks', () => {
 
   assert.equal(world.getBlock(new Vec3(0, 63, 0))?.name, 'stone')
   assert.equal(world.getBlock(new Vec3(16, 63, 0)), null)
-  assert.equal(world.getBlockStateId(new Vec3(16, 63, 0)), undefined)
+  assert.equal(world.getBlockStateId(new Vec3(16, 63, 0)), 0)
 })
 
 test('fake world emits prismarine-world style chunk column events', () => {
@@ -92,4 +93,20 @@ test('CacheSyncWorld updates cached block info from blockUpdate events', () => {
   assert.equal(updated.block?.name, 'stone')
   assert.equal(rig.bot.blockAt(pos)?.name, 'stone')
   rig.stopPassivePhysics()
+})
+
+test('fake world can preload real anvil chunk data from a world folder', async () => {
+  const fixtureWorldFolder = path.resolve(__dirname, '../../node_modules/prismarine-provider-anvil/test/fixtures/1.20.6')
+  const world = createWorldFromFolder('1.20.6', 64, fixtureWorldFolder, {
+    renderDistance: 0
+  })
+
+  assert.equal(world.getColumn(0, 0), undefined)
+
+  await world.preloadColumns({ minX: 0, maxX: 0, minZ: 0, maxZ: 0 })
+
+  assert.notEqual(world.getColumn(0, 0), undefined)
+  assert.notEqual(world.getBlock(new Vec3(0, 64, 0)), null)
+
+  world.cleanup()
 })

@@ -206,7 +206,7 @@ export class AStarBackOff<Data extends PathData, MProv extends MovementProvider<
   x5 = 1 / 5
   x6 = 1 / 10
 
-  checkInterval = 0 // 1 << 5 - 1
+  checkInterval = 4// 1 << 5 - 1
   nodeConsiderCount = 0
   moveConsiderCount = 0
 

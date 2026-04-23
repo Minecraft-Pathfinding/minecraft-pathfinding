@@ -11,6 +11,50 @@ const { createCacheWorld } = require('../setup')
 
 const outputDir = path.resolve(__dirname, 'profiles')
 
+function normalizeChunkRange (range) {
+  if (range == null) return null
+
+  if (typeof range.radius === 'number') {
+    const center = range.center ?? new Vec3(0, 0, 0)
+    const centerChunkX = Math.floor(center.x / 16)
+    const centerChunkZ = Math.floor(center.z / 16)
+
+    return {
+      minX: centerChunkX - range.radius,
+      maxX: centerChunkX + range.radius,
+      minZ: centerChunkZ - range.radius,
+      maxZ: centerChunkZ + range.radius
+    }
+  }
+
+  return {
+    minX: range.minX,
+    maxX: range.maxX,
+    minZ: range.minZ,
+    maxZ: range.maxZ
+  }
+}
+
+async function pregenerateWorld (world, range) {
+  const chunkRange = normalizeChunkRange(range)
+  if (chunkRange == null) return
+
+  const { minX, maxX, minZ, maxZ } = chunkRange
+  const chunkCount = (maxX - minX + 1) * (maxZ - minZ + 1)
+
+  console.log(`pregenerating world chunks: x=${minX}..${maxX}, z=${minZ}..${maxZ} (${chunkCount} columns)`)
+
+  if (typeof world.preloadColumns === 'function') {
+    await world.preloadColumns(chunkRange, false)
+  } else {
+    for (let chunkX = minX; chunkX <= maxX; chunkX++) {
+      for (let chunkZ = minZ; chunkZ <= maxZ; chunkZ++) {
+        world.setColumn(chunkX, chunkZ)
+      }
+    }
+  }
+}
+
 function post (session, method, params) {
   return new Promise((resolve, reject) => {
     session.post(method, params ?? {}, (error, result) => {
@@ -20,13 +64,19 @@ function post (session, method, params) {
   })
 }
 
-function createPathRig (options) {
+async function createPathRig (options) {
+  const trackRenderDistance = options.trackRenderDistance ?? options.pregenerateChunks == null
   const { world, rig } = createCacheWorld(
     options.version ?? '1.20.4',
     options.floorY ?? 64,
     options.start,
-    { renderDistance: options.renderDistance ?? 96 }
+    {
+      renderDistance: options.renderDistance ?? 96,
+      trackRenderDistance
+    }
   )
+
+  await pregenerateWorld(world, options.pregenerateChunks)
 
   if (options.configureWorld != null) {
     options.configureWorld({ world, rig })
@@ -202,7 +252,7 @@ function removeHeapProfileArtifacts (profile) {
 }
 
 async function runOnce (prepareRig, goal, timeoutMs) {
-  const rig = prepareRig()
+  const rig = await prepareRig()
 
   try {
     return await collectPathResult(rig.bot, goal, timeoutMs)
@@ -216,13 +266,13 @@ async function profilePathGeneration (options) {
   const iterations = options.iterations ?? 100
   const freshRigPerIteration = options.freshRigPerIteration === true
 
-  if (options.warmup !== false) {
+  if (options.warmup != null && options.warmup !== false) {
     await runOnce(options.prepareRig, options.goal, options.timeoutMs)
   }
 
   const rigs = freshRigPerIteration
-    ? Array.from({ length: iterations }, () => options.prepareRig())
-    : [options.prepareRig()]
+    ? await Promise.all(Array.from({ length: iterations }, () => options.prepareRig()))
+    : [await options.prepareRig()]
   const session = new inspector.Session()
   session.connect()
 

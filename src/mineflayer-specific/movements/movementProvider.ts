@@ -59,28 +59,8 @@ export abstract class MovementProvider extends Movement {
   }
 
   getBlockInfoRaw (yes: Vec3): BlockInfo {
-    //
-    let move: Move | undefined = this.currentMove
-
-    let i = 0
-    while (move !== undefined && i++ < 3) { // 5 levels
-      for (const m of move.toPlace) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
-
-      for (const m of move.toBreak) {
-        if (m.x === yes.x && m.y === yes.y && m.z === yes.z) {
-          return m.blockInfo
-        }
-      }
-
-      move = move.parent
-    }
-
-    // if (i > 0) console.log('i', i)
-    // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
+    // // if (i > 0) console.log('i', i)
+    // // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
     const wantedDx = yes.x - this.orgPos.x + this.halfway[0]
 
     // if (wantedDx < 0 || wantedDx >= this.boundaries[0]) {
@@ -149,7 +129,7 @@ export abstract class MovementProvider extends Movement {
       //   throw new Error('dang')
       // }
 
-      return data
+      return data!
     }
 
     const ret = this.world.getBlockInfo(yes)
@@ -303,12 +283,6 @@ export class MovementHandler implements AMovementProvider<Move> {
       }
       move1 = move1.parent
     }
-    // console.log('i', i, seen.size)
-    // let move2: Move | undefined = move
-    // for (let j =0; j < i; j++) {
-    //   // console.log(move2?.vec)
-    //   move2 = move2?.parent
-    // }
   }
 
   private lastPos?: Vec3

@@ -37,6 +37,7 @@
     "prismarine-registry": "^1.12.0",
     "prismarine-world": "^3.7.0",
     "prismarine-nbt": "^2.8.0",
+    "prismarine-provider-anvil": "^2.13.0",
     "ts-node": "^10.9.2",
     "ts-standard": "^12.0.2",
     "typescript": "^5.3.3",

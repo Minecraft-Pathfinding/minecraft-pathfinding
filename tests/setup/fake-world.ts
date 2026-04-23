@@ -1,15 +1,24 @@
 import { EventEmitter } from 'node:events'
+import { existsSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import registry from 'prismarine-registry'
 import { Block as PBlock } from 'prismarine-block'
 import { Vec3 } from 'vec3'
+import type { Chunk } from 'prismarine-world/types/world'
 
 import { BlockInfo } from '../../src/mineflayer-specific/world/cacheWorld'
 import type { Block, RayType } from '../../src/types'
 import type { World } from '../../src/mineflayer-specific/world/worldInterface'
 import { loadMcData } from './mc-data'
 
-const { InterceptFunctions } = require('@nxg-org/mineflayer-util-plugin') as {
-  InterceptFunctions: new (bot: any) => { raycast: (from: Vec3, direction: Vec3, range: number) => { block: Block | null, iterations: Array<{ x: number, y: number, z: number, face: number }>, intersect?: { pos: Vec3, face: number } } }
+const WorldLoader = require('prismarine-world') as (version: string) => any
+const ChunkLoader = require('prismarine-chunk') as (versionOrRegistry: string | ReturnType<typeof registry>) => new (options?: { minY?: number, worldHeight?: number }) => Chunk
+const AnvilProvider = require('prismarine-provider-anvil') as {
+  Anvil: (version: string) => new (regionPath: string) => {
+    load: (chunkX: number, chunkZ: number) => Promise<Chunk | null>
+    save: (chunkX: number, chunkZ: number, chunk: Chunk) => Promise<void>
+    close?: () => Promise<unknown>
+  }
 }
 
 function resolveStateId(mcData: ReturnType<typeof registry>, blockRef: string | number): number {
@@ -23,21 +32,16 @@ function resolveStateId(mcData: ReturnType<typeof registry>, blockRef: string | 
   return blockInfo.minStateId ?? blockInfo.id
 }
 
-function keyFor(pos: Vec3): string {
-  const floored = pos.floored()
-  return `${floored.x},${floored.y},${floored.z}`
-}
-
-function columnKey(chunkX: number, chunkZ: number): string {
-  return `${chunkX},${chunkZ}`
-}
-
 function chunkX(pos: Vec3): number {
   return Math.floor(pos.x / 16)
 }
 
 function chunkZ(pos: Vec3): number {
   return Math.floor(pos.z / 16)
+}
+
+function columnKey(chunkX: number, chunkZ: number): string {
+  return `${chunkX},${chunkZ}`
 }
 
 function columnCorner(chunkX: number, chunkZ: number): Vec3 {
@@ -54,20 +58,48 @@ function createBlockAt(
   return block as unknown as Block
 }
 
+function getChunkVerticalBounds(mcData: ReturnType<typeof registry>): { minY: number, worldHeight: number } {
+  if (mcData.version['>=']('1.18')) {
+    return { minY: -64, worldHeight: 384 }
+  }
+
+  return { minY: 0, worldHeight: 256 }
+}
+
+function resolveRegionFolder(options: FakeWorldOptions): string | undefined {
+  if (options.regionFolder != null) return options.regionFolder
+  if (options.worldFolder == null) return undefined
+
+  const regionFolder = join(options.worldFolder, 'region')
+  if (existsSync(regionFolder) && statSync(regionFolder).isDirectory()) return regionFolder
+
+  return options.worldFolder
+}
+
+export interface ChunkRange {
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
 export interface FakeWorldOptions {
   renderDistance?: number
   center?: Vec3
-}
-
-export interface FakeColumn {
-  chunkX: number
-  chunkZ: number
+  worldFolder?: string
+  regionFolder?: string
+  generateMissingChunks?: boolean
 }
 
 export class FakeWorld extends EventEmitter implements World {
-  private readonly overrides = new Map<string, Block>()
-  private readonly columns = new Map<string, FakeColumn>()
-  private readonly raycastBot: any
+  private readonly world: any
+  private readonly sync: any
+  private readonly Chunk: new (options?: { minY?: number, worldHeight?: number }) => Chunk
+  private readonly storageProvider?: InstanceType<ReturnType<typeof AnvilProvider.Anvil>>
+  private readonly generateMissingChunks: boolean
+  private readonly chunkMinY: number
+  private readonly worldHeight: number
+  private readonly pendingColumnLoads = new Set<string>()
   private trackedBot?: EventEmitter & { entity?: { position?: Vec3 } }
   private readonly trackedBotListeners: Array<() => void> = []
   public renderDistance: number
@@ -80,49 +112,52 @@ export class FakeWorld extends EventEmitter implements World {
   ) {
     super()
     this.renderDistance = options.renderDistance ?? 10
-    this.raycastBot = {
-      blockAt: (position: Vec3) => this.getBlock(position)
+
+    const mcVersion = mcData.version.minecraftVersion
+    if (mcVersion == null) throw new Error('Cannot create FakeWorld without a Minecraft version')
+
+    const WorldImpl = WorldLoader(mcVersion)
+    this.Chunk = ChunkLoader(mcData) as any
+    this.generateMissingChunks = options.generateMissingChunks === true
+    const verticalBounds = getChunkVerticalBounds(mcData)
+    this.chunkMinY = verticalBounds.minY
+    this.worldHeight = verticalBounds.worldHeight
+
+    const regionFolder = resolveRegionFolder(options)
+    if (regionFolder != null) {
+      const Anvil = AnvilProvider.Anvil(mcVersion)
+      this.storageProvider = new Anvil(regionFolder)
     }
-    this.updateLoadedColumns(options.center ?? new Vec3(0, minY, 0), false)
+
+    const generator = this.storageProvider == null || this.generateMissingChunks
+      ? (chunkX: number, chunkZ: number) => this.generateColumn(chunkX, chunkZ)
+      : null
+
+    this.world = new WorldImpl(generator, this.storageProvider ?? null, 0)
+    this.sync = this.world.sync
+
+    this.sync.on('blockUpdate', (oldBlock: Block | null, newBlock: Block | null) => this.emit('blockUpdate', oldBlock, newBlock))
+    this.sync.on('chunkColumnLoad', (point: Vec3) => this.emit('chunkColumnLoad', point))
+    this.sync.on('chunkColumnUnload', (point: Vec3) => this.emit('chunkColumnUnload', point))
+
+    if (this.canGenerateSync()) {
+      this.updateLoadedColumns(options.center ?? new Vec3(0, minY, 0), false)
+    }
   }
 
   setBlock(pos: Vec3, blockRef: string | number): Block {
     const block = this.createBlock(pos, blockRef)
-    const key = keyFor(pos)
-    const oldBlock = this.getBlock(pos)
-    this.overrides.set(key, block)
-    this.emit('blockUpdate', oldBlock, block)
+    this.sync.setBlock(pos, block)
     return block
   }
 
   clearBlock(pos: Vec3): Block | null {
-    const key = keyFor(pos)
-    const oldBlock = this.getBlock(pos)
-    this.overrides.delete(key)
-    const next = this.getBlock(pos)
-    this.emit('blockUpdate', oldBlock, next)
-    return next
-  }
-
-  setOverrideBlock(pos: Vec3, type: number) {
-    this.setBlock(pos, type)
-  }
-
-  clearOverrides() {
-    for (const posKey of [...this.overrides.keys()]) {
-      this.overrides.delete(posKey)
-    }
+    this.sync.setBlock(pos, this.createBlock(pos, 'air'))
+    return this.getBlock(pos)
   }
 
   getBlock(pos: Vec3) {
-    const blockPos = pos.floored()
-    if (!this.isColumnLoadedAt(blockPos)) return null
-
-    const override = this.overrides.get(keyFor(blockPos))
-    if (override != null) return override
-
-    const stateId = blockPos.y < this.minY ? this.mcData.blocksByName.stone.minStateId : this.mcData.blocksByName.air.minStateId
-    return this.createBlock(blockPos, stateId)
+    return this.sync.getBlock(pos) as Block | null
   }
 
   getBlockInfo(pos: Vec3) {
@@ -130,19 +165,11 @@ export class FakeWorld extends EventEmitter implements World {
   }
 
   getBlockStateId(pos: Vec3) {
-    return this.getBlock(pos)?.stateId
+    return this.sync.getBlockStateId(pos) as number
   }
 
   raycast(from: Vec3, direction: Vec3, range: number, matcher?: (block: Block) => boolean): RayType | null {
-    const result = new InterceptFunctions(this.raycastBot).raycast(from, direction, range)
-    if (result.block == null || result.intersect == null) return null
-    if (matcher != null && !matcher(result.block)) return null
-
-    return Object.assign(result.block, {
-      intersect: result.intersect.pos.clone(),
-      face: result.intersect.face,
-      iterations: result.iterations
-    }) as RayType
+    return this.sync.raycast(from, direction, range, matcher) as RayType | null
   }
 
   createBlock(pos: Vec3, blockRef: string | number): Block {
@@ -150,53 +177,71 @@ export class FakeWorld extends EventEmitter implements World {
   }
 
   isColumnLoaded(chunkX: number, chunkZ: number): boolean {
-    return this.columns.has(columnKey(chunkX, chunkZ))
+    return this.sync.getColumn(chunkX, chunkZ) != null
   }
 
   isColumnLoadedAt(pos: Vec3): boolean {
     return this.isColumnLoaded(chunkX(pos), chunkZ(pos))
   }
 
-  getColumn(chunkX: number, chunkZ: number): FakeColumn | undefined {
-    return this.columns.get(columnKey(chunkX, chunkZ))
+  getColumn(chunkX: number, chunkZ: number): Chunk | undefined {
+    return this.sync.getColumn(chunkX, chunkZ) as Chunk | undefined
   }
 
-  getLoadedColumn(chunkX: number, chunkZ: number): FakeColumn | undefined {
+  getLoadedColumn(chunkX: number, chunkZ: number): Chunk | undefined {
     return this.getColumn(chunkX, chunkZ)
   }
 
-  getColumnAt(pos: Vec3): FakeColumn | undefined {
-    return this.getColumn(chunkX(pos), chunkZ(pos))
+  getColumnAt(pos: Vec3): Chunk | undefined {
+    return this.sync.getColumnAt(pos) as Chunk | undefined
   }
 
-  getLoadedColumnAt(pos: Vec3): FakeColumn | undefined {
+  getLoadedColumnAt(pos: Vec3): Chunk | undefined {
     return this.getColumnAt(pos)
   }
 
-  getColumns(): Array<{ chunkX: number, chunkZ: number, column: FakeColumn }> {
-    return [...this.columns.values()].map((column) => ({
-      chunkX: column.chunkX,
-      chunkZ: column.chunkZ,
-      column
-    }))
+  getColumns(): Array<{ chunkX: number, chunkZ: number, column: Chunk }> {
+    return this.sync.getColumns() as Array<{ chunkX: number, chunkZ: number, column: Chunk }>
   }
 
-  setColumn(chunkX: number, chunkZ: number, column: FakeColumn = { chunkX, chunkZ }): void {
-    const key = columnKey(chunkX, chunkZ)
-    this.columns.set(key, column)
-    this.emit('chunkColumnLoad', columnCorner(chunkX, chunkZ))
+  setColumn(chunkX: number, chunkZ: number, column: Chunk = this.generateColumn(chunkX, chunkZ)): void {
+    this.sync.setColumn(chunkX, chunkZ, column, false)
   }
 
-  setLoadedColumn(chunkX: number, chunkZ: number, column: FakeColumn = { chunkX, chunkZ }): void {
+  setLoadedColumn(chunkX: number, chunkZ: number, column: Chunk = this.generateColumn(chunkX, chunkZ)): void {
     this.setColumn(chunkX, chunkZ, column)
   }
 
   unloadColumn(chunkX: number, chunkZ: number): void {
-    const key = columnKey(chunkX, chunkZ)
-    if (!this.columns.has(key)) return
+    this.sync.unloadColumn(chunkX, chunkZ)
+  }
 
-    this.columns.delete(key)
-    this.emit('chunkColumnUnload', columnCorner(chunkX, chunkZ))
+  async loadColumn(chunkX: number, chunkZ: number, emitEvent = true): Promise<Chunk | undefined> {
+    const loaded = this.getColumn(chunkX, chunkZ)
+    if (loaded != null) return loaded
+
+    const column = await this.world.getColumn(chunkX, chunkZ) as Chunk | undefined
+    if (column != null && emitEvent) this.emit('chunkColumnLoad', columnCorner(chunkX, chunkZ))
+    return column
+  }
+
+  async preloadColumns(range: ChunkRange, emitEvents = true): Promise<void> {
+    for (let chunkX = range.minX; chunkX <= range.maxX; chunkX++) {
+      for (let chunkZ = range.minZ; chunkZ <= range.maxZ; chunkZ++) {
+        await this.loadColumn(chunkX, chunkZ, emitEvents)
+      }
+    }
+  }
+
+  async preloadRenderDistance(center: Vec3, renderDistance = this.renderDistance, emitEvents = true): Promise<void> {
+    const centerChunkX = chunkX(center)
+    const centerChunkZ = chunkZ(center)
+    await this.preloadColumns({
+      minX: centerChunkX - renderDistance,
+      maxX: centerChunkX + renderDistance,
+      minZ: centerChunkZ - renderDistance,
+      maxZ: centerChunkZ + renderDistance
+    }, emitEvents)
   }
 
   setRenderDistance(renderDistance: number, center?: Vec3): void {
@@ -225,18 +270,29 @@ export class FakeWorld extends EventEmitter implements World {
     }
 
     for (const key of wanted) {
-      if (this.columns.has(key)) continue
-
       const [x, z] = key.split(',').map(Number)
-      this.columns.set(key, { chunkX: x, chunkZ: z })
-      if (emitEvents) this.emit('chunkColumnLoad', columnCorner(x, z))
+      if (this.isColumnLoaded(x, z)) continue
+
+      if (emitEvents) {
+        if (this.canGenerateSync()) {
+          this.setColumn(x, z)
+        } else {
+          this.queueColumnLoad(x, z)
+        }
+      } else {
+        if (this.canGenerateSync()) {
+          this.world.setLoadedColumn(x, z, this.generateColumn(x, z), false)
+        }
+      }
     }
 
-    for (const [key, column] of [...this.columns.entries()]) {
-      if (wanted.has(key)) continue
-
-      this.columns.delete(key)
-      if (emitEvents) this.emit('chunkColumnUnload', columnCorner(column.chunkX, column.chunkZ))
+    for (const { chunkX, chunkZ } of this.getColumns()) {
+      if (wanted.has(columnKey(chunkX, chunkZ))) continue
+      if (emitEvents) {
+        this.unloadColumn(chunkX, chunkZ)
+      } else {
+        this.world.forceUnloadColumn(columnKey(chunkX, chunkZ), chunkX, chunkZ)
+      }
     }
   }
 
@@ -264,10 +320,45 @@ export class FakeWorld extends EventEmitter implements World {
 
   cleanup(): void {
     this.untrackBot()
+    void this.storageProvider?.close?.()
+  }
+
+  private canGenerateSync(): boolean {
+    return this.storageProvider == null || this.generateMissingChunks
+  }
+
+  private queueColumnLoad(chunkX: number, chunkZ: number): void {
+    const key = columnKey(chunkX, chunkZ)
+    if (this.pendingColumnLoads.has(key)) return
+
+    this.pendingColumnLoads.add(key)
+    void this.loadColumn(chunkX, chunkZ).finally(() => {
+      this.pendingColumnLoads.delete(key)
+    })
+  }
+
+  private generateColumn(_chunkX: number, _chunkZ: number): Chunk {
+    const chunk = new this.Chunk({ minY: this.chunkMinY, worldHeight: this.worldHeight })
+    const floorY = this.minY - 1
+
+    if (floorY < this.chunkMinY || floorY >= this.chunkMinY + this.worldHeight) return chunk
+
+    const stoneStateId = this.mcData.blocksByName.stone.minStateId
+    for (let x = 0; x < 16; x++) {
+      for (let z = 0; z < 16; z++) {
+        chunk.setBlockStateId(new Vec3(x, floorY, z), stoneStateId)
+      }
+    }
+
+    return chunk
   }
 }
 
 export function createFlatWorld(version: string, floorY: number, options: FakeWorldOptions = {}) {
   const { mcData, Block } = loadMcData(version)
   return new FakeWorld(mcData, Block, floorY, options)
+}
+
+export function createWorldFromFolder(version: string, floorY: number, worldFolder: string, options: Omit<FakeWorldOptions, 'worldFolder'> = {}) {
+  return createFlatWorld(version, floorY, { ...options, worldFolder })
 }
