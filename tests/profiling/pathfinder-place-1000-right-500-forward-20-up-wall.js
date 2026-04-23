@@ -7,11 +7,10 @@ const {
 } = require('./pathfinder-scenarios')
 
 const start = new Vec3(0, 64, 0)
-const goal = new goals.GoalBlock(1000, 264, 500)
-const profileName = 'pathfinder-place-1000-right-500-forward-200-up-wall'
+const goal = new goals.GoalBlock(1000, 84, 500)
 const wallZ = 300
 const wallBaseY = 64
-const wallHeight = 50
+const wallHeight = 20
 
 const prepareRig = createDefaultPrepareRig({
   start,
@@ -22,17 +21,13 @@ const prepareRig = createDefaultPrepareRig({
   })
 })
 
-async function main() {
-  await runPathfinderScenario({
-    title: 'Profiled elevated placement pathfinder generation with wall',
-    profileName,
-    start,
-    goal,
-    prepareRig
-  })
-}
-
-main().catch((error) => {
+runPathfinderScenario({
+  title: 'Profiled shallow elevated placement pathfinder generation with wall',
+  profileName: 'pathfinder-place-1000-right-500-forward-20-up-wall',
+  start,
+  goal,
+  prepareRig
+}).catch((error) => {
   console.error(error)
   process.exitCode = 1
 })
