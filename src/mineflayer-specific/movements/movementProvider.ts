@@ -27,6 +27,17 @@ export abstract class MovementProvider extends Movement {
 
   private boundaries!: [x: number, z: number, y: number]
   private halfway!: [x: number, z: number, y: number]
+  private orgX = 0
+  private orgY = 0
+  private orgZ = 0
+  private boundaryX = 0
+  private boundaryZ = 0
+  private boundaryY = 0
+  private halfX = 0
+  private halfZ = 0
+  private halfY = 0
+  private xStride = 0
+  private zStride = 0
 
   /**
    * Simulation-time calculation.
@@ -44,97 +55,65 @@ export abstract class MovementProvider extends Movement {
 
   private localData: Array<BlockInfo | null> = []
 
-  loadLocalData (orgPos: Vec3, boundaries: [x: number, z: number, y: number], arr: Array<BlockInfo | null>, clear: Set<number>): void {
+  loadLocalData (
+    orgPos: Vec3,
+    boundaries: [x: number, z: number, y: number],
+    arr: Array<BlockInfo | null>,
+    clear: Set<number>
+  ): void {
     this.orgPos = orgPos
+    this.orgX = orgPos.x
+    this.orgY = orgPos.y
+    this.orgZ = orgPos.z
     this.localData = arr
-    this.boundaries = boundaries
-    this.halfway = [Math.floor(boundaries[0] / 2), Math.floor(boundaries[1] / 2), Math.floor(boundaries[2] / 2)]
+    if (this.boundaries !== boundaries) {
+      this.boundaries = boundaries
+      this.halfway = [Math.floor(boundaries[0] / 2), Math.floor(boundaries[1] / 2), Math.floor(boundaries[2] / 2)]
+      this.boundaryX = boundaries[0]
+      this.boundaryZ = boundaries[1]
+      this.boundaryY = boundaries[2]
+      this.halfX = Math.floor(boundaries[0] / 2)
+      this.halfZ = Math.floor(boundaries[1] / 2)
+      this.halfY = Math.floor(boundaries[2] / 2)
+      this.zStride = boundaries[2]
+      this.xStride = boundaries[2] * boundaries[1]
+    }
     this.toClear = clear
     // console.log(this.halfway)
   }
 
   getBlockInfo (pos: Vec3Properties, dx: number, dy: number, dz: number): BlockInfo {
-    const yes = new Vec3(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
-    return this.getBlockInfoRaw(yes)
+    return this.getBlockInfoAt(Math.floor(pos.x) + dx, Math.floor(pos.y) + dy, Math.floor(pos.z) + dz)
   }
 
   getBlockInfoRaw (yes: Vec3): BlockInfo {
-    // // if (i > 0) console.log('i', i)
-    // // const wantedDx = pos.x - this.orgPos.x + dx + this.halfway[0]
-    const wantedDx = yes.x - this.orgPos.x + this.halfway[0]
+    return this.getBlockInfoAt(yes.x, yes.y, yes.z, yes)
+  }
 
-    // if (wantedDx < 0 || wantedDx >= this.boundaries[0]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
-
-    // const wantedDz = pos.z - this.orgPos.z + dz + this.halfway[1]
-    const wantedDz = yes.z - this.orgPos.z + this.halfway[1]
-
-    // if (wantedDz < 0 || wantedDz >= this.boundaries[2]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
-
-    // const wantedDy = pos.y - this.orgPos.y + dy + this.halfway[2]
-    const wantedDy = yes.y - this.orgPos.y + this.halfway[2]
-
-    // if (wantedDy < 0 || wantedDy >= this.boundaries[2]) {
-    //   return super.getBlockInfo(pos, dx, dy, dz);
-    // }
-
-    // const packed = (wantedDx << 16) + (wantedDz << 8) + wantedDy
+  private getBlockInfoAt (x: number, y: number, z: number, pos?: Vec3): BlockInfo {
+    const wantedDx = x - this.orgX + this.halfX
+    const wantedDz = z - this.orgZ + this.halfZ
+    const wantedDy = y - this.orgY + this.halfY
 
     if (
       wantedDx < 0 ||
-      wantedDx >= this.boundaries[0] ||
+      wantedDx >= this.boundaryX ||
       wantedDz < 0 ||
-      wantedDz >= this.boundaries[1] ||
+      wantedDz >= this.boundaryZ ||
       wantedDy < 0 ||
-      wantedDy >= this.boundaries[2]
+      wantedDy >= this.boundaryY
     ) {
-      return this.world.getBlockInfo(yes)
+      return this.world.getBlockInfo(pos ?? new Vec3(x, y, z))
     }
-    // return super.getBlockInfo(pos, dx, dy, dz)
-    // console.log('out of bounds', pos, this.orgPos, wantedDx, wantedDy, wantedDz, this.boundaries)
-    // }
 
-    const idx = wantedDx * this.boundaries[2] * this.boundaries[1] + wantedDz * this.boundaries[2] + wantedDy
-
-    // const data = this.localData[wantedDx][wantedDy][wantedDz];
+    const idx = wantedDx * this.xStride + wantedDz * this.zStride + wantedDy
     const data = this.localData[idx]
 
     if (data !== null) {
-      // console.log('goddamnbit', data.block?.position.equals(yes), data.position.equals(yes), data.block?.position, data.position, yes, dx, dy, dz, new Vec3(pos.x, pos.y, pos.z))
-      // this.toClear.add(packed)
-      // const target = new Vec3(wantedDx - this.halfway[0], wantedDy - this.halfway[2], wantedDz - this.halfway[1]).plus(this.orgPos)
-      // if (!data.position.equals(yes)) {
-      // console.trace(
-      //     'crap',
-      //     pos,
-      //     dx,
-      //     dy,
-      //     dz,
-      //     data.position,
-      //     '\n\n',
-      //     this.orgPos,
-      //     wantedDx,
-      //     wantedDy,
-      //     wantedDz,
-      //     target,
-      //     this.halfway,
-      //     this.boundaries,
-      //     data.block,
-
-      //     this.localData[idx]
-      //   )
-      //   throw new Error('dang')
-      // }
-
-      return data!
+      return data
     }
 
-    const ret = this.world.getBlockInfo(yes)
-    // const ret = super.getBlockInfo(pos, dx, dy, dz)
-
+    const ret = this.world.getBlockInfo(pos ?? new Vec3(x, y, z))
     this.localData[idx] = ret
     return ret
   }

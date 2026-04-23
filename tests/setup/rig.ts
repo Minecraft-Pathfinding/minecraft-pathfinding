@@ -64,8 +64,13 @@ export function createPlayerRig(world: World, options: {
   }
 }
 
-export function createCacheWorld(version: string, floorY: number, position: Vec3, options: Omit<FakeWorldOptions, 'center'> & { trackRenderDistance?: boolean } = {}) {
-  const world = createFlatWorld(version, floorY, { ...options, center: position })
+export type CreateCacheWorldOptions = Omit<FakeWorldOptions, 'center'> & {
+  trackRenderDistance?: boolean
+  world?: FakeWorld
+}
+
+export function createCacheWorld(version: string, floorY: number, position: Vec3, options: CreateCacheWorldOptions = {}) {
+  const world = options.world ?? createFlatWorld(version, floorY, { ...options, center: position })
   const rig = createPlayerRig(world, { version, position, groundLevel: floorY, trackRenderDistance: options.trackRenderDistance })
   const cacheWorld = new CacheSyncWorld(rig.bot, world as any)
 
@@ -81,7 +86,7 @@ export function createCacheWorldFromFolder(
   floorY: number,
   position: Vec3,
   worldFolder: string,
-  options: Omit<FakeWorldOptions, 'center' | 'worldFolder'> & { trackRenderDistance?: boolean } = {}
+  options: Omit<CreateCacheWorldOptions, 'worldFolder'> = {}
 ) {
   return createCacheWorld(version, floorY, position, { ...options, worldFolder })
 }

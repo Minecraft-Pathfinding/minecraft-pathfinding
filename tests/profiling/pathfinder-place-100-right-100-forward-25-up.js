@@ -1,6 +1,6 @@
 const {
   Vec3,
-  createPathRig,
+  createPathRigSetup,
   goals,
   printProfileSummary,
   profilePathGeneration
@@ -13,49 +13,48 @@ const wallZ = 300
 const wallBaseY = 64
 const wallHeight = 50
 
-function prepareRig() {
-  return createPathRig({
-    start,
-    pregenerateChunks: {
-      minX: -1,
-      maxX: 64,
-      minZ: -1,
-      maxZ: 32
-    },
-    configureWorld: ({ world }) => {
-      const getBlock = world.getBlock.bind(world)
+const prepareRig = createPathRigSetup({
+  start,
+  reuseWorld: true,
+  pregenerateChunks: {
+    minX: -1,
+    maxX: 64,
+    minZ: -1,
+    maxZ: 32
+  },
+  configureWorld: ({ world }) => {
+    const getBlock = world.getBlock.bind(world)
 
-      world.getBlock = (pos) => {
-        const blockPos = pos.floored()
+    world.getBlock = (pos) => {
+      const blockPos = pos.floored()
 
-        if (
-          blockPos.z === wallZ &&
-          blockPos.y >= wallBaseY &&
-          blockPos.y < wallBaseY + wallHeight
-        ) {
-          return world.createBlock(blockPos, 'stone')
-        }
-
-        return getBlock(pos)
+      if (
+        blockPos.z === wallZ &&
+        blockPos.y >= wallBaseY &&
+        blockPos.y < wallBaseY + wallHeight
+      ) {
+        return world.createBlock(blockPos, 'stone')
       }
-    },
-    inventoryItems: (mcData) => [{
-      type: mcData.itemsByName.dirt.id,
-      count: 10000,
-      name: 'dirt'
-    }],
-    pathfinderSettings: {
-      partialPathProducer: false
+
+      return getBlock(pos)
     }
-  })
-}
+  },
+  inventoryItems: (mcData) => [{
+    type: mcData.itemsByName.dirt.id,
+    count: 10000,
+    name: 'dirt'
+  }],
+  pathfinderSettings: {
+    partialPathProducer: false
+  }
+})
 
 async function main() {
   const profile = await profilePathGeneration({
     name: profileName,
     goal,
     prepareRig,
-    iterations: 1,
+    iterations: 10,
     freshRigPerIteration: true,
     timeoutMs: 60000
   })

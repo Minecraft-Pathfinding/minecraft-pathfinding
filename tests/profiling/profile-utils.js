@@ -64,22 +64,41 @@ function post (session, method, params) {
   })
 }
 
+async function clearGarbageCollection () {
+  if (typeof global.gc !== 'function') {
+    throw new Error('profiling requires explicit GC; run node with --expose-gc')
+  }
+
+  global.gc()
+  await new Promise((resolve) => setImmediate(resolve))
+}
+
 async function createPathRig (options) {
   const trackRenderDistance = options.trackRenderDistance ?? options.pregenerateChunks == null
+  const sharedWorld = options.sharedWorld
+  const existingWorld = options.world ?? sharedWorld?.world
+  const shouldSetupWorld = existingWorld == null || options.setupReusedWorld === true
   const { world, rig } = createCacheWorld(
     options.version ?? '1.20.4',
     options.floorY ?? 64,
     options.start,
     {
       renderDistance: options.renderDistance ?? 96,
-      trackRenderDistance
+      trackRenderDistance,
+      world: existingWorld
     }
   )
 
-  await pregenerateWorld(world, options.pregenerateChunks)
+  if (sharedWorld != null && sharedWorld.world == null) {
+    sharedWorld.world = world
+  }
 
-  if (options.configureWorld != null) {
-    options.configureWorld({ world, rig })
+  if (shouldSetupWorld) {
+    await pregenerateWorld(world, options.pregenerateChunks)
+
+    if (options.configureWorld != null) {
+      options.configureWorld({ world, rig })
+    }
   }
 
   if (options.inventoryItems != null) {
@@ -98,11 +117,43 @@ async function createPathRig (options) {
   return rig
 }
 
+function createPathRigSetup (options) {
+  const sharedWorld = options.reuseWorld === true ? {} : undefined
+  let initialRigPromise
+
+  return async () => {
+    const resolvedSharedWorld = options.sharedWorld ?? sharedWorld
+    if (resolvedSharedWorld == null) return await createPathRig(options)
+
+    if (resolvedSharedWorld.world == null) {
+      const isInitializer = initialRigPromise == null
+
+      if (initialRigPromise == null) {
+        initialRigPromise = createPathRig({
+          ...options,
+          sharedWorld: resolvedSharedWorld
+        }).catch((error) => {
+          initialRigPromise = undefined
+          throw error
+        })
+      }
+
+      if (isInitializer) return await initialRigPromise
+      await initialRigPromise
+    }
+
+    return await createPathRig({
+      ...options,
+      sharedWorld: resolvedSharedWorld
+    })
+  }
+}
+
 async function collectPathResult (bot, goal, timeoutMs = 30000) {
   let timer
   let final
 
-  const timeout = new Promise((_, reject) => {
+  const timeout = new Promise((_resolve, reject) => {
     timer = setTimeout(() => reject(new Error(`timed out while planning to ${goal.constructor.name}`)), timeoutMs)
   })
 
@@ -162,6 +213,59 @@ function normalizeCpuProfileTiming (profile, measuredDurationMicros) {
   profile.endTime = profile.startTime + profile.timeDeltas.reduce((sum, delta) => sum + delta, 0)
 
   return profile
+}
+
+function remapCpuProfileNode (node, idOffset) {
+  return {
+    ...node,
+    id: node.id + idOffset,
+    children: (node.children ?? []).map((childId) => childId + idOffset)
+  }
+}
+
+function mergeCpuProfiles (profiles) {
+  if (profiles.length === 1) return profiles[0]
+
+  const merged = {
+    nodes: [{
+      id: 1,
+      callFrame: {
+        functionName: '(root)',
+        scriptId: '0',
+        url: '',
+        lineNumber: -1,
+        columnNumber: -1
+      },
+      hitCount: 0,
+      children: []
+    }],
+    startTime: profiles[0]?.startTime ?? 0,
+    endTime: profiles[0]?.startTime ?? 0,
+    samples: [],
+    timeDeltas: []
+  }
+  let nextIdOffset = 1
+
+  for (const profile of profiles) {
+    const idOffset = nextIdOffset
+    const root = profile.nodes.find((node) => node.id === 1)
+
+    merged.nodes[0].children.push(1 + idOffset)
+    merged.nodes.push(...profile.nodes.map((node) => remapCpuProfileNode(node, idOffset)))
+    merged.timeDeltas.push(...(profile.timeDeltas ?? []))
+
+    if (Array.isArray(profile.samples)) {
+      merged.samples.push(...profile.samples.map((sampleId) => sampleId + idOffset))
+    }
+
+    if (root != null) {
+      nextIdOffset += Math.max(...profile.nodes.map((node) => node.id))
+    }
+  }
+
+  merged.endTime = merged.startTime + merged.timeDeltas.reduce((sum, delta) => sum + delta, 0)
+
+  return merged
 }
 
 function isProfilerArtifactFrame (callFrame) {
@@ -268,6 +372,7 @@ async function profilePathGeneration (options) {
 
   if (options.warmup != null && options.warmup !== false) {
     await runOnce(options.prepareRig, options.goal, options.timeoutMs)
+    await clearGarbageCollection()
   }
 
   const rigs = freshRigPerIteration
@@ -277,25 +382,35 @@ async function profilePathGeneration (options) {
   session.connect()
 
   let result
-  let startedAt
-  let endedAt
-  let cpu
+  let elapsedNs = 0n
+  const cpuProfiles = []
   let heap
 
   try {
     await post(session, 'Profiler.enable')
     await post(session, 'HeapProfiler.enable')
     await post(session, 'HeapProfiler.startSampling', { samplingInterval: options.heapSamplingInterval ?? 32768 })
-    await post(session, 'Profiler.start')
 
-    startedAt = process.hrtime.bigint()
     for (let i = 0; i < iterations; i++) {
       const rig = freshRigPerIteration ? rigs[i] : rigs[0]
-      result = await collectPathResult(rig.bot, options.goal, options.timeoutMs)
-    }
-    endedAt = process.hrtime.bigint()
 
-    cpu = await post(session, 'Profiler.stop')
+      await post(session, 'Profiler.start')
+      const iterationStartedAt = process.hrtime.bigint()
+      result = await collectPathResult(rig.bot, options.goal, options.timeoutMs)
+      const iterationEndedAt = process.hrtime.bigint()
+      const cpu = await post(session, 'Profiler.stop')
+
+      const iterationElapsedNs = iterationEndedAt - iterationStartedAt
+      const iterationElapsedMicros = Math.max(1, Math.round(Number(iterationElapsedNs) / 1000))
+
+      elapsedNs += iterationElapsedNs
+      cpuProfiles.push(normalizeCpuProfileTiming(removeCpuProfileArtifacts(cpu.profile), iterationElapsedMicros))
+
+      if (i < iterations - 1) {
+        await clearGarbageCollection()
+      }
+    }
+
     heap = await post(session, 'HeapProfiler.stopSampling')
   } finally {
     session.disconnect()
@@ -306,10 +421,9 @@ async function profilePathGeneration (options) {
 
   const cpuPath = path.join(outputDir, `${options.name}.cpuprofile`)
   const heapPath = path.join(outputDir, `${options.name}.heapprofile`)
-  const elapsedMs = Number(endedAt - startedAt) / 1e6
-  const elapsedMicros = Math.max(1, Math.round(elapsedMs * 1000))
+  const elapsedMs = Number(elapsedNs) / 1e6
 
-  const cpuProfile = normalizeCpuProfileTiming(removeCpuProfileArtifacts(cpu.profile), elapsedMicros)
+  const cpuProfile = mergeCpuProfiles(cpuProfiles)
   const heapProfile = removeHeapProfileArtifacts(heap.profile)
 
   await fs.writeFile(cpuPath, JSON.stringify(cpuProfile))
@@ -343,6 +457,7 @@ function printProfileSummary (summary) {
 module.exports = {
   Vec3,
   createPathRig,
+  createPathRigSetup,
   goals,
   printProfileSummary,
   profilePathGeneration
