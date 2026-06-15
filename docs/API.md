@@ -25,6 +25,7 @@
   - [GoalCompositeAny](#goalcompositeany)
   - [GoalCompositeAll](#goalcompositeall)
 - [Settings](#settings)
+- [Exclusion Zones](#exclusion-zones)
 - [Events](#events)
   - [pathGenerated](#pathGenerated)
   - [goalSet](#goalSet)
@@ -560,6 +561,9 @@ These are the currently available settings.
 | `infiniteLiquidDropdownDistance` | `boolean` | Whether or not to have an infinite liquid dropdown distance. | `true` |
 | `allowSprinting` | `boolean` | Whether or not to allow sprinting. | `true` |
 | `careAboutLookAlignment` | `boolean` | Whether or not to care about look alignment. | `true` |
+| `exclusionAreasStep` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **stand in**. See [Exclusion Zones](#exclusion-zones). | `[]` |
+| `exclusionAreasBreak` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **break** (mine). | `[]` |
+| `exclusionAreasPlace` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **place** (build on). | `[]` |
 
 
 ```ts
@@ -583,9 +587,108 @@ interface MovementOptions {
   infiniteLiquidDropdownDistance: boolean
   allowSprinting: boolean
   careAboutLookAlignment: boolean
+
+  movementTimeoutMs: number
+
+  // "Keep out" zones. Empty by default. See the Exclusion Zones section below.
+  exclusionAreasStep: ExclusionArea[]
+  exclusionAreasBreak: ExclusionArea[]
+  exclusionAreasPlace: ExclusionArea[]
 }
 
 ```
+
+
+
+<h1 align="center">Exclusion Zones</h1>
+
+Exclusion zones let you tell the bot **"keep out of here"** — either softly (an
+area is allowed but more expensive, so the bot prefers to go around) or hard
+(an area is completely off-limits). This is the same idea as upstream
+[`PrismarineJS/mineflayer-pathfinder`](https://github.com/PrismarineJS/mineflayer-pathfinder),
+so exclusion functions you wrote for that library keep working here.
+
+<h3>How it works</h3>
+
+An **exclusion area** is just a function. You give it one block, and it returns
+the *extra cost* of using that block:
+
+```ts
+type ExclusionArea = (block: BlockInfo) => number
+```
+
+- return `0` &rarr; "I don't care about this block."
+- return a positive number (e.g. `50`) &rarr; a **soft** zone: the bot may use the block, but it costs that much more, so it avoids it when there is a cheaper way around.
+- return `EXCLUSION_NEVER` (a.k.a. `Infinity`) &rarr; a **hard** zone: the bot will never use this block. Any value `>= COST_INF` counts as "never".
+
+There are three independent lists in the settings, one per kind of action:
+
+| Setting | Asked about every block the bot would… |
+| --- | --- |
+| `exclusionAreasStep` | **stand in** / walk into (checked on the block the bot's feet end up in, for every movement type: walking, jumping, dropping, parkour, towers). |
+| `exclusionAreasBreak` | **break** (mine). |
+| `exclusionAreasPlace` | **place** (build on). |
+
+> When all three lists are empty (the default), exclusion costs nothing to
+> evaluate — there is zero overhead for normal pathfinding.
+
+<h3>Ready-made zone shapes</h3>
+
+You usually don't need to write the function yourself. These helpers build the
+common shapes for you (all are exported from the package root):
+
+▸ **createBoxExclusion(`corner1: Vec3, corner2: Vec3, cost = EXCLUSION_NEVER`): `ExclusionArea`**
+
+A box between two opposite corners (inclusive, any order — like a WorldEdit selection).
+
+▸ **createRadiusExclusion(`center: Vec3, radius: number, cost = EXCLUSION_NEVER`): `ExclusionArea`**
+
+A ball (sphere): every block within `radius` of `center`. Height counts.
+
+▸ **createColumnRadiusExclusion(`center: Vec3, radius: number, cost = EXCLUSION_NEVER`): `ExclusionArea`**
+
+A pillar (vertical column): like the ball, but it ignores height — only X/Z distance matters.
+
+<h3>Examples</h3>
+
+```ts
+const { Vec3 } = require('vec3')
+const {
+  createBoxExclusion,
+  createRadiusExclusion,
+  createColumnRadiusExclusion
+} = require('@nxg-org/mineflayer-pathfinder')
+
+// 1) Hard no-go box: the bot will never set foot in this region.
+const spawnArea = createBoxExclusion(new Vec3(-10, 60, -10), new Vec3(10, 80, 10))
+
+// 2) Soft danger zone: the bot may pass within 8 blocks of the turret,
+//    but only if going around would be even more expensive.
+const turret = createRadiusExclusion(new Vec3(100, 64, 100), 8, 60)
+
+// 3) Never dig or build inside the protected spawn box.
+const protectedBox = createBoxExclusion(new Vec3(-10, 0, -10), new Vec3(10, 320, 10))
+
+bot.pathfinder.setMoveOptions({
+  exclusionAreasStep: [spawnArea, turret],
+  exclusionAreasBreak: [protectedBox],
+  exclusionAreasPlace: [protectedBox]
+})
+```
+
+You can also write a fully custom rule — any function `(block) => number` works:
+
+```ts
+// Avoid stepping on farmland so the bot never tramples crops.
+const farmlandId = bot.registry.blocksByName.farmland.id
+const dontTrample = (block) => block.type === farmlandId ? 100 : 0
+
+bot.pathfinder.setMoveOptions({ exclusionAreasStep: [dontTrample] })
+```
+
+> **Note:** `exclusionAreasStep` is checked on the block the bot's **feet** land
+> in. If you need to guarantee the bot's head also stays out of a region, make
+> the box one block taller at the bottom.
 
 
 

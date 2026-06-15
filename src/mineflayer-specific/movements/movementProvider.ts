@@ -2,7 +2,7 @@ import { Bot } from 'mineflayer'
 import { Move } from '../move'
 import * as goals from '../goals'
 import { World } from '../world/worldInterface'
-import { DEFAULT_MOVEMENT_OPTS, Movement, MovementOptions } from './movement'
+import { Movement, MovementOptions, buildMovementOptions } from './movement'
 
 import { MovementProvider as AMovementProvider } from '../../abstract'
 import type { ExecutorMap } from '.'
@@ -137,7 +137,7 @@ export class MovementHandler implements AMovementProvider<Move> {
     recMovement: ExecutorMap,
     settings: Partial<MovementOptions> = {}
   ): MovementHandler {
-    const opts = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+    const opts = buildMovementOptions(settings)
     return new MovementHandler(
       bot,
       world,

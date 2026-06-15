@@ -50,6 +50,16 @@ export * as goals from './mineflayer-specific/goals'
 
 export { MovementExecutor, MovementProvider } from './mineflayer-specific/movements'
 export type { BuildableMoveExecutor, BuildableMoveProvider, MovementSetup } from './mineflayer-specific/movements'
+export type { MovementOptions } from './mineflayer-specific/movements'
+
+// Exclusion zones ("keep out" areas), like upstream mineflayer-pathfinder.
+export {
+  createBoxExclusion,
+  createRadiusExclusion,
+  createColumnRadiusExclusion,
+  EXCLUSION_NEVER
+} from './mineflayer-specific/movements/exclusionZones'
+export type { ExclusionArea } from './mineflayer-specific/movements/exclusionZones'
 export { MovementOptimizer } from './mineflayer-specific/post'
 export type { BuildableMoveOptimizer, OptimizationSetup, OptimizationMap } from './mineflayer-specific/post'
 export { Move } from './mineflayer-specific/move'

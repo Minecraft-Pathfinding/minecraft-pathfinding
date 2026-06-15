@@ -9,6 +9,7 @@ import type { InteractType } from './interactionUtils'
 import type { Block } from '../../types'
 import { Vec3Properties } from '../../types'
 import { COST_INF } from './costs'
+import type { ExclusionArea } from './exclusionZones'
 
 export interface MovementOptions {
   allowDiagonalBridging: boolean
@@ -32,6 +33,25 @@ export interface MovementOptions {
   careAboutLookAlignment: boolean
 
   movementTimeoutMs: number
+
+  /**
+   * "Keep out" rules for blocks the bot would STAND in / walk into.
+   *
+   * Each {@link ExclusionArea} is a function that returns the extra cost of a
+   * block (return `>= COST_INF` to forbid it entirely). The cost of every area
+   * in the list is added together. An empty list (the default) means "no zones",
+   * and costs nothing to evaluate.
+   *
+   * Build these by hand, or use the helpers in `./exclusionZones`
+   * (`createBoxExclusion`, `createRadiusExclusion`, `createColumnRadiusExclusion`).
+   */
+  exclusionAreasStep: ExclusionArea[]
+
+  /** "Keep out" rules for blocks the bot would BREAK (mine). See {@link exclusionAreasStep}. */
+  exclusionAreasBreak: ExclusionArea[]
+
+  /** "Keep out" rules for blocks the bot would PLACE (build on). See {@link exclusionAreasStep}. */
+  exclusionAreasPlace: ExclusionArea[]
 }
 
 export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
@@ -53,7 +73,36 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   forceLook: true,
   careAboutLookAlignment: true,
   allowDiagonalBridging: true,
-  movementTimeoutMs: 1000
+  movementTimeoutMs: 1000,
+  // No exclusion zones by default. Add your own with bot.pathfinder.setMoveOptions(...).
+  exclusionAreasStep: [],
+  exclusionAreasBreak: [],
+  exclusionAreasPlace: []
+}
+
+// Lock the default exclusion lists so the single shared instances above can never
+// be mutated in place. Real settings always receive their own fresh arrays via
+// buildMovementOptions() below, so this is just a safety net.
+Object.freeze(DEFAULT_MOVEMENT_OPTS.exclusionAreasStep)
+Object.freeze(DEFAULT_MOVEMENT_OPTS.exclusionAreasBreak)
+Object.freeze(DEFAULT_MOVEMENT_OPTS.exclusionAreasPlace)
+
+/**
+ * Merge user-supplied movement options on top of {@link DEFAULT_MOVEMENT_OPTS}
+ * and return a complete {@link MovementOptions}.
+ *
+ * The three exclusion-area lists are ALWAYS returned as their own fresh arrays.
+ * The defaults hold a single shared `[]` per list, so copying here is what stops
+ * two different bots — or two `setMoveOptions` calls — from accidentally sharing
+ * (and then mutating) the same array. Use this everywhere instead of a bare
+ * `Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)`.
+ */
+export function buildMovementOptions (settings: Partial<MovementOptions> = {}): MovementOptions {
+  const merged = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+  merged.exclusionAreasStep = [...merged.exclusionAreasStep]
+  merged.exclusionAreasBreak = [...merged.exclusionAreasBreak]
+  merged.exclusionAreasPlace = [...merged.exclusionAreasPlace]
+  return merged
 }
 
 const cardinalVec3s: Vec3[] = [
@@ -136,7 +185,7 @@ export abstract class Movement {
   public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     this.bot = bot
     this.world = world
-    this.settings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+    this.settings = buildMovementOptions(settings)
   }
 
   loadMove (move: Move): void {
@@ -183,7 +232,56 @@ export abstract class Movement {
   }
 
   /**
-   * Takes into account if the block is within a break exclusion area.
+   * Add up the extra cost of STANDING in / walking into this block, using every
+   * "step" exclusion area in the settings (see {@link MovementOptions.exclusionAreasStep}).
+   *
+   * Returns 0 when there are no step areas configured (the normal, default case),
+   * so this is essentially free unless the user opted in to exclusion zones.
+   */
+  exclusionStep (block: BlockInfo): number {
+    const areas = this.settings.exclusionAreasStep
+    if (areas.length === 0) return 0
+    let weight = 0
+    for (const area of areas) weight += area(block)
+    return weight
+  }
+
+  /**
+   * Add up the extra cost of BREAKING this block, using every "break" exclusion
+   * area in the settings (see {@link MovementOptions.exclusionAreasBreak}).
+   *
+   * Returns 0 when there are no break areas configured.
+   */
+  exclusionBreak (block: BlockInfo): number {
+    const areas = this.settings.exclusionAreasBreak
+    if (areas.length === 0) return 0
+    let weight = 0
+    for (const area of areas) weight += area(block)
+    return weight
+  }
+
+  /**
+   * Add up the extra cost of PLACING a block here, using every "place" exclusion
+   * area in the settings (see {@link MovementOptions.exclusionAreasPlace}).
+   *
+   * Returns 0 when there are no place areas configured.
+   */
+  exclusionPlace (block: BlockInfo): number {
+    const areas = this.settings.exclusionAreasPlace
+    if (areas.length === 0) return 0
+    let weight = 0
+    for (const area of areas) weight += area(block)
+    return weight
+  }
+
+  /**
+   * Whether this block is allowed to be broken at all (ignoring cost).
+   *
+   * This only answers the "is it physically/configurably breakable" question
+   * (can we dig, would it create flowing water, would a block fall on us, is it
+   * an unbreakable block like bedrock). The "is it inside a no-mining zone"
+   * question is handled separately as a cost, in {@link breakCost} via
+   * {@link exclusionBreak}.
    * @param {BlockInfo} block
    * @returns
    */
@@ -208,17 +306,23 @@ export abstract class Movement {
     }
 
     // console.log('block type:', this.bot.registry.blocks[block.type], block.position, !BlockInfo.blocksCantBreak.has(block.type))
-    return BlockInfo.replaceables.has(block.type) || !BlockInfo.blocksCantBreak.has(block.type) // && this.exclusionBreak(block) < COST_INF
+    return BlockInfo.replaceables.has(block.type) || !BlockInfo.blocksCantBreak.has(block.type)
   }
 
   /**
-   * Takes into account if the block is within the stepExclusionAreas. And returns COST_INF if a block to be broken is within break exclusion areas.
-   * @param {import('prismarine-block').Block} block block
-   * @param {[]} toBreak
+   * Cost of either walking through `block` (if it is already passable) or
+   * breaking it so the bot can pass.
+   *
+   * Returns `COST_INF` (or more) when the block cannot be used — for example an
+   * unbreakable block, or one inside a break-exclusion zone (see
+   * {@link breakCost} / {@link exclusionBreak}). Step-exclusion zones are NOT
+   * checked here; each movement provider applies {@link exclusionStep} to the
+   * block the bot lands in, folding the cost in before the move is created.
+   * @param {BlockInfo} block block
+   * @param {BreakHandler[]} toBreak
    * @returns {number}
    */
   safeOrBreak (block: BlockInfo, toBreak: BreakHandler[]): number {
-    // cost += this.exclusionStep(block) // Is excluded so can't move or break
     // cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
 
     // if (block.breakCost !== undefined) return block.breakCost // cache breaking cost.
@@ -256,7 +360,11 @@ export abstract class Movement {
     // const effects = this.bot.entity.effects
     // const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
     const laborCost = (1 + 3 * digTime / 1000) * this.settings.digCost
-    return laborCost
+
+    // Add the break-exclusion penalty (0 unless the user configured "no mining" zones).
+    // If the block sits inside a forbidden zone this pushes the cost past COST_INF,
+    // which every caller treats as "do not break this block".
+    return laborCost + this.exclusionBreak(block)
   }
 
   safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {
@@ -278,7 +386,9 @@ export abstract class Movement {
    * TODO: calculate more accurate place costs.
    */
   placeCost (block: BlockInfo): number {
-    return this.settings.placeCost
+    // Add the place-exclusion penalty (0 unless the user configured "no building" zones).
+    // A forbidden zone pushes this past COST_INF, which callers treat as "do not place here".
+    return this.settings.placeCost + this.exclusionPlace(block)
   }
 }
 

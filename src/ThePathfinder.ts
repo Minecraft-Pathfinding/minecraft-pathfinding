@@ -15,7 +15,7 @@ import type {
 import {
   MovementHandler,
   MovementExecutor,
-  DEFAULT_MOVEMENT_OPTS
+  buildMovementOptions
 } from './mineflayer-specific/movements'
 
 import {
@@ -209,7 +209,7 @@ export class ThePathfinder {
     const optimizers = opts.optimizers ?? DEFAULT_OPTIMIZATION
     const moveSetup = opts.movements ?? DEFAULT_SETUP
 
-    Object.assign(moveSettings, { ...DEFAULT_MOVEMENT_OPTS, ...opts.moveSettings })
+    Object.assign(moveSettings, buildMovementOptions(opts.moveSettings))
     Object.assign(pathfinderSettings, { ...DEFAULT_PATHFINDER_OPTS, ...opts.pathfinderSettings })
 
     const moves = new Map<BuildableMoveProvider, MovementExecutor>()
@@ -279,7 +279,7 @@ export class ThePathfinder {
   }
 
   setMoveOptions(settings: Partial<MovementOptions>): void {
-    this.defaultMoveSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+    this.defaultMoveSettings = buildMovementOptions(settings)
     this.optimizerRegistry.setSettings(this.defaultMoveSettings)
     for (const [, executor] of this.movements) {
       executor.settings = this.defaultMoveSettings
