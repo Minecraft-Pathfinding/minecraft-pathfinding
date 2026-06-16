@@ -105,6 +105,19 @@ export function buildMovementOptions (settings: Partial<MovementOptions> = {}): 
   return merged
 }
 
+/**
+ * Sum the extra cost every exclusion area in `areas` assigns to `block`.
+ *
+ * Returns 0 immediately when the list is empty (the normal case), so it is
+ * essentially free unless the user opted in to exclusion zones.
+ */
+export function sumExclusionAreas (areas: ExclusionArea[], block: BlockInfo): number {
+  if (areas.length === 0) return 0
+  let weight = 0
+  for (const area of areas) weight += area(block)
+  return weight
+}
+
 const cardinalVec3s: Vec3[] = [
   // { x: -1, z: 0 }, // West
   // { x: 1, z: 0 }, // East
@@ -231,47 +244,19 @@ export abstract class Movement {
     return block.physical ? 0 : COST_INF
   }
 
-  /**
-   * Add up the extra cost of STANDING in / walking into this block, using every
-   * "step" exclusion area in the settings (see {@link MovementOptions.exclusionAreasStep}).
-   *
-   * Returns 0 when there are no step areas configured (the normal, default case),
-   * so this is essentially free unless the user opted in to exclusion zones.
-   */
+  /** Extra cost of STANDING in this block (sum of every step exclusion area; 0 if none). */
   exclusionStep (block: BlockInfo): number {
-    const areas = this.settings.exclusionAreasStep
-    if (areas.length === 0) return 0
-    let weight = 0
-    for (const area of areas) weight += area(block)
-    return weight
+    return sumExclusionAreas(this.settings.exclusionAreasStep, block)
   }
 
-  /**
-   * Add up the extra cost of BREAKING this block, using every "break" exclusion
-   * area in the settings (see {@link MovementOptions.exclusionAreasBreak}).
-   *
-   * Returns 0 when there are no break areas configured.
-   */
+  /** Extra cost of BREAKING this block (sum of every break exclusion area; 0 if none). */
   exclusionBreak (block: BlockInfo): number {
-    const areas = this.settings.exclusionAreasBreak
-    if (areas.length === 0) return 0
-    let weight = 0
-    for (const area of areas) weight += area(block)
-    return weight
+    return sumExclusionAreas(this.settings.exclusionAreasBreak, block)
   }
 
-  /**
-   * Add up the extra cost of PLACING a block here, using every "place" exclusion
-   * area in the settings (see {@link MovementOptions.exclusionAreasPlace}).
-   *
-   * Returns 0 when there are no place areas configured.
-   */
+  /** Extra cost of PLACING a block here (sum of every place exclusion area; 0 if none). */
   exclusionPlace (block: BlockInfo): number {
-    const areas = this.settings.exclusionAreasPlace
-    if (areas.length === 0) return 0
-    let weight = 0
-    for (const area of areas) weight += area(block)
-    return weight
+    return sumExclusionAreas(this.settings.exclusionAreasPlace, block)
   }
 
   /**

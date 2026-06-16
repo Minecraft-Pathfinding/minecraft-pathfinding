@@ -248,3 +248,17 @@ test('the optimizer still merges a straight path when no zone is in the way', as
   // With no zones the always-merge optimizer collapses the whole run into one move.
   assert.equal(optimized.length, 1, 'optimizer should merge freely without exclusion zones')
 })
+
+test('the optimizer voxel-checks diagonal merges (single hard cell on the diagonal)', async () => {
+  // A diagonal run (0,64,0) -> (6,64,6). One hard cell sits on the diagonal at
+  // (3,64,3); the voxel traversal must catch it and refuse the straight-line merge.
+  const hardCell = boxExclusion(new Vec3(3, 64, 3), new Vec3(3, 64, 3))
+  const moveType = makeMoveType([hardCell])
+
+  const start = Move.startMove(moveType, new Vec3(0, 64, 0), new Vec3(0, 0, 0), 5)
+  const m1 = Move.fromPrevious(1, new Vec3(3, 64, 3), start, moveType)
+  const m2 = Move.fromPrevious(1, new Vec3(6, 64, 6), m1, moveType)
+
+  const optimized = await runOptimizer([start, m1, m2], moveType)
+  assert.equal(optimized.length, 3, 'a diagonal merge across a hard cell must be refused')
+})

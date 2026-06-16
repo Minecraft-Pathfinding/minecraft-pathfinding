@@ -2,7 +2,7 @@ import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import type { OptimizationMap } from '.'
 import type { BuildableMoveProvider, ExclusionArea } from '../movements'
-import { MovementProvider } from '../movements'
+import { MovementProvider, sumExclusionAreas } from '../movements'
 import { World } from '../world/worldInterface'
 import { Move } from '../move'
 import { COST_INF } from '../movements/costs'
@@ -13,33 +13,60 @@ const log = debug('minecraft-pathfinding:Optimizer')
 const logMerge = debug('minecraft-pathfinding:Optimizer:merge')
 
 /**
- * Walk the straight line from `from` to `to` block-by-block and return true if any
- * cell falls inside a HARD step-exclusion zone (one whose summed weight reaches
- * COST_INF). Used to stop an optimizer from straight-lining a path through a
- * "keep out" area the original A* route deliberately went around.
+ * Walk the straight segment from `from` to `to` with a voxel traversal
+ * (Amanatides & Woo) and return true as soon as a cell lands inside a HARD step
+ * zone (summed weight >= COST_INF). Visiting exactly the cells the segment
+ * crosses keeps the check both correct (no skipped cells, no false hits) and
+ * cheap (one block lookup per crossed cell).
  *
  * Only hard zones block a merge. Soft zones (a finite extra cost) are a
  * preference, not a wall, so the optimizer is allowed to straighten through them.
  */
 function lineCrossesHardExclusion (world: World, from: Vec3, to: Vec3, areas: ExclusionArea[]): boolean {
+  let x = Math.floor(from.x)
+  let y = Math.floor(from.y)
+  let z = Math.floor(from.z)
+  const endX = Math.floor(to.x)
+  const endY = Math.floor(to.y)
+  const endZ = Math.floor(to.z)
+
   const dx = to.x - from.x
   const dy = to.y - from.y
   const dz = to.z - from.z
-  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-  const steps = Math.max(1, Math.ceil(dist * 2)) // sample roughly every half block
-  let lastKey = ''
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps
-    const x = Math.floor(from.x + dx * t)
-    const y = Math.floor(from.y + dy * t)
-    const z = Math.floor(from.z + dz * t)
-    const key = `${x},${y},${z}`
-    if (key === lastKey) continue // same cell as the previous sample
-    lastKey = key
-    const block = world.getBlockInfo(new Vec3(x, y, z))
-    let weight = 0
-    for (const area of areas) weight += area(block)
-    if (weight >= COST_INF) return true
+
+  const stepX = Math.sign(dx)
+  const stepY = Math.sign(dy)
+  const stepZ = Math.sign(dz)
+
+  // The segment is parameterised by t in [0, 1]. tMax* is the t at which we next
+  // cross a cell boundary on that axis; tDelta* is the t to cross one whole cell.
+  // Axes that do not move get Infinity so they are never chosen to advance.
+  const tDeltaX = stepX !== 0 ? Math.abs(1 / dx) : Infinity
+  const tDeltaY = stepY !== 0 ? Math.abs(1 / dy) : Infinity
+  const tDeltaZ = stepZ !== 0 ? Math.abs(1 / dz) : Infinity
+
+  let tMaxX = stepX !== 0 ? (stepX > 0 ? x + 1 - from.x : from.x - x) / Math.abs(dx) : Infinity
+  let tMaxY = stepY !== 0 ? (stepY > 0 ? y + 1 - from.y : from.y - y) / Math.abs(dy) : Infinity
+  let tMaxZ = stepZ !== 0 ? (stepZ > 0 ? z + 1 - from.z : from.z - z) / Math.abs(dz) : Infinity
+
+  // Number of cells to visit = Manhattan distance in cells + 1. Looping a fixed
+  // number of times (rather than on tMax comparisons) keeps termination
+  // floating-point safe.
+  const cells = Math.abs(endX - x) + Math.abs(endY - y) + Math.abs(endZ - z)
+
+  for (let i = 0; i <= cells; i++) {
+    if (sumExclusionAreas(areas, world.getBlockInfo(new Vec3(x, y, z))) >= COST_INF) return true
+
+    if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
+      x += stepX
+      tMaxX += tDeltaX
+    } else if (tMaxY <= tMaxZ) {
+      y += stepY
+      tMaxY += tDeltaY
+    } else {
+      z += stepZ
+      tMaxZ += tDeltaZ
+    }
   }
   return false
 }
