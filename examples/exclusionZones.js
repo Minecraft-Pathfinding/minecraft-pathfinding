@@ -3,28 +3,58 @@
 // ---------------------------------------------------------------------------
 // Exclusion zones example
 //
-// This shows how to tell the bot "keep out of here" using the three exclusion
-// lists in the movement settings. Run a local server, then:
+// An "exclusion area" is just a function (block) => number that returns the
+// extra cost of using a block: 0 = fine, a positive number = soft avoid,
+// Infinity = hard "keep out". The library ships no ready-made shapes on
+// purpose, so the small box/radius builders below are yours to copy and adapt.
 //
-//   node examples/exclusionZones.js
+// They go into three movement settings:
+//   exclusionAreasStep  -> blocks the bot may stand in / walk into
+//   exclusionAreasBreak -> blocks the bot may break (mine)
+//   exclusionAreasPlace -> blocks the bot may place (build on)
 //
-// In game, type these in chat:
-//   goto <x> <y> <z>   -> walk there, but respecting the zones below
-//   zones on           -> turn the example zones on
-//   zones off          -> turn them all off again
+// Run a local server, then: node examples/exclusionZones.js
+// In chat: "goto <x> <y> <z>", "zones on", "zones off".
 // ---------------------------------------------------------------------------
 
 const { createBot } = require('mineflayer')
 const { Vec3 } = require('vec3')
-const {
-  createPlugin,
-  goals,
-  createBoxExclusion,
-  createRadiusExclusion,
-  createColumnRadiusExclusion
-} = require('../dist')
+const { createPlugin, goals } = require('../dist')
 
 const { GoalBlock } = goals
+
+// --- copy these helpers into your own project ------------------------------
+
+// A box between two opposite corners (inclusive, any order).
+function boxExclusion (corner1, corner2, cost = Infinity) {
+  const minX = Math.min(corner1.x, corner2.x)
+  const minY = Math.min(corner1.y, corner2.y)
+  const minZ = Math.min(corner1.z, corner2.z)
+  const maxX = Math.max(corner1.x, corner2.x)
+  const maxY = Math.max(corner1.y, corner2.y)
+  const maxZ = Math.max(corner1.z, corner2.z)
+  return (block) => {
+    const p = block.position
+    const inside =
+      p.x >= minX && p.x <= maxX &&
+      p.y >= minY && p.y <= maxY &&
+      p.z >= minZ && p.z <= maxZ
+    return inside ? cost : 0
+  }
+}
+
+// A ball (sphere) of the given radius around a center point.
+function radiusExclusion (center, radius, cost = Infinity) {
+  const r2 = radius * radius
+  return (block) => {
+    const dx = block.position.x - center.x
+    const dy = block.position.y - center.y
+    const dz = block.position.z - center.z
+    return dx * dx + dy * dy + dz * dz <= r2 ? cost : 0
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const bot = createBot({
   username: 'exclusion-demo',
@@ -35,19 +65,13 @@ const bot = createBot({
 
 bot.loadPlugin(createPlugin())
 
-// A few example zones. Tweak the coordinates to match your world.
-//
-//  - A HARD box the bot must never set foot in.
-//  - A SOFT ball the bot prefers to stay out of, but may cross if it must.
-//  - A pillar where the bot is never allowed to mine.
-const noGoBox = createBoxExclusion(new Vec3(-8, 60, -8), new Vec3(8, 80, 8))
-const softBall = createRadiusExclusion(new Vec3(30, 64, 30), 6, 50)
-const noMinePillar = createColumnRadiusExclusion(new Vec3(0, 0, 0), 4)
+// Example zones (tweak the coordinates to match your world):
+const noGoBox = boxExclusion(new Vec3(-8, 60, -8), new Vec3(8, 80, 8)) // hard
+const softBall = radiusExclusion(new Vec3(30, 64, 30), 6, 50) // soft
 
 function enableZones () {
   bot.pathfinder.setMoveOptions({
-    exclusionAreasStep: [noGoBox, softBall],
-    exclusionAreasBreak: [noMinePillar]
+    exclusionAreasStep: [noGoBox, softBall]
   })
   bot.chat('Exclusion zones: ON')
 }

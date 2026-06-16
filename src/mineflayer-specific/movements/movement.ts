@@ -42,8 +42,8 @@ export interface MovementOptions {
    * in the list is added together. An empty list (the default) means "no zones",
    * and costs nothing to evaluate.
    *
-   * Build these by hand, or use the helpers in `./exclusionZones`
-   * (`createBoxExclusion`, `createRadiusExclusion`, `createColumnRadiusExclusion`).
+   * Write your own; ready-to-copy box/radius helpers live in
+   * `examples/exclusionZones.js`.
    */
   exclusionAreasStep: ExclusionArea[]
 

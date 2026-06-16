@@ -315,57 +315,21 @@ class MyMovementOptimizer extends MovementOptimizer {
 
 <h1 align="center">Exclusion Zones (Keep-Out Areas)</h1>
 
-Sometimes you don't want to write a whole custom `MovementProvider` — you just
-want to tell the bot **"stay out of this area"**. That is what exclusion zones
-are for. They are a setting, so you turn them on by changing `moveSettings`,
-not by subclassing anything.
+To keep the bot out of an area without writing a custom `MovementProvider`, add
+an **exclusion area** to the move settings. It is a function returning the extra
+cost of a block: `0` (no opinion), a positive number (soft — avoided when a
+cheaper route exists), or `Infinity` (hard — never used).
 
-<h2>The one idea you need</h2>
+Three lists, each summing the cost of every function in it:
 
-An **exclusion area** is a function that looks at a single block and returns a
-number — the *extra* cost of using that block:
+- `exclusionAreasStep` — blocks the bot would stand in.
+- `exclusionAreasBreak` — blocks the bot would break (mine).
+- `exclusionAreasPlace` — blocks the bot would place (build on).
 
-- `0` &rarr; the bot doesn't care, business as usual.
-- a positive number &rarr; **soft** zone: allowed, but more expensive, so the bot goes around when it can.
-- `Infinity` / `EXCLUSION_NEVER` &rarr; **hard** zone: the bot will never use that block.
-
-There are three lists in the settings, one for each kind of action the bot can
-take on a block:
-
-- `exclusionAreasStep` — blocks the bot would **stand in**.
-- `exclusionAreasBreak` — blocks the bot would **break** (mine).
-- `exclusionAreasPlace` — blocks the bot would **place** (build on).
-
-All three are empty by default, which means "no zones" and costs nothing.
-
-<h2>The quick way: ready-made shapes</h2>
+All empty by default (no overhead). Any `(block) => number` works:
 
 ```ts
-const { Vec3 } = require('vec3')
-const {
-  createBoxExclusion,           // a box between two corners
-  createRadiusExclusion,        // a ball around a point
-  createColumnRadiusExclusion   // a vertical pillar around a point (ignores height)
-} = require('@nxg-org/mineflayer-pathfinder')
-
-// Hard no-go box around spawn protection.
-const spawn = createBoxExclusion(new Vec3(-16, 60, -16), new Vec3(16, 90, 16))
-
-// Soft "stay away" ball around a mob spawner (cost 50, not forbidden).
-const spawner = createRadiusExclusion(new Vec3(40, 64, -120), 10, 50)
-
-bot.pathfinder.setMoveOptions({
-  exclusionAreasStep: [spawn, spawner]
-})
-```
-
-<h2>The flexible way: your own function</h2>
-
-Any function `(block) => number` works, so you can base the rule on block type,
-position, height, whatever you like:
-
-```ts
-// Never mine valuable ores, and never break anything below y=0.
+// Never mine valuable ores or anything below y=0.
 const diamondId = bot.registry.blocksByName.diamond_ore.id
 const protectOres = (block) =>
   (block.type === diamondId || block.position.y < 0) ? Infinity : 0
@@ -373,13 +337,12 @@ const protectOres = (block) =>
 bot.pathfinder.setMoveOptions({ exclusionAreasBreak: [protectOres] })
 ```
 
-<h2>Good to know</h2>
+Notes:
 
-- You can combine as many areas as you want in each list — their costs add up.
-- `exclusionAreasStep` is checked on the block the bot's **feet** land in, for
-  every movement type (walking, jumping, dropping, parkour, towers). If you need
-  the bot's head kept out too, make the box one block taller at the bottom.
-- This matches upstream `mineflayer-pathfinder`'s exclusion areas, so functions
-  written for that library work here unchanged.
-- Prefer `setMoveOptions({ ... })` with a fresh array over mutating the existing
-  array in place, so every part of the pathfinder picks up the new zones.
+- Costs from multiple areas in a list add up.
+- `exclusionAreasStep` is checked on the foot block of every move (walk, jump,
+  drop, parkour, tower), and optimized/straight-lined paths are blocked from
+  cutting through hard zones too.
+- Pass a fresh array to `setMoveOptions({ ... })` rather than mutating the
+  existing one.
+- Ready-to-copy box/radius helpers live in `examples/exclusionZones.js`.
