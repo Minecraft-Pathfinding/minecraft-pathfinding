@@ -2,3 +2,4 @@
 
 `basic.js` shows off the basic functionality of this pathfinder, while `example.js` goes into more depth.
 `bridging/bridge.ts` is the bridge demo, and `neos/neo.ts` is a neo-jump-focused variant based on the same bot setup.
+`exclusionZones.js` shows how to add "keep out" areas (exclusion zones) to the movement settings.

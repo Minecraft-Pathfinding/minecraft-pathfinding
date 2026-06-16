@@ -25,6 +25,7 @@
   - [GoalCompositeAny](#goalcompositeany)
   - [GoalCompositeAll](#goalcompositeall)
 - [Settings](#settings)
+- [Exclusion Zones](#exclusion-zones)
 - [Events](#events)
   - [pathGenerated](#pathGenerated)
   - [goalSet](#goalSet)
@@ -560,6 +561,9 @@ These are the currently available settings.
 | `infiniteLiquidDropdownDistance` | `boolean` | Whether or not to have an infinite liquid dropdown distance. | `true` |
 | `allowSprinting` | `boolean` | Whether or not to allow sprinting. | `true` |
 | `careAboutLookAlignment` | `boolean` | Whether or not to care about look alignment. | `true` |
+| `exclusionAreasStep` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **stand in**. See [Exclusion Zones](#exclusion-zones). | `[]` |
+| `exclusionAreasBreak` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **break** (mine). | `[]` |
+| `exclusionAreasPlace` | `ExclusionArea[]` | "Keep out" rules for blocks the bot would **place** (build on). | `[]` |
 
 
 ```ts
@@ -583,9 +587,61 @@ interface MovementOptions {
   infiniteLiquidDropdownDistance: boolean
   allowSprinting: boolean
   careAboutLookAlignment: boolean
+
+  movementTimeoutMs: number
+
+  // "Keep out" zones. Empty by default. See the Exclusion Zones section below.
+  exclusionAreasStep: ExclusionArea[]
+  exclusionAreasBreak: ExclusionArea[]
+  exclusionAreasPlace: ExclusionArea[]
 }
 
 ```
+
+
+
+<h1 align="center">Exclusion Zones</h1>
+
+Exclusion zones mark areas as off-limits. An exclusion area is a function
+returning the extra cost of a block; the same idea as upstream
+[`PrismarineJS/mineflayer-pathfinder`](https://github.com/PrismarineJS/mineflayer-pathfinder).
+
+```ts
+type ExclusionArea = (block: BlockInfo) => number
+```
+
+- `0` — no opinion.
+- a positive number — soft zone: allowed, but avoided when a cheaper route exists.
+- `Infinity` (`>= COST_INF`) — hard zone: never used.
+
+Areas live in three settings; each sums the cost of every function in its list:
+
+| Setting | Checked on every block the bot would… |
+| --- | --- |
+| `exclusionAreasStep` | stand in (the foot block of each move — walk, jump, drop, parkour, tower; optimized paths included). |
+| `exclusionAreasBreak` | break (mine). |
+| `exclusionAreasPlace` | place (build on). |
+
+Empty by default, so there is zero overhead when unused. The library ships no
+ready-made shapes — write your own. Box/radius helpers are in
+[`examples/exclusionZones.js`](../examples/exclusionZones.js).
+
+```ts
+// Never break or place inside a protected box; soft-avoid stepping on farmland.
+const farmlandId = bot.registry.blocksByName.farmland.id
+const inBox = (block) =>
+  block.position.x >= -10 && block.position.x <= 10 &&
+  block.position.z >= -10 && block.position.z <= 10 ? Infinity : 0
+
+bot.pathfinder.setMoveOptions({
+  exclusionAreasStep: [(block) => block.type === farmlandId ? 100 : 0],
+  exclusionAreasBreak: [inBox],
+  exclusionAreasPlace: [inBox]
+})
+```
+
+`exclusionAreasStep` is checked on the block the bot's **feet** land in; extend a
+box one block lower if you also need the head kept out.
 
 
 
