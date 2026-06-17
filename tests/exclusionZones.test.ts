@@ -5,7 +5,7 @@ import { Vec3 } from 'vec3'
 import { createPlugin, goals, Move } from '../src'
 import type { ExclusionArea } from '../src'
 import { buildMovementOptions, DEFAULT_MOVEMENT_OPTS } from '../src/mineflayer-specific/movements'
-import { Optimizer } from '../src/mineflayer-specific/post'
+import { lineCrossesHardExclusion } from '../src/mineflayer-specific/post/optimizers'
 import { createCacheWorld } from './setup'
 
 // ---------------------------------------------------------------------------
@@ -180,85 +180,31 @@ test('a hard step exclusion on the only goal block makes the goal unreachable', 
 })
 
 // ---------------------------------------------------------------------------
-// Post-processing: the optimizer must not straight-line a path through a hard
-// zone the A* route went around. Driven with a synthetic path + an optimizer
-// that always wants to merge everything, so the only thing that can stop the
-// merge is the exclusion guard (no raycast/physics involved).
+// Post-processing: the optimizers must not straight-line a path through a hard
+// zone. That check lives in LandStraightAheadOpt via lineCrossesHardExclusion;
+// these test the voxel-traversal helper directly and deterministically.
 // ---------------------------------------------------------------------------
 
-class DummyProvider {}
-
-function makeMoveType (areas: ExclusionArea[]): any {
-  const moveType: any = new DummyProvider()
-  moveType.settings = { exclusionAreasStep: areas }
-  return moveType
-}
-
-// Straight path (0,64,0) -> (4,64,0) -> (10,64,0). Merging it into one move
-// sweeps x=0..10 at z=0, which crosses a hard wall at x in [5,7].
-function makeStraightPath (moveType: any): Move[] {
-  const start = Move.startMove(moveType, new Vec3(0, 64, 0), new Vec3(0, 0, 0), 5)
-  const m1 = Move.fromPrevious(1, new Vec3(4, 64, 0), start, moveType)
-  const m2 = Move.fromPrevious(1, new Vec3(10, 64, 0), m1, moveType)
-  return [start, m1, m2]
-}
-
-const alwaysMergeOptimizer: any = {
-  identEndOpt: (_currentIndex: number, path: Move[]) => path.length - 1,
-  mergeMoves: (startIndex: number, endIndex: number, path: Move[]) => {
-    const startMove = path[startIndex]
-    const endMove = path[endIndex]
-    return new Move(
-      startMove.x, startMove.y, startMove.z,
-      [], [],
-      endMove.remainingBlocks, 99, startMove.moveType,
-      startMove.entryPos, startMove.entryVel, endMove.exitPos, endMove.exitVel,
-      startMove.parent
-    )
-  }
-}
-
-// getBlockInfo just needs to echo the position back; the zone functions only
-// look at block.position.
+// getBlockInfo only needs to echo the position back; the zone functions look at
+// block.position.
 const fakeWorld: any = { getBlockInfo: (pos: Vec3) => ({ position: pos }) }
 
-function runOptimizer (path: Move[], moveType: any): Promise<Move[]> {
-  const optMap: any = new Map([[DummyProvider, [{ optimizer: alwaysMergeOptimizer, priority: 100, order: 0 }]]])
-  const optimizer = new Optimizer(null as any, fakeWorld, optMap)
-  optimizer.loadPath(path)
-  return optimizer.compute()
-}
-
-test('the optimizer refuses to straight-line a merge through a hard zone', async () => {
-  const hardWall = boxExclusion(new Vec3(5, 64, -1), new Vec3(7, 66, 1))
-  const moveType = makeMoveType([hardWall])
-
-  const optimized = await runOptimizer(makeStraightPath(moveType), moveType)
-
-  // Every candidate merge sweeps through the wall, so none may be applied:
-  // the path stays unmerged (all 3 moves).
-  assert.equal(optimized.length, 3, 'optimizer should not merge across a hard exclusion zone')
+test('lineCrossesHardExclusion flags a hard cell on a straight segment', () => {
+  const wall = boxExclusion(new Vec3(5, 64, 0), new Vec3(5, 64, 0)) // single hard cell
+  // (0.5,64,0.5) -> (10.5,64,0.5) passes through cell (5,64,0).
+  assert.equal(lineCrossesHardExclusion(fakeWorld, new Vec3(0.5, 64, 0.5), new Vec3(10.5, 64, 0.5), [wall]), true)
+  // A parallel line at z=3 never enters the cell.
+  assert.equal(lineCrossesHardExclusion(fakeWorld, new Vec3(0.5, 64, 3.5), new Vec3(10.5, 64, 3.5), [wall]), false)
 })
 
-test('the optimizer still merges a straight path when no zone is in the way', async () => {
-  const moveType = makeMoveType([])
-
-  const optimized = await runOptimizer(makeStraightPath(moveType), moveType)
-
-  // With no zones the always-merge optimizer collapses the whole run into one move.
-  assert.equal(optimized.length, 1, 'optimizer should merge freely without exclusion zones')
+test('lineCrossesHardExclusion walks diagonals exactly (no skipped cells)', () => {
+  const cell = boxExclusion(new Vec3(3, 64, 3), new Vec3(3, 64, 3))
+  // (0.5,64,0.5) -> (6.5,64,6.5) crosses (3,64,3) on the diagonal.
+  assert.equal(lineCrossesHardExclusion(fakeWorld, new Vec3(0.5, 64, 0.5), new Vec3(6.5, 64, 6.5), [cell]), true)
 })
 
-test('the optimizer voxel-checks diagonal merges (single hard cell on the diagonal)', async () => {
-  // A diagonal run (0,64,0) -> (6,64,6). One hard cell sits on the diagonal at
-  // (3,64,3); the voxel traversal must catch it and refuse the straight-line merge.
-  const hardCell = boxExclusion(new Vec3(3, 64, 3), new Vec3(3, 64, 3))
-  const moveType = makeMoveType([hardCell])
-
-  const start = Move.startMove(moveType, new Vec3(0, 64, 0), new Vec3(0, 0, 0), 5)
-  const m1 = Move.fromPrevious(1, new Vec3(3, 64, 3), start, moveType)
-  const m2 = Move.fromPrevious(1, new Vec3(6, 64, 6), m1, moveType)
-
-  const optimized = await runOptimizer([start, m1, m2], moveType)
-  assert.equal(optimized.length, 3, 'a diagonal merge across a hard cell must be refused')
+test('lineCrossesHardExclusion ignores soft zones and empty lists', () => {
+  const soft = boxExclusion(new Vec3(5, 64, 0), new Vec3(5, 64, 0), 50)
+  assert.equal(lineCrossesHardExclusion(fakeWorld, new Vec3(0.5, 64, 0.5), new Vec3(10.5, 64, 0.5), [soft]), false)
+  assert.equal(lineCrossesHardExclusion(fakeWorld, new Vec3(0.5, 64, 0.5), new Vec3(10.5, 64, 0.5), []), false)
 })

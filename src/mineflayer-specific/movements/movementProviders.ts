@@ -391,6 +391,7 @@ export class StraightUp extends MovementProvider {
     // if (this.getNumEntitiesAt(node, 0, 0, 0) > 0) return // an entity (besides the player) is blocking the building area
 
     const block2 = this.getBlockInfo(node, 0, 2, 0)
+    const block3 = this.getBlockInfo(node, 0, 1, 0) // the block the bot ends up standing in
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
@@ -398,7 +399,6 @@ export class StraightUp extends MovementProvider {
     if ((cost += this.safeOrBreak(block2, toBreak)) > COST_INF) return
 
     if (!block1.climbable) {
-      const block3 = this.getBlockInfo(node, 0, 1, 0)
       if (!block3.liquid) {
         if (!this.settings.allow1by1towers || node.remainingBlocks <= 0) return // not enough blocks to place
 
@@ -416,11 +416,8 @@ export class StraightUp extends MovementProvider {
       }
     }
 
-    // Exclusion zones: the bot ends up standing one block above (node y + 1).
-    // Only do the (cache-routed) block lookup when step zones are configured.
-    if (this.settings.exclusionAreasStep.length > 0) {
-      if ((cost += this.exclusionStep(this.getBlockInfo(node, 0, 1, 0))) > COST_INF) return
-    }
+    // Exclusion zones: block3 is where the bot's feet end up.
+    if ((cost += this.exclusionStep(block3)) > COST_INF) return
 
     neighbors.push(Move.fromPrevious(cost, block1.position.offset(0.5, 1, 0.5), node, this, toPlace, toBreak))
   }
@@ -467,7 +464,7 @@ export class ParkourForward extends MovementProvider {
     const maxD = this.settings.allowSprinting ? 5 : 2
 
     for (let d = 2; d <= maxD; d++) {
-      const cost = cost0 + d * 0.5 // 0.5 per block forward
+      let cost = cost0 + d * 0.5 // 0.5 per block forward
       const dx = dir.x * d
       const dz = dir.z * d
 
@@ -490,21 +487,17 @@ export class ParkourForward extends MovementProvider {
         // Down
         const blockE = this.getBlockInfo(node, dx, -2, dz)
         if (blockE.physical) { // TODO: support jumping into liquid.
-          // Exclusion zones: blockD is where the bot lands. Fold the step cost in
-          // before creating the move, and skip the move entirely if it is forbidden.
-          const stepCost = this.exclusionStep(blockD)
-          if (stepCost < COST_INF) {
-            neighbors.push(Move.fromPrevious(cost + stepCost, blockD.position.offset(0.5, 0, 0.5), node, this))
+          // Exclusion zones: blockD is the landing. Skip the move if it is forbidden.
+          if ((cost += this.exclusionStep(blockD)) < COST_INF) {
+            neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
           }
         }
         floorCleared = floorCleared && !blockE.physical
       } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
-        // if (d === 5) continue
-        const cost1 = cost + 3 // potential slowdown (will fix later.)
         // Forward
-        const stepCost = this.exclusionStep(blockC)
-        if (stepCost < COST_INF) {
-          neighbors.push(Move.fromPrevious(cost1 + stepCost, blockC.position.offset(0.5, 0, 0.5), node, this))
+        cost += 3 // potential slowdown (will fix later.)
+        if ((cost += this.exclusionStep(blockC)) < COST_INF) {
+          neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
         }
         break
       } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical) {
@@ -513,9 +506,8 @@ export class ParkourForward extends MovementProvider {
 
         // 4 Blocks forward 1 block up is very difficult and fails often
         if (blockC.height - block0.height > 1.2) break // Too high to jump
-        const stepCost = this.exclusionStep(blockB)
-        if (stepCost < COST_INF) {
-          neighbors.push(Move.fromPrevious(cost + stepCost, blockB.position.offset(0.5, 0, 0.5), node, this))
+        if ((cost += this.exclusionStep(blockB)) < COST_INF) {
+          neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this))
         }
         break
         // }
@@ -594,7 +586,7 @@ export class ParkourDiagonal extends MovementProvider {
     const dz = dir.z * zSteps
 
     const travel = Math.sqrt(xSteps * xSteps + zSteps * zSteps)
-    const cost = cost0 + 0.5 * Diagonal.diagonalCost * travel
+    let cost = cost0 + 0.5 * Diagonal.diagonalCost * travel
     const majorIsX = xSteps > zSteps
     const majorIsZ = zSteps > xSteps
     const frontDx = dx - (majorIsX || xSteps === zSteps ? dir.x : 0)
@@ -631,24 +623,22 @@ export class ParkourDiagonal extends MovementProvider {
 
     if (flag0 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.walkthrough && blockFrontD.walkthrough && !floorCleared) {
       if (blockE.physical) {
-        const stepCost = this.exclusionStep(blockD)
-        if (stepCost < COST_INF) {
-          neighbors.push(Move.fromPrevious(cost + stepCost, blockD.position.offset(0.5, 0, 0.5), node, this))
+        if ((cost += this.exclusionStep(blockD)) < COST_INF) {
+          neighbors.push(Move.fromPrevious(cost, blockD.position.offset(0.5, 0, 0.5), node, this))
         }
         return true
       }
     } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical && blockFrontC.walkthrough) {
-      const stepCost = this.exclusionStep(blockC)
-      if (stepCost < COST_INF) {
-        neighbors.push(Move.fromPrevious(cost + 3 + stepCost, blockC.position.offset(0.5, 0, 0.5), node, this))
+      cost += 3
+      if ((cost += this.exclusionStep(blockC)) < COST_INF) {
+        neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
       }
       return true
     } else if (flag2 && ceilingClear && blockA.walkthrough && blockB.walkthrough && blockC.physical && blockFrontB.walkthrough) {
       if (blockC.height - block0.height > 1.2) return false
       if (travel > PARKOUR_DIAGONAL_3_3_TRAVEL) return false
-      const stepCost = this.exclusionStep(blockB)
-      if (stepCost < COST_INF) {
-        neighbors.push(Move.fromPrevious(cost + stepCost, blockB.position.offset(0.5, 0, 0.5), node, this))
+      if ((cost += this.exclusionStep(blockB)) < COST_INF) {
+        neighbors.push(Move.fromPrevious(cost, blockB.position.offset(0.5, 0, 0.5), node, this))
       }
       return true
     }

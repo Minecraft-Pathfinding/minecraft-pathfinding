@@ -1,8 +1,13 @@
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
+import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import type { RayType } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
 import { MovementOptimizer } from './optimizer'
+import { World } from '../world/worldInterface'
+import { sumExclusionAreas } from '../movements/movement'
+import type { ExclusionArea } from '../movements/exclusionZones'
+import { COST_INF } from '../movements/costs'
 
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { stateLookAt } from '../movements/movementUtils'
@@ -10,10 +15,69 @@ import { stateLookAt } from '../movements/movementUtils'
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:optimizers')
 
+/**
+ * Walk the straight segment from `from` to `to` with a voxel traversal
+ * (Amanatides & Woo) and return true as soon as a cell lands inside a HARD step
+ * zone (summed weight >= COST_INF). Visiting exactly the cells the segment
+ * crosses keeps the check correct (no skipped cells) and cheap.
+ *
+ * Only hard zones stop a straight-line merge; soft zones are a preference, not a
+ * wall. Returns false immediately when there are no step areas.
+ */
+export function lineCrossesHardExclusion (world: World, from: Vec3, to: Vec3, areas: ExclusionArea[]): boolean {
+  if (areas.length === 0) return false
+
+  let x = Math.floor(from.x)
+  let y = Math.floor(from.y)
+  let z = Math.floor(from.z)
+  const endX = Math.floor(to.x)
+  const endY = Math.floor(to.y)
+  const endZ = Math.floor(to.z)
+
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const dz = to.z - from.z
+
+  const stepX = Math.sign(dx)
+  const stepY = Math.sign(dy)
+  const stepZ = Math.sign(dz)
+
+  // The segment is parameterised by t in [0, 1]. tMax* is the t at which we next
+  // cross a cell boundary on that axis; tDelta* is the t to cross one whole cell.
+  const tDeltaX = stepX !== 0 ? Math.abs(1 / dx) : Infinity
+  const tDeltaY = stepY !== 0 ? Math.abs(1 / dy) : Infinity
+  const tDeltaZ = stepZ !== 0 ? Math.abs(1 / dz) : Infinity
+
+  let tMaxX = stepX !== 0 ? (stepX > 0 ? x + 1 - from.x : from.x - x) / Math.abs(dx) : Infinity
+  let tMaxY = stepY !== 0 ? (stepY > 0 ? y + 1 - from.y : from.y - y) / Math.abs(dy) : Infinity
+  let tMaxZ = stepZ !== 0 ? (stepZ > 0 ? z + 1 - from.z : from.z - z) / Math.abs(dz) : Infinity
+
+  // Cells to visit = Manhattan distance in cells + 1. A fixed loop count (rather
+  // than tMax comparisons) keeps termination floating-point safe.
+  const cells = Math.abs(endX - x) + Math.abs(endY - y) + Math.abs(endZ - z)
+
+  for (let i = 0; i <= cells; i++) {
+    if (sumExclusionAreas(areas, world.getBlockInfo(new Vec3(x, y, z))) >= COST_INF) return true
+
+    if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
+      x += stepX
+      tMaxX += tDeltaX
+    } else if (tMaxY <= tMaxZ) {
+      y += stepY
+      tMaxY += tDeltaY
+    } else {
+      z += stepZ
+      tMaxZ += tDeltaZ
+    }
+  }
+  return false
+}
+
 export class LandStraightAheadOpt extends MovementOptimizer {
   async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {
     const startIndex = currentIndex
     const thisMove = path[currentIndex] // starting move
+    const stepAreas = thisMove.moveType.settings.exclusionAreasStep
 
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
@@ -97,6 +161,13 @@ export class LandStraightAheadOpt extends MovementOptimizer {
       // edges and then snag the player's hitbox.
       if (validCount !== verts1.length) {
         log(`[LandStraightAhead] Index ${currentIndex}: Air check raycast failed (${validCount}/${verts1.length} corners clear).`)
+        return --currentIndex
+      }
+
+      // Exclusion zones: do not straight-line the merge through a hard "keep out"
+      // area the original route went around. Stop before this move if it would.
+      if (lineCrossesHardExclusion(this.world, orgPos, nextMove.exitPos, stepAreas)) {
+        log(`[LandStraightAhead] Index ${currentIndex}: straight line would cross a hard exclusion zone.`)
         return --currentIndex
       }
 

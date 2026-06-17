@@ -1,75 +1,14 @@
 import { Bot } from 'mineflayer'
-import { Vec3 } from 'vec3'
 import type { OptimizationMap } from '.'
-import type { BuildableMoveProvider, ExclusionArea } from '../movements'
-import { MovementProvider, sumExclusionAreas } from '../movements'
+import type { BuildableMoveProvider } from '../movements'
+import { MovementProvider } from '../movements'
 import { World } from '../world/worldInterface'
 import { Move } from '../move'
-import { COST_INF } from '../movements/costs'
 import { BaseSimulator, BotcraftPhysics } from '@nxg-org/mineflayer-physics-util'
 
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:Optimizer')
 const logMerge = debug('minecraft-pathfinding:Optimizer:merge')
-
-/**
- * Walk the straight segment from `from` to `to` with a voxel traversal
- * (Amanatides & Woo) and return true as soon as a cell lands inside a HARD step
- * zone (summed weight >= COST_INF). Visiting exactly the cells the segment
- * crosses keeps the check both correct (no skipped cells, no false hits) and
- * cheap (one block lookup per crossed cell).
- *
- * Only hard zones block a merge. Soft zones (a finite extra cost) are a
- * preference, not a wall, so the optimizer is allowed to straighten through them.
- */
-function lineCrossesHardExclusion (world: World, from: Vec3, to: Vec3, areas: ExclusionArea[]): boolean {
-  let x = Math.floor(from.x)
-  let y = Math.floor(from.y)
-  let z = Math.floor(from.z)
-  const endX = Math.floor(to.x)
-  const endY = Math.floor(to.y)
-  const endZ = Math.floor(to.z)
-
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const dz = to.z - from.z
-
-  const stepX = Math.sign(dx)
-  const stepY = Math.sign(dy)
-  const stepZ = Math.sign(dz)
-
-  // The segment is parameterised by t in [0, 1]. tMax* is the t at which we next
-  // cross a cell boundary on that axis; tDelta* is the t to cross one whole cell.
-  // Axes that do not move get Infinity so they are never chosen to advance.
-  const tDeltaX = stepX !== 0 ? Math.abs(1 / dx) : Infinity
-  const tDeltaY = stepY !== 0 ? Math.abs(1 / dy) : Infinity
-  const tDeltaZ = stepZ !== 0 ? Math.abs(1 / dz) : Infinity
-
-  let tMaxX = stepX !== 0 ? (stepX > 0 ? x + 1 - from.x : from.x - x) / Math.abs(dx) : Infinity
-  let tMaxY = stepY !== 0 ? (stepY > 0 ? y + 1 - from.y : from.y - y) / Math.abs(dy) : Infinity
-  let tMaxZ = stepZ !== 0 ? (stepZ > 0 ? z + 1 - from.z : from.z - z) / Math.abs(dz) : Infinity
-
-  // Number of cells to visit = Manhattan distance in cells + 1. Looping a fixed
-  // number of times (rather than on tMax comparisons) keeps termination
-  // floating-point safe.
-  const cells = Math.abs(endX - x) + Math.abs(endY - y) + Math.abs(endZ - z)
-
-  for (let i = 0; i <= cells; i++) {
-    if (sumExclusionAreas(areas, world.getBlockInfo(new Vec3(x, y, z))) >= COST_INF) return true
-
-    if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
-      x += stepX
-      tMaxX += tDeltaX
-    } else if (tMaxY <= tMaxZ) {
-      y += stepY
-      tMaxY += tDeltaY
-    } else {
-      z += stepZ
-      tMaxZ += tDeltaZ
-    }
-  }
-  return false
-}
 
 export abstract class MovementOptimizer {
   bot: Bot
@@ -156,7 +95,6 @@ export abstract class MovementOptimizer {
 
 export class Optimizer {
   optMap: OptimizationMap
-  world: World
 
   private pathCopy!: Move[]
   private currentIndex: number
@@ -164,7 +102,6 @@ export class Optimizer {
   constructor (bot: Bot, world: World, optMap: OptimizationMap) {
     this.currentIndex = 0
     this.optMap = optMap
-    this.world = world
   }
 
   loadPath (path: Move[]): void {
@@ -205,16 +142,6 @@ export class Optimizer {
         if (newEnd > this.currentIndex) {
           log(`[Index ${this.currentIndex}] Optimizer identified mergable sequence ending at index ${newEnd}.`)
           const newMove = opt.optimizer.mergeMoves(this.currentIndex, newEnd, this.pathCopy)
-
-          // Exclusion zones: an optimizer may straight-line a path across cells the
-          // original A* route went around. Never let a merge cut through a hard
-          // "keep out" (step) zone -- fall back to the unoptimized moves instead.
-          const stepAreas = newMove.moveType.settings.exclusionAreasStep
-          if (stepAreas.length > 0 && lineCrossesHardExclusion(this.world, newMove.entryPos, newMove.exitPos, stepAreas)) {
-            log(`[Index ${this.currentIndex}] Merge would cross a hard exclusion zone; skipping this optimizer.`)
-            continue
-          }
-
           newMove.optimizedExecutor = opt.optimizedExecutor
 
           // Splice the newly merged move into the array, replacing all intermediate moves
