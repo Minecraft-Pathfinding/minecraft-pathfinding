@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-var-requires, @typescript-eslint/consistent-type-assertions, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/restrict-template-expressions, no-unmodified-loop-condition */
 import { Bot, BotEvents } from 'mineflayer'
 import { AStarBackOff as AAStar } from './abstract/algorithms/astar'
 import { AStar, Path, PathProducer } from './mineflayer-specific/algs'
@@ -10,12 +11,12 @@ import type {
   BuildableMoveExecutor,
   BuildableMoveProvider,
   MovementOptions,
-  ExecutorMap,
+  ExecutorMap
 } from './mineflayer-specific/movements'
 import {
   MovementHandler,
   MovementExecutor,
-  DEFAULT_MOVEMENT_OPTS
+  buildMovementOptions
 } from './mineflayer-specific/movements'
 
 import {
@@ -126,15 +127,15 @@ export class ThePathfinder {
     optimizers: OptimizationMap
   }
 
-  public get currentAStar(): AStar | undefined {
+  public get currentAStar (): AStar | undefined {
     return this._currentProducer?.getAstarContext()
   }
 
-  public get currentProducer(): PathProducer | undefined {
+  public get currentProducer (): PathProducer | undefined {
     return this._currentProducer
   }
 
-  private snapshotMappings(): {
+  private snapshotMappings (): {
     movements: ExecutorMap
     optimizers: OptimizationMap
   } {
@@ -144,72 +145,71 @@ export class ThePathfinder {
     }
   }
 
-  private get activeMappings(): {
+  private get activeMappings (): {
     movements: ExecutorMap
     optimizers: OptimizationMap
   } {
     return this._gotoMappings ?? this.snapshotMappings()
   }
 
-  public getActiveMappings(): ExecutionMappings {
+  public getActiveMappings (): ExecutionMappings {
     return this.activeMappings
   }
 
-  public get isPathing(): boolean {
+  public get isPathing (): boolean {
     return !this.executeTask.done
   }
 
-  public get currentGoal(): Readonly<goals.Goal> | undefined {
-    return this.currentGotoGoal;
+  public get currentGoal (): Readonly<goals.Goal> | undefined {
+    return this.currentGotoGoal
   }
 
-  public get resetReason(): ResetReason | undefined {
+  public get resetReason (): ResetReason | undefined {
     return this.executionRunner.getResetReason()
   }
 
-  public get currentIndex(): number {
-    return this.executionRunner.getCurrentIndex();
+  public get currentIndex (): number {
+    return this.executionRunner.getCurrentIndex()
   }
 
-  public get currentPath(): Move[] | undefined {
+  public get currentPath (): Move[] | undefined {
     return this.executionRunner.getCurrentPath()
   }
 
-  public set currentPath(path: Move[] | undefined) {
+  public set currentPath (path: Move[] | undefined) {
     this.executionRunner.setCurrentPath(path)
   }
 
-  public get currentMove(): Move | undefined {
+  public get currentMove (): Move | undefined {
     return this.executionRunner.getCurrentMove()
   }
 
-  public set currentMove(move: Move | undefined) {
+  public set currentMove (move: Move | undefined) {
     this.executionRunner.setCurrentMove(move)
   }
 
-  public get currentExecutor(): MovementExecutor | undefined {
+  public get currentExecutor (): MovementExecutor | undefined {
     return this.executionRunner.getCurrentExecutor()
   }
 
-  public set currentExecutor(executor: MovementExecutor | undefined) {
+  public set currentExecutor (executor: MovementExecutor | undefined) {
     this.executionRunner.setCurrentExecutor(executor)
   }
 
-
-  public clearResetReason(): void {
+  public clearResetReason (): void {
     this.executionRunner.clearResetReason()
   }
 
   reconstructPath = reconstructPath
 
-  constructor(private readonly bot: Bot, opts: HandlerOpts = {}) {
+  constructor (private readonly bot: Bot, opts: HandlerOpts = {}) {
     this.world = opts.world ?? new CacheSyncWorld(bot, bot.world)
     const moveSettings: MovementOptions = {} as MovementOptions
     const pathfinderSettings: PathfinderOptions = {} as PathfinderOptions
     const optimizers = opts.optimizers ?? DEFAULT_OPTIMIZATION
     const moveSetup = opts.movements ?? DEFAULT_SETUP
 
-    Object.assign(moveSettings, { ...DEFAULT_MOVEMENT_OPTS, ...opts.moveSettings })
+    Object.assign(moveSettings, buildMovementOptions(opts.moveSettings))
     Object.assign(pathfinderSettings, { ...DEFAULT_PATHFINDER_OPTS, ...opts.pathfinderSettings })
 
     const moves = new Map<BuildableMoveProvider, MovementExecutor>()
@@ -231,7 +231,7 @@ export class ThePathfinder {
     log('Pathfinder initialized.')
   }
 
-  setExecutor(provider: BuildableMoveProvider, Executor: BuildableMoveExecutor | MovementExecutor): void {
+  setExecutor (provider: BuildableMoveProvider, Executor: BuildableMoveExecutor | MovementExecutor): void {
     if (Executor instanceof MovementExecutor) {
       this.movements.set(provider, Executor)
     } else {
@@ -239,8 +239,7 @@ export class ThePathfinder {
     }
   }
 
-
-  setOptimizer(
+  setOptimizer (
     provider: BuildableMoveProvider,
     Optimizer: BuildableMoveOptimizer | MovementOptimizer,
     Executor?: BuildableMoveExecutor | MovementExecutor,
@@ -259,7 +258,7 @@ export class ThePathfinder {
     this.optimizerRegistry.setOptimizer(provider, optimizer, optimizedExecutor, priority)
   }
 
-  addOptimizer(
+  addOptimizer (
     provider: BuildableMoveProvider,
     Optimizer: BuildableMoveOptimizer | MovementOptimizer,
     Executor?: BuildableMoveExecutor | MovementExecutor,
@@ -278,53 +277,53 @@ export class ThePathfinder {
     this.optimizerRegistry.addOptimizer(provider, optimizer, optimizedExecutor, priority)
   }
 
-  setMoveOptions(settings: Partial<MovementOptions>): void {
-    this.defaultMoveSettings = Object.assign({}, DEFAULT_MOVEMENT_OPTS, settings)
+  setMoveOptions (settings: Partial<MovementOptions>): void {
+    this.defaultMoveSettings = buildMovementOptions(settings)
     this.optimizerRegistry.setSettings(this.defaultMoveSettings)
     for (const [, executor] of this.movements) {
       executor.settings = this.defaultMoveSettings
     }
   }
 
-  setOptions(settings: Partial<PathfinderOptions>): void {
+  setOptions (settings: Partial<PathfinderOptions>): void {
     this.pathfinderSettings = Object.assign({}, DEFAULT_PATHFINDER_OPTS, settings)
   }
 
-  dropMovment(provider: BuildableMoveProvider): void {
+  dropMovment (provider: BuildableMoveProvider): void {
     this.movements.delete(provider)
   }
 
-  dropAllMovements(): void {
+  dropAllMovements (): void {
     this.movements.clear()
   }
 
-  async cancel(): Promise<void> {
+  async cancel (): Promise<void> {
     log('User cancelled pathfinding.')
     await this.interrupt(this.defaultMoveSettings.movementTimeoutMs, true, 'goalReassignment')
   }
 
-  async interrupt(timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
+  async interrupt (timeout = this.defaultMoveSettings.movementTimeoutMs, cancelCalculation = true, reasonStr?: ResetReason): Promise<void> {
     log('Interrupt called. Cancel Calculation: %s. %s', cancelCalculation, reasonStr)
     if (this._currentProducer == null) return log('Interrupt ignored: no producer')
     this.abortCalculation = cancelCalculation
 
-    const currentExecutor = this.currentExecutor;
-    const currentMove = this.currentMove;
+    const currentExecutor = this.currentExecutor
+    const currentMove = this.currentMove
     if (currentExecutor == null) return log('Interrupt ignored: no executor')
     if (currentMove == null) throw new Error('No current move, but there is a current executor.')
 
-    const reason = reasonStr ? ResetError.fromReason(reasonStr) : undefined;
-    this.executionRunner.setResetReason(reasonStr);
+    const reason = reasonStr ? ResetError.fromReason(reasonStr) : undefined
+    this.executionRunner.setResetReason(reasonStr)
     await currentExecutor.abort(currentMove, { timeout, reason })
   }
 
-  async reset(reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
+  async reset (reason: ResetReason, cancelTimeout = this.defaultMoveSettings.movementTimeoutMs): Promise<void> {
     log('Reset triggered due to: %s', reason)
     this.bot.emit('resetPath', reason)
     await this.interrupt(cancelTimeout, true, reason)
   }
 
-  setupListeners(): void {
+  setupListeners (): void {
     const disposeBlockUpdateListener = handleSettledBlockEvent(
       this.bot,
       async (oldBlock: Block | null, newBlock: Block | null, settledBlock: Block | null) => {
@@ -338,7 +337,7 @@ export class ThePathfinder {
         //   settledBlock?.position
         // )
 
-        const currentPath = this.currentPath;
+        const currentPath = this.currentPath
         if (oldBlock == null || settledBlock == null) return
         if (currentPath == null) return
         if (oldBlock.type === settledBlock.type) return // break in progress.
@@ -370,11 +369,10 @@ export class ThePathfinder {
         void this.reset('chunkLoad')
       }
     })
-
   }
 
-  public updateMatchesWanted(block: Block | null, path: Move[] | undefined = this.currentPath): boolean {
-    const currentIndex = this.currentIndex;
+  public updateMatchesWanted (block: Block | null, path: Move[] | undefined = this.currentPath): boolean {
+    const currentIndex = this.currentIndex
     log(`block: ${block?.name} pos: ${block?.position}, path: ${path?.length}, index: ${currentIndex}`)
     if (block == null || path == null) return false
 
@@ -405,7 +403,7 @@ export class ThePathfinder {
     return false
   }
 
-  isPositionNearPath(pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
+  isPositionNearPath (pos: Vec3 | undefined, path: Move[] | undefined = this.currentPath): boolean {
     if (pos == null || path == null) return false
 
     for (let i = this.currentIndex; i < path.length; i++) {
@@ -426,7 +424,7 @@ export class ThePathfinder {
     return false
   }
 
-  private registerAll(
+  private registerAll (
     goal: goals.GoalDynamic,
     opts: { onHasUpdate?: () => void, onInvalid?: () => void, onCleanup?: () => void, forAll?: () => void }
   ): () => void {
@@ -470,7 +468,7 @@ export class ThePathfinder {
 
     for (const key of goal._eventKeys) {
       const listener = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        if (this.resetReason === "goalReassignment") return cleanup()
+        if (this.resetReason === 'goalReassignment') return cleanup()
         if (boundEvent(key, ...args)) newOnHasUpdate()
       }
       this.bot.on(key, listener)
@@ -479,7 +477,7 @@ export class ThePathfinder {
 
     for (const key of goal._validKeys) {
       const listener1 = (...args: Parameters<BotEvents[keyof BotEvents]>): void => {
-        if ((this.resetReason === "goalReassignment")) return cleanup()
+        if ((this.resetReason === 'goalReassignment')) return cleanup()
         if (boundValid(key, ...args)) newOnInvalid()
       }
       this.bot.on(key, listener1)
@@ -491,12 +489,12 @@ export class ThePathfinder {
     return cleanup
   }
 
-  getPathTo(goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
+  getPathTo (goal: goals.Goal, settings = this.defaultMoveSettings): PathGenerator {
     const { movements } = this.activeMappings
     return this.getPathFromTo(this.bot.entity.position, this.bot.entity.velocity, goal, settings, movements)
   }
 
-  async * getPathFromTo(
+  async * getPathFromTo (
     startPos: Vec3,
     startVel: Vec3,
     goal: goals.Goal,
@@ -508,7 +506,6 @@ export class ThePathfinder {
 
     startPos = getSupportedStartPos(this.world, getNormalizedPos(this.bot, startPos))
     log('Generating path from %O to %O', startPos, goal)
-
 
     const startMove = Move.startMove(
       new IdleMovement(this.bot, this.world),
@@ -594,7 +591,7 @@ export class ThePathfinder {
     }
   }
 
-  async getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<PathInfo | null> {
+  async getPathFromToRaw (startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<PathInfo | null> {
     for await (const res of this.getPathFromTo(startPos, startVel, goal)) {
       if (res.result.status !== 'success') {
         if (res.result.status === 'noPath' || res.result.status === 'timeout') return null
@@ -605,7 +602,7 @@ export class ThePathfinder {
     return null
   }
 
-  async goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
+  async goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     log('goto called')
     if (goal == null) {
       await this.cancel()
@@ -640,7 +637,7 @@ export class ThePathfinder {
     }
   }
 
-  private async _goto(goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
+  private async _goto (goal: goals.Goal, performOpts: PerformOpts = {}): Promise<void> {
     const doForever = !!(goal instanceof goals.GoalDynamic && goal.neverfinish && goal.dynamic)
 
     let toWaitOn = Promise.resolve()
@@ -689,7 +686,7 @@ export class ThePathfinder {
                   res1 = null
                 })
               } else {
-                // Update the unoptimized path in place! 
+                // Update the unoptimized path in place!
                 // perform() will automatically catch the newly added tail.
                 res1.path.length = res.result.path.length
                 for (let i = 0; i < res.result.path.length; i++) {
@@ -736,38 +733,38 @@ export class ThePathfinder {
             manualCleanup()
           }
         }
-      } while (this.resetReason !== "goalReassignment" && madeIt === false)
+      } while (this.resetReason !== 'goalReassignment' && !madeIt)
 
       await this.cleanupBot()
       if (doForever) {
-        if (this.resetReason == null && this.resetReason !== "goalReassignment") {
+        if (this.resetReason == null && this.resetReason !== 'goalReassignment') {
           await toWaitOn
         }
       }
-    } while (doForever && this.resetReason !== "goalReassignment")
+    } while (doForever && this.resetReason !== 'goalReassignment')
   }
 
-  perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    return this.executionRunner.perform(path, goal, entry)
+  async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    return await this.executionRunner.perform(path, goal, entry)
   }
 
-  recovery(move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    return this.executionRunner.recovery(move, path, goal, entry)
+  async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    return await this.executionRunner.recovery(move, path, goal, entry)
   }
 
-  async cleanupBot(forceSafety = false): Promise<void> {
+  async cleanupBot (forceSafety = false): Promise<void> {
     this.bot.clearControlStates()
 
     // rough code. just need any of them.
 
-    let exec;
+    let exec
     for (const [, executor] of this.activeMappings.movements) {
-      exec ??= executor;
+      exec ??= executor
       executor.reset()
     }
 
     if (forceSafety && exec != null) {
-      let normVel;
+      let normVel
       do {
         normVel = this.bot.entity.onGround ? this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0) : this.bot.entity.velocity
         const ectx = exec.simForward({ ticks: 2 })
@@ -784,17 +781,16 @@ export class ThePathfinder {
     }
   }
 
-  cleanupClient(): void {
+  cleanupClient (): void {
     this.abortCalculation = false
     this.clearResetReason()
     delete this.currentGotoGoal
-    delete this.currentPath;
-    delete this.currentExecutor;
-    delete this.currentMove;
-
+    delete this.currentPath
+    delete this.currentExecutor
+    delete this.currentMove
   }
 
-  async cleanupAll(goal: goals.Goal, executor = this.currentExecutor): Promise<void> {
+  async cleanupAll (goal: goals.Goal, executor = this.currentExecutor): Promise<void> {
     if (goal instanceof goals.GoalDynamic && goal.dynamic) {
       goal.cleanup?.()
     }
@@ -806,7 +802,7 @@ export class ThePathfinder {
     }
     this.world.cleanup?.()
 
-    if ((this.resetReason === "goalReassignment")) {
+    if ((this.resetReason === 'goalReassignment')) {
       log('Cleanup: Goal aborted.')
       this.bot.emit('goalAborted', goal)
     } else {
@@ -817,7 +813,7 @@ export class ThePathfinder {
     this.abortCalculation = false
     this.executeTask.finish()
 
-    log(`Task finished, cleanup client.`)
+    log('Task finished, cleanup client.')
     this.cleanupClient()
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { ResetReason } from '../types'
 
 export class CancelError extends Error {
@@ -15,9 +16,8 @@ export class AbortError extends Error {
 }
 
 export class ResetError extends Error {
-
-  static fromReason(reason: ResetReason, ...args: any[]) {
-    if (reason === "goalReassignment") return new ManualResetError(...args)
+  static fromReason (reason: ResetReason, ...args: any[]) {
+    if (reason === 'goalReassignment') return new ManualResetError(...args)
     else return new ResetError(reason, ...args)
   }
 
@@ -35,10 +35,8 @@ export class ManualResetError extends ResetError {
   }
 }
 
-
-
 export class TickAdvanceError extends Error {
-  constructor(label: string, beforeTick: number, afterTick: number) {
+  constructor (label: string, beforeTick: number, afterTick: number) {
     super(`[tick-guard] Tick advanced during await for ${label}: ${beforeTick} -> ${afterTick}`)
     this.name = 'TickAdvanceError'
   }

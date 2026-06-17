@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/member-delimiter-style, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unused-vars */
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
@@ -32,13 +33,13 @@ export interface CompleteOpts {
 }
 
 export interface AlignmentBBInfo {
-  pos: Vec3;
+  pos: Vec3
   requireSupport: boolean
 }
 
 export interface InitAlignOpts {
-  others?: AlignmentBBInfo[],
-  customBB?: AABB;
+  others?: AlignmentBBInfo[]
+  customBB?: AABB
   enterExitInterp?: boolean
 }
 
@@ -65,7 +66,7 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Return the current interaction.
    */
-  public get cI(): InteractHandler | undefined {
+  public get cI (): InteractHandler | undefined {
     // if (this._cI === undefined) return undefined;
     // if (this._cI.allowExit) return undefined;
     return this._cI
@@ -83,36 +84,34 @@ export abstract class MovementExecutor extends Movement {
 
   private task: Task<void, void> = new Task()
 
-  public constructor(bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
+  public constructor (bot: Bot, world: World, settings: Partial<MovementOptions> = {}) {
     super(bot, world, settings)
     this.engine = new BotcraftPhysics(bot.registry)
     this.sim = new BaseSimulator(this.engine)
     this.simCtx = EPhysicsCtx.FROM_BOT(this.engine, bot)
   }
 
-  public reset(): void {
+  public reset (): void {
     // log('Resetting MovementExecutor')
     this.aborted = false
     delete this.resetReason
     this.task.finish()
   }
 
-  protected getRemainingBreaks(): BreakHandler[] {
+  protected getRemainingBreaks (): BreakHandler[] {
     if (!this.currentMove) return []
     return this.currentMove.toBreak.filter(b => b.needToPerform(this.bot))
   }
 
-  protected getRemainingPlaces(): PlaceHandler[] {
+  protected getRemainingPlaces (): PlaceHandler[] {
     if (!this.currentMove) return []
     return this.currentMove.toPlace.filter(b => b.needToPerform(this.bot))
   }
 
-  protected isTooLow(thisMove: Move) {
-    
-    const botY = this.bot.entity.position.y + 0.6; // allow step up
+  protected isTooLow (thisMove: Move) {
+    const botY = this.bot.entity.position.y + 0.6 // allow step up
 
     const block = this.getBlockInfo(this.bot.entity.position, 0, 0, 0)
-
 
     if (botY < thisMove.exitPos.y && botY < thisMove.entryPos.y) {
       throw new CancelError(`y level: too low! ${botY}, ${thisMove.entryPos.y} ${thisMove.exitPos.y}`)
@@ -122,7 +121,7 @@ export abstract class MovementExecutor extends Movement {
   /**
    * TODO: Implement.
    */
-  public async abort(move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
+  public async abort (move: Move = this.currentMove, settings: AbortOpts = {}): Promise<void> {
     // if (this.aborted || this.resetReason != null) return
 
     const resetting = settings.reason
@@ -136,7 +135,7 @@ export abstract class MovementExecutor extends Movement {
     this.task = new Task()
   }
 
-  private async holdUntilAborted(move: Move, task: Task<void>, timeout = 1000): Promise<void> {
+  private async holdUntilAborted (move: Move, task: Task<void>, timeout = 1000): Promise<void> {
     if (!this.aborted && this.resetReason == null) return
 
     log('holdUntilAborted: aborting process started')
@@ -184,7 +183,7 @@ export abstract class MovementExecutor extends Movement {
   /**
    * TODO: potentially buggy code. Check.
    */
-  public async perform(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  public async perform (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     log('Performing move at index %d', currentIndex)
     this.currentMove = thisMove
     if (this.resetReason != null) throw this.resetReason // new ResetError('Movement is resetting.')
@@ -222,17 +221,17 @@ export abstract class MovementExecutor extends Movement {
     }
   }
 
-  public async _performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  public async _performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     await this.holdUntilAborted(thisMove, this.task)
     return await this.performInit(thisMove, currentIndex, path)
   }
 
-  public async _performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  public async _performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     await this.holdUntilAborted(thisMove, this.task)
     return await this.performPerTick(thisMove, tickCount, currentIndex, path)
   }
 
-  public async _align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  public async _align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     await this.holdUntilAborted(thisMove, this.task)
     return await this.align(thisMove, tickCount, goal)
   }
@@ -243,7 +242,7 @@ export abstract class MovementExecutor extends Movement {
    * Perform initial setup upon movement start.
    * Can be sync or async.
    */
-  abstract performInit(thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void>
+  abstract performInit (thisMove: Move, currentIndex: number, path: Move[]): void | Promise<void>
 
   /**
    * Runtime calculation.
@@ -252,7 +251,7 @@ export abstract class MovementExecutor extends Movement {
    * Return whether or not bot has reached the goal.
    *
    */
-  abstract performPerTick(
+  abstract performPerTick (
     thisMove: Move,
     tickCount: number,
     currentIndex: number,
@@ -266,7 +265,7 @@ export abstract class MovementExecutor extends Movement {
    * This can be used to align to the center of blocks, etc.
    * Align IS allowed to throw exceptions, it will revert to recovery.
    */
-  align(thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): boolean | Promise<boolean> {
+  align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): boolean | Promise<boolean> {
     const target = lookTarget ?? thisMove.entryPos
     if (lookTarget != null) void this.postInitAlignToPath(thisMove, { lookAt: target })
     else void this.postInitAlignToPath(thisMove)
@@ -279,7 +278,7 @@ export abstract class MovementExecutor extends Movement {
    *
    * Check whether or not the move is already currently completed. This is checked once, before alignment.
    */
-  isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+  isAlreadyCompleted (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     return this.isComplete(thisMove)
   }
 
@@ -291,16 +290,15 @@ export abstract class MovementExecutor extends Movement {
    * Does so via velocity direction check (heading towards the block)
    * and bounding box check (touching OR slightly above block).
    */
-  protected isComplete(startMove: Move, endMove: Move = startMove, opts: CompleteOpts = {}): boolean {
-
+  protected isComplete (startMove: Move, endMove: Move = startMove, opts: CompleteOpts = {}): boolean {
     if (this.cI !== undefined) {
       if (!this.cI.allowExit) return false
     }
 
-    const checkP = opts.checkPlaces ?? true;
-    const checkB = opts.checkBreaks ?? true;
-    if (checkP && this.toPlaceLen() > 0) return false;
-    if (checkB && this.toBreakLen() > 0) return false;
+    const checkP = opts.checkPlaces ?? true
+    const checkB = opts.checkBreaks ?? true
+    if (checkP && this.toPlaceLen() > 0) return false
+    if (checkB && this.toBreakLen() > 0) return false
 
     const ticks = opts.ticks ?? 1
 
@@ -318,10 +316,10 @@ export abstract class MovementExecutor extends Movement {
     const dist = offset.norm()
 
     const ectx = EPhysicsCtx.FROM_BOT(this.bot.physicsUtil.engine, this.bot)
-    const history = [ectx.position.clone()];
+    const history = [ectx.position.clone()]
     for (let i = 0; i < ticks; i++) {
       ectx.state.control.set('jump', false) // we don't want to jump again.
-      ectx.state.jumpQueued = false;
+      ectx.state.jumpQueued = false
       this.bot.physicsUtil.engine.simulate(ectx, this.world)
       history.push(ectx.position.clone())
     }
@@ -345,7 +343,6 @@ export abstract class MovementExecutor extends Movement {
       !ectx.state.isInWater &&
       !ectx.state.onGround &&
       this.bot.pathfinder.world.getBlockInfo(this.bot.entity.position.floored().translate(0, -0.6, 0)).liquid
-
 
     if (aboveWater) {
       bb1bl = this.bot.pathfinder.world.getBlockInfo(target.floored())
@@ -385,7 +382,7 @@ export abstract class MovementExecutor extends Movement {
       if (similarDirection && headingThatWay) return !ectx.state.isCollidedHorizontally // in air check.
       else if (dist < 0.2) return true
       else {
-        return true;
+        return true
       }
 
       // console.log('finished!', this.bot.entity.position, endMove.exitPos, bbsVertTouching, similarDirection, headingThatWay, offset.y)
@@ -409,10 +406,8 @@ export abstract class MovementExecutor extends Movement {
     )
   }
 
-  public isInitAligned(thisMove: Move, target: Vec3 = thisMove.entryPos, options: InitAlignOpts = {}): boolean {
-
-    if (this.isComplete(thisMove)) return true;
-
+  public isInitAligned (thisMove: Move, target: Vec3 = thisMove.entryPos, options: InitAlignOpts = {}): boolean {
+    if (this.isComplete(thisMove)) return true
 
     const off0 = thisMove.exitPos.minus(this.bot.entity.position).normalize()
     const off1 = thisMove.exitPos.minus(target).normalize()
@@ -426,49 +421,48 @@ export abstract class MovementExecutor extends Movement {
 
     const similarDirection = off0.dot(off1) > 0.7
 
-    let bb0 = options.customBB;
+    let bb0 = options.customBB
     if (bb0 == null) {
       const normPos = getNormalizedPos(this.bot)
       bb0 = AABBUtils.getEntityAABBRaw({ position: normPos, width: 0.6, height: 1.8 })
     }
 
-    const toCheck = options.others ?? [];
+    const toCheck = options.others ?? []
     const entercheck = { pos: target.offset(0, -1, 0), requireSupport: true }
-    const exitCheck = { pos: thisMove.exitPos.floored().translate(0, -1, 0), requireSupport: true };
+    const exitCheck = { pos: thisMove.exitPos.floored().translate(0, -1, 0), requireSupport: true }
 
     toCheck.push(entercheck)
     toCheck.push(exitCheck)
 
-    let valid;
+    let valid
 
     // default false.
     if (options.enterExitInterp) {
       valid = this.interpolatedBBCheck(bb0, thisMove.cachedVec.offset(0.5, 0, 0.5), thisMove.exitPos.floored().offset(0.5, 0, 0.5)) || this.boundingBoxCheck(bb0, ...toCheck)
-    } else valid = this.boundingBoxCheck(bb0, ...toCheck);
+    } else valid = this.boundingBoxCheck(bb0, ...toCheck)
     if (valid) {
       log('isInitAligned: yaw check passed. similarDirection=%s, dist=%d', similarDirection, this.bot.entity.position.xzDistanceTo(target))
       if (similarDirection) return true
       else {
-        log(`exit -> cur: %O, exit -> target: %O`, off0, off1, off0.dot(off1))
+        log('exit -> cur: %O, exit -> target: %O', off0, off1, off0.dot(off1))
         if (this.bot.entity.position.xzDistanceTo(target) < 0.3) return true
         if (this.boundingBoxCheck(bb0, exitCheck)) return true
       }
     }
 
-    log(`isInitAligned: We are not aligned. us: %O, target pos: %O`, bb0, target)
-    log(`Extra info: opts: %O`, options)
+    log('isInitAligned: We are not aligned. us: %O, target pos: %O', bb0, target)
+    log('Extra info: opts: %O', options)
     return false
   }
-
 
   /**
    * Lazy code.
    */
-  public safeToCancel(startMove: Move, endMove: Move = startMove): boolean {
+  public safeToCancel (startMove: Move, endMove: Move = startMove): boolean {
     return this.bot.entity.onGround || ((this.bot.entity as any).isInWater as boolean)
   }
 
-  protected getTooLowCheckY(pos: Vec3 = this.bot.entity.position): number {
+  protected getTooLowCheckY (pos: Vec3 = this.bot.entity.position): number {
     const supportBbs = getUnderlyingBBs(this.world, pos, 0.6)
     if (supportBbs.length === 0) {
       return pos.y + 0.6
@@ -479,7 +473,7 @@ export abstract class MovementExecutor extends Movement {
     return pos.y + 0.6 + supportCorrection
   }
 
-  protected tooLowCheck(thisMove: Move, pos: Vec3 = this.bot.entity.position): boolean {
+  protected tooLowCheck (thisMove: Move, pos: Vec3 = this.bot.entity.position): boolean {
     const botY = this.getTooLowCheckY(pos)
     return botY < thisMove.exitPos.y && botY < thisMove.entryPos.y
   }
@@ -490,8 +484,8 @@ export abstract class MovementExecutor extends Movement {
    * Return breaks first as they will not interfere with placements,
    * whereas placements will almost always interfere with breaks (LOS failure).
    */
-  async interactNeeded(ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
-    const start = performance.now();
+  async interactNeeded (ticks = 1): Promise<PlaceHandler | BreakHandler | undefined> {
+    const start = performance.now()
     for (const breakTarget of this.currentMove.toBreak) {
       if (breakTarget !== this._cI && !breakTarget.done) {
         if (!breakTarget.needToPerform(this.bot)) continue
@@ -514,7 +508,7 @@ export abstract class MovementExecutor extends Movement {
   /**
    * Generalized function to perform an interaction.
    */
-  async performInteraction(interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}): Promise<void> {
+  async performInteraction (interaction: PlaceHandler | BreakHandler, opts: InteractOpts = {}): Promise<void> {
     this._cI = interaction
     interaction.loadMove(this)
     if (interaction instanceof PlaceHandler) {
@@ -524,7 +518,7 @@ export abstract class MovementExecutor extends Movement {
     }
   }
 
-  protected async performPlace(place: PlaceHandler, opts: InteractOpts = {}): Promise<void> {
+  protected async performPlace (place: PlaceHandler, opts: InteractOpts = {}): Promise<void> {
     const item = place.getItem(this.bot)
     if (item == null) throw new CancelError('MovementExecutor: no item to place')
     log('performPlace: placing item %s', item.name)
@@ -532,7 +526,7 @@ export abstract class MovementExecutor extends Movement {
     this._cI = undefined
   }
 
-  protected async performBreak(breakTarget: BreakHandler, opts: InteractOpts = {}): Promise<void> {
+  protected async performBreak (breakTarget: BreakHandler, opts: InteractOpts = {}): Promise<void> {
     const block = breakTarget.getBlock(this.bot.pathfinder.world)
     if (block == null) throw new CancelError('MovementExecutor: no block to break')
     const item = breakTarget.getItem(this.bot, block)
@@ -545,7 +539,7 @@ export abstract class MovementExecutor extends Movement {
  * Utility function to have the bot look in the direction of the target,
  * but only on the xz plane (pitch is always 0).
  */
-  public async lookAtPathPos(vec3: Vec3, force = this.settings.forceLook): Promise<void> {
+  public async lookAtPathPos (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
     const pos = this.bot.entity.position
     const dx = vec3.x - pos.x
     const dz = vec3.z - pos.z
@@ -555,17 +549,17 @@ export abstract class MovementExecutor extends Movement {
     await this.bot.look(yaw, 0, force)
   }
 
-  public async look(yaw: number, pitch: number, force = this.settings.forceLook): Promise<void> {
+  public async look (yaw: number, pitch: number, force = this.settings.forceLook): Promise<void> {
     if (this.isLookingAtRotation(yaw, pitch, 0.001)) return
     await this.bot.look(yaw, pitch, force)
   }
 
-  public async lookAt(vec3: Vec3, force = this.settings.forceLook): Promise<void> {
+  public async lookAt (vec3: Vec3, force = this.settings.forceLook): Promise<void> {
     if (this.isLookingAt(vec3, 0.001)) return
     await this.bot.lookAt(vec3, force)
   }
 
-  public isLookingAt(vec3: Vec3, limit = 0.01): boolean {
+  public isLookingAt (vec3: Vec3, limit = 0.01): boolean {
     if (!this.settings.careAboutLookAlignment) return true
 
     const bl = this.bot.blockAtCursor(256) as unknown as RayType | null
@@ -575,7 +569,7 @@ export abstract class MovementExecutor extends Movement {
     return bl.intersect.minus(eyePos).normalize().dot(vec3.minus(eyePos).normalize()) > 1 - limit
   }
 
-  public isLookingAtYaw(vec3: Vec3, limit = 0.01): boolean {
+  public isLookingAtYaw (vec3: Vec3, limit = 0.01): boolean {
     if (!this.settings.careAboutLookAlignment) return true
 
     const eyePos = this.bot.entity.position.offset(0, 1.62, 0)
@@ -587,7 +581,7 @@ export abstract class MovementExecutor extends Movement {
     return this.isLookingAtYawRotation(yaw, limit)
   }
 
-  public isLookingAtRotation(yaw: number, pitch: number, limit = 0.01): boolean {
+  public isLookingAtRotation (yaw: number, pitch: number, limit = 0.01): boolean {
     if (!this.settings.careAboutLookAlignment) return true
 
     const currentYaw = this.bot.entity.yaw
@@ -608,7 +602,7 @@ export abstract class MovementExecutor extends Movement {
     return currentDir.dot(targetDir) > 1 - limit
   }
 
-  public isLookingAtYawRotation(yaw: number, limit = 0.01): boolean {
+  public isLookingAtYawRotation (yaw: number, limit = 0.01): boolean {
     if (!this.settings.careAboutLookAlignment) return true
 
     const currentYaw = this.bot.entity.yaw
@@ -629,22 +623,22 @@ export abstract class MovementExecutor extends Movement {
 
   // Utils for handling collisions
 
-  private boundingBoxCheck(orgBB: AABB, ...info: AlignmentBBInfo[]): boolean {
-    let valid = false;
+  private boundingBoxCheck (orgBB: AABB, ...info: AlignmentBBInfo[]): boolean {
+    let valid = false
     for (const { pos, requireSupport } of info) {
-      const bInfo = this.getBlockInfoRaw(pos);
+      const bInfo = this.getBlockInfoRaw(pos)
       const bbs = bInfo.getBBs()
       if (bbs.length === 0) bbs.push(AABB.fromBlock(bInfo.position))
 
       if (requireSupport && !(bInfo.physical || bInfo.liquid)) {
-        continue;
+        continue
       }
       valid = valid || bbs.some((b) => b.collides(orgBB)) // should shortcut.
     }
-    return valid;
+    return valid
   }
 
-  private interpolatedBBCheck(orgBB: AABB, start: Vec3, end: Vec3): boolean {
+  private interpolatedBBCheck (orgBB: AABB, start: Vec3, end: Vec3): boolean {
     for (const pos of interpolateStepPoints(start, end, 0.8)) {
       const bInfo = this.getBlockInfoRaw(pos)
       const bbs = bInfo.getBBs()
@@ -656,26 +650,24 @@ export abstract class MovementExecutor extends Movement {
       if (bbs.some((b) => b.collides(orgBB))) {
         return true
       }
-
-
     }
-    log(`interpolatedBBCheck: no collision. orgBB %O, from %O to %O`, orgBB, start, end)
+    log('interpolatedBBCheck: no collision. orgBB %O, from %O to %O', orgBB, start, end)
     return false
   }
 
   // Sim functions.
 
-  protected resetState(): PlayerState {
+  protected resetState (): PlayerState {
     this.simCtx.state.update(this.bot)
     return this.simCtx.state
   }
 
-  protected simUntil(...args: Parameters<BaseSimulator<PlayerState>['simulateUntil']>): ReturnType<BaseSimulator<PlayerState>['simulateUntil']> {
+  protected simUntil (...args: Parameters<BaseSimulator<PlayerState>['simulateUntil']>): ReturnType<BaseSimulator<PlayerState>['simulateUntil']> {
     this.simCtx.state.update(this.bot)
     return this.sim.simulateUntil(...args)
   }
 
-  protected simUntilGrounded(controller: Controller, maxTicks = 1000): PlayerState {
+  protected simUntilGrounded (controller: Controller, maxTicks = 1000): PlayerState {
     this.simCtx.state.update(this.bot)
     return this.sim.simulateUntil(
       (state) => state.onGround,
@@ -687,7 +679,7 @@ export abstract class MovementExecutor extends Movement {
     )
   }
 
-  protected simJump({ goal, controller }: { goal?: SimulationGoal, controller?: Controller } = {}, maxTicks = 1000): PlayerState {
+  protected simJump ({ goal, controller }: { goal?: SimulationGoal, controller?: Controller } = {}, maxTicks = 1000): PlayerState {
     this.simCtx.state.update(this.bot)
     goal = goal ?? ((state) => state.onGround)
     controller =
@@ -698,16 +690,16 @@ export abstract class MovementExecutor extends Movement {
     return this.sim.simulateUntil(goal, () => { }, controller, this.simCtx, this.world, maxTicks)
   }
 
-  protected async postInitAlignToPath(
+  protected async postInitAlignToPath (
     startMove: Move,
     opts?: PostInitAlignOpts
   ): Promise<void>
-  protected async postInitAlignToPath(
+  protected async postInitAlignToPath (
     startMove: Move,
     endMove?: Move,
     opts?: PostInitAlignOpts
   ): Promise<void>
-  protected async postInitAlignToPath(startMove: Move, endMove?: any, opts?: any): Promise<void> {
+  protected async postInitAlignToPath (startMove: Move, endMove?: any, opts?: any): Promise<void> {
     if (endMove === undefined) {
       endMove = startMove
       opts = {}
@@ -733,7 +725,7 @@ export abstract class MovementExecutor extends Movement {
     } else {
       await this.lookAtPathPos(target)
 
-      const yawPitch = posToYawPitchFromEye(this.bot.entity.position, 1.62, target);
+      const yawPitch = posToYawPitchFromEye(this.bot.entity.position, 1.62, target)
       if (!this.isLookingAtYaw(target, 0.01)) {
         log(`postInitAlignToPath: failed yaw check (offset=${yawPitch.yaw - this.bot.entity.yaw})`)
       }
@@ -742,7 +734,6 @@ export abstract class MovementExecutor extends Movement {
     botStrafeMovement(this.bot, endMove.exitPos, true)
     botSmartMovement(this.bot, endMove.exitPos, sprint)
 
-
     // const orgControl = this.bot.getControlState('sneak')
     // if (this.willFallOff(1)) {
     //   log(`postInitAlignToPath: we are about to fall off! sneaking...`)
@@ -750,33 +741,27 @@ export abstract class MovementExecutor extends Movement {
     // } else {
     //   this.bot.setControlState('sneak', orgControl)
     // }
-
   }
-
-
-
 
   /**
    * @returns whether we fall off.
    */
-  public simForward(options: SimOpts = {}): EPhysicsCtx<PlayerState> {
-    const ectx = options.ectx ?? EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot);
+  public simForward (options: SimOpts = {}): EPhysicsCtx<PlayerState> {
+    const ectx = options.ectx ?? EPhysicsCtx.FROM_BOT(this.sim.ctx, this.bot)
     const ticks = options.ticks ?? 1
 
     for (let i = 0; i < ticks; i++) {
-
-      if (options.controls) {
-        ectx.state.control = options.controls;
+      if (options.controls != null) {
+        ectx.state.control = options.controls
       }
 
-      this.sim.ctx.simulate(ectx, this.bot.world);
+      this.sim.ctx.simulate(ectx, this.bot.world)
     }
 
     return ectx
   }
 
-
-  protected doWaterLogic(): boolean {
+  protected doWaterLogic (): boolean {
     if ((this.bot.entity as any).isInWater as boolean) return true
 
     // potentially false, if underwater + standing on ground.
@@ -785,5 +770,4 @@ export abstract class MovementExecutor extends Movement {
     const bl = this.getBlockInfo(this.bot.entity.position, 0, -0.6, 0)
     return bl.liquid
   }
-
 }

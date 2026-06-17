@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/restrict-template-expressions */
 import { Bot } from 'mineflayer'
 import type { OptimizationMap } from '.'
 import type { BuildableMoveProvider } from '../movements'
@@ -30,7 +31,7 @@ export abstract class MovementOptimizer {
    *
    * Default behavior keeps the start move's provider so existing optimizer/executor
    * mappings continue to work unchanged.
-   * 
+   *
    * For now, changing this here does not work. Do not use this to set a different movement provider.
    */
   protected getMergedMoveType (startIndex: number, endIndex: number, path: readonly Move[]): MovementProvider {
@@ -115,7 +116,6 @@ export class Optimizer {
     return !!this.pathCopy
   }
 
-  
   async compute (): Promise<Move[]> {
     if (!this.sanitize()) {
       throw new Error('Optimizer not sanitized')
@@ -163,7 +163,7 @@ export class Optimizer {
       this.currentIndex++
     }
 
-    log(`compute() finished. Final optimized path length: ${this.pathCopy.length}. End: ${this.pathCopy[this.pathCopy.length -1 ].exitPos}`)
+    log(`compute() finished. Final optimized path length: ${this.pathCopy.length}. End: ${this.pathCopy[this.pathCopy.length - 1].exitPos}`)
     return this.pathCopy
   }
 

@@ -1,8 +1,14 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/restrict-template-expressions */
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
+import { Vec3 } from 'vec3'
 import { Move } from '../move'
 import type { RayType } from '../../types'
 import { BlockInfo } from '../world/cacheWorld'
 import { MovementOptimizer } from './optimizer'
+import { World } from '../world/worldInterface'
+import { sumExclusionAreas } from '../movements/movement'
+import type { ExclusionArea } from '../movements/exclusionZones'
+import { COST_INF } from '../movements/costs'
 
 import { AABB, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
 import { stateLookAt } from '../movements/movementUtils'
@@ -10,10 +16,69 @@ import { stateLookAt } from '../movements/movementUtils'
 const debug = require('debug')
 const log = debug('minecraft-pathfinding:optimizers')
 
+/**
+ * Walk the straight segment from `from` to `to` with a voxel traversal
+ * (Amanatides & Woo) and return true as soon as a cell lands inside a HARD step
+ * zone (summed weight >= COST_INF). Visiting exactly the cells the segment
+ * crosses keeps the check correct (no skipped cells) and cheap.
+ *
+ * Only hard zones stop a straight-line merge; soft zones are a preference, not a
+ * wall. Returns false immediately when there are no step areas.
+ */
+export function lineCrossesHardExclusion (world: World, from: Vec3, to: Vec3, areas: ExclusionArea[]): boolean {
+  if (areas.length === 0) return false
+
+  let x = Math.floor(from.x)
+  let y = Math.floor(from.y)
+  let z = Math.floor(from.z)
+  const endX = Math.floor(to.x)
+  const endY = Math.floor(to.y)
+  const endZ = Math.floor(to.z)
+
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const dz = to.z - from.z
+
+  const stepX = Math.sign(dx)
+  const stepY = Math.sign(dy)
+  const stepZ = Math.sign(dz)
+
+  // The segment is parameterised by t in [0, 1]. tMax* is the t at which we next
+  // cross a cell boundary on that axis; tDelta* is the t to cross one whole cell.
+  const tDeltaX = stepX !== 0 ? Math.abs(1 / dx) : Infinity
+  const tDeltaY = stepY !== 0 ? Math.abs(1 / dy) : Infinity
+  const tDeltaZ = stepZ !== 0 ? Math.abs(1 / dz) : Infinity
+
+  let tMaxX = stepX !== 0 ? (stepX > 0 ? x + 1 - from.x : from.x - x) / Math.abs(dx) : Infinity
+  let tMaxY = stepY !== 0 ? (stepY > 0 ? y + 1 - from.y : from.y - y) / Math.abs(dy) : Infinity
+  let tMaxZ = stepZ !== 0 ? (stepZ > 0 ? z + 1 - from.z : from.z - z) / Math.abs(dz) : Infinity
+
+  // Cells to visit = Manhattan distance in cells + 1. A fixed loop count (rather
+  // than tMax comparisons) keeps termination floating-point safe.
+  const cells = Math.abs(endX - x) + Math.abs(endY - y) + Math.abs(endZ - z)
+
+  for (let i = 0; i <= cells; i++) {
+    if (sumExclusionAreas(areas, world.getBlockInfo(new Vec3(x, y, z))) >= COST_INF) return true
+
+    if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
+      x += stepX
+      tMaxX += tDeltaX
+    } else if (tMaxY <= tMaxZ) {
+      y += stepY
+      tMaxY += tDeltaY
+    } else {
+      z += stepZ
+      tMaxZ += tDeltaZ
+    }
+  }
+  return false
+}
+
 export class LandStraightAheadOpt extends MovementOptimizer {
   async identEndOpt (currentIndex: number, path: Move[]): Promise<number> {
     const startIndex = currentIndex
     const thisMove = path[currentIndex] // starting move
+    const stepAreas = thisMove.moveType.settings.exclusionAreasStep
 
     let lastMove = path[currentIndex]
     let nextMove = path[++currentIndex]
@@ -21,7 +86,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
     log(`[LandStraightAhead] Optimizing from index ${startIndex} (${thisMove.moveType.constructor.name})`)
 
     if (nextMove === undefined) {
-      log(`[LandStraightAhead] nextMove is undefined, aborting.`)
+      log('[LandStraightAhead] nextMove is undefined, aborting.')
       return --currentIndex
     }
 
@@ -51,20 +116,20 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         log(`[LandStraightAhead] Index ${currentIndex}: nextMove became undefined.`)
         return --currentIndex
       }
-      
+
       for (const vert of verts) {
         const offset = vert.minus(orgPos)
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
-        
+
         const raycast0 = this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
           dist,
           (block) => (!BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || BlockInfo.blocksToAvoid.has(block.type)) && block.shapes.length > 0
         ) as unknown as RayType | null
-        
+
         const valid0 = (raycast0 == null) || raycast0.position.distanceTo(orgPos) > dist
 
         if (!valid0) {
@@ -79,7 +144,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
-        
+
         const raycast0 = (await this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
@@ -100,14 +165,21 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         return --currentIndex
       }
 
+      // Exclusion zones: do not straight-line the merge through a hard "keep out"
+      // area the original route went around. Stop before this move if it would.
+      if (lineCrossesHardExclusion(this.world, orgPos, nextMove.exitPos, stepAreas)) {
+        log(`[LandStraightAhead] Index ${currentIndex}: straight line would cross a hard exclusion zone.`)
+        return --currentIndex
+      }
+
       if (++currentIndex >= path.length) {
-        log(`[LandStraightAhead] Reached end of path.`)
+        log('[LandStraightAhead] Reached end of path.')
         return --currentIndex
       }
       lastMove = nextMove
       nextMove = path[currentIndex]
     }
-    
+
     log(`[LandStraightAhead] Y-level changed or loop ended naturally. Returning index ${currentIndex - 1}.`)
     return --currentIndex
   }
@@ -165,13 +237,13 @@ export class DropDownOpt extends MovementOptimizer {
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0))
       let flag = false
       let good = false
-      
+
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 })
           const collided =
             (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid && (state.onGround || state.isInWater))
-          
+
           if (collided) {
             good = true
             return true
@@ -208,8 +280,7 @@ export class DropDownOpt extends MovementOptimizer {
         if (flag0) {
           log(`[DropDownOpt] Index ${currentIndex}: Flag0 triggered. Returning.`)
           return currentIndex
-        }
-        else flag0 = true
+        } else flag0 = true
       }
 
       if (++currentIndex >= path.length) return --currentIndex
@@ -230,7 +301,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
     log(`[ForwardJumpUpOpt] Optimizing from index ${startIndex} (${lastMove.moveType.constructor.name})`)
 
     if (lastMove.toPlace.length > 0) {
-      log(`[ForwardJumpUpOpt] Initial move places a block. Aborting.`)
+      log('[ForwardJumpUpOpt] Initial move places a block. Aborting.')
       return --currentIndex
     }
 
@@ -251,7 +322,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
         log(`[ForwardJumpUpOpt] Index ${currentIndex}: AABB collision failed.`)
         return --currentIndex
       }
-      
+
       if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
       nextMove = path[currentIndex]
@@ -261,7 +332,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     while (
       lastMove.exitPos.y === nextMove.exitPos.y &&
-      nextMove.exitPos.distanceTo(firstPos) <= 2 && 
+      nextMove.exitPos.distanceTo(firstPos) <= 2 &&
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {

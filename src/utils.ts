@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { Bot, BotEvents } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
-import { BlockFace } from '@nxg-org/mineflayer-util-plugin'
-import { AABBUtils } from '@nxg-org/mineflayer-util-plugin'
+import { BlockFace, AABBUtils } from '@nxg-org/mineflayer-util-plugin'
+
 import { World } from './mineflayer-specific/world/worldInterface'
 
-export function printBotControls(bot: Bot, log: (...args: unknown[]) => void = console.log): void {
+export function printBotControls (bot: Bot, log: (...args: unknown[]) => void = console.log): void {
   const controls = {
     forward: bot.getControlState('forward'),
     back: bot.getControlState('back'),
@@ -13,7 +14,7 @@ export function printBotControls(bot: Bot, log: (...args: unknown[]) => void = c
     right: bot.getControlState('right'),
     jump: bot.getControlState('jump'),
     sprint: bot.getControlState('sprint'),
-    sneak: bot.getControlState('sneak'),
+    sneak: bot.getControlState('sneak')
   }
 
   log(
@@ -28,19 +29,19 @@ export function printBotControls(bot: Bot, log: (...args: unknown[]) => void = c
   )
 }
 
-export function faceToVec(face: BlockFace): Vec3 {
-    switch (face) {
-      case BlockFace.BOTTOM: return new Vec3(0, -1, 0)
-      case BlockFace.TOP: return new Vec3(0, 1, 0)
-      case BlockFace.NORTH: return new Vec3(0, 0, -1)
-      case BlockFace.SOUTH: return new Vec3(0, 0, 1)
-      case BlockFace.WEST: return new Vec3(-1, 0, 0)
-      case BlockFace.EAST: return new Vec3(1, 0, 0)
-      default: throw new Error('Invalid face')
-    }
+export function faceToVec (face: BlockFace): Vec3 {
+  switch (face) {
+    case BlockFace.BOTTOM: return new Vec3(0, -1, 0)
+    case BlockFace.TOP: return new Vec3(0, 1, 0)
+    case BlockFace.NORTH: return new Vec3(0, 0, -1)
+    case BlockFace.SOUTH: return new Vec3(0, 0, 1)
+    case BlockFace.WEST: return new Vec3(-1, 0, 0)
+    case BlockFace.EAST: return new Vec3(1, 0, 0)
+    default: throw new Error('Invalid face')
   }
+}
 
-export function *interpolateStepPoints(start: Vec3, end: Vec3, step = 0.8): Generator<Vec3> {
+export function * interpolateStepPoints (start: Vec3, end: Vec3, step = 0.8): Generator<Vec3> {
   const delta = end.minus(start)
   const dist = delta.norm()
 
@@ -60,7 +61,6 @@ export function *interpolateStepPoints(start: Vec3, end: Vec3, step = 0.8): Gene
     yield end.clone()
   }
 }
-
 
 export const debug = (bot: Bot | undefined, ...args: any[]): void => {
   if (bot != null) {
@@ -118,7 +118,7 @@ export function getNormalizedPos (bot: Bot, startPos?: Vec3): Vec3 {
   return pos
 }
 
-export function getSupportedStartPos(world: World, startPos: Vec3): Vec3 {
+export function getSupportedStartPos (world: World, startPos: Vec3): Vec3 {
   if (!BlockInfo.initialized) throw new Error('BlockInfo not initialized')
 
   const pos = startPos.clone()

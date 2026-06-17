@@ -9,6 +9,7 @@
   - [Custom Movement Providers](#custom-movement-providers)
   - [Custom Movement Executors](#custom-movement-executors)
   - [Custom Movement Optimizers](#custom-movement-optimizers)
+- [Exclusion Zones (Keep-Out Areas)](#exclusion-zones-keep-out-areas)
 
 
 
@@ -311,3 +312,37 @@ class MyMovementOptimizer extends MovementOptimizer {
   }
 }
 ```
+
+<h1 align="center">Exclusion Zones (Keep-Out Areas)</h1>
+
+To keep the bot out of an area without writing a custom `MovementProvider`, add
+an **exclusion area** to the move settings. It is a function returning the extra
+cost of a block: `0` (no opinion), a positive number (soft — avoided when a
+cheaper route exists), or `Infinity` (hard — never used).
+
+Three lists, each summing the cost of every function in it:
+
+- `exclusionAreasStep` — blocks the bot would stand in.
+- `exclusionAreasBreak` — blocks the bot would break (mine).
+- `exclusionAreasPlace` — blocks the bot would place (build on).
+
+All empty by default (no overhead). Any `(block) => number` works:
+
+```ts
+// Never mine valuable ores or anything below y=0.
+const diamondId = bot.registry.blocksByName.diamond_ore.id
+const protectOres = (block) =>
+  (block.type === diamondId || block.position.y < 0) ? Infinity : 0
+
+bot.pathfinder.setMoveOptions({ exclusionAreasBreak: [protectOres] })
+```
+
+Notes:
+
+- Costs from multiple areas in a list add up.
+- `exclusionAreasStep` is checked on the foot block of every move (walk, jump,
+  drop, parkour, tower), and optimized/straight-lined paths are blocked from
+  cutting through hard zones too.
+- Pass a fresh array to `setMoveOptions({ ... })` rather than mutating the
+  existing one.
+- Ready-to-copy box/radius helpers live in `examples/exclusionZones.js`.

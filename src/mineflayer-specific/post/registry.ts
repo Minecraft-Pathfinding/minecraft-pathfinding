@@ -6,7 +6,7 @@ import { MovementOptimizer } from './optimizer'
 
 export type BuildableMoveOptimizer = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => MovementOptimizer
 
-export type RegisteredOptimizer = {
+export interface RegisteredOptimizer {
   optimizer: MovementOptimizer
   optimizedExecutor?: MovementExecutor
   priority: number

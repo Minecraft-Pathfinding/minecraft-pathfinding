@@ -9,6 +9,5 @@ export * from './registry'
 
 export type BuildableMoveOptimizer = new (bot: Bot, world: World, settings: Partial<MovementOptions>) => MovementOptimizer
 
-
 export type OptimizationSetup = Map<BuildableMoveProvider, BuildableMoveOptimizer>
 export type ReplacementMap = Map<BuildableMoveProvider, MovementReplacement>

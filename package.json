@@ -45,7 +45,9 @@
   },
   "ts-standard": {
     "ignore": [
-      "examples"
+      "examples",
+      "tests",
+      "scripts"
     ]
   }
 }

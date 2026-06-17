@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/consistent-type-assertions */
 import { IEntityState } from '@nxg-org/mineflayer-physics-util'
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
@@ -237,7 +238,7 @@ export function botSmartMovement (bot: Bot, nextPoint: Vec3, sprint: boolean, mi
   smartMovement(stateLike, nextPoint, sprint, minDist)
 }
 
-type StrafeState = {
+interface StrafeState {
   pos: Vec3
   vel: Vec3
   yaw: number
