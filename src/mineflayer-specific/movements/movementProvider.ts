@@ -91,7 +91,6 @@ export abstract class MovementProvider extends Movement {
   }
 
   private getBlockInfoAt (x: number, y: number, z: number, pos?: Vec3): BlockInfo {
-
     const wantedDx = x - this.orgX + this.halfX
     const wantedDz = z - this.orgZ + this.halfZ
     const wantedDy = y - this.orgY + this.halfY

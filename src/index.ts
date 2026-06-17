@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Bot } from 'mineflayer'
 import { BlockInfo } from './mineflayer-specific/world/cacheWorld'
 import { PathfinderOptions, ThePathfinder } from './ThePathfinder'
@@ -16,7 +17,7 @@ import type { MovementOptions, MovementSetup } from './mineflayer-specific/movem
 import { MovementProvider } from './mineflayer-specific/movements'
 import type { OptimizationSetup } from './mineflayer-specific/post'
 
-export function createPlugin(opts?: HandlerOpts) {
+export function createPlugin (opts?: HandlerOpts) {
   return function (bot: Bot) {
     BlockInfo.init(bot.registry) // set up block info
     if (!bot.hasPlugin(utilPlugin)) bot.loadPlugin(utilPlugin)

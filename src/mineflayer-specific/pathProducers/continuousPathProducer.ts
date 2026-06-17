@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Bot } from 'mineflayer'
 import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'

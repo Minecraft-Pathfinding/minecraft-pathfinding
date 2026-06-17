@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Vec3 } from 'vec3'
 import { Path, MovementProvider as AMovementProvider, PathNode, Algorithm } from '../../abstract'
 import { Move } from '../move'

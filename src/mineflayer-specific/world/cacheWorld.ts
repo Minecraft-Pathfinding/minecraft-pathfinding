@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-non-null-assertion */
 import { Vec3 } from 'vec3'
 import type { World as WorldType } from './worldInterface'
 import { Bot } from 'mineflayer'
@@ -91,7 +92,7 @@ export class BlockInfo {
     }
 
     BlockInfo.PBlock = pBlock(registry) // require('prismarine-block')(registry)
-    BlockInfo.substituteBlockStateId = registry.blocksByName.dirt.minStateId;
+    BlockInfo.substituteBlockStateId = registry.blocksByName.dirt.minStateId
 
     BlockInfo._waterBlock = BlockInfo.PBlock.fromStateId(registry.blocksByName.water.minStateId, 0)
     BlockInfo._waterBlock.position = new Vec3(0, 0, 0)
@@ -554,7 +555,7 @@ export class CacheSyncWorld implements WorldType {
     const calls = this.cacheCalls
     this.cacheCalls = 0
     // const used = Object.keys(this.posCache).length === 0 ?  this.blocks : this.posCache
-    const used =  this.blockInfos
+    const used = this.blockInfos
     return `size = ${used.size}; calls = ${calls}`
   }
 

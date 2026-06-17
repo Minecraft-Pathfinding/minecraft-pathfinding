@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-var-requires, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/restrict-template-expressions, @typescript-eslint/explicit-function-return-type */
 import { Vec3 } from 'vec3'
 import * as goals from '../goals'
 import { Move } from '../move'
@@ -22,24 +23,23 @@ const logDown = debug('minecraft-pathfinding:movementExecutors:StraightDown')
 const logUp = debug('minecraft-pathfinding:movementExecutors:StraightUp')
 const logParkour = debug('minecraft-pathfinding:movementExecutors:Parkour')
 
-
 export class IdleMovementExecutor extends MovementExecutor {
-  provideMovements(start: Move, storage: Move[]): void { }
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  provideMovements (start: Move, storage: Move[]): void { }
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     logIdle('performInit called')
   }
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
+
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     return true
   }
 }
 
-
 export class NewForwardExecutor extends MovementExecutor {
-  protected isComplete(startMove: Move, endMove?: Move, opts?: CompleteOpts): boolean {
+  protected isComplete (startMove: Move, endMove?: Move, opts?: CompleteOpts): boolean {
     return super.isComplete(startMove, endMove, { ticks: 2 })
   }
 
-  private async faceForward(): Promise<boolean> {
+  private async faceForward (): Promise<boolean> {
     // console.log('called faceForward!')
     if (this.doWaterLogic()) return true
     const eyePos = this.bot.entity.position.offset(0, this.bot.entity.height, 0)
@@ -51,9 +51,8 @@ export class NewForwardExecutor extends MovementExecutor {
     return this.currentMove?.toPlace.length === 0 || !near
   }
 
-  override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     if (this.doWaterLogic()) {
-
       // clear to remove jump.
       this.bot.clearControlStates()
       return await super.align(thisMove, tickCount, goal)
@@ -72,7 +71,7 @@ export class NewForwardExecutor extends MovementExecutor {
     return await this.landAlign(thisMove, tickCount, goal)
   }
 
-  async landAlign(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  async landAlign (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     const faceForward = await this.faceForward()
 
     const opts: InitAlignOpts = { enterExitInterp: true }
@@ -90,7 +89,6 @@ export class NewForwardExecutor extends MovementExecutor {
       this.bot.setControlState('forward', true)
       if (this.bot.food <= 6) this.bot.setControlState('sprint', false)
       else this.bot.setControlState('sprint', true)
-
     } else {
       const offset = this.bot.entity.position.minus(target).plus(this.bot.entity.position)
       // await this.postInitAlignToPath(thisMove, { lookAt: offset })
@@ -107,7 +105,7 @@ export class NewForwardExecutor extends MovementExecutor {
     return this.isInitAligned(thisMove, target, opts)
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     // console.log('ForwardMove', thisMove.exitPos, thisMove.toPlace.length, thisMove.toBreak.length)
 
     this.bot.clearControlStates()
@@ -124,7 +122,7 @@ export class NewForwardExecutor extends MovementExecutor {
   }
 
   // TODO: clean this up.
-  private canJump(thisMove: Move, currentIndex: number, path: Move[]): boolean {
+  private canJump (thisMove: Move, currentIndex: number, path: Move[]): boolean {
     if (this.doWaterLogic()) {
       if (this.bot.entity.position.y < thisMove.exitPos.y) {
         return true
@@ -178,7 +176,7 @@ export class NewForwardExecutor extends MovementExecutor {
     return ctx.state.onGround
   }
 
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
       return false
     } else if (this.cI == null) {
@@ -224,12 +222,11 @@ export class ForwardJumpExecutor extends MovementExecutor {
   private readonly shitter: JumpCalculator = new JumpCalculator(this.sim, this.bot, this.world, this.simCtx)
   private flag = false
 
-
-  protected isComplete(startMove: Move, endMove?: Move): boolean {
+  protected isComplete (startMove: Move, endMove?: Move): boolean {
     return super.isComplete(startMove, endMove, { ticks: 0 })
   }
 
-  override async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  override async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     if (super.doWaterLogic()) {
       this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.entryPos.y)
     }
@@ -237,7 +234,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
     return await super.align(thisMove, tickCount, goal)
   }
 
-  align1(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+  align1 (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     const bb = AABBUtils.getEntityAABBRaw({ position: this.bot.entity.position, width: 0.6, height: 1.8 })
 
     if (this.flag) {
@@ -263,11 +260,11 @@ export class ForwardJumpExecutor extends MovementExecutor {
     return false
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.flag = false
     this.bot.clearControlStates()
 
-    logJump(`performInit`)
+    logJump('performInit')
 
     if (thisMove.toBreak.length > 0) {
       await this.bot.clearControlStates()
@@ -287,9 +284,9 @@ export class ForwardJumpExecutor extends MovementExecutor {
     }
   }
 
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot))) {
-      // NOTE: During a jump, we DO NOT want to clear control states or set sneak, 
+      // NOTE: During a jump, we DO NOT want to clear control states or set sneak,
       // otherwise the bot will lose its momentum and fall straight down!
       return false
     }
@@ -362,7 +359,7 @@ export class ForwardJumpExecutor extends MovementExecutor {
 }
 
 export class NewForwardJumpExecutor extends ForwardJumpExecutor {
-  override async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
+  override async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean> {
     if (super.doWaterLogic()) {
       this.bot.setControlState('jump', this.bot.entity.position.y < thisMove.exitPos.y)
       void this.postInitAlignToPath(thisMove)
@@ -374,24 +371,22 @@ export class NewForwardJumpExecutor extends ForwardJumpExecutor {
 }
 
 export class ForwardDropDownExecutor extends MovementExecutor {
-
-  private handleSneak(thisMove: Move) {
+  private handleSneak (thisMove: Move) {
     if (super.doWaterLogic()) {
       this.bot.setControlState('sneak', this.bot.entity.position.y > thisMove.exitPos.y && !this.bot.entity.onGround)
     }
   }
 
-  override async align(thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): Promise<boolean> {
+  override async align (thisMove: Move, tickCount?: number, goal?: goals.Goal, lookTarget?: Vec3): Promise<boolean> {
     this.handleSneak(thisMove)
     return await super.align(thisMove, tickCount, goal, lookTarget)
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     await this.postInitAlignToPath(thisMove)
   }
 
-
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot, 0))) {
       // If we are locked by an interaction, freeze so we don't accidentally fall early.
       this.bot.clearControlStates()
@@ -438,7 +433,6 @@ export class ForwardDropDownExecutor extends MovementExecutor {
       }
     }
 
-
     if (currentIndex < path.length) void this.postInitAlignToPath(thisMove)
     else void this.postInitAlignToPath(thisMove)
 
@@ -447,10 +441,8 @@ export class ForwardDropDownExecutor extends MovementExecutor {
   }
 }
 
-
 export class StraightDownExecutor extends MovementExecutor {
-
-  align(thisMove: Move): boolean {
+  align (thisMove: Move): boolean {
     this.bot.clearControlStates()
     const xzVel = this.bot.entity.velocity.offset(0, -this.bot.entity.velocity.y, 0)
     if (this.bot.entity.position.xzDistanceTo(thisMove.exitPos) < 0.2 && xzVel.norm() < 0.1) {
@@ -475,11 +467,11 @@ export class StraightDownExecutor extends MovementExecutor {
     return false
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     // Initialization logic cleared; breaks are dynamically handled in performPerTick
   }
 
-  async performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
+  async performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): Promise<boolean | number> {
     if (this.cI != null && !(await this.cI.allowExternalInfluence(this.bot, 0))) {
       this.bot.clearControlStates()
       return false
@@ -511,33 +503,33 @@ export class StraightUpExecutor extends MovementExecutor {
   private static readonly STOP_DIST = 0.08
   private static readonly STOP_SPEED = 0.03
 
-  private _getEntryCenter(thisMove: Move): Vec3 {
+  private _getEntryCenter (thisMove: Move): Vec3 {
     return thisMove.entryPos.floored().offset(0.5, 0, 0.5)
   }
 
-  private _getExitCenter(thisMove: Move): Vec3 {
+  private _getExitCenter (thisMove: Move): Vec3 {
     return thisMove.exitPos.floored().offset(0.5, 0, 0.5)
   }
 
-  private _getHorizontalOffsetTo(center: Vec3): Vec3 {
+  private _getHorizontalOffsetTo (center: Vec3): Vec3 {
     const pos = this.bot.entity.position
     return new Vec3(center.x - pos.x, 0, center.z - pos.z)
   }
 
-  private _getHorizontalVelocity(): Vec3 {
+  private _getHorizontalVelocity (): Vec3 {
     const vel = this.bot.entity.velocity
     return new Vec3(vel.x, 0, vel.z)
   }
 
-  private _isHorizontallyCentered(thisMove: Move): boolean {
+  private _isHorizontallyCentered (thisMove: Move): boolean {
     return this.bot.entity.position.xzDistanceTo(this._getEntryCenter(thisMove)) <= StraightUpExecutor.CENTER_EPS
   }
 
-  private _isHorizontalMotionSmall(): boolean {
+  private _isHorizontalMotionSmall (): boolean {
     return this._getHorizontalVelocity().norm() <= StraightUpExecutor.STOP_SPEED
   }
 
-  private _facePoint(point: Vec3): void {
+  private _facePoint (point: Vec3): void {
     const pos = this.bot.entity.position
     const dx = point.x - pos.x
     const dz = point.z - pos.z
@@ -551,7 +543,7 @@ export class StraightUpExecutor extends MovementExecutor {
    * Using a target slightly "behind" current travel helps botSmartMovement decide
    * to hold back when we would otherwise overshoot from forward momentum.
    */
-  private _getAirborneCorrectionTarget(thisMove: Move): Vec3 {
+  private _getAirborneCorrectionTarget (thisMove: Move): Vec3 {
     const center = this._getEntryCenter(thisMove)
     const pos = this.bot.entity.position
     const vel = this._getHorizontalVelocity()
@@ -579,7 +571,7 @@ export class StraightUpExecutor extends MovementExecutor {
    * - use smart forward/back + strict strafing
    * - sprint only when farther away
    */
-  private _applyGroundCentering(thisMove: Move): boolean {
+  private _applyGroundCentering (thisMove: Move): boolean {
     const center = this._getEntryCenter(thisMove)
     const offset = this._getHorizontalOffsetTo(center)
     const dist = offset.norm()
@@ -606,7 +598,7 @@ export class StraightUpExecutor extends MovementExecutor {
    * - allow smartMovement to choose forward vs back
    * - allow strict strafe to counter lateral drift
    */
-  private _applyVerticalAscentControls(thisMove: Move): boolean {
+  private _applyVerticalAscentControls (thisMove: Move): boolean {
     const center = this._getEntryCenter(thisMove)
     const correctionTarget = this._getAirborneCorrectionTarget(thisMove)
     const distToCenter = this._getHorizontalOffsetTo(center).norm()
@@ -629,12 +621,11 @@ export class StraightUpExecutor extends MovementExecutor {
     return false
   }
 
-
-  isAlreadyCompleted(thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
+  isAlreadyCompleted (thisMove: Move, tickCount: number, goal: goals.Goal): boolean {
     return this.bot.entity.position.y >= thisMove.exitPos.y
   }
 
-  override async align(thisMove: Move): Promise<boolean> {
+  override async align (thisMove: Move): Promise<boolean> {
     const inWater = (this.bot.entity as any).isInWater as boolean
 
     if (!this.bot.entity.onGround || inWater) {
@@ -644,7 +635,7 @@ export class StraightUpExecutor extends MovementExecutor {
     return this._applyGroundCentering(thisMove)
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this.bot.clearControlStates()
 
     for (const breakH of this.toBreak()) {
@@ -664,7 +655,7 @@ export class StraightUpExecutor extends MovementExecutor {
     }
   }
 
-  performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
+  performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     if (this.bot.entity.position.y < thisMove.entryPos.y) {
       throw new CancelError('StraightUp: too low')
     }
@@ -704,31 +695,30 @@ export class ParkourForwardExecutor extends MovementExecutor {
 
   protected static readonly APPROACH_YAW_EPS: number = 0.16 // ~9.2 deg — generous for cardinal jumps
 
-  protected isComplete(startMove: Move, endMove?: Move, opts: CompleteOpts = {}): boolean {
+  protected isComplete (startMove: Move, endMove?: Move, opts: CompleteOpts = {}): boolean {
     const ret = super.isComplete(startMove, endMove, opts)
-    return ret;
+    return ret
   }
 
-  private _debugLog(...args: any[]): void {
+  private _debugLog (...args: any[]): void {
     logParkour(...args)
   }
 
-  private _lockCurrentYaw(targetYaw: number): void {
+  private _lockCurrentYaw (targetYaw: number): void {
     this.lockedYaw = targetYaw
   }
 
-  private _clearLockedYaw(): void {
+  private _clearLockedYaw (): void {
     this.lockedYaw = null
   }
 
-  private _applyLockedYaw(): void {
-
+  private _applyLockedYaw (): void {
     if (this.lockedYaw != null) {
       this.bot.entity.yaw = this.lockedYaw
     }
   }
 
-  private _applySmartControls(target: Vec3, jump: boolean): void {
+  private _applySmartControls (target: Vec3, jump: boolean): void {
     this._applyLockedYaw()
     botSmartMovement(this.bot, target, true)
     botStrafeMovement(this.bot, target, true)
@@ -736,12 +726,11 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.bot.setControlState('sneak', false)
   }
 
-  private _queueLookAtSync(target: Vec3): Promise<void> {
-
+  private async _queueLookAtSync (target: Vec3): Promise<void> {
     this._pendingLookTarget = target.offset(0, this.bot.entity.position.y - target.y, 0)
 
     if (this._lookAtInFlight != null) {
-      return this._lookAtInFlight
+      return await this._lookAtInFlight
     }
 
     this._lookAtInFlight = (async () => {
@@ -756,24 +745,24 @@ export class ParkourForwardExecutor extends MovementExecutor {
       }
     })()
 
-    return this._lookAtInFlight
+    return await this._lookAtInFlight
   }
 
-  private _clearBackupState(): void {
+  private _clearBackupState (): void {
     this.backingUp = false
     this.backupSettling = false
     this.backupTarget = null
   }
 
-  private _getTargetBlock(thisMove: Move): Vec3 {
+  private _getTargetBlock (thisMove: Move): Vec3 {
     return thisMove.exitPos.offset(0, -1, 0)
   }
 
-  private _getTargetEyeVec(target: Vec3): Vec3 {
+  private _getTargetEyeVec (target: Vec3): Vec3 {
     return this.shitterTwo.findGoalVertex(AABB.fromBlockPos(target))
   }
 
-  private _getUnderlyingBbs(thisMove: Move): AABB[] {
+  private _getUnderlyingBbs (thisMove: Move): AABB[] {
     const bbs = getUnderlyingBBs(this.world, this.bot.entity.position, 0.6)
     if (bbs.length === 0) {
       bbs.push(AABB.fromBlockPos(thisMove.entryPos.offset(0, -1, 0)))
@@ -781,7 +770,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return bbs
   }
 
-  private _getBackupTarget(thisMove: Move): Vec3 | null {
+  private _getBackupTarget (thisMove: Move): Vec3 | null {
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
 
@@ -803,22 +792,19 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return backupTarget
   }
 
-  private _shouldSneakDuringBackup(thisMove: Move, target: Vec3): boolean {
+  private _shouldSneakDuringBackup (thisMove: Move, target: Vec3): boolean {
     const entryBB = AABB.fromBlockPos(thisMove.entryPos)
     const botPos = this.bot.entity.position
 
-    if (botPos.xzDistanceTo(target) < 0.1) return true;
-
+    if (botPos.xzDistanceTo(target) < 0.1) return true
 
     const controls = ControlStateHandler.COPY_BOT(this.bot).set('sneak', false).set('jump', false)
     const ectx = this.simForward({ ticks: 2, controls })
     // console.log(ectx.state.pos, ectx.state.control, ectx.state.pos.y, this.bot.entity.position.y, !ectx.state.onGround)
     return ectx.state.pos.y < this.bot.entity.position.y && !ectx.state.onGround
-
-
   }
 
-  private _applyBackupControls(thisMove: Move, target: Vec3): void {
+  private _applyBackupControls (thisMove: Move, target: Vec3): void {
     this._lockCurrentYaw(this._desiredYawTo(target))
     void this._queueLookAtSync(target)
     this._applySmartControls(target, false)
@@ -826,7 +812,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.bot.setControlState('sneak', this._shouldSneakDuringBackup(thisMove, target))
   }
 
-  private _startBackup(thisMove: Move): boolean {
+  private _startBackup (thisMove: Move): boolean {
     this.backupTarget ??= this._getBackupTarget(thisMove)
     if (this.backupTarget == null) {
       this._debugLog('backup start failed: no backup target')
@@ -840,7 +826,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return true
   }
 
-  private _advanceBackup(thisMove: Move): 'backing' | 'recheck' | 'jump' | 'failed' {
+  private _advanceBackup (thisMove: Move): 'backing' | 'recheck' | 'jump' | 'failed' {
     this.backupTarget ??= this._getBackupTarget(thisMove)
     if (this.backupTarget == null) {
       // this._debugLog('backup advance failed: no backup target')
@@ -893,7 +879,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return 'recheck'
   }
 
-  private _getJumpState(thisMove: Move): {
+  private _getJumpState (thisMove: Move): {
     target: Vec3
     targetEyeVec: Vec3
     canDirectJump: boolean
@@ -913,7 +899,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
   }
 
-  private _debugJumpState(
+  private _debugJumpState (
     label: string,
     jumpState: {
       target: Vec3
@@ -923,7 +909,6 @@ export class ParkourForwardExecutor extends MovementExecutor {
       fallOffEdge: boolean
     }
   ): void {
-
     (this as any)._lastTime ??= 0
 
     this._debugLog(label, performance.now() - (this as any)._lastTime)
@@ -937,7 +922,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
       'current bot info:',
       this.bot.entity.yaw,
       this.bot.entity.position,
-      this.bot.entity.velocity,
+      this.bot.entity.velocity
     )
     this._debugLog(
       'yaw info:',
@@ -948,7 +933,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     (this as any)._lastTime = performance.now()
   }
 
-  private _clearApproachControls(): void {
+  private _clearApproachControls (): void {
     this.bot.setControlState('forward', false)
     this.bot.setControlState('back', false)
     this.bot.setControlState('left', false)
@@ -958,31 +943,31 @@ export class ParkourForwardExecutor extends MovementExecutor {
     this.bot.setControlState('sneak', false)
   }
 
-  private _startJumpExecution(target: Vec3): void {
+  private _startJumpExecution (target: Vec3): void {
     this.lockedYaw = this._desiredYawTo(target)
     this.executing = true
     this._applySmartControls(target, true)
   }
 
-  protected _desiredYawTo(target: Vec3): number {
+  protected _desiredYawTo (target: Vec3): number {
     const dx = target.x - this.bot.entity.position.x
     const dz = target.z - this.bot.entity.position.z
     return Math.atan2(-dx, -dz)
   }
 
-  protected _yawDeltaAbs(targetYaw: number): number {
+  protected _yawDeltaAbs (targetYaw: number): number {
     let delta = targetYaw - this.bot.entity.yaw
     while (delta > Math.PI) delta -= Math.PI * 2
     while (delta < -Math.PI) delta += Math.PI * 2
     return Math.abs(delta)
   }
 
-  protected _isYawAlignedForApproach(target: Vec3): boolean {
+  protected _isYawAlignedForApproach (target: Vec3): boolean {
     const wantedYaw = this._desiredYawTo(target)
     return this._yawDeltaAbs(wantedYaw) <= ParkourForwardExecutor.APPROACH_YAW_EPS
   }
 
-  private _tryApproachWhenAligned(targetEyeVec: Vec3): boolean {
+  private _tryApproachWhenAligned (targetEyeVec: Vec3): boolean {
     void this._queueLookAtSync(targetEyeVec)
 
     if (!this._isYawAlignedForApproach(targetEyeVec)) {
@@ -994,7 +979,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     return true
   }
 
-  async align(thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
+  async align (thisMove: Move, tickCount: number, goal: goals.Goal): Promise<boolean> {
     this.executing = false
     this._clearLockedYaw()
 
@@ -1071,7 +1056,7 @@ export class ParkourForwardExecutor extends MovementExecutor {
     }
   }
 
-  async performInit(thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
+  async performInit (thisMove: Move, currentIndex: number, path: Move[]): Promise<void> {
     this._clearLockedYaw()
     this._clearBackupState()
     this.backupAttempted = false
@@ -1081,10 +1066,9 @@ export class ParkourForwardExecutor extends MovementExecutor {
     void this._queueLookAtSync(targetEyeVec)
   }
 
-  performPerTick(thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
+  performPerTick (thisMove: Move, tickCount: number, currentIndex: number, path: Move[]): boolean | Promise<boolean> {
     const target = this._getTargetBlock(thisMove)
     const targetEyeVec = this._getTargetEyeVec(target)
-
 
     if (this.executing) {
       // printBotControls(this.bot, logParkour)
@@ -1163,7 +1147,7 @@ export class ParkourDiagonalExecutor extends ParkourForwardExecutor {
    * already reads `ParkourForwardExecutor.APPROACH_YAW_EPS`, so we
    * override the instance method to point at the subclass constant instead.
    */
-  protected override _isYawAlignedForApproach(target: Vec3): boolean {
+  protected override _isYawAlignedForApproach (target: Vec3): boolean {
     const wantedYaw = this._desiredYawTo(target)
     return this._yawDeltaAbs(wantedYaw) <= ParkourDiagonalExecutor.APPROACH_YAW_EPS
   }

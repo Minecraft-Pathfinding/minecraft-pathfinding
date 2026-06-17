@@ -131,7 +131,7 @@ export class JumpSim extends BaseSimulator<PlayerState> {
             // goalCorner.set(goalBlockTop.x, goalBlockTop.y, goalBlockTop.z)
             changed = true
           }
-          
+
           if (ticks > 0 && srcAABBs.every((src) => !src.intersects(playerBB)) && !jump) {
             state.control.jump = true
             jump = true

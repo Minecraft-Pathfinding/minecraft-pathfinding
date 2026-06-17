@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/restrict-template-expressions, no-unmodified-loop-condition, @typescript-eslint/no-throw-literal, @typescript-eslint/strict-boolean-expressions */
 import { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { Path } from './mineflayer-specific/algs'
@@ -7,7 +8,7 @@ import { AbortError, CancelError, ManualResetError, ResetError } from './minefla
 import type {
   BuildableMoveProvider,
   ExecutorMap,
-  MovementExecutor,
+  MovementExecutor
 } from './mineflayer-specific/movements'
 import type { OptimizationMap } from './mineflayer-specific/post'
 import { Optimizer } from './mineflayer-specific/post'
@@ -28,18 +29,18 @@ export interface ExecutionMappings {
 }
 
 export interface PathfinderExecutionHost {
-  getBot(): Bot
-  getWorld(): World
-  getActiveMappings(): ExecutionMappings
-  cleanupBot(): Promise<void>
-  getPathFromToRaw(startPos: Vec3, startVel: Vec3, goal: goals.Goal): Promise<Path | null>
+  getBot: () => Bot
+  getWorld: () => World
+  getActiveMappings: () => ExecutionMappings
+  cleanupBot: () => Promise<void>
+  getPathFromToRaw: (startPos: Vec3, startVel: Vec3, goal: goals.Goal) => Promise<Path | null>
 }
 
 type RunnerStage = 'idle' | 'align' | 'optimize' | 'init' | 'perform'
 
 const MAX_TASK_TIME_MS = 40
 
-function isNodeRuntime(): boolean {
+function isNodeRuntime (): boolean {
   return typeof process !== 'undefined' && process.versions?.bun == null
 }
 
@@ -51,58 +52,58 @@ export class PathExecutor {
   private currentExecutor?: MovementExecutor
   private resetReason?: ResetReason
 
-  public constructor(private readonly bot: Bot, private readonly host: ThePathfinder) { }
+  public constructor (private readonly bot: Bot, private readonly host: ThePathfinder) { }
 
-  public bumpExecutionId(): number {
+  public bumpExecutionId (): number {
     this.currentExecutionId++
     return this.currentExecutionId
   }
 
-  public getCurrentExecutionId(): number {
+  public getCurrentExecutionId (): number {
     return this.currentExecutionId
   }
 
-  public getCurrentIndex(): number {
+  public getCurrentIndex (): number {
     return this.currentIndex
   }
 
-  public setCurrentIndex(index: number): void {
+  public setCurrentIndex (index: number): void {
     this.currentIndex = index
   }
 
-  public getCurrentPath(): Move[] | undefined {
+  public getCurrentPath (): Move[] | undefined {
     return this.currentPath
   }
 
-  public setCurrentPath(path?: Move[]): void {
+  public setCurrentPath (path?: Move[]): void {
     this.currentPath = path
   }
 
-  public getCurrentMove(): Move | undefined {
+  public getCurrentMove (): Move | undefined {
     return this.currentMove
   }
 
-  public setCurrentMove(move?: Move): void {
+  public setCurrentMove (move?: Move): void {
     this.currentMove = move
   }
 
-  public getCurrentExecutor(): MovementExecutor | undefined {
+  public getCurrentExecutor (): MovementExecutor | undefined {
     return this.currentExecutor
   }
 
-  public setCurrentExecutor(executor?: MovementExecutor): void {
+  public setCurrentExecutor (executor?: MovementExecutor): void {
     this.currentExecutor = executor
   }
 
-  public getResetReason(): ResetReason | undefined {
+  public getResetReason (): ResetReason | undefined {
     return this.resetReason
   }
 
-  public setResetReason(reason?: ResetReason): void {
+  public setResetReason (reason?: ResetReason): void {
     this.resetReason = reason
   }
 
-  public clearResetReason(): void {
+  public clearResetReason (): void {
     delete this.resetReason
   }
 
@@ -158,7 +159,7 @@ export class PathExecutor {
     return value as T
   }
 
-  private findNextCurrentIdx(move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number): number {
+  private findNextCurrentIdx (move: Move, localPath: Move[], currentIndex: number, adding?: boolean | number): number {
     const endIdx = localPath.findIndex(
       (m, i) => i >= currentIndex && m.exitPos.distanceTo(move.exitPos) < 0.1
     )
@@ -172,14 +173,14 @@ export class PathExecutor {
     return currentIndex
   }
 
-  public async perform(path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+  public async perform (path: Path, goal: goals.Goal, entry = 0): Promise<void> {
     const MAX_RECOVERY_DEPTH = 0
 
     if (entry > MAX_RECOVERY_DEPTH) {
       throw new Error('Too many failures, exiting performing.')
     }
 
-    const bot = this.bot;
+    const bot = this.bot
     const myExecutionId = this.bumpExecutionId()
     const localPath = path.path
     let currentIndex = 0
@@ -203,7 +204,6 @@ export class PathExecutor {
 
     let nonNodeDrainInFlight = false
 
-
     const completion = new Promise<void>((resolve, reject) => {
       resolveCompletion = resolve
       rejectCompletion = reject
@@ -218,7 +218,7 @@ export class PathExecutor {
       settled = true
       bot.off('physicsTickBegin', moveListener)
       if (this.getCurrentExecutionId() === myExecutionId) {
-        await this.timeAsync('finish cleanup', () => this.host.cleanupBot())
+        await this.timeAsync('finish cleanup', async () => await this.host.cleanupBot())
       }
       resolveCompletion()
     }
@@ -245,7 +245,6 @@ export class PathExecutor {
     }
 
     const handleExecutionError = async (err: unknown): Promise<void> => {
-
       log(`Error: ${err}`)
 
       if (err instanceof AbortError) {
@@ -296,7 +295,7 @@ export class PathExecutor {
       const optimizer = new Optimizer(bot, this.host.world, optimizers)
       optimizer.loadPath(localPath.slice(currentIndex))
 
-      pendingOptimize = this.timeAsync('optimizer.compute', () => optimizer.compute()).then(
+      pendingOptimize = this.timeAsync('optimizer.compute', async () => await optimizer.compute()).then(
         (result) => {
           if (settled) return
           if (this.getCurrentExecutionId() !== myExecutionId) return
@@ -336,8 +335,6 @@ export class PathExecutor {
           throw new Error('No executor for movement type ' + move.moveType.constructor.name)
         }
 
-
-
         this.setCurrentMove(move)
         this.setCurrentExecutor(executor)
         this.setCurrentIndex(currentIndex)
@@ -346,7 +343,7 @@ export class PathExecutor {
         log(`[ExecID %d] Entering movement ${move.moveType.constructor.name}. Idx: ${this.getCurrentIndex()}, start: ${move.entryPos}, end: ${move.exitPos}`, myExecutionId)
         tickCount = 0
 
-        await this.timeAsync('prepare cleanup', () => this.host.cleanupBot())
+        await this.timeAsync('prepare cleanup', async () => await this.host.cleanupBot())
         executor.loadMove(move)
 
         if (executor.isAlreadyCompleted(move, tickCount, goal)) {
@@ -405,7 +402,7 @@ export class PathExecutor {
 
             const aligned = await this.timeAsync(
               `align ${move.moveType.constructor.name}`,
-              () => executor.align(move, tickCount, goal)
+              async () => await executor.align(move, tickCount, goal)
             )
             tickCount++
 
@@ -413,7 +410,7 @@ export class PathExecutor {
               runnerStage = 'init'
               pendingInit = this.timeAsync(
                 `performInit ${move.moveType.constructor.name}`,
-                () => executor._performInit(move, currentIndex, localPath)
+                async () => await executor._performInit(move, currentIndex, localPath)
               )
               pendingInit.then(
                 () => {
@@ -445,7 +442,7 @@ export class PathExecutor {
 
             const adding = await this.timeAsync(
               `performPerTick ${move.moveType.constructor.name}`,
-              () => executor._performPerTick(move, tickCount, currentIndex, localPath)
+              async () => await executor._performPerTick(move, tickCount, currentIndex, localPath)
             )
             tickCount++
 
@@ -463,7 +460,6 @@ export class PathExecutor {
           }
         }
       } catch (err) {
-
         log(`Error: ${err}`)
         if (err instanceof AbortError) {
           executorSafeReset(this.getCurrentExecutor())
@@ -507,7 +503,7 @@ export class PathExecutor {
       }
     }
 
-    let tickInFlight = false
+    const tickInFlight = false
 
     const moveListener = (): void => {
       if (settled || tickInFlight || recoveryInFlight) return
@@ -548,8 +544,8 @@ export class PathExecutor {
     }
   }
 
-  public async recovery(move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
-    const bot = this.bot;
+  public async recovery (move: Move, path: Path, goal: goals.Goal, entry = 0): Promise<void> {
+    const bot = this.bot
     log(`recovery ${entry} for ${move.moveType.constructor.name}`)
 
     while (!bot.entity.onGround && !(bot.entity as any).isInWater) {
@@ -557,7 +553,7 @@ export class PathExecutor {
     }
 
     bot.emit('enteredRecovery', entry)
-    await this.timeAsync('recovery cleanup', () => this.host.cleanupBot())
+    await this.timeAsync('recovery cleanup', async () => await this.host.cleanupBot())
 
     const ind = path.path.findIndex((m) => m.entryPos.distanceTo(move.entryPos) < 0.1)
     if (ind === -1) {
@@ -585,7 +581,7 @@ export class PathExecutor {
 
     const path1 = await this.timeAsync(
       'recovery pathfinding',
-      () => this.host.getPathFromToRaw(bot.entity.position, EMPTY_VEC, newGoal)
+      async () => await this.host.getPathFromToRaw(bot.entity.position, EMPTY_VEC, newGoal)
     )
 
     if (path1 === null) {
@@ -608,7 +604,7 @@ export class PathExecutor {
     }
   }
 
-  private check(): void {
+  private check (): void {
     const resetReason = this.getResetReason()
     if (resetReason != null) {
       throw new ResetError(resetReason)

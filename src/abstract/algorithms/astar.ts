@@ -20,7 +20,7 @@ export class AStar<Data extends PathData, MProvider extends MovementProvider<Dat
   bestNode: PathNode<Data>
   maxCost: number
 
-  checkInterval =  4// 1 << 5 - 1
+  checkInterval = 4// 1 << 5 - 1
   nodeConsiderCount = 0
 
   constructor (

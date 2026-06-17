@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import { Move } from '../move'
 import { Algorithm, Path } from '../../abstract'
 import type { ReplacementMap } from '.'

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-var-requires */
 import { Bot } from 'mineflayer'
 import { PathProducer, AStar, AStarNeighbor } from '../../mineflayer-specific/algs'
 import * as goals from '../goals'
@@ -139,16 +140,16 @@ export class PartialPathProducer implements PathProducer {
 
       const time1 = performance.now() - this.lastStartTime
       const totalTime = performance.now() - this.startTime
-      
+
       log('Partial Path cost increased by %d to %d. Target Vec: %O', cost, this.latestCost, this.latestMove?.vec)
-      log('ITERATION METRICS | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)', 
-          time1.toFixed(2), nodecount, Math.round((nodecount / time1) * 1000), 
-          seensize, Math.round((seensize / time1) * 1000), 
-          movecount, Math.round((movecount / time1) * 1000))
-      log('TOTAL METRICS     | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)', 
-          totalTime.toFixed(2), this.consideredNodeCount, Math.round((this.consideredNodeCount / totalTime) * 1000), 
-          this.latestClosedNodeCount, Math.round((this.latestClosedNodeCount / totalTime) * 1000), 
-          this.latestMoveCount, Math.round((this.latestMoveCount / totalTime) * 1000))
+      log('ITERATION METRICS | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)',
+        time1.toFixed(2), nodecount, Math.round((nodecount / time1) * 1000),
+        seensize, Math.round((seensize / time1) * 1000),
+        movecount, Math.round((movecount / time1) * 1000))
+      log('TOTAL METRICS     | Time: %dms | Nodes: %d (%d n/s) | Seen: %d (%d s/s) | Moves: %d (%d m/s)',
+        totalTime.toFixed(2), this.consideredNodeCount, Math.round((this.consideredNodeCount / totalTime) * 1000),
+        this.latestClosedNodeCount, Math.round((this.latestClosedNodeCount / totalTime) * 1000),
+        this.latestMoveCount, Math.round((this.latestMoveCount / totalTime) * 1000))
 
       this.lastStartTime = performance.now()
     } else {

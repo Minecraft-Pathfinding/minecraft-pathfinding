@@ -1,14 +1,14 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/explicit-function-return-type, @typescript-eslint/restrict-template-expressions */
 // blockEvents.ts
-const createDebug = require('debug')
 import type { Bot } from 'mineflayer'
 import type { Block } from 'prismarine-block'
 import type { Vec3 } from 'vec3'
-
+const createDebug = require('debug')
 
 export type BlockUpdateListener = (oldBlock: Block | null, newBlock: Block | null) => void
 
 export type BlockPositionString = `(${number}, ${number}, ${number})`
-export type BlockPositionEventName = `blockUpdate:(x, y, z)`
+export type BlockPositionEventName = 'blockUpdate:(x, y, z)'
 export type BlockEventName = 'blockUpdate' | BlockPositionEventName
 
 type BlockEventListenerMap = {
@@ -17,17 +17,17 @@ type BlockEventListenerMap = {
   [K in BlockPositionEventName]: BlockUpdateListener
 }
 
-const debugIt = false;
+const debugIt = false
 const listenerCounts = new WeakMap<Bot, Map<BlockEventName, number>>()
 
-function debug(...args: any[]) {
+function debug (...args: any[]) {
   const log = createDebug('minecraft-pathfinding:block-events')
   if (debugIt) {
     log(...args)
   }
 }
 
-function getTrackedListenerCounts(bot: Bot): Map<BlockEventName, number> {
+function getTrackedListenerCounts (bot: Bot): Map<BlockEventName, number> {
   let counts = listenerCounts.get(bot)
   if (counts == null) {
     counts = new Map<BlockEventName, number>()
@@ -36,18 +36,18 @@ function getTrackedListenerCounts(bot: Bot): Map<BlockEventName, number> {
   return counts
 }
 
-function changeTrackedListenerCount(bot: Bot, eventName: BlockEventName, delta: number): number {
+function changeTrackedListenerCount (bot: Bot, eventName: BlockEventName, delta: number): number {
   const counts = getTrackedListenerCounts(bot)
   const next = Math.max(0, (counts.get(eventName) ?? 0) + delta)
   counts.set(eventName, next)
   return next
 }
 
-export function getBlockEventListenerCount(bot: Bot, eventName: BlockEventName): number {
+export function getBlockEventListenerCount (bot: Bot, eventName: BlockEventName): number {
   return getTrackedListenerCounts(bot).get(eventName) ?? 0
 }
 
-export function getTotalBlockEventListenerCount(bot: Bot): number {
+export function getTotalBlockEventListenerCount (bot: Bot): number {
   let total = 0
   for (const count of getTrackedListenerCounts(bot).values()) {
     total += count
@@ -55,11 +55,11 @@ export function getTotalBlockEventListenerCount(bot: Bot): number {
   return total
 }
 
-export function toBlockPositionEventName(position: Vec3): BlockPositionEventName {
+export function toBlockPositionEventName (position: Vec3): BlockPositionEventName {
   return `blockUpdate:${position.toString()}` as BlockPositionEventName
 }
 
-export function onBlockEvent<K extends BlockEventName>(
+export function onBlockEvent<K extends BlockEventName> (
   bot: Bot,
   eventName: K,
   listener: BlockEventListenerMap[K]
@@ -75,7 +75,7 @@ export function onBlockEvent<K extends BlockEventName>(
   }
 }
 
-export function onceBlockEvent<K extends BlockEventName>(
+export function onceBlockEvent<K extends BlockEventName> (
   bot: Bot,
   eventName: K,
   listener: BlockEventListenerMap[K]
@@ -97,7 +97,7 @@ export function onceBlockEvent<K extends BlockEventName>(
   debug('active listeners %s=%d total=%d', eventName, active, getTotalBlockEventListenerCount(bot))
 }
 
-export function offBlockEvent<K extends BlockEventName>(
+export function offBlockEvent<K extends BlockEventName> (
   bot: Bot,
   eventName: K,
   listener: BlockEventListenerMap[K]
@@ -108,7 +108,7 @@ export function offBlockEvent<K extends BlockEventName>(
   debug('active listeners %s=%d total=%d', eventName, active, getTotalBlockEventListenerCount(bot))
 }
 
-export function handleBlockEvent<K extends BlockEventName>(
+export function handleBlockEvent<K extends BlockEventName> (
   bot: Bot,
   eventName: K,
   listener: BlockEventListenerMap[K]
@@ -117,7 +117,7 @@ export function handleBlockEvent<K extends BlockEventName>(
   return () => offBlockEvent(bot, eventName, listener)
 }
 
-export function handleBlockPositionEvent(
+export function handleBlockPositionEvent (
   bot: Bot,
   position: Vec3,
   listener: BlockUpdateListener
@@ -130,19 +130,19 @@ export interface WaitForBlockEventOptions {
   signal?: AbortSignal
 }
 
-export function waitForBlockEvent<K extends BlockEventName>(
+export async function waitForBlockEvent<K extends BlockEventName> (
   bot: Bot,
   eventName: K,
   opts: WaitForBlockEventOptions = {}
 ): Promise<Parameters<BlockEventListenerMap[K]>> {
   const { timeoutMs = 5000, signal } = opts
 
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     let finished = false
     let timeout: NodeJS.Timeout | undefined
 
     const cleanup = () => {
-      if (timeout) clearTimeout(timeout)
+      if (timeout != null) clearTimeout(timeout)
       offBlockEvent(bot, eventName, listener)
       signal?.removeEventListener('abort', onAbort)
     }
@@ -179,7 +179,7 @@ export function waitForBlockEvent<K extends BlockEventName>(
       }, timeoutMs)
     }
 
-    if (signal) {
+    if (signal != null) {
       if (signal.aborted) {
         fail(new Error(`Aborted while waiting for ${eventName}`))
         return
@@ -213,7 +213,7 @@ export type SettledBlockUpdateListener = (
   settledBlock: Block | null
 ) => void | Promise<void>
 
-type PositionSettleController<TResult> = {
+interface PositionSettleController<TResult> {
   resolve: (value: TResult) => void
   reject: (err: Error) => void
   finishGuard: () => boolean
@@ -223,7 +223,7 @@ type PositionSettleController<TResult> = {
   bot: Bot
 }
 
-function waitForPositionSettle<TResult>(
+async function waitForPositionSettle<TResult> (
   bot: Bot,
   position: Vec3,
   opts: {
@@ -245,7 +245,7 @@ function waitForPositionSettle<TResult>(
   const settleMs = opts.settleMs ?? 75
   const signal = opts.signal
 
-  return new Promise<TResult>((resolve, reject) => {
+  return await new Promise<TResult>((resolve, reject) => {
     let finished = false
     let timeoutTimer: NodeJS.Timeout | undefined
     let settleTimer: NodeJS.Timeout | undefined
@@ -267,7 +267,7 @@ function waitForPositionSettle<TResult>(
     }
 
     const armSettleTimer = (fn: () => void) => {
-      if (settleTimer) clearTimeout(settleTimer)
+      if (settleTimer != null) clearTimeout(settleTimer)
       settleTimer = setTimeout(() => {
         if (finished) return
         fn()
@@ -275,7 +275,7 @@ function waitForPositionSettle<TResult>(
     }
 
     const cancelSettleTimer = () => {
-      if (settleTimer) {
+      if (settleTimer != null) {
         clearTimeout(settleTimer)
         settleTimer = undefined
       }
@@ -310,12 +310,12 @@ function waitForPositionSettle<TResult>(
       fail(new Error(`Aborted while waiting for ${eventName}`))
     }
 
-  const cleanup = () => {
-    if (timeoutTimer) clearTimeout(timeoutTimer)
-    cancelSettleTimer()
-    offBlockEvent(bot, 'blockUpdate', onUpdate)
-    signal?.removeEventListener('abort', onAbort)
-  }
+    const cleanup = () => {
+      if (timeoutTimer != null) clearTimeout(timeoutTimer)
+      cancelSettleTimer()
+      offBlockEvent(bot, 'blockUpdate', onUpdate)
+      signal?.removeEventListener('abort', onAbort)
+    }
 
     onBlockEvent(bot, 'blockUpdate', onUpdate)
 
@@ -329,7 +329,7 @@ function waitForPositionSettle<TResult>(
       }, timeoutMs)
     }
 
-    if (signal) {
+    if (signal != null) {
       if (signal.aborted) {
         fail(new Error(`Aborted while waiting for ${eventName}`))
         return
@@ -338,7 +338,7 @@ function waitForPositionSettle<TResult>(
     }
   })
 }
-export async function waitForSettledBlockPredicate(
+export async function waitForSettledBlockPredicate (
   bot: Bot,
   position: Vec3,
   predicate: (block: Block | null) => boolean,
@@ -354,7 +354,7 @@ export async function waitForSettledBlockPredicate(
 
       const cancel = () => {
         const settleTimer = (controller as any).settleTimer as NodeJS.Timeout | undefined
-        if (settleTimer) {
+        if (settleTimer != null) {
           clearTimeout(settleTimer)
           ;(controller as any).settleTimer = undefined
         }
@@ -390,7 +390,7 @@ export async function waitForSettledBlockPredicate(
   })
 }
 
-export async function waitForSettledBlockStateAtPosition(
+export async function waitForSettledBlockStateAtPosition (
   bot: Bot,
   position: Vec3,
   predicate: (block: Block | null) => boolean,
@@ -404,7 +404,7 @@ export async function waitForSettledBlockStateAtPosition(
     createListener: (controller) => {
       const cancel = () => {
         const settleTimer = (controller as any).settleTimer as NodeJS.Timeout | undefined
-        if (settleTimer) {
+        if (settleTimer != null) {
           clearTimeout(settleTimer)
           ;(controller as any).settleTimer = undefined
         }
@@ -445,7 +445,7 @@ export async function waitForSettledBlockStateAtPosition(
   })
 }
 
-export async function waitForSettledBlockUpdateAtPosition(
+export async function waitForSettledBlockUpdateAtPosition (
   bot: Bot,
   position: Vec3,
   opts: WaitForSettledBlockUpdateOptions = {}
@@ -478,7 +478,7 @@ export async function waitForSettledBlockUpdateAtPosition(
  * - Deduplicates concurrent checks per position
  * - Reads the final block from the world before invoking the listener
  */
-export function handleSettledBlockEvent(
+export function handleSettledBlockEvent (
   bot: Bot,
   listener: SettledBlockUpdateListener,
   opts: HandleSettledBlockEventOptions = {}

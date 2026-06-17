@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-var-requires, @typescript-eslint/restrict-template-expressions, @typescript-eslint/strict-boolean-expressions */
 import { Bot, BotEvents } from 'mineflayer'
 import { Vec3 } from 'vec3'
 
@@ -20,7 +21,6 @@ const logPlace = debug('minecraft-pathfinding:PlaceHandler')
 const logBreak = debug('minecraft-pathfinding:BreakHandler')
 
 export type InteractType = 'water' | 'solid' | 'replaceable'
-
 
 interface InteractionPerformInfo {
   ticks: number
@@ -55,23 +55,23 @@ export abstract class InteractHandler {
 
   protected readonly move!: MovementExecutor
 
-  protected get settings(): MovementOptions {
+  protected get settings (): MovementOptions {
     return this.move.settings
   }
 
-  public get vec(): Vec3 {
+  public get vec (): Vec3 {
     return new Vec3(this.x, this.y, this.z)
   }
 
-  public get bb(): AABB {
+  public get bb (): AABB {
     return AABB.fromBlock(this.vec)
   }
 
-  public get equipping(): boolean {
+  public get equipping (): boolean {
     return this._equipping
   }
 
-  constructor(
+  constructor (
     public readonly x: number,
     public readonly y: number,
     public readonly z: number,
@@ -81,32 +81,32 @@ export abstract class InteractHandler {
     this.blockInfo = this.toBlockInfo()
   }
 
-  public get isPerforming(): boolean {
+  public get isPerforming (): boolean {
     return this.performing
   }
 
-  public get done(): boolean {
+  public get done (): boolean {
     return this._done
   }
 
-  public get allowExit(): boolean {
+  public get allowExit (): boolean {
     return !this._internalLock
   }
 
-  public loadMove(move: MovementExecutor): void {
+  public loadMove (move: MovementExecutor): void {
     (this as any).move = move
   }
 
-  abstract needToPerform(bot: Bot): boolean
+  abstract needToPerform (bot: Bot): boolean
 
-  abstract getItem(bot: Bot, block?: Block): Item | null
-  abstract perform(bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>
-  abstract performInfo(bot: Bot, ticks?: number): Promise<InteractionPerformInfo>
-  abstract toBlockInfo(): BlockInfo
+  abstract getItem (bot: Bot, block?: Block): Item | null
+  abstract perform (bot: Bot, item: Item | null, opts?: InteractOpts): Promise<void>
+  abstract performInfo (bot: Bot, ticks?: number): Promise<InteractionPerformInfo>
+  abstract toBlockInfo (): BlockInfo
 
-  abstract abort(bot: Bot): Promise<void>
+  abstract abort (bot: Bot): Promise<void>
 
-  public async _abort(bot: Bot): Promise<void> {
+  public async _abort (bot: Bot): Promise<void> {
     if (this.performing && !this.cancelled) {
       logBase(`Aborting interaction at ${this.vec}`)
       await this.abort(bot)
@@ -115,7 +115,7 @@ export abstract class InteractHandler {
     }
   }
 
-  public async _perform(bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
+  public async _perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
     if (this.performing) {
       logBase(`Error: Already performing interaction at ${this.vec}`)
       throw new Error('Already performing')
@@ -143,14 +143,14 @@ export abstract class InteractHandler {
     return ret
   }
 
-  getCurrentItem(bot: Bot): Item | null {
+  getCurrentItem (bot: Bot): Item | null {
     if (this.offhand) return bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]
     return bot.inventory.slots[bot.getEquipmentDestSlot('hand')]
   }
 
-  async equipItem(bot: Bot, item: Item | null): Promise<void> {
+  async equipItem (bot: Bot, item: Item | null): Promise<void> {
     if (this._equipping) return // already equipping item, ignore silently.
-    this._equipping = true;
+    this._equipping = true
     if (item === null) {
       logBase(`Unequipping ${this.offhand ? 'off-hand' : 'hand'}`)
       await bot.unequip(this.offhand ? 'off-hand' : 'hand')
@@ -163,10 +163,10 @@ export abstract class InteractHandler {
     }
     bot.updateHeldItem()
     // await bot.waitForTicks(2)
-    this._equipping = false;
+    this._equipping = false
   }
 
-  async allowExternalInfluence(bot: Bot, ticks = 1, sneak = false): Promise<boolean> {
+  async allowExternalInfluence (bot: Bot, ticks = 1, sneak = false): Promise<boolean> {
     if (!this.performing) return true
     if (!this._internalLock) return true
 
@@ -192,16 +192,16 @@ export class PlaceHandler extends InteractHandler {
   static reach = 4
   private _placeTask?: Promise<void>
 
-  static fromVec(vec: Vec3, type: InteractType, offhand = false): PlaceHandler {
+  static fromVec (vec: Vec3, type: InteractType, offhand = false): PlaceHandler {
     return new PlaceHandler(vec.x, vec.y, vec.z, type, offhand)
   }
 
-  static identTypeFromItem(item: Item): InteractType {
+  static identTypeFromItem (item: Item): InteractType {
     if (item.name.includes('water')) return 'water'
     return 'solid'
   }
 
-  toBlockInfo(): BlockInfo {
+  toBlockInfo (): BlockInfo {
     switch (this.type) {
       case 'solid':
         return BlockInfo.SOLID(this.vec)
@@ -214,7 +214,7 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  getItem(bot: Bot): Item | null {
+  getItem (bot: Bot): Item | null {
     switch (this.type) {
       case 'water': {
         return bot.inventory.items().find((item) => item.name === 'water_bucket') ?? null
@@ -230,7 +230,7 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  getNearbyBlocks(world: World): BlockInfo[] {
+  getNearbyBlocks (world: World): BlockInfo[] {
     return [
       world.getBlockInfo(this.vec.offset(0, 1, 0)),
       world.getBlockInfo(this.vec.offset(0, -1, 0)),
@@ -241,7 +241,7 @@ export class PlaceHandler extends InteractHandler {
     ]
   }
 
-  needToPerform(bot: Bot): boolean {
+  needToPerform (bot: Bot): boolean {
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
     if (blockInfo.isInvalid) {
       logPlace(`Block at ${this.vec} is invalid. needsToPerform: true`)
@@ -268,7 +268,7 @@ export class PlaceHandler extends InteractHandler {
     return needs
   }
 
-  async performInfo(bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
+  async performInfo (bot: Bot, ticks = 15, scale = 0.5): Promise<InteractionPerformInfo> {
     switch (this.type) {
       case 'water': {
         throw new Error('Not implemented')
@@ -358,7 +358,7 @@ export class PlaceHandler extends InteractHandler {
     }
   }
 
-  async perform(bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
+  async perform (bot: Bot, item: Item | null, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
 
     if (item === null) {
@@ -376,7 +376,7 @@ export class PlaceHandler extends InteractHandler {
         logPlace(`Looking at ${this.vec} to place water.`)
         await bot.lookAt(this.vec, this.settings.forceLook)
         bot.activateItem(this.offhand)
-        logPlace(`Water placed.`)
+        logPlace('Water placed.')
         break
       }
 
@@ -427,10 +427,9 @@ export class PlaceHandler extends InteractHandler {
             PlaceHandler.reach * 2
           )) as unknown as RayType
 
-
           if (testCheck === null) {
             logPlace('what the fuck?')
-            break;
+            break
           }
 
           const pos1 = testCheck.position.plus(faceToVec(testCheck.face))
@@ -475,10 +474,10 @@ export class PlaceHandler extends InteractHandler {
         this._internalLock = false
 
         if (opts.noAwait) {
-          this._placeTask.catch((err) => logPlace(`Background place task failed: %O`, err))
+          this._placeTask.catch((err) => logPlace('Background place task failed: %O', err))
         } else {
           await this._placeTask
-          logPlace(`_placeTask resolved.`)
+          logPlace('_placeTask resolved.')
         }
 
         this.task?.finish()
@@ -502,7 +501,7 @@ export class PlaceHandler extends InteractHandler {
     logPlace(`Completed perform sequence at ${this.vec}`)
   }
 
-  async abort(bot: Bot): Promise<void> {
+  async abort (bot: Bot): Promise<void> {
     logPlace(`Aborting placement at ${this.vec}`)
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
@@ -511,7 +510,7 @@ export class PlaceHandler extends InteractHandler {
 
     if (this._placeTask != null) {
       await this._placeTask.catch((err) => {
-        logPlace(`Caught error during _placeTask abort: %O`, err)
+        logPlace('Caught error during _placeTask abort: %O', err)
       })
     }
   }
@@ -521,19 +520,19 @@ export class BreakHandler extends InteractHandler {
   static reach = 4
   private _breakTask?: Promise<void>
 
-  static fromVec(vec: Vec3, type: InteractType, offhand = false): BreakHandler {
+  static fromVec (vec: Vec3, type: InteractType, offhand = false): BreakHandler {
     return new BreakHandler(vec.x, vec.y, vec.z, type, offhand)
   }
 
-  toBlockInfo(): BlockInfo {
+  toBlockInfo (): BlockInfo {
     return BlockInfo.AIR(this.vec)
   }
 
-  getBlock(world: World): Block | null {
+  getBlock (world: World): Block | null {
     return world.getBlock(this.vec)
   }
 
-  getItem(bot: Bot, block: Block): Item | null {
+  getItem (bot: Bot, block: Block): Item | null {
     switch (this.type) {
       case 'water': {
         return bot.inventory.items().find((item) => item.name === 'bucket') ?? null // empty bucket
@@ -550,7 +549,7 @@ export class BreakHandler extends InteractHandler {
     }
   }
 
-  needToPerform(bot: Bot): boolean {
+  needToPerform (bot: Bot): boolean {
     const blockInfo = bot.pathfinder.world.getBlockInfo(this.vec)
 
     if (blockInfo.isInvalid) {
@@ -563,7 +562,7 @@ export class BreakHandler extends InteractHandler {
     return needs
   }
 
-  async performInfo(bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {
+  async performInfo (bot: Bot, ticks = 15): Promise<InteractionPerformInfo> {
     const bb = AABB.fromBlock(this.vec)
     const dist = bb.distanceToVec(bot.entity.position.offset(0, 1.62, 0))
     const reachable = dist < BreakHandler.reach + 5
@@ -575,7 +574,7 @@ export class BreakHandler extends InteractHandler {
       : { ticks: Infinity, tickAllowance: Infinity, shiftTick: Infinity, raycasts: [] }
   }
 
-  async perform(bot: Bot, item: Item | null = null, opts: InteractOpts = {}): Promise<void> {
+  async perform (bot: Bot, item: Item | null = null, opts: InteractOpts = {}): Promise<void> {
     const curInfo = { yaw: bot.entity.yaw, pitch: bot.entity.pitch }
     logBreak(`Starting break sequence at ${this.vec}`)
 
@@ -588,7 +587,7 @@ export class BreakHandler extends InteractHandler {
         logBreak(`Looking at ${this.vec} to collect water.`)
         await bot.lookAt(this.vec, this.settings.forceLook)
         bot.activateItem(this.offhand)
-        logBreak(`Water collected.`)
+        logBreak('Water collected.')
         break
       }
 
@@ -611,8 +610,7 @@ export class BreakHandler extends InteractHandler {
         logBreak(`Calling bot.dig on ${block.name}`)
         this._breakTask = bot.dig(block, 'ignore', 'raycast')
 
-
-        logBreak(`Dig task resolved. Now waiting for world update.`)
+        logBreak('Dig task resolved. Now waiting for world update.')
 
         await waitForSettledBlockStateAtPosition(
           bot,
@@ -647,7 +645,7 @@ export class BreakHandler extends InteractHandler {
     logBreak(`Completed break sequence at ${this.vec}`)
   }
 
-  async abort(bot: Bot): Promise<void> {
+  async abort (bot: Bot): Promise<void> {
     logBreak(`Aborting break at ${this.vec}`)
     if ((this.task != null) && !this.task.done) {
       this.task.finish()
@@ -660,7 +658,7 @@ export class BreakHandler extends InteractHandler {
           break
         }
         case 'solid': {
-          logBreak(`Calling bot.stopDigging()`)
+          logBreak('Calling bot.stopDigging()')
           bot.stopDigging()
           break
         }
@@ -669,7 +667,7 @@ export class BreakHandler extends InteractHandler {
         }
       }
       await this._breakTask.catch((err) => {
-        logBreak(`Caught error during _breakTask abort: %O`, err)
+        logBreak('Caught error during _breakTask abort: %O', err)
       })
     }
   }

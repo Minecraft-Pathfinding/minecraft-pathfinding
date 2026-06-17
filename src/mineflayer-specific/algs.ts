@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Goal, MovementProvider as AMovementProvider, Path as APath } from '../abstract'
 import { AStarBackOff as AAStarBackOff } from '../abstract/algorithms/astar'
 import { CPathNode } from '../abstract/node'
@@ -10,7 +11,6 @@ import { PathNode } from './node'
 export interface Path<T extends AStar = AStar> extends APath<Move, MovementHandler, T> {
   movementProvider: MovementHandler
 }
-
 
 export interface PathProducer {
   // constructor(start: Data, goal: goals.Goal, settings: Settings): PathProducer

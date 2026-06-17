@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/restrict-template-expressions */
 import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-util'
 import { Vec3 } from 'vec3'
 import { Move } from '../move'
@@ -85,7 +86,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
     log(`[LandStraightAhead] Optimizing from index ${startIndex} (${thisMove.moveType.constructor.name})`)
 
     if (nextMove === undefined) {
-      log(`[LandStraightAhead] nextMove is undefined, aborting.`)
+      log('[LandStraightAhead] nextMove is undefined, aborting.')
       return --currentIndex
     }
 
@@ -115,20 +116,20 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         log(`[LandStraightAhead] Index ${currentIndex}: nextMove became undefined.`)
         return --currentIndex
       }
-      
+
       for (const vert of verts) {
         const offset = vert.minus(orgPos)
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
-        
+
         const raycast0 = this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
           dist,
           (block) => (!BlockInfo.replaceables.has(block.type) || BlockInfo.liquids.has(block.type) || BlockInfo.blocksToAvoid.has(block.type)) && block.shapes.length > 0
         ) as unknown as RayType | null
-        
+
         const valid0 = (raycast0 == null) || raycast0.position.distanceTo(orgPos) > dist
 
         if (!valid0) {
@@ -143,7 +144,7 @@ export class LandStraightAheadOpt extends MovementOptimizer {
         const test1 = nextMove.exitPos.offset(0, orgY - nextMove.exitPos.y, 0)
         const test = test1.plus(offset)
         const dist = nextMove.exitPos.distanceTo(orgPos)
-        
+
         const raycast0 = (await this.bot.world.raycast(
           vert,
           test.minus(vert).normalize(),
@@ -172,13 +173,13 @@ export class LandStraightAheadOpt extends MovementOptimizer {
       }
 
       if (++currentIndex >= path.length) {
-        log(`[LandStraightAhead] Reached end of path.`)
+        log('[LandStraightAhead] Reached end of path.')
         return --currentIndex
       }
       lastMove = nextMove
       nextMove = path[currentIndex]
     }
-    
+
     log(`[LandStraightAhead] Y-level changed or loop ended naturally. Returning index ${currentIndex - 1}.`)
     return --currentIndex
   }
@@ -236,13 +237,13 @@ export class DropDownOpt extends MovementOptimizer {
       const blockBB1 = AABB.fromBlockPos(nextMove.exitPos.offset(0, -1, 0))
       let flag = false
       let good = false
-      
+
       this.sim.simulateUntil(
         (state, ticks) => {
           const pBB = AABBUtils.getPlayerAABB({ position: ctx.state.pos, width: 0.6, height: 1.8 })
           const collided =
             (pBB.collides(blockBB0) && bb0solid) || (pBB.collides(blockBB1) && bb1solid && (state.onGround || state.isInWater))
-          
+
           if (collided) {
             good = true
             return true
@@ -279,8 +280,7 @@ export class DropDownOpt extends MovementOptimizer {
         if (flag0) {
           log(`[DropDownOpt] Index ${currentIndex}: Flag0 triggered. Returning.`)
           return currentIndex
-        }
-        else flag0 = true
+        } else flag0 = true
       }
 
       if (++currentIndex >= path.length) return --currentIndex
@@ -301,7 +301,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
     log(`[ForwardJumpUpOpt] Optimizing from index ${startIndex} (${lastMove.moveType.constructor.name})`)
 
     if (lastMove.toPlace.length > 0) {
-      log(`[ForwardJumpUpOpt] Initial move places a block. Aborting.`)
+      log('[ForwardJumpUpOpt] Initial move places a block. Aborting.')
       return --currentIndex
     }
 
@@ -322,7 +322,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
         log(`[ForwardJumpUpOpt] Index ${currentIndex}: AABB collision failed.`)
         return --currentIndex
       }
-      
+
       if (++currentIndex >= path.length) return --currentIndex
       lastMove = nextMove
       nextMove = path[currentIndex]
@@ -332,7 +332,7 @@ export class ForwardJumpUpOpt extends MovementOptimizer {
 
     while (
       lastMove.exitPos.y === nextMove.exitPos.y &&
-      nextMove.exitPos.distanceTo(firstPos) <= 2 && 
+      nextMove.exitPos.distanceTo(firstPos) <= 2 &&
       nextMove.toPlace.length === 0 &&
       nextMove.toBreak.length === 0
     ) {
