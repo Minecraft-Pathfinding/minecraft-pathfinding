@@ -8,19 +8,27 @@ import { BreakHandler, InteractHandler, PlaceHandler } from './interactionUtils'
 import type { InteractType } from './interactionUtils'
 import type { Block } from '../../types'
 import { Vec3Properties } from '../../types'
-import { COST_INF } from './costs'
+import { COST_INF, SPRINT_ONE_BLOCK_COST, WALK_ONE_BLOCK_COST, WALK_ONE_IN_WATER_COST } from './costs'
 import type { ExclusionArea } from './exclusionZones'
 
 export interface MovementOptions {
   allowDiagonalBridging: boolean
   allowJumpSprint: boolean
   allow1by1towers: boolean
+
+  // --- Cost knobs (all in GAME TICKS; see costs.ts) -----------------------
+  /** Extra ticks per block when moving through liquid (water is slow). */
   liquidCost: number
+  /** Multiplier on a block's real mining time. 1 = use the true dig time as-is. */
   digCost: number
-  forceLook: boolean
+  /** Extra ticks charged per jump, on top of the physical jump arc. 0 = trust the physics. */
   jumpCost: number
+  /** Ticks charged for placing a block. Placing interrupts movement, so it is deliberately costly. */
   placeCost: number
+  /** Ticks charged for killing horizontal velocity (e.g. stopping at the edge of a drop). */
   velocityKillCost: number
+
+  forceLook: boolean
   canOpenDoors: boolean
   canDig: boolean
   canPlace: boolean
@@ -65,10 +73,14 @@ export const DEFAULT_MOVEMENT_OPTS: MovementOptions = {
   maxDropDown: 3,
   infiniteLiquidDropdownDistance: true,
   allowSprinting: true,
-  liquidCost: 3,
-  placeCost: 2,
+  // Extra time water adds over walking the same block on land (~4.46 ticks).
+  liquidCost: WALK_ONE_IN_WATER_COST - WALK_ONE_BLOCK_COST,
+  // Baritone's block-placement penalty: building a block to stand on is slow.
+  placeCost: 20,
+  // Keep a block's real mining time as-is (1x). Raise to make digging look worse.
   digCost: 1,
-  jumpCost: 0.5,
+  // The jump arc already has a real tick cost (see JUMP_ONE_BLOCK_COST); add no fudge on top.
+  jumpCost: 0,
   velocityKillCost: 2, // implement at a later date.
   forceLook: true,
   careAboutLookAlignment: true,
@@ -244,6 +256,16 @@ export abstract class Movement {
     return block.physical ? 0 : COST_INF
   }
 
+  /**
+   * Ticks to travel `blocks` blocks of flat ground.
+   *
+   * The bot sprints when allowed (the fastest way to move), otherwise it walks.
+   * Pass `1` for one straight block, `Math.SQRT2` for one diagonal block, etc.
+   */
+  travelCost (blocks: number): number {
+    return blocks * (this.settings.allowSprinting ? SPRINT_ONE_BLOCK_COST : WALK_ONE_BLOCK_COST)
+  }
+
   /** Extra cost of STANDING in this block (sum of every step exclusion area; 0 if none). */
   exclusionStep (block: BlockInfo): number {
     return sumExclusionAreas(this.settings.exclusionAreasStep, block)
@@ -334,22 +356,24 @@ export abstract class Movement {
     return cost
   }
 
+  /**
+   * Ticks to break (mine) `block` with the bot's best tool.
+   *
+   * `pathingUtil.digCost` returns the real dig time in MILLISECONDS, and the
+   * game runs at 20 ticks/s (50 ms/tick), so `ms / 50` is the dig time in ticks
+   * — the same unit as every other movement cost. `digCost` (default 1) is a
+   * multiplier so callers can make mining look cheaper or dearer.
+   */
   breakCost (block: BlockInfo): number {
     if (block.block === null) return COST_INF // Don't know its type, but that's only replaceables so just return.
 
-    // const tool = this.bot.pathfinder.bestHarvestTool(block)
-
-    const digTime = this.bot.pathingUtil.digCost(block.block)
-    // const tool = null as any;
-    // const enchants = (tool && tool.nbt) ? nbt.simplify(tool.nbt).Enchantments : []
-    // const effects = this.bot.entity.effects
-    // const digTime = block.block.digTime(tool ? tool.type : null, false, false, false, enchants, effects)
-    const laborCost = (1 + 3 * digTime / 1000) * this.settings.digCost
+    const digTimeMs = this.bot.pathingUtil.digCost(block.block)
+    const miningTicks = (digTimeMs / 50) * this.settings.digCost
 
     // Add the break-exclusion penalty (0 unless the user configured "no mining" zones).
     // If the block sits inside a forbidden zone this pushes the cost past COST_INF,
     // which every caller treats as "do not break this block".
-    return laborCost + this.exclusionBreak(block)
+    return miningTicks + this.exclusionBreak(block)
   }
 
   safeOrPlace (block: BlockInfo, toPlace: PlaceHandler[], type: InteractType = 'solid'): number {

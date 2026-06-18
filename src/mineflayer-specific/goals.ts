@@ -1,6 +1,7 @@
 import { Vec3 } from 'vec3'
 import { Goal as AGoal } from '../abstract'
 import { Move } from './move'
+import { COST_HEURISTIC } from './movements/costs'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { PlaceHandler } from './movements/interactionUtils'
@@ -282,7 +283,7 @@ export class GoalBlock extends Goal {
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317) // from baritone.
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
     // return (Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))
     // return distanceXZ(dx, dz) + Math.abs(dy)
   }
@@ -291,7 +292,7 @@ export class GoalBlock extends Goal {
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    const distance = Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317) // from baritone.
+    const distance = Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
     return distance
   }
 
@@ -332,7 +333,7 @@ export class GoalNear extends Goal {
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317) // from baritone.
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
   }
 
   distHeuristic (node: Move): number {
@@ -363,7 +364,7 @@ export class GoalNearXZ extends Goal {
   heuristic (node: Move): number {
     const dx = this.x - node.x
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz) * (20 / 4.317) // from baritone.
+    return Math.sqrt(dx * dx + dz * dz) * COST_HEURISTIC
   }
 
   distHeuristic (node: Move): number {
@@ -418,7 +419,7 @@ export class GoalLookAt extends Goal {
     const dx = this.x - node.x
     const dy = this.y - (node.y + this.eyeHeight) // eye level
     const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * (20 / 4.317) // from baritone.
+    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
   }
 
   distHeuristic (node: Move): number {
@@ -559,7 +560,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
     const dy = this.y - node.y
     const dz = this.z - node.z
 
-    return Math.sqrt(dx * dx + dy * dy + dz * dz) * (20 / 4.317) // from baritone.
+    return Math.sqrt(dx * dx + dy * dy + dz * dz) * COST_HEURISTIC
   }
 
   distHeuristic (node: Move): number {

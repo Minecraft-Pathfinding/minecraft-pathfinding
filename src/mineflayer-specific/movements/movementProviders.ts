@@ -6,9 +6,21 @@ import { BreakHandler, PlaceHandler } from './interactionUtils'
 import { emptyVec } from '@nxg-org/mineflayer-physics-util/dist/physics/settings'
 import { MovementProvider } from './movementProvider'
 import { BlockInfo } from '../world/cacheWorld'
-import { COST_INF } from './costs'
+import {
+  COST_INF,
+  FALL_N_BLOCKS_COST,
+  JUMP_ONE_BLOCK_COST,
+  LADDER_UP_ONE_COST,
+  WALK_OFF_BLOCK_COST,
+  WALK_ONE_BLOCK_COST
+} from './costs'
 
 const PARKOUR_DIAGONAL_3_3_TRAVEL = Math.sqrt(18) // 3 by 3 offset.
+
+// Small fixed tick penalty for the "forward" parkour landing (running across a
+// gap onto a same-height block). It is slower than a clean jump-and-drop, so it
+// pays a little extra. Kept as a placeholder until per-frame parkour timing exists.
+const PARKOUR_FORWARD_LANDING_PENALTY = 3
 
 // technically, the offsets are slow. Yeah, I know.
 // However, removing those breaks the code. So I won't fix that for the time being. -Gen
@@ -36,7 +48,7 @@ export class Forward extends MovementProvider {
   getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
     const pos = start.cachedVec
 
-    let cost = 1 // move cost
+    let cost = this.travelCost(1) // sprint/walk one block forward
 
     if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
@@ -79,8 +91,6 @@ export class Forward extends MovementProvider {
 export class Diagonal extends MovementProvider {
   movementDirs = Movement.diagonalDirs
 
-  static diagonalCost = Math.SQRT2 // sqrt(2)
-
   provideMovements (start: Move, storage: Move[], goal: goals.Goal, closed: Set<string>): void {
     for (const dir of this.movementDirs) {
       const off = start.cachedVec.plus(dir).floor()
@@ -90,7 +100,7 @@ export class Diagonal extends MovementProvider {
   }
 
   getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
-    let cost = Diagonal.diagonalCost
+    let cost = this.travelCost(Math.SQRT2) // one diagonal block is sqrt(2) blocks of travel
 
     const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
 
@@ -174,7 +184,9 @@ export class ForwardJump extends MovementProvider {
     const blockH = this.getBlockInfo(pos, dir.x, 2, dir.z)
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z)
 
-    let cost = 1 + this.settings.jumpCost // move cost (move+jump)
+    // Jumping up one block: you move and rise at the same time, so the cost is
+    // the slower of "walk one block" and "the jump arc", not their sum.
+    let cost = Math.max(JUMP_ONE_BLOCK_COST, WALK_ONE_BLOCK_COST) + this.settings.jumpCost
 
     const block0 = this.getBlockInfo(pos, 0, 0, 0)
     if (block0.liquid) cost += this.settings.liquidCost
@@ -290,7 +302,7 @@ export class ForwardDropDown extends DropDownProvider {
   }
 
   getMoveDropDown (node: Move, dir: Vec3, neighbors: Move[], closed: Set<string>): void {
-    let cost = 1 // move cost
+    let cost = WALK_OFF_BLOCK_COST // step off the ledge
 
     const block0 = this.getBlockInfo(node, 0, 0, 0)
     const blockLand = this.getLandingBlock(block0, node, dir)
@@ -301,8 +313,8 @@ export class ForwardDropDown extends DropDownProvider {
 
     if (block0.liquid) cost += this.settings.liquidCost
 
-    // drop cost
-    cost += (node.y - blockLand.position.y) * 0.5
+    // ticks to fall the height we are dropping (whole blocks)
+    cost += FALL_N_BLOCKS_COST[node.y - blockLand.position.y]
 
     const blockA = this.getBlockInfo(node, dir.x, 2, dir.z)
     const blockB = this.getBlockInfo(node, dir.x, 1, dir.z)
@@ -342,7 +354,7 @@ export class StraightDown extends DropDownProvider {
   }
 
   getMoveDown (node: Move, neighbors: Move[], closed: Set<string>): void {
-    let cost = 1 // move cost
+    let cost = 0 // straight down has no horizontal travel; the fall below is the whole cost
     const block0 = this.getBlockInfo(node, 0, 0, 0)
 
     const blockLand = this.getLandingBlock(block0, node)
@@ -352,8 +364,8 @@ export class StraightDown extends DropDownProvider {
 
     if (block0.liquid) cost += this.settings.liquidCost // dont go underwater
 
-    // drop cost
-    cost += (node.y - blockLand.position.y) * 0.5
+    // ticks to fall the height we are dropping (whole blocks)
+    cost += FALL_N_BLOCKS_COST[node.y - blockLand.position.y]
 
     const block1 = this.getBlockInfo(node, 0, -1, 0)
 
@@ -381,11 +393,13 @@ export class StraightUp extends MovementProvider {
   }
 
   getMoveUp (node: Move, neighbors: Move[], closed: Set<string>): void {
-    let cost = this.settings.jumpCost // move cost
-
     const block1 = this.getBlockInfo(node, 0, 0, 0)
 
     if (block1.isInvalid) return // out of range.
+
+    // Climbing a ladder/vine has its own speed; otherwise we jump (and below we
+    // may also place a block to tower up, which adds its own place cost).
+    let cost = block1.climbable ? LADDER_UP_ONE_COST : JUMP_ONE_BLOCK_COST + this.settings.jumpCost
 
     if (block1.liquid) cost += this.settings.liquidCost
     // if (this.getNumEntitiesAt(node, 0, 0, 0) > 0) return // an entity (besides the player) is blocking the building area
@@ -450,7 +464,7 @@ export class ParkourForward extends MovementProvider {
       return
     }
 
-    const cost0 = 1 + this.settings.jumpCost // move cost (move+jump)
+    const cost0 = JUMP_ONE_BLOCK_COST + this.settings.jumpCost // the jump itself
 
     // Leaving entities at the ceiling level (along path) out for now because there are few cases where that will be important
     // cost += this.getNumEntitiesAt(node, dir.x, 0, dir.z) * this.entityCost
@@ -464,7 +478,7 @@ export class ParkourForward extends MovementProvider {
     const maxD = this.settings.allowSprinting ? 5 : 2
 
     for (let d = 2; d <= maxD; d++) {
-      let cost = cost0 + d * 0.5 // 0.5 per block forward
+      let cost = cost0 + this.travelCost(d) // jump plus sprinting across d blocks
       const dx = dir.x * d
       const dz = dir.z * d
 
@@ -495,7 +509,7 @@ export class ParkourForward extends MovementProvider {
         floorCleared = floorCleared && !blockE.physical
       } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical) {
         // Forward
-        cost += 3 // potential slowdown (will fix later.)
+        cost += PARKOUR_FORWARD_LANDING_PENALTY
         if ((cost += this.exclusionStep(blockC)) < COST_INF) {
           neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
         }
@@ -550,7 +564,7 @@ export class ParkourDiagonal extends MovementProvider {
     if (!this.getBlockInfo(node, dir.x, 1, 0).walkthrough) return
     if (!this.getBlockInfo(node, 0, 1, dir.z).walkthrough) return
 
-    const cost0 = Diagonal.diagonalCost + this.settings.jumpCost
+    const cost0 = JUMP_ONE_BLOCK_COST + this.settings.jumpCost // the jump itself
     const maxD = this.settings.allowSprinting ? 4 : 2
 
     // old behavior
@@ -586,7 +600,7 @@ export class ParkourDiagonal extends MovementProvider {
     const dz = dir.z * zSteps
 
     const travel = Math.sqrt(xSteps * xSteps + zSteps * zSteps)
-    let cost = cost0 + 0.5 * Diagonal.diagonalCost * travel
+    let cost = cost0 + this.travelCost(travel) // jump plus sprinting across the gap
     const majorIsX = xSteps > zSteps
     const majorIsZ = zSteps > xSteps
     const frontDx = dx - (majorIsX || xSteps === zSteps ? dir.x : 0)
@@ -629,7 +643,7 @@ export class ParkourDiagonal extends MovementProvider {
         return true
       }
     } else if (flag1 && ceilingClear && blockB.walkthrough && blockC.walkthrough && blockD.physical && blockFrontC.walkthrough) {
-      cost += 3
+      cost += PARKOUR_FORWARD_LANDING_PENALTY
       if ((cost += this.exclusionStep(blockC)) < COST_INF) {
         neighbors.push(Move.fromPrevious(cost, blockC.position.offset(0.5, 0, 0.5), node, this))
       }
