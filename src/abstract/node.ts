@@ -9,6 +9,11 @@ export class PathNode<Data extends PathData> {
   g = 0
   h = 0
 
+  // Current position in the open-set heap. Maintained by BinaryHeapOpenSet so
+  // that decrease-key (update) is O(log n) instead of an O(n) indexOf scan.
+  // -1 means "not in the heap".
+  heapIdx = -1
+
   get f (): number {
     return this.g + this.h
   }
@@ -41,6 +46,7 @@ export class CPathNode<Data extends PathData> implements PathNode<Data> {
   g: number
   h: number
   f: number
+  heapIdx = -1
 
   update (g: number, h: number, data: Data | null, parent: PathNode<Data> | null): this {
     this.g = g

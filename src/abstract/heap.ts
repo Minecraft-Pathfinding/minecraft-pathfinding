@@ -1,8 +1,18 @@
 import { PathData, PathNode } from './node'
 
+/**
+ * Min-heap (by node `f`) used as A*'s open set.
+ *
+ * The heap is 1-indexed (slot 0 is an unused sentinel) so a node at index `i`
+ * has children at `2i` and `2i + 1` and parent at `i >>> 1`.
+ *
+ * Every node remembers its own slot in `node.heapIdx`. That is the key detail:
+ * A* calls {@link update} a lot (decrease-key, whenever it finds a cheaper route
+ * to an already-open node), and tracking the index makes that O(log n) instead
+ * of an O(n) `indexOf` scan over the whole open set.
+ */
 export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> {
-  // Initialing the array heap and adding a dummy element at index 0
-  heap: N[] = [null] as any
+  private readonly heap: N[] = [null as unknown as N] // slot 0 is an unused sentinel
 
   size (): number {
     return this.heap.length - 1
@@ -13,67 +23,78 @@ export class BinaryHeapOpenSet<Data extends PathData, N extends PathNode<Data>> 
   }
 
   push (val: N): void {
-    // Inserting the new node at the end of the heap array
     this.heap.push(val)
-
-    // Finding the correct position for the new node
-    let current = this.heap.length - 1
-    let parent = current >>> 1
-
-    // Traversing up the parent node until the current node is greater than the parent
-    while (current > 1 && this.heap[parent].f > this.heap[current].f) {
-      [this.heap[parent], this.heap[current]] = [this.heap[current], this.heap[parent]]
-      current = parent
-      parent = current >>> 1
-    }
+    this.siftUp(this.heap.length - 1)
   }
 
+  /**
+   * Restore the heap order after `val`'s `f` has DECREASED (A* found a cheaper
+   * path to it). `val.heapIdx` tells us exactly where it sits, so we only need
+   * to bubble it up — no search required.
+   */
   update (val: N): void {
-    let current = this.heap.indexOf(val)
-    let parent = current >>> 1
-
-    // Traversing up the parent node until the current node is greater than the parent
-    while (current > 1 && this.heap[parent].f > this.heap[current].f) {
-      [this.heap[parent], this.heap[current]] = [this.heap[current], this.heap[parent]]
-      current = parent
-      parent = current >>> 1
-    }
+    this.siftUp(val.heapIdx)
   }
 
   pop (): N {
-    // Smallest element is at the index 1 in the heap array
-    const smallest = this.heap[1]
+    const heap = this.heap
+    const min = heap[1]
+    const last = heap.pop() as N // remove the final element
 
-    this.heap[1] = this.heap[this.heap.length - 1]
-    this.heap.splice(this.heap.length - 1)
+    // If `min` was the only element, `last === min` and the heap is now empty.
+    if (heap.length > 1) {
+      heap[1] = last
+      last.heapIdx = 1
+      this.siftDown(1)
+    }
 
-    const size = this.heap.length - 1
+    min.heapIdx = -1 // no longer in the heap
+    return min
+  }
 
-    if (size < 2) return smallest
+  /** Bubble the node at `i` toward the root until its parent is no larger. */
+  private siftUp (i: number): void {
+    const heap = this.heap
+    const node = heap[i]
+    const f = node.f
 
-    const val = this.heap[1]
-    let index = 1
-    let smallerChild = 2
-    const cost = val.f
-    do {
-      let smallerChildNode = this.heap[smallerChild]
-      if (smallerChild < size - 1) {
-        const rightChildNode = this.heap[smallerChild + 1]
-        if (smallerChildNode.f > rightChildNode.f) {
-          smallerChild++
-          smallerChildNode = rightChildNode
-        }
-      }
-      if (cost <= smallerChildNode.f) {
-        break
-      }
-      this.heap[index] = smallerChildNode
-      this.heap[smallerChild] = val
-      index = smallerChild
+    while (i > 1) {
+      const parentIdx = i >>> 1
+      const parent = heap[parentIdx]
+      if (parent.f <= f) break
+      heap[i] = parent
+      parent.heapIdx = i
+      i = parentIdx
+    }
 
-      smallerChild *= 2
-    } while (smallerChild <= size)
+    heap[i] = node
+    node.heapIdx = i
+  }
 
-    return smallest
+  /** Push the node at `i` toward the leaves until both children are no smaller. */
+  private siftDown (i: number): void {
+    const heap = this.heap
+    const size = heap.length - 1
+    const node = heap[i]
+    const f = node.f
+
+    while (true) {
+      let child = i << 1
+      if (child > size) break
+
+      // Pick the smaller of the two children. `child < size` guarantees the
+      // right child (`child + 1`) is a real slot before we read it.
+      if (child < size && heap[child + 1].f < heap[child].f) child++
+
+      const childNode = heap[child]
+      if (f <= childNode.f) break
+
+      heap[i] = childNode
+      childNode.heapIdx = i
+      i = child
+    }
+
+    heap[i] = node
+    node.heapIdx = i
   }
 }
