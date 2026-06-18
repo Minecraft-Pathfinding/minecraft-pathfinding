@@ -142,7 +142,12 @@ test('a hard step exclusion forces the bot to detour around a wall', async () =>
       )
     }
 
-    assert.ok(result.path.length > 21, `expected a detour longer than 21 moves, got ${result.path.length}`)
+    // The wall blocks z in [-3, 3] for x in [8, 12], so any valid path MUST swing
+    // out to |z| >= 4 to get around it. We assert that geometric fact rather than
+    // "more than 21 moves": diagonal moves absorb the sideways excursion, so an
+    // optimal detour can keep the same move count (it just costs more real time).
+    const maxAbsZ = Math.max(...result.path.map((node) => Math.abs(node.z)))
+    assert.ok(maxAbsZ >= 4, `expected the path to swing out to |z| >= 4 around the wall, got max |z| = ${maxAbsZ}`)
   } finally {
     rig.stopPassivePhysics()
   }
