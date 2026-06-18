@@ -1,7 +1,7 @@
 import { Vec3 } from 'vec3'
 import { Goal as AGoal } from '../abstract'
 import { Move } from './move'
-import { COST_HEURISTIC } from './movements/costs'
+import { COST_HEURISTIC, FALL_N_BLOCKS_COST, JUMP_ONE_BLOCK_COST } from './movements/costs'
 import { World } from './world/worldInterface'
 import { AABB } from '@nxg-org/mineflayer-util-plugin'
 import { PlaceHandler } from './movements/interactionUtils'
@@ -10,6 +10,53 @@ import { MovementExecutor } from './movements'
 import type { Block } from '../types'
 import { BotEvents } from 'mineflayer'
 import type { Entity } from 'prismarine-entity'
+
+// ===========================================================================
+// A* heuristic helpers.
+//
+// CREDIT: ported from Baritone (Leijurv & contributors,
+// https://github.com/cabaletta/baritone, LGPL-3.0) so our estimate has the same
+// shape as our real move costs (everything in game ticks):
+//   GoalXZ.calculate     -> heuristicXZ  (horizontal, "octile" distance)
+//   GoalYLevel.calculate -> heuristicY   (vertical: jump up / fall down)
+//
+// Splitting horizontal and vertical (instead of one 3D straight-line distance)
+// matches how the bot actually moves: it can only travel along the 8 compass
+// directions on the ground, and up/down is a separate jump or fall.
+//
+// NOTE: Baritone scales this by the SPRINT cost (admissible). We scale by the
+// WALK cost instead. See COST_HEURISTIC in costs.ts for the measured reason
+// (our heap has no tie-breaker, so the admissible version explores ~28x more).
+// ===========================================================================
+
+/**
+ * Horizontal part of the heuristic (Baritone `GoalXZ.calculate`).
+ *
+ * A horizontal trip is made of a diagonal run (along the shorter axis, where
+ * one step covers both x and z) plus a straight run for whatever is left over.
+ * A diagonal block is `sqrt(2)` blocks of travel. The whole thing is scaled by
+ * {@link COST_HEURISTIC} ticks per block.
+ */
+function heuristicXZ (dx: number, dz: number): number {
+  const x = Math.abs(dx)
+  const z = Math.abs(dz)
+  const diagonal = Math.min(x, z)
+  const straight = Math.max(x, z) - diagonal
+  return (diagonal * Math.SQRT2 + straight) * COST_HEURISTIC
+}
+
+/**
+ * Vertical part of the heuristic (Baritone `GoalYLevel.calculate`).
+ *
+ * `dy` is `goalY - nodeY`: positive means the goal is above us (we must climb,
+ * roughly one jump per block) and negative means it is below us (we fall, which
+ * is cheaper per block, about half of a 2-block fall).
+ */
+function heuristicY (dy: number): number {
+  if (dy > 0) return dy * JUMP_ONE_BLOCK_COST
+  if (dy < 0) return -dy * (FALL_N_BLOCKS_COST[2] / 2)
+  return 0
+}
 
 /**
  * The abstract goal definition used by the pathfinder.
@@ -279,13 +326,8 @@ export class GoalBlock extends Goal {
   }
 
   heuristic (node: Move): number {
-    // return 0;
-    const dx = this.x - node.x
-    const dy = this.y - node.y
-    const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
-    // return (Math.sqrt(dx * dx + dz * dz) + Math.abs(dy))
-    // return distanceXZ(dx, dz) + Math.abs(dy)
+    // Baritone-style: horizontal (octile) + vertical (jump up / fall down).
+    return heuristicXZ(this.x - node.x, this.z - node.z) + heuristicY(this.y - node.y)
   }
 
   distHeuristic (node: Move): number {
@@ -330,10 +372,7 @@ export class GoalNear extends Goal {
   }
 
   heuristic (node: Move): number {
-    const dx = this.x - node.x
-    const dy = this.y - node.y
-    const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
+    return heuristicXZ(this.x - node.x, this.z - node.z) + heuristicY(this.y - node.y)
   }
 
   distHeuristic (node: Move): number {
@@ -362,9 +401,7 @@ export class GoalNearXZ extends Goal {
   }
 
   heuristic (node: Move): number {
-    const dx = this.x - node.x
-    const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz) * COST_HEURISTIC
+    return heuristicXZ(this.x - node.x, this.z - node.z)
   }
 
   distHeuristic (node: Move): number {
@@ -416,10 +453,7 @@ export class GoalLookAt extends Goal {
   }
 
   heuristic (node: Move): number {
-    const dx = this.x - node.x
-    const dy = this.y - (node.y + this.eyeHeight) // eye level
-    const dz = this.z - node.z
-    return Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
+    return heuristicXZ(this.x - node.x, this.z - node.z) + heuristicY(this.y - (node.y + this.eyeHeight))
   }
 
   distHeuristic (node: Move): number {
@@ -556,11 +590,7 @@ export class GoalFollowEntity extends GoalDynamic<'entityMoved', 'entityGone'> {
   }
 
   heuristic (node: Move): number {
-    const dx = this.x - node.x
-    const dy = this.y - node.y
-    const dz = this.z - node.z
-
-    return Math.sqrt(dx * dx + dy * dy + dz * dz) * COST_HEURISTIC
+    return heuristicXZ(this.x - node.x, this.z - node.z) + heuristicY(this.y - node.y)
   }
 
   distHeuristic (node: Move): number {
