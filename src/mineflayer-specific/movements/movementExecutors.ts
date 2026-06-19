@@ -226,7 +226,13 @@ export class NewForwardExecutor extends MovementExecutor {
       this.stuckLastPos = null
     }
     const here = this.bot.entity.position
-    if (this.stuckLastPos != null && here.xzDistanceTo(this.stuckLastPos) < NewForwardExecutor.STUCK_MIN_STEP) {
+    // Mining/placing legitimately keeps the bot still, and a slow dig can outlast
+    // the stall window. An interaction in progress (this.cI != null) is NOT a
+    // movement stall — the allowExternalInfluence check above lets a reachable dig
+    // fall through to here — so don't count those ticks against the stall budget.
+    if (this.cI != null) {
+      this.stuckTicks = 0
+    } else if (this.stuckLastPos != null && here.xzDistanceTo(this.stuckLastPos) < NewForwardExecutor.STUCK_MIN_STEP) {
       this.stuckTicks++
     } else if (this.stuckTicks > 0) {
       this.stuckTicks-- // made progress: ease back out of unstick mode
