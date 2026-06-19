@@ -468,7 +468,10 @@ export class GoalLookAt extends Goal {
    * TODO: account for entity collision (prismarine-world currently does not support this).
    */
   isEnd (node: Move): boolean {
-    const dist = this.heuristic(node)
+    // Gate on real block distance, not the tick heuristic. heuristic() is now an
+    // octile+vertical TICK estimate (e.g. ~7.6 for a 1.3-block diagonal look),
+    // which would wrongly fail this `> distance + 3` check before the raycast.
+    const dist = this.distHeuristic(node)
 
     if (dist > this.distance + 3) return false
     const pos = new Vec3(node.x, node.y + this.eyeHeight, node.z)
