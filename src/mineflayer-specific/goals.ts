@@ -331,11 +331,14 @@ export class GoalBlock extends Goal {
   }
 
   distHeuristic (node: Move): number {
+    // Raw block distance (NOT ticks). The only consumer, PartialPathProducer's
+    // maxPathLength, compares this to a move COUNT, so it must match every other
+    // goal's distHeuristic (which all return raw blocks). The stray COST_HEURISTIC
+    // here inflated GoalBlock's partial-segment cap ~4.6x vs other goal types.
     const dx = this.x - node.x
     const dy = this.y - node.y
     const dz = this.z - node.z
-    const distance = Math.sqrt(dx * dx + dz * dz + dy * dy) * COST_HEURISTIC
-    return distance
+    return Math.sqrt(dx * dx + dz * dz + dy * dy)
   }
 
   isEnd (node: Move): boolean {
