@@ -259,13 +259,10 @@ export abstract class Movement {
   /**
    * Ticks to travel `blocks` blocks of flat ground.
    *
-   * On land the bot sprints when allowed (the fastest way to move), otherwise it
-   * walks. In water it can do neither, so it is priced at the (much slower) swim
-   * speed, which is why callers pass `inLiquid`. Pass `1` for one straight block,
-   * `Math.SQRT2` for one diagonal block, etc.
+   * The bot sprints when allowed (the fastest way to move), otherwise it walks.
+   * Pass `1` for one straight block, `Math.SQRT2` for one diagonal block, etc.
    */
-  travelCost (blocks: number, inLiquid = false): number {
-    if (inLiquid) return blocks * WALK_ONE_IN_WATER_COST
+  travelCost (blocks: number): number {
     return blocks * (this.settings.allowSprinting ? SPRINT_ONE_BLOCK_COST : WALK_ONE_BLOCK_COST)
   }
 
