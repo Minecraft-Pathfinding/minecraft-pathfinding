@@ -48,10 +48,9 @@ export class Forward extends MovementProvider {
   getMoveForward (start: Move, dir: Vec3, neighbors: Move[]): void {
     const pos = start.cachedVec
 
-    // In water the bot swims (no sprint/walk), so price the block at the water
-    // cost itself rather than land speed + a flat add (which undercharged it).
-    const inLiquid = this.getBlockInfo(pos, 0, 0, 0).liquid
-    let cost = this.travelCost(1, inLiquid)
+    let cost = this.travelCost(1) // sprint/walk one block forward
+
+    if (this.getBlockInfo(pos, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const blockC = this.getBlockInfo(pos, dir.x, 0, dir.z)
     if (blockC.isInvalid) return // out of range.
@@ -101,16 +100,15 @@ export class Diagonal extends MovementProvider {
   }
 
   getMoveDiagonal (node: Move, dir: Vec3, neighbors: Move[], goal: goals.Goal): void {
-    // In water the bot swims (no sprint/walk); price the diagonal at the water
-    // cost, which also scales with the sqrt(2) distance (a flat add did not).
-    const inLiquid = this.getBlockInfo(node, 0, 0, 0).liquid
-    let cost = this.travelCost(Math.SQRT2, inLiquid)
+    let cost = this.travelCost(Math.SQRT2) // one diagonal block is sqrt(2) blocks of travel
 
     const block0 = this.getBlockInfo(node, dir.x, 0, dir.z)
 
     if (block0.isInvalid) return // out of range.
 
     if (!block0.walkthrough) return
+
+    if (this.getBlockInfo(node, 0, 0, 0).liquid) cost += this.settings.liquidCost
 
     const toBreak: BreakHandler[] = []
     const toPlace: PlaceHandler[] = []
