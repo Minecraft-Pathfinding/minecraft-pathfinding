@@ -157,9 +157,7 @@ export class AStar<Data extends PathData, MProvider extends MovementProvider<Dat
           if (pastNeighborNode.h < this.bestNode.h) this.bestNode = pastNeighborNode
         }
 
-        // allow specific implementations to access visited and closed data.
-        this.addToClosedDataSet(node)
-
+  
         // found a new or better route.
         // update this neighbor with this node as its new parent
 
@@ -174,6 +172,10 @@ export class AStar<Data extends PathData, MProvider extends MovementProvider<Dat
         //   this.openHeap.push(neighborNode)
         // }
       }
+
+      // allow specific implementations to access visited and closed data.
+      this.addToClosedDataSet(node)
+
     }
     // all the neighbors of every accessible node have been exhausted
     return this.makeResult('noPath', this.bestNode)
