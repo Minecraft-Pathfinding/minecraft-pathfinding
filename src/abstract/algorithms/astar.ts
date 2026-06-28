@@ -326,10 +326,6 @@ export class AStarBackOff<Data extends PathData, MProv extends MovementProvider<
           this.openHeap.update(pastNeighborNode)
           this.assignBestNodes(pastNeighborNode)
         }
-
-        // allow specific implementations to access visited and closed data.
-        this.addToClosedDataSet(node)
-
         // found a new or better route.
         // update this neighbor with this node as its new parent
 
@@ -344,6 +340,10 @@ export class AStarBackOff<Data extends PathData, MProv extends MovementProvider<
         //   this.openHeap.push(neighborNode)
         // }
       }
+
+      // allow specific implementations to access visited and closed data.
+      this.addToClosedDataSet(node)
+
     }
     // all the neighbors of every accessible node have been exhausted
     return this.makeResult('noPath', this.getActualBestNode())
