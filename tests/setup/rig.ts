@@ -1,5 +1,5 @@
-import type { Bot } from 'mineflayer'
 import { Vec3 } from 'vec3'
+import type { Bot } from 'mineflayer'
 import { BotcraftPhysics } from '@nxg-org/mineflayer-physics-util/dist/physics/engines'
 import { ControlStateHandler } from '@nxg-org/mineflayer-physics-util/dist/physics/player'
 import { EPhysicsCtx } from '@nxg-org/mineflayer-physics-util/dist/physics/settings'
@@ -7,14 +7,13 @@ import { PlayerState } from '@nxg-org/mineflayer-physics-util/dist/physics/state
 import { applyMdToNewEntity } from '@nxg-org/mineflayer-physics-util/dist/util/physicsUtils'
 
 import { CacheSyncWorld } from '../../src/mineflayer-specific/world/cacheWorld'
-import type { World } from '../../src/mineflayer-specific/world/worldInterface'
-import { createFakePlayer } from './fake-player'
+import { createFakePlayer, type EventedMutableWorld } from './fake-player'
 import { createFlatWorld, FakeWorld, type FakeWorldOptions } from './fake-world'
 import { loadMcData } from './mc-data'
 
-const mineflayerPhysicsPlugin = require('mineflayer/lib/plugins/physics') as (bot: any, options?: { physicsEnabled?: boolean }) => void
+const mineflayerPhysicsPlugin = require('mineflayer/lib/plugins/physics') as any
 
-export function createPlayerRig(world: World, options: {
+export function createPlayerRig(world: EventedMutableWorld, options: {
   version: string
   position: Vec3
   groundLevel?: number
@@ -25,8 +24,10 @@ export function createPlayerRig(world: World, options: {
   const groundLevel = options.groundLevel ?? position.y
   const { mcData } = loadMcData(version)
 
-  const fakePlayer: any = createFakePlayer(version, mcData, world, position.clone(), groundLevel, options.username)
-  fakePlayer.entity = applyMdToNewEntity(EPhysicsCtx, mcData.entitiesByName.player, fakePlayer.entity)
+  const fakePlayer = createFakePlayer(version, mcData, world, position.clone(), groundLevel, options.username)
+  const metadataEntity = applyMdToNewEntity(EPhysicsCtx, mcData.entitiesByName.player)
+  fakePlayer.entity.name = metadataEntity.name
+  fakePlayer.entity.displayName = metadataEntity.displayName
   fakePlayer.entity.height = 1.8
   fakePlayer.entity.width = 0.6
 
@@ -46,14 +47,14 @@ export function createPlayerRig(world: World, options: {
   }
 
   const physics = new BotcraftPhysics(mcData)
-  const playerCtx = EPhysicsCtx.FROM_BOT(physics, fakePlayer as Bot)
+  const playerCtx = EPhysicsCtx.FROM_BOT(physics, fakePlayer as unknown as Bot)
   const playerState = playerCtx.state as PlayerState
   playerState.control = ControlStateHandler.DEFAULT()
 
   return {
     mcData,
     fakePlayer,
-    bot: fakePlayer as Bot,
+    bot: fakePlayer,
     physics,
     playerCtx,
     playerState,
@@ -72,7 +73,7 @@ export type CreateCacheWorldOptions = Omit<FakeWorldOptions, 'center'> & {
 export function createCacheWorld(version: string, floorY: number, position: Vec3, options: CreateCacheWorldOptions = {}) {
   const world = options.world ?? createFlatWorld(version, floorY, { ...options, center: position })
   const rig = createPlayerRig(world, { version, position, groundLevel: floorY, trackRenderDistance: options.trackRenderDistance })
-  const cacheWorld = new CacheSyncWorld(rig.bot, world as any)
+  const cacheWorld = new CacheSyncWorld(rig.bot as Bot, world as any)
 
   return {
     world,

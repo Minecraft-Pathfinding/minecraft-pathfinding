@@ -34,18 +34,19 @@ Legend:
 - [x] `waitForTicks` - installed by `physics.js` via [`tests/setup.ts`](./setup.ts)
 - [x] `whisper` - implemented in [`tests/setup.ts`](./setup.ts)
 
-## Bot methods the pathfinder calls but the fake rig still does not implement
+## Bot methods the pathfinder calls and the fake rig now implements
 
-- [ ] `equip` - called from [`src/mineflayer-specific/goals.ts`](../src/mineflayer-specific/goals.ts) and [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `unequip` - called from [`src/mineflayer-specific/goals.ts`](../src/mineflayer-specific/goals.ts) and [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `updateHeldItem` - called from [`src/mineflayer-specific/goals.ts`](../src/mineflayer-specific/goals.ts) and [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `activateItem` - called from [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `dig` - called from [`src/mineflayer-specific/goals.ts`](../src/mineflayer-specific/goals.ts) and [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `stopDigging` - called from [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
-- [ ] `blockAtCursor` - called from [`src/mineflayer-specific/movements/movementExecutor.ts`](../src/mineflayer-specific/movements/movementExecutor.ts)
-- [ ] `_placeBlockWithOptions` - called from [`src/mineflayer-specific/movements/interactionUtils.ts`](../src/mineflayer-specific/movements/interactionUtils.ts)
+- [x] `equip` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `unequip` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `updateHeldItem` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `activateItem` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `dig` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `stopDigging` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `blockAtCursor` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `_placeBlockWithOptions` - implemented in [`tests/setup.ts`](./setup.ts)
+- [x] `digTime` - implemented in [`tests/setup.ts`](./setup.ts) to support tool-sensitive dig duration
 
 ## Notes
 
 - The fake rig already uses the real pathfinder-facing event surface through `EventEmitter`, so event subscription and emission are covered.
-- If any of the missing methods become required by a test or by a new code path, they should be added to [`tests/setup.ts`](./setup.ts) with the smallest useful behavior for simulation.
+- Digging is intentionally tick-count based: the fake rig respects the block's `digTime` converted to Minecraft ticks, but completion depends on emitted `physicsTick` events instead of wall-clock timers.
