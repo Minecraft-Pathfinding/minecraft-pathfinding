@@ -46,4 +46,14 @@ Examples will be added as the project undergoes more development.
 | --- | --- |
 | [API](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/API.md) | The documentation with the available methods and properties. |
 | [Advanced Usage](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/AdvancedUsage.md) | The documentation with the advanced usage of the pathfinder, including the customization of goals and movements. |
+| [Movement Costs](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/MovementCosts.md) | How move costs and the A\* heuristic work (tick-based, credited to Baritone). |
 | [Examples](https://github.com/GenerelSchwerz/minecraft-pathfinding/tree/main/examples) | The folder with the examples. |
+
+<h3 align="center">Credits</h3>
+
+-----
+
+The movement **cost constants** and the A\* **heuristic shape** are taken from
+[Baritone](https://github.com/cabaletta/baritone), the Minecraft pathfinding mod
+by Leijurv and contributors (LGPL-3.0). See its `ActionCosts`, `GoalXZ` and
+`GoalYLevel`. Details, and where we deliberately differ, are in [Movement Costs](https://github.com/GenerelSchwerz/minecraft-pathfinding/blob/main/docs/MovementCosts.md).
