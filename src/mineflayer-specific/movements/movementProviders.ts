@@ -14,6 +14,7 @@ import {
   WALK_OFF_BLOCK_COST,
   WALK_ONE_BLOCK_COST
 } from './costs'
+export { ElytraMovementProvider } from './elytra/elytra-movement-provider'
 
 const PARKOUR_DIAGONAL_3_3_TRAVEL = Math.sqrt(18) // 3 by 3 offset.
 

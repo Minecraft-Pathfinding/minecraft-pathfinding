@@ -26,6 +26,7 @@ import {
   Forward,
   ForwardDropDown,
   ForwardJump,
+  ElytraMovementProvider,
   IdleMovement,
   StraightDown,
   StraightUp
@@ -37,12 +38,14 @@ import {
   ForwardDropDownExecutor,
   NewForwardExecutor,
   NewForwardJumpExecutor,
+  ElytraExecutor,
   StraightDownExecutor,
   StraightUpExecutor,
   IdleMovementExecutor
 } from './mineflayer-specific/movements/movementExecutors'
 import { DropDownOpt, ForwardJumpUpOpt, LandStraightAheadOpt } from './mineflayer-specific/post/optimizers'
 import type { BuildableMoveOptimizer, OptimizationMap } from './mineflayer-specific/post'
+import { ElytraOptimizer } from './mineflayer-specific/post/elytra-optimizer'
 import { MovementOptimizer, OptimizationRegistry, Optimizer } from './mineflayer-specific/post'
 import { ContinuousPathProducer, PartialPathProducer } from './mineflayer-specific/pathProducers'
 import type { Block, ResetReason } from './types'
@@ -72,6 +75,7 @@ const DEFAULT_PATHFINDER_OPTS: PathfinderOptions = {
 const EMPTY_VEC = new Vec3(0, 0, 0)
 
 const DEFAULT_PROVIDER_EXECUTORS = [
+  [ElytraMovementProvider, ElytraExecutor],
   [Forward, NewForwardExecutor],
   [ForwardJump, NewForwardJumpExecutor],
   [ForwardDropDown, ForwardDropDownExecutor],
@@ -85,6 +89,7 @@ const DEFAULT_PROVIDER_EXECUTORS = [
 DEFAULT_PROVIDER_EXECUTORS.reverse()
 
 const DEFAULT_OPTIMIZERS = [
+  [ElytraMovementProvider, ElytraOptimizer],
   [Forward, LandStraightAheadOpt],
   [Diagonal, LandStraightAheadOpt],
   [ForwardDropDown, DropDownOpt],

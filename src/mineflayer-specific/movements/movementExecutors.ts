@@ -12,6 +12,7 @@ import { ControlStateHandler, EPhysicsCtx } from '@nxg-org/mineflayer-physics-ut
 import { printBotControls } from '../../utils'
 import type { Block, RayType } from '../../types'
 import { botSmartMovement, botStrafeMovement } from './controls'
+export { ElytraExecutor } from './elytra/elytra-executor'
 
 const debug = require('debug')
 const logIdle = debug('minecraft-pathfinding:movementExecutors:Idle')
