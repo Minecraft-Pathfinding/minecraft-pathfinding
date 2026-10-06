@@ -35,6 +35,16 @@ export class IdleMovementExecutor extends MovementExecutor {
 }
 
 export class NewForwardExecutor extends MovementExecutor {
+  // Stall guard state: how many ticks in a row the bot has barely moved, and the
+  // position we last measured from. Used to detect being wedged against a block
+  // corner (see performPerTick) so the path executor can replan instead of
+  // grinding forever. Number of "no progress" ticks before we give up.
+  private stuckTicks = 0
+  private stuckLastPos: Vec3 | null = null
+  private static readonly STUCK_UNSTICK_AT = 12 // ticks of no progress before we try to unstick
+  private static readonly STUCK_TICK_LIMIT = 40 // ticks of no progress before we give up and replan
+  private static readonly STUCK_MIN_STEP = 0.05 // XZ blocks/tick below which we count as "no progress"
+
   protected isComplete (startMove: Move, endMove?: Move, opts?: CompleteOpts): boolean {
     return super.isComplete(startMove, endMove, { ticks: 2 })
   }
@@ -199,6 +209,49 @@ export class NewForwardExecutor extends MovementExecutor {
     ) {
       // console.log(this.bot.entity.position, thisMove.entryPos)
       throw new CancelError(`ForwardMove: not on ground. Target pos: ${thisMove.exitPos}, us: ${this.bot.entity.position}`)
+    }
+
+    // Stall guard. Walking along a wall, the bot can wedge its hitbox against a
+    // block corner: it keeps pressing forward (mostly along the path, into the
+    // wall) and stops moving. Mining/placing returned above, so reaching here
+    // means we expect to be travelling.
+    //
+    // When we notice no XZ progress, first try to UNSTICK: aim straight at the
+    // centre of the target block and stop sprinting. Slowing down and steering
+    // at the centre adds the sideways push needed to slide off the corner,
+    // instead of ramming the wall. Only if that fails for a whole second do we
+    // give up with a CancelError so the path executor can replan from here.
+    if (tickCount === 0) {
+      this.stuckTicks = 0
+      this.stuckLastPos = null
+    }
+    const here = this.bot.entity.position
+    // Mining/placing legitimately keeps the bot still, and a slow dig can outlast
+    // the stall window. An interaction in progress (this.cI != null) is NOT a
+    // movement stall — the allowExternalInfluence check above lets a reachable dig
+    // fall through to here — so don't count those ticks against the stall budget.
+    if (this.cI != null) {
+      this.stuckTicks = 0
+    } else if (this.stuckLastPos != null && here.xzDistanceTo(this.stuckLastPos) < NewForwardExecutor.STUCK_MIN_STEP) {
+      this.stuckTicks++
+    } else if (this.stuckTicks > 0) {
+      this.stuckTicks-- // made progress: ease back out of unstick mode
+    }
+    this.stuckLastPos = here.clone()
+
+    if (this.stuckTicks >= NewForwardExecutor.STUCK_TICK_LIMIT) {
+      this.stuckTicks = 0
+      this.stuckLastPos = null
+      throw new CancelError(`ForwardMove: stuck (no progress) near ${thisMove.exitPos}`)
+    }
+
+    if (this.stuckTicks >= NewForwardExecutor.STUCK_UNSTICK_AT) {
+      const centre = thisMove.exitPos.floored().translate(0.5, 0, 0.5)
+      this.bot.setControlState('jump', false)
+      this.bot.setControlState('sprint', false)
+      botSmartMovement(this.bot, centre, false)
+      botStrafeMovement(this.bot, centre)
+      return this.isComplete(thisMove)
     }
 
     const faceForward = await this.faceForward()
